@@ -1,0 +1,13 @@
+target
+deploy
+
+# ctags stuff
+.tags
+.tags_sorted_by_file
+.flooignore
+.floo
+.sublime-project
+
+# idea crap
+*.iml
+.idea/
