@@ -64,6 +64,8 @@ extends Reactive[T] with Reactive.StandardSource[T] with Value[T] {
     new Changed
   }
 
+  // TODO diffs
+
   def zip[@spec(Int, Long, Double) S, @spec(Int, Long, Double) R](that: Signal[S])(f: (T, S) => R): Signal[R] with Reactive.Subscription = {
     class Zip extends Signal[R] with Reactive.ProxySubscription {
       zipped =>

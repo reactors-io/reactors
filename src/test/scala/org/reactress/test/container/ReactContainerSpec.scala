@@ -1,5 +1,5 @@
 package org.reactress
-package container
+package test.container
 
 
 
@@ -27,7 +27,7 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
 
   it should "be mapped into a different container" in {
     val numbers = new ReactSet[Int]
-    val mapped = numbers.map(2 * _).forcedTo[ReactSet[Int]]
+    val mapped = numbers.map(2 * _).to[ReactSet[Int]]
 
     mapped.size should equal (0)
 

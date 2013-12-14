@@ -15,6 +15,7 @@ trait ReactContainer[@spec(Int, Long, Double) T, Repr <: ReactContainer[T, Repr]
 
   def adjustBuilder[S, That](b: ReactBuilder[S, That]) {}
 
+  // TODO fix - reactAll
   def resizes: Signal[Int] with Reactive.Subscription = {
     new Signal[Int] with Reactive.ProxySubscription {
       private var value = 0
@@ -30,7 +31,7 @@ trait ReactContainer[@spec(Int, Long, Double) T, Repr <: ReactContainer[T, Repr]
     new ReactContainer.Fold(this, z, op)
   }
 
-  def forcedTo[That <: ReactContainer[T, That]](implicit factory: ReactBuilder.Factory[_, T, That]): That = {
+  def to[That <: ReactContainer[T, That]](implicit factory: ReactBuilder.Factory[_, T, That]): That = {
     val builder = factory(this)
     val result = builder.result
 
@@ -44,8 +45,9 @@ trait ReactContainer[@spec(Int, Long, Double) T, Repr <: ReactContainer[T, Repr]
     result
   }
 
-  def forced[That <: ReactContainer[T, That]](implicit factory: ReactBuilder.Factory[Repr, T, That]): That = forcedTo(factory)
+  def forced[That <: ReactContainer[T, That]](implicit factory: ReactBuilder.Factory[Repr, T, That]): That = to(factory)
 
+  // TODO fix this to val!
   def map[@spec(Int, Long, Double) S, That <: ReactContainer[S, That]](f: T => S)(implicit rs: ReactBuilder.Factory[Repr, S, That]): ReactContainer[S, That] = new ReactContainer[S, That] {
     def inserts = self.inserts.map(f)
     def removes = self.removes.map(f)
@@ -60,6 +62,9 @@ trait ReactContainer[@spec(Int, Long, Double) T, Repr <: ReactContainer[T, Repr]
     def inserts = self.inserts.collect(f)
     def removes = self.removes.collect(f)
   }
+
+  // TODO ++
+
 }
 
 

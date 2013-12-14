@@ -49,6 +49,10 @@ package object reactress {
 
   val ReactMap = container.ReactMap
 
+  // TODO reactive sorted set
+
+  // TODO reactive sequence
+
   type ReactContainer[T, Repr <: ReactContainer[T, Repr]] = container.ReactContainer[T, Repr]
 
   val ReactContainer = container.ReactContainer

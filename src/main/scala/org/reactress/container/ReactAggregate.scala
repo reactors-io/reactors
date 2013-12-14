@@ -78,6 +78,8 @@ object ReactAggregate {
     def create() = new ReactAggregate[T](cm.zero)(cm.operator)
   }
 
+  // TODO refactor to couple aggregates more tightly
+
   class Tree[@spec(Int, Long, Double) T, V <: Value[T]](val zero: T)(val op: (T, T) => T, val onTick: () => Unit, val subscribe: V => Reactive.Subscription) {
     private[reactress] var _root: Node[T] = null
     private[reactress] var leaves: mutable.Map[Value[T], (Leaf[T], Reactive.Subscription)] = null
@@ -166,7 +168,7 @@ object ReactAggregate {
           if (isLeft) parent.left = right
           else parent.right = right
           right.parent = parent
-          parent.fix(op)
+          parent.fix(op) // TODO error! remove this
         }
       } else if (right == null) {
         if (parent == null) {
@@ -176,7 +178,7 @@ object ReactAggregate {
           if (isLeft) parent.left = left
           else parent.right = left
           left.parent = parent
-          parent.fix(op)
+          parent.fix(op) // TODO error! remove this
         }
       } else {
         // check if unbalanced
@@ -231,6 +233,7 @@ object ReactAggregate {
           }
         }
 
+        // TODO fix this too
         // update height
         height = heightOf(left, right)
 

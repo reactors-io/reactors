@@ -165,6 +165,8 @@ class ReactMap[@spec(Int, Long) K, V](
     math.abs(scala.util.hashing.byteswap32(hc)) % keytable.length
   }
 
+  // TODO reactive apply
+
   def apply(key: K): V = lookup(key) match {
     case `emptyVal`.nil => throw new NoSuchElementException("key: " + key)
     case v => v

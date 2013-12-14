@@ -44,10 +44,12 @@ trait Reactive[@spec(Int, Long, Double) T] {
     new Fold
   }
 
-  def mutation[S](z: S)(op: (S, T) => Unit): Signal[S] with Reactive.Subscription = foldPast(z) { (_, value) =>
+  def mutate[M](z: M)(op: (M, T) => Unit): Signal[M] with Reactive.Subscription = foldPast(z) { (_, value) =>
     op(z, value)
     z
   }
+
+  // TODO mutate for mutable signals
 
   def signal(z: T) = foldPast(z) {
     (cached, value) => value
@@ -67,6 +69,14 @@ trait Reactive[@spec(Int, Long, Double) T] {
 
     new Update
   }
+
+  // TODO union
+
+  // TODO concat
+
+  // TODO after
+
+  // TODO before
 
   def filter(p: T => Boolean): Reactive[T] with Reactive.Subscription = {
     new Reactive.Default[T] with Reactor[T] with Reactive.ProxySubscription {
@@ -113,6 +123,10 @@ trait Reactive[@spec(Int, Long, Double) T] {
     new Reactive.Mux[T, S](this, evidence)
   }
 
+  // TODO union
+
+  // TODO concat
+
 }
 
 
@@ -158,6 +172,8 @@ object Reactive {
 
   def Never[T] = NeverImpl.asInstanceOf[Reactive[T]]
 
+  // TODO Amb
+
   trait Subscription {
     def unsubscribe(): Unit
   }
@@ -194,15 +210,21 @@ object Reactive {
 
   trait Source[T] extends Reactive[T] {
     private val reactors = mutable.ArrayBuffer[Reactor[T]]()
+    // private val reactors = new Array[Reactor[T]](8) // TODO fix
+    // private var len = 0
     def onReaction(reactor: Reactor[T]) = {
       reactors += reactor
+      //reactors(len) = reactor
+      //len += 1
       new Subscription {
+        //def unsubscribe() = {}
         def unsubscribe() = reactors -= reactor
       }
     }
     protected def reactAll(value: T) {
       var i = 0
       while (i < reactors.length) {
+      //while (i < len) {
         reactors(i).react(value)
         i += 1
       }
@@ -210,6 +232,7 @@ object Reactive {
     protected def unreactAll() {
       var i = 0
       while (i < reactors.length) {
+      //while (i < len) {
         reactors(i).unreact()
         i += 1
       }
@@ -256,12 +279,12 @@ object Reactive {
 
     override protected def reactAll(value: T) {
       super.reactAll(value)
-      weak.reactAll(value)
+      //weak.reactAll(value) TODO
     }
 
     override protected def unreactAll() {
       super.unreactAll()
-      weak.unreactAll()
+      //weak.unreactAll() TODO
     }
 
     override def hasSubscriptions = super.hasSubscriptions || weak.hasSubscriptions
