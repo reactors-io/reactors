@@ -9,7 +9,7 @@ import scala.reflect.ClassTag
 
 class ReactSet[@spec(Int, Long) T](
   implicit val emptyElem: ReactSet.Empty[T]
-) extends ReactContainer[T, ReactSet[T]] with ReactBuilder[T, ReactSet[T]] {
+) extends ReactContainer[T] with ReactBuilder[T, ReactSet[T]] {
   self =>
 
   private var table: Array[T] = null
@@ -43,7 +43,7 @@ class ReactSet[@spec(Int, Long) T](
     this
   }
 
-  def result = self
+  def container = self
 
   private def lookup(k: T): Boolean = {
     var pos = index(k)
@@ -204,7 +204,7 @@ object ReactSet {
     def newEmptyArray(sz: Int) = Array.fill[Int](sz)(nil)
   }
 
-  implicit def factory[@spec(Int, Long) S: Empty] = new ReactBuilder.Factory[ReactSet[_], S, ReactSet[S]] {
+  implicit def factory[@spec(Int, Long) S: Empty] = new ReactBuilder.Factory[S, ReactSet[S]] {
     def create() = new ReactSet[S]
   }
 

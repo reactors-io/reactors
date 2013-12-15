@@ -6,7 +6,7 @@ package org.reactress
 
 
 trait Signal[@spec(Int, Long, Double) T]
-extends Reactive[T] with Reactive.StandardSource[T] with Value[T] {
+extends Reactive[T] with Reactive.Default[T] with Value[T] {
   self =>
 
   override def map[@spec(Int, Long, Double) S](f: T => S): Signal[S] with Reactive.Subscription = {
@@ -111,10 +111,10 @@ object Signal {
 
   def Constant[@spec(Int, Long, Double) T](value: T) = new Constant(value)
 
-  class Mutable[T <: AnyRef](private val m: T)
-  extends Signal[T] with Reactive.MutableSetSubscription {
+  final class Mutable[T <: AnyRef](private val m: T)
+  extends Signal[T] with Reactive.SubscriptionSet {
     def apply() = m
-    def onUpdated() = reactAll(m)
+    override def onMutated() = reactAll(m)
   }
 
   def Mutable[T <: AnyRef](v: T) = new Mutable[T](v)

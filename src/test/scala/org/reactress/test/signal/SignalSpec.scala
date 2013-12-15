@@ -128,6 +128,39 @@ class SignalSpec extends FlatSpec with ShouldMatchers {
     assert(ints() == 60)
   }
 
+  class Cell(var x: Int = 0)
+
+  it should "mutate" in {
+    val ms = Signal.Mutable(new Cell)
+    val vals = ms.map(_.x).signal(0)
+    val e = new ReactCell[Int](0)
+    e.mutate(ms) {
+      _().x = _
+    }
+
+    e := 1
+    assert(vals() == 1)
+    e := 2
+    assert(vals() == 2)
+  }
+
+  "A signal tuple" should "mutate" in {
+    val ms = Signal.Mutable(new Cell)
+    val vals = ms.map(_.x).signal(0)
+    val e1 = new ReactCell[Int](0)
+    val e2 = new ReactCell[Int](0)
+    (e1 zip e2)(_ + _).mutate(ms) {
+      _().x = _
+    }
+
+    e1 := 1
+    assert(vals() == 1)
+    e2 := 2
+    assert(vals() == 3)
+    e1 := 3
+    assert(vals() == 5)
+  }
+
 }
 
 

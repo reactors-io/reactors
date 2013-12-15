@@ -6,7 +6,7 @@ package container
 
 
 
-trait ReactContainer[@spec(Int, Long, Double) T, Repr <: ReactContainer[T, Repr]] extends Reactive.MutableSetSubscription {
+trait ReactContainer[@spec(Int, Long, Double) T] extends ReactMutable {
   self =>
 
   def inserts: Reactive[T]
@@ -27,57 +27,58 @@ trait ReactContainer[@spec(Int, Long, Double) T, Repr <: ReactContainer[T, Repr]
     }
   }
 
-  def fold(z: T)(op: (T, T) => T): Signal[T] with Reactive.Subscription = {
-    new ReactContainer.Fold(this, z, op)
+  def aggregate(z: T)(op: (T, T) => T): Signal[T] with Reactive.Subscription = {
+    new ReactContainer.Aggregate(this, z, op)
   }
 
-  def to[That <: ReactContainer[T, That]](implicit factory: ReactBuilder.Factory[_, T, That]): That = {
+  def to[That <: ReactContainer[T]](implicit factory: ReactBuilder.Factory[T, That]): That = {
     val builder = factory(this)
-    val result = builder.result
+    val result = builder.container
 
-    inserts.update(result) {
-      builder += _
+    inserts.mutate(builder) {
+      _ += _
     }
-    removes.update(result) {
-      builder -= _
+    removes.mutate(builder) {
+      _ -= _
     }
 
     result
   }
 
-  def forced[That <: ReactContainer[T, That]](implicit factory: ReactBuilder.Factory[Repr, T, That]): That = to(factory)
-
   // TODO fix this to val!
-  def map[@spec(Int, Long, Double) S, That <: ReactContainer[S, That]](f: T => S)(implicit rs: ReactBuilder.Factory[Repr, S, That]): ReactContainer[S, That] = new ReactContainer[S, That] {
-    def inserts = self.inserts.map(f)
-    def removes = self.removes.map(f)
-  }
+  def map[@spec(Int, Long, Double) S](f: T => S): ReactContainer[S] =
+    new ReactContainer.Map[T, S](self, f)
 
-  def filter[That <: ReactContainer[T, That]](p: T => Boolean)(implicit rs: ReactBuilder.Factory[Repr, T, That]): ReactContainer[T, That] = new ReactContainer[T, That] {
-    def inserts = self.inserts.filter(p)
-    def removes = self.removes.filter(p)
-  }
+  def filter(p: T => Boolean): ReactContainer[T] =
+    new ReactContainer.Filter[T](self, p)
 
-  def collect[@spec(Int, Long, Double) S, That <: ReactContainer[S, That]](f: PartialFunction[T, S])(implicit rs: ReactBuilder.Factory[Repr, S, That]): ReactContainer[S, That] = new ReactContainer[S, That] {
-    def inserts = self.inserts.collect(f)
-    def removes = self.removes.collect(f)
-  }
-
-  // TODO ++
+  // TODO union
 
 }
 
 
 object ReactContainer {
 
-  class Fold[@spec(Int, Long, Double) T, Repr <: ReactContainer[T, Repr]](val container: ReactContainer[T, Repr], val z: T, val op: (T, T) => T)
+  class Map[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](self: ReactContainer[T], f: T => S)
+  extends ReactContainer[S] {
+    val inserts = self.inserts.map(f)
+    val removes = self.removes.map(f)
+  }
+
+  class Filter[@spec(Int, Long, Double) T](self: ReactContainer[T], p: T => Boolean)
+  extends ReactContainer[T] {
+    val inserts = self.inserts.filter(p)
+    val removes = self.removes.filter(p)
+  }
+
+  class Aggregate[@spec(Int, Long, Double) T](val container: ReactContainer[T], val z: T, val op: (T, T) => T)
   extends Signal[T] with Reactive.ProxySubscription {
     folded =>
     var tree: ReactAggregate.Tree[T, Value[T]] = _
     var subscription: Reactive.Subscription = _
 
     def init(z: T) {
-      tree = new ReactAggregate.Tree[T, Value[T]](z)(op, () => onTick(z), v => Reactive.Subscription.Zero)
+      tree = new ReactAggregate.Tree[T, Value[T]](z)(op, () => onTick(z), v => Reactive.Subscription.empty)
       subscription = Reactive.CompositeSubscription(
         container.inserts onValue { v => tree += new Value.Default(v) },
         container.removes onValue { v => tree -= new Value.Default(v) }

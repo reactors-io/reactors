@@ -10,7 +10,7 @@ import scala.reflect.ClassTag
 class ReactMap[@spec(Int, Long) K, V](
   implicit val emptyKey: ReactMap.Empty[K],
   implicit val emptyVal: ReactMap.Empty[V]
-) extends ReactContainer[(K, V), ReactMap[K, V]] with ReactBuilder[(K, V), ReactMap[K, V]] {
+) extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
   private var keytable: Array[K] = null
   private var valtable: Array[V] = emptyVal.newEmptyArray(ReactMap.initSize)
   private var sz = 0
@@ -43,7 +43,7 @@ class ReactMap[@spec(Int, Long) K, V](
     this
   }
 
-  def result = this
+  def container = this
 
   def foreach[U](f: (K, V) => U) {
     var i = 0
@@ -245,7 +245,7 @@ object ReactMap {
     def newEmptyArray(sz: Int) = Array.fill[Int](sz)(nil)
   }
 
-  implicit def factory[@spec(Int, Long) K: Empty, @spec(Int, Long) V: Empty] = new ReactBuilder.Factory[ReactMap[_, _], (K, V), ReactMap[K, V]] {
+  implicit def factory[@spec(Int, Long) K: Empty, @spec(Int, Long) V: Empty] = new ReactBuilder.Factory[(K, V), ReactMap[K, V]] {
     def create() = new ReactMap[K, V]
   }
 }

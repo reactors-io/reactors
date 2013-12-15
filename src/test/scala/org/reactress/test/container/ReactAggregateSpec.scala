@@ -109,7 +109,7 @@ class ReactAggregateSpec extends FlatSpec with ShouldMatchers {
   }
 
   "ReactAggregate.Tree" should "be balanced" in {
-    val tree = new ReactAggregate.Tree[Int, Value[Int]](0)(_ + _, () => {}, v => Reactive.Subscription.Zero)
+    val tree = new ReactAggregate.Tree[Int, Value[Int]](0)(_ + _, () => {}, v => Reactive.Subscription.empty)
 
     for (i <- 0 until 10) tree += new Value[Int] {
       def apply() = i

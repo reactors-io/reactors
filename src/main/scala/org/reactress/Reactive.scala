@@ -44,30 +44,21 @@ trait Reactive[@spec(Int, Long, Double) T] {
     new Fold
   }
 
-  def mutate[M](z: M)(op: (M, T) => Unit): Signal[M] with Reactive.Subscription = foldPast(z) { (_, value) =>
-    op(z, value)
-    z
-  }
-
-  // TODO mutate for mutable signals
-
   def signal(z: T) = foldPast(z) {
     (cached, value) => value
   }
 
-  def update[M <: Reactive.MutableSetSubscription](mutable: M)(f: T => Unit): Signal[M] with Reactive.Subscription = {
-    class Update extends Signal[M] with Reactor[T] with Reactive.ProxySubscription {
-      def apply() = mutable
-      def react(value: T) {
-        f(value)
+  def mutate[M <: ReactMutable](mutable: M)(mutation: (M, T) => Unit): Reactive.Subscription = {
+    class Mutate extends Reactor[T] with Reactive.ProxySubscription {
+      def react(value: T) = {
+        mutation(mutable, value)
+        mutable.onMutated()
       }
-      def unreact() {
-      }
-      val subscription = self onReaction this
-      mutable add subscription
+      def unreact() {}
+      val subscription = mutable.bindSubscription(self onReaction this)
     }
 
-    new Update
+    new Mutate
   }
 
   // TODO union
@@ -76,48 +67,21 @@ trait Reactive[@spec(Int, Long, Double) T] {
 
   // TODO after
 
-  // TODO before
+  // TODO until
 
   def filter(p: T => Boolean): Reactive[T] with Reactive.Subscription = {
-    new Reactive.Default[T] with Reactor[T] with Reactive.ProxySubscription {
-      def react(value: T) {
-        if (p(value)) reactAll(value)
-      }
-      def unreact() {
-        unreactAll()
-      }
-      val subscription = self onReaction this
-    }
+    val rf = new Reactive.Filter[T](self, p)
+    rf.subscription = self onReaction rf
+    rf
   }
 
   def map[@spec(Int, Long, Double) S](f: T => S): Reactive[S] with Reactive.Subscription = {
-    class Map extends Reactive.Default[S] with Reactor[T] with Reactive.ProxySubscription {
-      def react(value: T) {
-        reactAll(f(value))
-      }
-      def unreact() {
-        unreactAll()
-      }
-      val subscription = self onReaction this
-    }
-
-    new Map
+    val rm = new Reactive.Map[T, S](self, f)
+    rm.subscription = self onReaction rm
+    rm
   }
 
-  def collect[@spec(Int, Long, Double) S](pf: PartialFunction[T, S]): Reactive[S] with Reactive.Subscription = {
-    class Collect extends Reactive.Default[S] with Reactor[T] with Reactive.ProxySubscription {
-      val collector = pf.runWith(v => reactAll(v))
-      def react(value: T) {
-        collector(value)
-      }
-      def unreact() {
-        unreactAll()
-      }
-      val subscription = self onReaction this
-    }
-
-    new Collect
-  }
+  /* higher-order combinators */
 
   def mux[@spec(Int, Long, Double) S](implicit evidence: T <:< Reactive[S]): Reactive[S] = {
     new Reactive.Mux[T, S](this, evidence)
@@ -132,10 +96,32 @@ trait Reactive[@spec(Int, Long, Double) T] {
 
 object Reactive {
 
+  class Filter[@spec(Int, Long, Double) T](val self: Reactive[T], val p: T => Boolean)
+  extends Reactive.Default[T] with Reactor[T] with Reactive.ProxySubscription {
+    def react(value: T) {
+      if (p(value)) reactAll(value)
+    }
+    def unreact() {
+      unreactAll()
+    }
+    var subscription = Subscription.empty
+  }
+
+  class Map[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](val self: Reactive[T], val f: T => S)
+  extends Reactive.Default[S] with Reactor[T] with Reactive.ProxySubscription {
+    def react(value: T) {
+      reactAll(f(value))
+    }
+    def unreact() {
+      unreactAll()
+    }
+    var subscription = Subscription.empty
+  }
+
   class Mux[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](val self: Reactive[T], val evidence: T <:< Reactive[S])
   extends Reactive.Default[S] with Reactor[T] with Reactive.ProxySubscription {
     muxed =>
-    private[reactress] var currentSubscription: Reactive.Subscription = Reactive.Subscription.Zero
+    private[reactress] var currentSubscription: Reactive.Subscription = Reactive.Subscription.empty
     private[reactress] var currentTerminated = true
     private[reactress] var terminated = false
     def checkTerminate() = if (terminated && currentTerminated) muxed.unreactAll()
@@ -179,20 +165,26 @@ object Reactive {
   }
 
   object Subscription {
-    val Zero = new Subscription {
+    val empty = new Subscription {
       def unsubscribe() {}
     }
   }
 
-  trait MutableSetSubscription extends Subscription {
+  trait SubscriptionSet extends ReactMutable {
     val subscriptions = mutable.Set[Subscription]()
 
-    def unsubscribe() {
+    def clearSubscriptions() {
       for (s <- subscriptions) s.unsubscribe()
       subscriptions.clear()
     }
-
-    def add(s: Subscription) = subscriptions += s
+    
+    override def bindSubscription(s: Reactive.Subscription) = new Subscription {
+      subscriptions += this
+      def unsubscribe() {
+        s.unsubscribe()
+        subscriptions -= this
+      }
+    }
   }
 
   trait ProxySubscription extends Subscription {
@@ -208,46 +200,14 @@ object Reactive {
     }
   }
 
-  trait Source[T] extends Reactive[T] {
-    private val reactors = mutable.ArrayBuffer[Reactor[T]]()
-    // private val reactors = new Array[Reactor[T]](8) // TODO fix
-    // private var len = 0
-    def onReaction(reactor: Reactor[T]) = {
-      reactors += reactor
-      //reactors(len) = reactor
-      //len += 1
-      new Subscription {
-        //def unsubscribe() = {}
-        def unsubscribe() = reactors -= reactor
-      }
-    }
-    protected def reactAll(value: T) {
-      var i = 0
-      while (i < reactors.length) {
-      //while (i < len) {
-        reactors(i).react(value)
-        i += 1
-      }
-    }
-    protected def unreactAll() {
-      var i = 0
-      while (i < reactors.length) {
-      //while (i < len) {
-        reactors(i).unreact()
-        i += 1
-      }
-    }
-    def hasSubscriptions: Boolean = reactors.size > 0
-  }
-
-  trait WeakSource[T] extends Reactive[T] with WeakHashTable[Reactor[T]] {
+  trait WeakSource[@spec(Int, Long, Double) T] extends Reactive[T] with WeakHashTable[Reactor[T]] {
     def onReaction(reactor: Reactor[T]) = {
       addEntry(reactor)
       new Subscription {
         def unsubscribe() = removeEntry(reactor)
       }
     }
-    protected def reactAll(value: T) {
+    def reactAll(value: T) {
       var i = 0
       while (i < table.length) {
         val ref = table(i)
@@ -258,7 +218,7 @@ object Reactive {
         i += 1
       }
     }
-    protected def unreactAll() {
+    def unreactAll() {
       var i = 0
       while (i < table.length) {
         val ref = table(i)
@@ -274,27 +234,40 @@ object Reactive {
     def hasSubscriptions = size > 0
   }
 
-  trait StandardSource[T] extends Source[T] {
-    val weak: Reactive[T] = new Reactive[T] with WeakSource[T]
-
-    override protected def reactAll(value: T) {
-      super.reactAll(value)
-      //weak.reactAll(value) TODO
+  trait Default[@spec(Int, Long, Double) T] extends Reactive[T] {
+    private val reactors = mutable.ArrayBuffer[Reactor[T]]()
+    // private val reactors = new Array[Reactor[T]](8) // TODO fix
+    // private var len = 0
+    def onReaction(reactor: Reactor[T]) = {
+      reactors += reactor
+      //reactors(len) = reactor
+      //len += 1
+      new Subscription {
+        //def unsubscribe() = {}
+        def unsubscribe() = reactors -= reactor
+      }
     }
-
-    override protected def unreactAll() {
-      super.unreactAll()
-      //weak.unreactAll() TODO
+    def reactAll(value: T) {
+      var i = 0
+      while (i < reactors.length) {
+      //while (i < len) {
+        reactors(i).react(value)
+        i += 1
+      }
     }
-
-    override def hasSubscriptions = super.hasSubscriptions || weak.hasSubscriptions
+    def unreactAll() {
+      var i = 0
+      while (i < reactors.length) {
+      //while (i < len) {
+        reactors(i).unreact()
+        i += 1
+      }
+    }
+    def hasSubscriptions: Boolean = reactors.size > 0
   }
 
-  trait Default[@spec(Int, Long, Double) T]
-  extends Reactive[T] with StandardSource[T]
-
   class Emitter[@spec(Int, Long, Double) T]
-  extends Reactive[T] with StandardSource[T] {
+  extends Reactive[T] with Default[T] {
     def +=(value: T) {
       reactAll(value)
     }

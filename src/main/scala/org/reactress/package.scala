@@ -5,7 +5,7 @@ package org
 
 
 
-package object reactress {
+package object reactress extends ReactiveApi {
 
   type spec = specialized
 
@@ -53,102 +53,13 @@ package object reactress {
 
   // TODO reactive sequence
 
-  type ReactContainer[T, Repr <: ReactContainer[T, Repr]] = container.ReactContainer[T, Repr]
+  type ReactContainer[T] = container.ReactContainer[T]
 
   val ReactContainer = container.ReactContainer
 
   type ReactBuilder[T, Repr] = container.ReactBuilder[T, Repr]
 
   val ReactBuilder = container.ReactBuilder
-
-  implicit class Tuple2Extensions[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](val tuple: (Signal[T], Signal[S])) {
-    def update[M](mutable: M)(f: (T, S) => Unit) = Tuple2Extensions.update(tuple, mutable, f)
-  }
-
-  object Tuple2Extensions {
-    def update[@spec(Int, Double) T, @spec(Int, Double) S, @spec(Int, Double) M](tuple: (Signal[T], Signal[S]), mutable: M, f: (T, S) => Unit) = {
-      class Update extends Reactive.ProxySubscription {
-        def update[R](r: Reactive[R]) = new Reactor[R] {
-          def react(value: R) {
-            f(tuple._1(), tuple._2())
-          }
-          def unreact() {
-          }
-        }
-        val m1 = update(tuple._1)
-        val m2 = update(tuple._2)
-        val subscription = Reactive.CompositeSubscription(
-          tuple._1.onReaction(m1),
-          tuple._2.onReaction(m2)
-        )
-      }
-
-      new Update
-    }
-  }
-
-  implicit class Tuple3Extensions[T, S, R](val tuple: (Signal[T], Signal[S], Signal[R])) extends AnyVal {
-    def update[M](mutable: M)(f: (T, S, R) => Unit) = Tuple3Extensions.update(tuple, mutable, f)
-  }
-
-  object Tuple3Extensions {
-    def update[T, S, R, M](tuple: (Signal[T], Signal[S], Signal[R]), mutable: M, f: (T, S, R) => Unit) = {
-      class Update extends Reactive.ProxySubscription {
-        def update[R](r: Reactive[R]) = new Reactor[R] {
-          def react(value: R) {
-            f(tuple._1(), tuple._2(), tuple._3())
-          }
-          def unreact() {
-          }
-        }
-        val m1 = update(tuple._1)
-        val m2 = update(tuple._2)
-        val m3 = update(tuple._3)
-        val subscription = Reactive.CompositeSubscription(
-          tuple._1.onReaction(m1),
-          tuple._2.onReaction(m2),
-          tuple._3.onReaction(m3)
-        )
-      }
-
-      new Update
-    }
-  }
-
-  implicit class Tuple4Extensions[P, Q, R, S](val tuple: (Signal[P], Signal[Q], Signal[R], Signal[S])) extends AnyVal {
-    def update[M](mutable: M)(f: (P, Q, R, S) => Unit) = Tuple4Extensions.update(tuple, mutable, f)
-  }
-
-  object Tuple4Extensions {
-    def update[P, Q, R, S, M](tuple: (Signal[P], Signal[Q], Signal[R], Signal[S]), mutable: M, f: (P, Q, R, S) => Unit) = {
-      class Update extends Reactive.ProxySubscription {
-        def update[R](r: Reactive[R]) = new Reactor[R] {
-          def react(value: R) {
-            f(tuple._1(), tuple._2(), tuple._3(), tuple._4())
-          }
-          def unreact() {
-          }
-        }
-        val m1 = update(tuple._1)
-        val m2 = update(tuple._2)
-        val m3 = update(tuple._3)
-        val m4 = update(tuple._4)
-        val subscription = Reactive.CompositeSubscription(
-          tuple._1.onReaction(m1),
-          tuple._2.onReaction(m2),
-          tuple._3.onReaction(m3),
-          tuple._4.onReaction(m4)
-        )
-      }
-
-      new Update
-    }
-  }
-
-  @inline def mutate[M <: AnyRef](ms: Signal.Mutable[M])(f: M => Unit) {
-    f(ms())
-    ms.onUpdated()
-  }
 
   trait CommuteMonoid[@spec(Int, Long, Double) T] {
     def zero: T

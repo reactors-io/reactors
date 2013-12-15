@@ -8,7 +8,7 @@ import scala.collection._
 
 
 class ReactAggregate[@spec(Int, Long, Double) T](val zero: T)(private val op: (T, T) => T)
-extends Signal[T] with ReactContainer[Signal[T], ReactAggregate[T]] with ReactBuilder[Signal[T], ReactAggregate[T]] {
+extends Signal[T] with ReactContainer[Signal[T]] with ReactBuilder[Signal[T], ReactAggregate[T]] {
   private var tree: ReactAggregate.Tree[T, Signal[T]] = null
   private var insertsEmitter: Reactive.Emitter[Signal[T]] = null
   private var removesEmitter: Reactive.Emitter[Signal[T]] = null
@@ -27,7 +27,7 @@ extends Signal[T] with ReactContainer[Signal[T], ReactAggregate[T]] with ReactBu
 
   def builder: ReactBuilder[Signal[T], ReactAggregate[T]] = this
 
-  def result = this
+  def container = this
 
   private def onTick() {
     reactAll(apply())
@@ -74,7 +74,7 @@ object ReactAggregate {
 
   def apply[@spec(Int, Long, Double) T]()(implicit cm: CommuteMonoid[T]) = new ReactAggregate(cm.zero)(cm.operator)
 
-  implicit def factory[@spec(Int, Long, Double) T](implicit cm: CommuteMonoid[T]) = new ReactBuilder.Factory[ReactAggregate[_], Signal[T], ReactAggregate[T]] {
+  implicit def factory[@spec(Int, Long, Double) T](implicit cm: CommuteMonoid[T]) = new ReactBuilder.Factory[Signal[T], ReactAggregate[T]] {
     def create() = new ReactAggregate[T](cm.zero)(cm.operator)
   }
 

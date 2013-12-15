@@ -11,7 +11,7 @@ class ReactTileMap[@spec(Int, Long, Double) T: ClassTag](
   private[reactress] var sz: Int,
   private[reactress] val dflt: T,
   private[reactress] val compress: Boolean = true
-) extends ReactContainer[(Int, Int, T), ReactTileMap[T]] with ReactBuilder[(Int, Int, T), ReactTileMap[T]] {
+) extends ReactContainer[(Int, Int, T)] with ReactBuilder[(Int, Int, T), ReactTileMap[T]] {
   self =>
 
   import ReactTileMap._
@@ -67,7 +67,7 @@ class ReactTileMap[@spec(Int, Long, Double) T: ClassTag](
     this
   }
 
-  def result = this
+  def container = this
   
   def updates: Reactive[XY] = {
     checkRoot(dflt)
@@ -235,7 +235,7 @@ object ReactTileMap {
 
   def apply[@spec(Int, Long, Double) T: ClassTag](size: Int, default: T) = new ReactTileMap[T](size, default)
 
-  implicit def factory[@spec(Int, Long, Double) S](implicit d: Default[S], ct: ClassTag[S]) = new ReactBuilder.Factory[ReactTileMap[_], (Int, Int, S), ReactTileMap[S]] {
+  implicit def factory[@spec(Int, Long, Double) S](implicit d: Default[S], ct: ClassTag[S]) = new ReactBuilder.Factory[(Int, Int, S), ReactTileMap[S]] {
     def create() = new ReactTileMap[S](1, d())
   }
 

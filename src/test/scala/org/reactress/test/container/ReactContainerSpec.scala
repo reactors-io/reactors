@@ -10,9 +10,11 @@ import org.scalatest.matchers.ShouldMatchers
 
 class ReactContainerSpec extends FlatSpec with ShouldMatchers {
 
-  "A ReactContainer" should "map" in {
+  "A ReactContainer" should "map" in { map() }
+
+  def map() {
     val numbers = new ReactSet[Long]
-    val mapped = numbers.map(-_).forced
+    val mapped = numbers.map(-_).to[ReactSet[Long]]
     
     mapped.size should equal (0)
 
@@ -39,7 +41,7 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
 
   it should "filter" in {
     val numbers = new ReactSet[Int]
-    val filtered = numbers.filter(_ % 2 == 0).forced
+    val filtered = numbers.filter(_ % 2 == 0).to[ReactSet[Int]]
 
     filtered.size should equal (0)
 
@@ -47,21 +49,9 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
     for (n <- 0 until 20) filtered(n) should equal (n % 2 == 0)
   }
 
-  it should "collect" in {
-    val numbers = new ReactSet[Int]
-    val collected = numbers collect {
-      case x if x % 2 == 0 => x
-    } forced
-
-    collected.size should equal (0)
-
-    for (n <- 0 until 20) numbers += n
-    for (n <- 0 until 20) collected(n) should equal (n % 2 == 0)
-  }
-
   it should "aggregate" in {
     val numbers = new ReactSet[Int]
-    val sum = numbers.fold(0)(_ + _).signal(0)
+    val sum = numbers.aggregate(0)(_ + _).signal(0)
 
     sum() should equal (0)
 
