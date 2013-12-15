@@ -21,14 +21,14 @@ trait ReactContainer[@spec(Int, Long, Double) T] extends ReactMutable {
       private var value = 0
       def apply() = value
       val subscription = Reactive.CompositeSubscription(
-        inserts onTick { value += 1 },
-        removes onTick { value -= 1 }
+        inserts onTick { value += 1; reactAll(value) },
+        removes onTick { value -= 1; reactAll(value) }
       )
     }
   }
 
-  def aggregate(z: T)(op: (T, T) => T): Signal[T] with Reactive.Subscription = {
-    new ReactContainer.Aggregate(this, z, op)
+  def aggregate(implicit canAggregate: ReactContainer.CanAggregate[T]): Signal[T] with Reactive.Subscription = {
+    canAggregate.apply(this)
   }
 
   def to[That <: ReactContainer[T]](implicit factory: ReactBuilder.Factory[T, That]): That = {
@@ -45,7 +45,6 @@ trait ReactContainer[@spec(Int, Long, Double) T] extends ReactMutable {
     result
   }
 
-  // TODO fix this to val!
   def map[@spec(Int, Long, Double) S](f: T => S): ReactContainer[S] =
     new ReactContainer.Map[T, S](self, f)
 
@@ -71,9 +70,52 @@ object ReactContainer {
     val removes = self.removes.filter(p)
   }
 
+  trait CanAggregate[@spec(Int, Long, Double) T] {
+    def apply(c: ReactContainer[T]): Signal[T] with Reactive.Subscription
+  }
+
+  implicit def canAggregateMonoid[@spec(Int, Long, Double) T](implicit m: Monoid[T]) = new CanAggregate[T] {
+    def apply(c: ReactContainer[T]) = new Aggregate[T](c, m.zero, m.operator)
+  }
+
+  implicit def monoidToCanAggregate[@spec(Int, Long, Double) T](m: Monoid[T]) = canAggregateMonoid(m)
+
+  implicit def canAggregateCommutoid[@spec(Int, Long, Double) T](implicit m: Commutoid[T]) = new CanAggregate[T] {
+    def apply(c: ReactContainer[T]) = new Commute[T](c, m.zero, m.operator)
+  }
+
+  implicit def commutoidToCanAggregate[@spec(Int, Long, Double) T](m: Commutoid[T]) = canAggregateCommutoid(m)
+
+  implicit def canAggregateGroup[@spec(Int, Long, Double) T](implicit m: Group[T]) = new CanAggregate[T] {
+    def apply(c: ReactContainer[T]) = new AggregateUndo[T](c, m.zero, m.operator, m.inverse)
+  }
+
+  implicit def groupToCanAggregate[@spec(Int, Long, Double) T](g: Group[T]) = canAggregateGroup(g)
+
   class Aggregate[@spec(Int, Long, Double) T](val container: ReactContainer[T], val z: T, val op: (T, T) => T)
   extends Signal[T] with Reactive.ProxySubscription {
-    folded =>
+    agregated =>
+    var tree: ReactCommuteAggregate.Tree[T, Value[T]] = _ // TODO change with regular aggregate tree
+    var subscription: Reactive.Subscription = _
+
+    def init(z: T) {
+      tree = new ReactCommuteAggregate.Tree[T, Value[T]](z)(op, () => onTick(z), v => Reactive.Subscription.empty)
+      subscription = Reactive.CompositeSubscription(
+        container.inserts onValue { v => tree += new Value.Default(v) },
+        container.removes onValue { v => tree -= new Value.Default(v) }
+      )
+    }
+
+    init(z)
+
+    def apply() = tree.root.value
+
+    def onTick(z: T) = reactAll(tree.root.value)
+  }
+
+  class Commute[@spec(Int, Long, Double) T](val container: ReactContainer[T], val z: T, val op: (T, T) => T)
+  extends Signal[T] with Reactive.ProxySubscription {
+    commuted =>
     var tree: ReactCommuteAggregate.Tree[T, Value[T]] = _
     var subscription: Reactive.Subscription = _
 
@@ -92,5 +134,15 @@ object ReactContainer {
     def onTick(z: T) = reactAll(tree.root.value)
   }
 
+  class AggregateUndo[@spec(Int, Long, Double) T](val container: ReactContainer[T], val z: T, val op: (T, T) => T, val inv: (T, T) => T)
+  extends Signal[T] with Reactive.ProxySubscription {
+    aggregated =>
+    private var value = z
+    def apply() = value
+    val subscription = Reactive.CompositeSubscription(
+      container.inserts onValue { x => value = op(value, x) },
+      container.removes onValue { x => value = inv(value, x) }
+    )
+  }
 
 }

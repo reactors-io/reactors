@@ -61,10 +61,19 @@ package object reactress extends ReactiveApi {
 
   val ReactBuilder = container.ReactBuilder
 
-  trait CommuteMonoid[@spec(Int, Long, Double) T] {
-    def zero: T
-    def operator: (T, T) => T
-  }
+  /* algebra */
+
+  type Monoid[T] = algebra.Monoid[T]
+
+  val Monoid = algebra.Monoid
+
+  type Commutoid[T] = algebra.Commutoid[T]
+
+  val Commutoid = algebra.Commutoid
+
+  type Group[T] = algebra.Group[T]
+
+  val Group = algebra.Group
 
   trait Foreach[@spec(Int, Long, Double) T] {
     def foreach[U](f: T => U): Unit

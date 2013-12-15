@@ -51,13 +51,26 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
 
   it should "aggregate" in {
     val numbers = new ReactSet[Int]
-    val sum = numbers.aggregate(0)(_ + _).signal(0)
+    val sum = numbers.aggregate(Commutoid(0)(_ + _))
 
     sum() should equal (0)
 
     for (n <- 1 until 20) {
       numbers += n
       sum() should equal (n * (n + 1) / 2)
+    }
+  }
+
+  it should "aggregate using a typeclass" in {
+    import algebra.structure.setUnion
+    val numbers = new ReactSet[Set[Int]]
+    val union = numbers.aggregate
+
+    union() should equal (Set())
+
+    for (n <- 1 until 20) {
+      numbers += Set(n)
+      union() should equal (Set() ++ (1 to n))
     }
   }
 

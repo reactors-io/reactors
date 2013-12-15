@@ -72,9 +72,9 @@ extends Signal[T] with ReactContainer[Signal[T]] with ReactBuilder[Signal[T], Re
 object ReactCommuteAggregate {
   def by[@spec(Int, Long, Double) T](zero: T)(op: (T, T) => T) = new ReactCommuteAggregate[T](zero)(op)
 
-  def apply[@spec(Int, Long, Double) T]()(implicit cm: CommuteMonoid[T]) = new ReactCommuteAggregate(cm.zero)(cm.operator)
+  def apply[@spec(Int, Long, Double) T]()(implicit cm: Commutoid[T]) = new ReactCommuteAggregate(cm.zero)(cm.operator)
 
-  implicit def factory[@spec(Int, Long, Double) T](implicit cm: CommuteMonoid[T]) = new ReactBuilder.Factory[Signal[T], ReactCommuteAggregate[T]] {
+  implicit def factory[@spec(Int, Long, Double) T](implicit cm: Commutoid[T]) = new ReactBuilder.Factory[Signal[T], ReactCommuteAggregate[T]] {
     def create() = new ReactCommuteAggregate[T](cm.zero)(cm.operator)
   }
 
