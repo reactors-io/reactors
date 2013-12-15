@@ -33,9 +33,9 @@ package object reactress extends ReactiveApi {
 
   val ReactCell = container.ReactCell
 
-  type ReactAggregate[T] = container.ReactAggregate[T]
+  type ReactCommuteAggregate[T] = container.ReactCommuteAggregate[T]
 
-  val ReactAggregate = container.ReactAggregate
+  val ReactCommuteAggregate = container.ReactCommuteAggregate
 
   type ReactTileMap[T] = container.ReactTileMap[T]
 

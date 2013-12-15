@@ -65,14 +65,14 @@ class RxReactBench extends PerformanceTest.Regression {
     }
   }
 
-  performance of "ReactAggregate" config(
+  performance of "ReactCommuteAggregate" config(
     exec.minWarmupRuns -> 50,
     exec.maxWarmupRuns -> 100,
     exec.benchRuns -> 30,
     exec.independentSamples -> 1
   ) in {
     using(aggregateSizes) curve("Reactress-O(logn)") in { sz =>
-      val aggregate = new ReactAggregate[Int](0)(_ + _)
+      val aggregate = new ReactCommuteAggregate[Int](0)(_ + _)
       val signals = (for (i <- 0 until sz) yield new ReactCell(i)).toArray
       for (s <- signals) aggregate += s
       

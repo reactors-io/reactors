@@ -74,11 +74,11 @@ object ReactContainer {
   class Aggregate[@spec(Int, Long, Double) T](val container: ReactContainer[T], val z: T, val op: (T, T) => T)
   extends Signal[T] with Reactive.ProxySubscription {
     folded =>
-    var tree: ReactAggregate.Tree[T, Value[T]] = _
+    var tree: ReactCommuteAggregate.Tree[T, Value[T]] = _
     var subscription: Reactive.Subscription = _
 
     def init(z: T) {
-      tree = new ReactAggregate.Tree[T, Value[T]](z)(op, () => onTick(z), v => Reactive.Subscription.empty)
+      tree = new ReactCommuteAggregate.Tree[T, Value[T]](z)(op, () => onTick(z), v => Reactive.Subscription.empty)
       subscription = Reactive.CompositeSubscription(
         container.inserts onValue { v => tree += new Value.Default(v) },
         container.removes onValue { v => tree -= new Value.Default(v) }

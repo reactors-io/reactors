@@ -7,14 +7,14 @@ import scala.collection._
 
 
 
-class ReactAggregate[@spec(Int, Long, Double) T](val zero: T)(private val op: (T, T) => T)
-extends Signal[T] with ReactContainer[Signal[T]] with ReactBuilder[Signal[T], ReactAggregate[T]] {
-  private var tree: ReactAggregate.Tree[T, Signal[T]] = null
+class ReactCommuteAggregate[@spec(Int, Long, Double) T](val zero: T)(private val op: (T, T) => T)
+extends Signal[T] with ReactContainer[Signal[T]] with ReactBuilder[Signal[T], ReactCommuteAggregate[T]] {
+  private var tree: ReactCommuteAggregate.Tree[T, Signal[T]] = null
   private var insertsEmitter: Reactive.Emitter[Signal[T]] = null
   private var removesEmitter: Reactive.Emitter[Signal[T]] = null
 
   def init(z: T) {
-    tree = new ReactAggregate.Tree(zero)(op, onTick, {
+    tree = new ReactCommuteAggregate.Tree(zero)(op, onTick, {
       s => s onTick {
         tree.pushUp(s)
       }
@@ -25,7 +25,7 @@ extends Signal[T] with ReactContainer[Signal[T]] with ReactBuilder[Signal[T], Re
 
   init(zero)
 
-  def builder: ReactBuilder[Signal[T], ReactAggregate[T]] = this
+  def builder: ReactBuilder[Signal[T], ReactCommuteAggregate[T]] = this
 
   def container = this
 
@@ -65,17 +65,17 @@ extends Signal[T] with ReactContainer[Signal[T]] with ReactBuilder[Signal[T], Re
 
   def removes: Reactive[Signal[T]] = removesEmitter
 
-  override def toString = s"ReactAggregate(${apply()})"
+  override def toString = s"ReactCommuteAggregate(${apply()})"
 }
 
 
-object ReactAggregate {
-  def by[@spec(Int, Long, Double) T](zero: T)(op: (T, T) => T) = new ReactAggregate[T](zero)(op)
+object ReactCommuteAggregate {
+  def by[@spec(Int, Long, Double) T](zero: T)(op: (T, T) => T) = new ReactCommuteAggregate[T](zero)(op)
 
-  def apply[@spec(Int, Long, Double) T]()(implicit cm: CommuteMonoid[T]) = new ReactAggregate(cm.zero)(cm.operator)
+  def apply[@spec(Int, Long, Double) T]()(implicit cm: CommuteMonoid[T]) = new ReactCommuteAggregate(cm.zero)(cm.operator)
 
-  implicit def factory[@spec(Int, Long, Double) T](implicit cm: CommuteMonoid[T]) = new ReactBuilder.Factory[Signal[T], ReactAggregate[T]] {
-    def create() = new ReactAggregate[T](cm.zero)(cm.operator)
+  implicit def factory[@spec(Int, Long, Double) T](implicit cm: CommuteMonoid[T]) = new ReactBuilder.Factory[Signal[T], ReactCommuteAggregate[T]] {
+    def create() = new ReactCommuteAggregate[T](cm.zero)(cm.operator)
   }
 
   // TODO refactor to couple aggregates more tightly
@@ -129,6 +129,7 @@ object ReactAggregate {
     def parent_=(p: Inner[T]): Unit
     def refresh(op: (T, T) => T): Unit
     def insert(leaf: Leaf[T], op: (T, T) => T): Node[T]
+    def housekeep(op: (T, T) => T) {}
     def toString(indent: Int): String
     override def toString = toString(0)
   }
@@ -143,6 +144,13 @@ object ReactAggregate {
       if (parent != null) parent.refresh(op)
     }
     private def heightOf(l: Node[T], r: Node[T]) = 1 + math.max(l.height, r.height)
+    override def housekeep(op: (T, T) => T) {
+      // update height
+      height = heightOf(left, right)
+
+      // update value
+      value = op(left.value, right.value)
+    }
     def insert(leaf: Leaf[T], op: (T, T) => T): Node[T] = {
       if (left.height < right.height) {
         left = left.insert(leaf, op)
@@ -168,7 +176,7 @@ object ReactAggregate {
           if (isLeft) parent.left = right
           else parent.right = right
           right.parent = parent
-          parent.fix(op) // TODO error! remove this
+          parent.fix(op)
         }
       } else if (right == null) {
         if (parent == null) {
@@ -178,7 +186,7 @@ object ReactAggregate {
           if (isLeft) parent.left = left
           else parent.right = left
           left.parent = parent
-          parent.fix(op) // TODO error! remove this
+          parent.fix(op)
         }
       } else {
         // check if unbalanced
@@ -233,12 +241,7 @@ object ReactAggregate {
           }
         }
 
-        // TODO fix this too
-        // update height
-        height = heightOf(left, right)
-
-        // update value
-        value = op(left.value, right.value)
+        housekeep(op)
 
         if (parent != null) parent.fix(op)
         else this
