@@ -44,8 +44,18 @@ trait Reactive[@spec(Int, Long, Double) T] {
     new Fold
   }
 
-  def signal(z: T) = foldPast(z) {
+  def signal(init: T) = foldPast(init) {
     (cached, value) => value
+  }
+
+  def asSignalOrElse(init: T) = this match {
+    case s: Signal[T] => s
+    case _ => this.signal(init)
+  }
+
+  def asSignal = this match {
+    case s: Signal[T] => s
+    case _ => throw new UnsupportedOperationException("This is not a signal.")
   }
 
   def mutate[M <: ReactMutable](mutable: M)(mutation: (M, T) => Unit): Reactive.Subscription = {
