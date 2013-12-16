@@ -6,11 +6,13 @@ package org.reactress
 
 
 trait Signal[@spec(Int, Long, Double) T]
-extends Reactive[T] with Reactive.Default[T] with Value[T] {
+extends Reactive[T] {
   self =>
 
+  def apply(): T
+
   override def map[@spec(Int, Long, Double) S](f: T => S): Signal[S] with Reactive.Subscription = {
-    class Map extends Signal[S] with Reactor[T] with Reactive.ProxySubscription {
+    class Map extends Signal.Default[S] with Reactor[T] with Reactive.ProxySubscription {
       private var cached = f(self.apply)
       def apply() = cached
       def react(value: T) {
@@ -28,7 +30,7 @@ extends Reactive[T] with Reactive.Default[T] with Value[T] {
 
   def reducePast(op: (T, T) => T): Signal[T] with Reactive.Subscription = {
     val initial = this()
-    class Reduce extends Signal[T] with Reactor[T] with Reactive.ProxySubscription {
+    class Reduce extends Signal.Default[T] with Reactor[T] with Reactive.ProxySubscription {
       private var cached = initial
       def apply() = cached
       def react(value: T) {
@@ -48,7 +50,7 @@ extends Reactive[T] with Reactive.Default[T] with Value[T] {
 
   def changed: Signal[T] with Reactive.Subscription = {
     val initial = this()
-    class Changed extends Signal[T] with Reactor[T] with Reactive.ProxySubscription {
+    class Changed extends Signal.Default[T] with Reactor[T] with Reactive.ProxySubscription {
       private var cached = initial
       def apply() = cached
       def react(value: T) {
@@ -67,7 +69,7 @@ extends Reactive[T] with Reactive.Default[T] with Value[T] {
   // TODO diffs
 
   def zip[@spec(Int, Long, Double) S, @spec(Int, Long, Double) R](that: Signal[S])(f: (T, S) => R): Signal[R] with Reactive.Subscription = {
-    class Zip extends Signal[R] with Reactive.ProxySubscription {
+    class Zip extends Signal.Default[R] with Reactive.ProxySubscription {
       zipped =>
       private[reactress] var cached = f(self(), that())
       private[reactress] var left = 2
@@ -104,15 +106,27 @@ extends Reactive[T] with Reactive.Default[T] with Value[T] {
 
 object Signal {
 
+  trait Default[@spec(Int, Long, Double) T] extends Signal[T] with Reactive.Default[T]
+
   class Constant[@spec(Int, Long, Double) T](private val value: T)
-  extends Signal[T] {
+  extends Signal[T] with Reactive.Never[T] {
     def apply() = value
   }
 
   def Constant[@spec(Int, Long, Double) T](value: T) = new Constant(value)
 
+  trait Proxy[@spec(Int, Long, Double) T]
+  extends Signal[T] {
+    val proxy: Signal[T]
+    def apply() = proxy()
+    def hasSubscriptions = proxy.hasSubscriptions
+    def onReaction(r: Reactor[T]) = proxy.onReaction(r)
+    def reactAll(v: T) = proxy.reactAll(v)
+    def unreactAll() = proxy.unreactAll()
+  }
+
   final class Mutable[T <: AnyRef](private val m: T)
-  extends Signal[T] with Reactive.SubscriptionSet {
+  extends Signal.Default[T] with Reactive.SubscriptionSet {
     def apply() = m
     override def onMutated() = reactAll(m)
   }
@@ -121,7 +135,7 @@ object Signal {
 
   class Aggregate[@spec(Int, Long, Double) T]
     (private val root: Signal[T] with Reactive.Subscription, private val subscriptions: Seq[Reactive.Subscription])
-  extends Signal[T] with Reactive.Subscription {
+  extends Signal.Default[T] with Reactive.Subscription {
     def apply() = root()
     def unsubscribe() {
       for (s <- subscriptions) s.unsubscribe()

@@ -27,15 +27,19 @@ package object algebra {
       def zero = z
       def operator = op
     }
+    def from[@spec(Int, Long, Double) T](m: Monoid[T]) = new Commutoid[T] {
+      def zero = m.zero
+      def operator = m.operator
+    }
   }
 
-  trait Group[@spec(Int, Long, Double) T]
+  trait Abelian[@spec(Int, Long, Double) T]
   extends Commutoid[T] {
     def inverse: (T, T) => T
   }
 
-  object Group {
-    def apply[@spec(Int, Long, Double) T](z: T)(op: (T, T) => T)(inv: (T, T) => T) = new Commutoid[T] {
+  object Abelian {
+    def apply[@spec(Int, Long, Double) T](z: T)(op: (T, T) => T)(inv: (T, T) => T) = new Abelian[T] {
       def zero = z
       def operator = op
       def inverse = inv
@@ -44,24 +48,24 @@ package object algebra {
 
   object structure {
   
-    implicit val intPlus = new Group[Int] {
+    implicit val intPlus = new Abelian[Int] {
       val zero = 0
       val operator = (x: Int, y: Int) => x + y
       val inverse = (x: Int, y: Int) => x - y
     }
   
-    implicit val longPlus = new Group[Long] {
+    implicit val longPlus = new Abelian[Long] {
       val zero = 0L
       val operator = (x: Long, y: Long) => x + y
       val inverse = (x: Long, y: Long) => x - y
     }
   
-    implicit val doublePlus = new Group[Double] {
+    implicit val doublePlus = new Abelian[Double] {
       val zero = 0.0
       val operator = (x: Double, y: Double) => x + y
       val inverse = (x: Double, y: Double) => x - y
     }
-  
+
     implicit val stringConcat = new Monoid[String] {
       val zero = ""
       val operator = (x: String, y: String) => x + y

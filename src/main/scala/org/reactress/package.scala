@@ -79,9 +79,9 @@ package object reactress extends ReactiveApi {
 
   val Commutoid = algebra.Commutoid
 
-  type Group[T] = algebra.Group[T]
+  type Abelian[T] = algebra.Abelian[T]
 
-  val Group = algebra.Group
+  val Abelian = algebra.Abelian
 
   trait Foreach[@spec(Int, Long, Double) T] {
     def foreach[U](f: T => U): Unit

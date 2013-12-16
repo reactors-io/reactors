@@ -8,7 +8,7 @@ import scala.reflect.ClassTag
 
 
 class ReactCell[@spec(Int, Long, Double) T](private var value: T)
-extends Signal[T] with ReactMutable {
+extends Signal.Default[T] with ReactMutable {
   self =>
 
   def apply(): T = value

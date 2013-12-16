@@ -7,7 +7,7 @@ package container
 
 
 trait ReactCatamorph[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
-extends Signal[T] with ReactContainer[S] {
+extends Signal.Default[T] with ReactContainer[S] {
 
   def +=(v: S): Boolean
 

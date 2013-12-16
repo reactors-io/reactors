@@ -8,7 +8,7 @@ import scala.collection._
 
 
 class ReactCommutoid[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
-  (val get: S => T)(val zero: T)(val op: (T, T) => T)
+  (val get: S => T, val zero: T, val op: (T, T) => T)
 extends ReactCatamorph[T, S] with ReactBuilder[S, ReactCommutoid[T, S]] {
   import ReactCommutoid._
 
@@ -67,7 +67,7 @@ extends ReactCatamorph[T, S] with ReactBuilder[S, ReactCommutoid[T, S]] {
 
 object ReactCommutoid {
 
-  def apply[@spec(Int, Long, Double) T](implicit m: Commutoid[T]) = new ReactCommutoid[T, T](v => v)(m.zero)(m.operator)
+  def apply[@spec(Int, Long, Double) T](implicit m: Commutoid[T]) = new ReactCommutoid[T, T](v => v, m.zero, m.operator)
 
   sealed trait Node[@spec(Int, Long, Double) T] {
     def height: Int

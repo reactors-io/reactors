@@ -9,7 +9,7 @@ import collection._
 trait Reactive[@spec(Int, Long, Double) T] {
   self =>
 
-  private[reactress] def hasSubscriptions: Boolean
+  def hasSubscriptions: Boolean
 
   def onReaction(reactor: Reactor[T]): Reactive.Subscription
 
@@ -23,12 +23,12 @@ trait Reactive[@spec(Int, Long, Double) T] {
     def unreact() {}
   })
 
-  protected def reactAll(value: T): Unit
+  def reactAll(value: T): Unit
 
-  protected def unreactAll(): Unit
+  def unreactAll(): Unit
 
   def foldPast[@spec(Int, Long, Double) S](z: S)(op: (S, T) => S): Signal[S] with Reactive.Subscription = {
-    class Fold extends Signal[S] with Reactor[T] with Reactive.ProxySubscription {
+    class Fold extends Signal.Default[S] with Reactor[T] with Reactive.ProxySubscription {
       private var cached = z
       def apply() = cached
       def react(value: T) {
@@ -157,14 +157,18 @@ object Reactive {
     val subscription = self onReaction this
   }
 
-  private object NeverImpl extends Reactive[Nothing] {
+  trait Never[@spec(Int, Long, Double) T]
+  extends Reactive[T] {
     def hasSubscriptions = false
-    def onReaction(reactor: Reactor[Nothing]) = new Subscription {
-      def unsubscribe() {}
+    def onReaction(reactor: Reactor[T]) = {
+      reactor.unreact()
+      Subscription.empty
     }
-    protected def reactAll(value: Nothing) {}
-    protected def unreactAll() {}
+    def reactAll(value: T) {}
+    def unreactAll() {}
   }
+
+  private object NeverImpl extends Never[Nothing]
 
   def Never[T] = NeverImpl.asInstanceOf[Reactive[T]]
 
