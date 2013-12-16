@@ -73,19 +73,19 @@ object ReactContainer {
   }
 
   implicit def canAggregateMonoid[@spec(Int, Long, Double) T](implicit m: Monoid[T]) = new CanAggregate[T] {
-    def apply(c: ReactContainer[T]) = new Aggregate[T](c, ReactCommutoid[T](Commutoid.from(m))) // TODO
+    def apply(c: ReactContainer[T]) = new Aggregate[T](c, CataCommutoid[T](Commutoid.from(m))) // TODO
   }
 
   implicit def monoidToCanAggregate[@spec(Int, Long, Double) T](m: Monoid[T]) = canAggregateMonoid(m)
 
   implicit def canAggregateCommutoid[@spec(Int, Long, Double) T](implicit m: Commutoid[T]) = new CanAggregate[T] {
-    def apply(c: ReactContainer[T]) = new Aggregate[T](c, ReactCommutoid[T])
+    def apply(c: ReactContainer[T]) = new Aggregate[T](c, CataCommutoid[T])
   }
 
   implicit def commutoidToCanAggregate[@spec(Int, Long, Double) T](m: Commutoid[T]) = canAggregateCommutoid(m)
 
   implicit def canAggregateAbelian[@spec(Int, Long, Double) T](implicit m: Abelian[T], can: Arrayable[T]) = new CanAggregate[T] {
-    def apply(c: ReactContainer[T]) = new Aggregate[T](c, ReactAbelian[T])
+    def apply(c: ReactContainer[T]) = new Aggregate[T](c, CataBelian[T])
   }
 
   implicit def abelianToCanAggregate[@spec(Int, Long, Double) T](g: Abelian[T])(implicit can: Arrayable[T]) =

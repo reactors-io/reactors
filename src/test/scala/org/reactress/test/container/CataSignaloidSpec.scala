@@ -8,21 +8,21 @@ import org.scalatest.matchers.ShouldMatchers
 
 
 
-class HigherCatamorphSpec extends FlatSpec with ShouldMatchers {
+class CataSignaloidSpec extends FlatSpec with ShouldMatchers {
 
-  this("Monoid", HigherCatamorph.commutoid(Commutoid(0)(_ + _))) // TODO
-  this("Commutoid", HigherCatamorph.commutoid(Commutoid(0)(_ + _)))
-  this("Abelian", HigherCatamorph.abelian(Abelian(0)(_ + _)(_ - _)))
+  this("Monoid", CataSignaloid.commutoid(Commutoid(0)(_ + _))) // TODO
+  this("Commutoid", CataSignaloid.commutoid(Commutoid(0)(_ + _)))
+  this("Abelian", CataSignaloid.abelian(Abelian(0)(_ + _)(_ - _)))
 
-  def apply(structure: String, newHigherCatamorph: =>HigherCatamorph[Int]) {
-    s"A HigherCatamorph using ${structure}s" should "be empty" in {
-      val aggregate = newHigherCatamorph
+  def apply(structure: String, newCataSignaloid: =>CataSignaloid[Int]) {
+    s"A CataSignaloid using ${structure}s" should "be empty" in {
+      val aggregate = newCataSignaloid
   
       aggregate() should equal (0)
     }
   
     it should "accurately reflect a single signal" in {
-      val aggregate = newHigherCatamorph
+      val aggregate = newCataSignaloid
       val rc0 = ReactCell(0)
       aggregate += rc0
   
@@ -34,7 +34,7 @@ class HigherCatamorphSpec extends FlatSpec with ShouldMatchers {
     }
   
     it should "accurately reflect two signals" in {
-      val aggregate = newHigherCatamorph
+      val aggregate = newCataSignaloid
       val rc0 = ReactCell(0)
       val rc1 = ReactCell(0)
       aggregate += rc0
@@ -54,7 +54,7 @@ class HigherCatamorphSpec extends FlatSpec with ShouldMatchers {
     }
   
     it should "accurately reflect many signals" in {
-      val aggregate = newHigherCatamorph
+      val aggregate = newCataSignaloid
       val cells = for (_ <- 0 until 20) yield ReactCell(0)
       for (c <- cells) aggregate += c
   
@@ -66,7 +66,7 @@ class HigherCatamorphSpec extends FlatSpec with ShouldMatchers {
     }
   
     it should "accurately reflect addition of new signals" in {
-      val aggregate = newHigherCatamorph
+      val aggregate = newCataSignaloid
       val cells = for (i <- 0 until 50) yield ReactCell(i)
       for (c <- cells) aggregate += c
   
@@ -83,7 +83,7 @@ class HigherCatamorphSpec extends FlatSpec with ShouldMatchers {
     }
   
     it should "accurately reflect removal of signals" in {
-      val aggregate = newHigherCatamorph
+      val aggregate = newCataSignaloid
       val cells = for (i <- 0 until 50) yield ReactCell(i)
       for (c <- cells) aggregate += c
   
@@ -97,7 +97,7 @@ class HigherCatamorphSpec extends FlatSpec with ShouldMatchers {
   
     it should "accurately reflect signals being removed and added" in {
       val max = 50
-      val aggregate = newHigherCatamorph
+      val aggregate = newCataSignaloid
       val cells = for (i <- 0 until max) yield ReactCell(i)
       for (c <- cells) aggregate += c
   

@@ -72,7 +72,7 @@ class RxReactBench extends PerformanceTest.Regression {
     exec.independentSamples -> 1
   ) in {
     using(aggregateSizes) curve("Reactress-O(logn)") in { sz =>
-      val catamorph = HigherCatamorph.monoid[Int](Commutoid(0)(_ + _))
+      val catamorph = CataSignaloid.monoid[Int](Commutoid(0)(_ + _))
       val signals = (for (i <- 0 until sz) yield new ReactCell(i)).toArray
       for (s <- signals) catamorph += s
       

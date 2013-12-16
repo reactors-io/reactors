@@ -7,7 +7,7 @@ import scala.reflect.ClassTag
 
 
 
-class ReactMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
+class ReactMap[@spec(Int, Long, Double) K, V](
   implicit val emptyKey: Arrayable[K],
   implicit val emptyVal: Arrayable[V]
 ) extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
