@@ -59,9 +59,17 @@ package object reactress extends ReactiveApi {
 
   val ReactCatamorph = container.ReactCatamorph
 
+  type CataMonoid[T, S] = container.CataMonoid[T, S]
+
+  val CataMonoid = container.CataMonoid
+
   type CataCommutoid[T, S] = container.CataCommutoid[T, S]
 
   val CataCommutoid = container.CataCommutoid
+
+  type CataBelian[T, S] = container.CataBelian[T, S]
+
+  val CataBelian = container.CataBelian
 
   type ReactTileMap[T] = container.ReactTileMap[T]
 

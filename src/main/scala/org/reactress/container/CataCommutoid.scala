@@ -92,23 +92,18 @@ object CataCommutoid {
     }
     private def heightOf(l: Node[T], r: Node[T]) = 1 + math.max(l.height, r.height)
     override def housekeep(op: (T, T) => T) {
-      // update height
       height = heightOf(left, right)
-
-      // update value
       value = op(left.value, right.value)
     }
     def insert(leaf: Leaf[T], op: (T, T) => T): Node[T] = {
       if (left.height < right.height) {
         left = left.insert(leaf, op)
         left.parent = this
-        value = op(left.value, right.value)
       } else {
         right = right.insert(leaf, op)
         right.parent = this
-        value = op(left.value, right.value)
       }
-      this.height = heightOf(left, right)
+      housekeep(op)
       this
     }
     def fix(op: (T, T) => T): Node[T] = {
@@ -196,7 +191,7 @@ object CataCommutoid {
 
       result
     }
-    
+
     def toString(indent: Int) = " " * indent + s"Inner($height, \n${left.toString(indent + 2)}, \n${right.toString(indent + 2)})"
   }
 

@@ -215,13 +215,13 @@ class ReactMap[@spec(Int, Long, Double) K, V](
 
 object ReactMap {
 
-  def apply[@spec(Int, Long, Double) K: Arrayable, @spec(Int, Long, Double) V: Arrayable] = new ReactMap[K, V]
+  def apply[@spec(Int, Long, Double) K: Arrayable, V: Arrayable] = new ReactMap[K, V]
 
   val initSize = 16
 
   val loadFactor = 450
 
-  implicit def factory[@spec(Int, Long, Double) K: Arrayable, @spec(Int, Double, Long) V: Arrayable] = new ReactBuilder.Factory[(K, V), ReactMap[K, V]] {
+  implicit def factory[@spec(Int, Long, Double) K: Arrayable, V: Arrayable] = new ReactBuilder.Factory[(K, V), ReactMap[K, V]] {
     def apply() = ReactMap[K, V]
   }
 }

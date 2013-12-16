@@ -9,12 +9,11 @@ import scala.collection._
 
 class CataMonoid[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
   (val get: S => T, val zero: T, val op: (T, T) => T)
-  (implicit val sa: Arrayable[S])
 extends ReactCatamorph[T, S] with ReactBuilder[S, CataMonoid[T, S]] {
   import CataMonoid._
 
   private[reactress] var root: Node[T] = null
-  private[reactress] var leaves: ReactMap[S, Leaf[T]] = null
+  private[reactress] var leaves: mutable.Map[S, Leaf[T]] = null
   private val insertsEmitter = new Reactive.Emitter[S]
   private val removesEmitter = new Reactive.Emitter[S]
 
@@ -24,7 +23,7 @@ extends ReactCatamorph[T, S] with ReactBuilder[S, CataMonoid[T, S]] {
 
   def init(z: T) {
     root = new Empty(zero)
-    leaves = ReactMap[S, Leaf[T]]
+    leaves = mutable.Map[S, Leaf[T]]()
   }
 
   init(zero)
@@ -68,7 +67,7 @@ extends ReactCatamorph[T, S] with ReactBuilder[S, CataMonoid[T, S]] {
 
 object CataMonoid {
 
-  def apply[@spec(Int, Long, Double) T](implicit m: Commutoid[T]) = new CataCommutoid[T, T](v => v, m.zero, m.operator)
+  def apply[@spec(Int, Long, Double) T](implicit m: Monoid[T]) = new CataMonoid[T, T](v => v, m.zero, m.operator)
 
   sealed trait Node[@spec(Int, Long, Double) T] {
     def height: Int
@@ -77,8 +76,9 @@ object CataMonoid {
     def parent_=(p: Inner[T]): Unit
     def pushUp(op: (T, T) => T): Unit
     def insert(leaf: Leaf[T], op: (T, T) => T): Node[T]
-    def housekeep(op: (T, T) => T) {}
     def toString(indent: Int): String
+    def housekeep(op: (T, T) => T) {}
+    def asInner = this.asInstanceOf[Inner[T]]
     override def toString = toString(0)
   }
 
@@ -91,31 +91,60 @@ object CataMonoid {
       v = op(left.value, right.value)
       if (parent != null) parent.pushUp(op)
     }
+    private def balance = left.height - right.height
     private def heightOf(l: Node[T], r: Node[T]) = 1 + math.max(l.height, r.height)
     override def housekeep(op: (T, T) => T) {
-      // update height
       height = heightOf(left, right)
-
-      // update value
       value = op(left.value, right.value)
     }
     def insert(leaf: Leaf[T], op: (T, T) => T): Node[T] = {
-      if (left.height < right.height) {
-        left = left.insert(leaf, op)
-        left.parent = this
-        value = op(left.value, right.value)
-      } else {
-        right = right.insert(leaf, op)
-        right.parent = this
-        value = op(left.value, right.value)
-      }
-      this.height = heightOf(left, right)
-      this
+      right = right.insert(leaf, op)
+      right.parent = this
+      housekeep(op)
+      rebalance(op)
     }
-    def fix(op: (T, T) => T): Node[T] = {
+    def rebalance(op: (T, T) => T): Node[T] = {
+      val b = balance
+      if (b < -1) {
+        if (right.asInner.balance > 0) {
+          right = right.asInner.rotr(op)
+          right.parent = this
+        }
+        rotl(op)
+      } else if (b > 1) {
+        if (left.asInner.balance < 0) {
+          left = left.asInner.rotl(op)
+          left.parent = this
+        }
+        rotr(op)
+      } else this
+    }
+    def rotl(op: (T, T) => T): Inner[T] = {
+      val ntop = this.right.asInner
+      this.right = ntop.left
+      this.right.parent = this
+      ntop.left = this
+      this.parent = ntop
+      ntop.parent = null
+      this.housekeep(op)
+      ntop.housekeep(op)
+      ntop
+    }
+    def rotr(op: (T, T) => T): Inner[T] = {
+      val ntop = this.left.asInner
+      this.left = ntop.right
+      this.left.parent = this
+      ntop.right = this
+      this.parent = ntop
+      ntop.parent = null
+      this.housekeep(op)
+      ntop.housekeep(op)
+      ntop
+    }
+    private def isLeft = parent.left eq this
+    def fixUp(op: (T, T) => T): Node[T] = {
       // check if both children are non-null
       // note that both can never be null
-      def isLeft = parent.left eq this
       val result = if (left == null) {
         if (parent == null) {
           right.parent = null
@@ -124,7 +153,7 @@ object CataMonoid {
           if (isLeft) parent.left = right
           else parent.right = right
           right.parent = parent
-          parent.fix(op)
+          parent.fixUp(op)
         }
       } else if (right == null) {
         if (parent == null) {
@@ -134,65 +163,21 @@ object CataMonoid {
           if (isLeft) parent.left = left
           else parent.right = left
           left.parent = parent
-          parent.fix(op)
+          parent.fixUp(op)
         }
       } else {
-        // check if unbalanced
-        val lheight = left.height
-        val rheight = right.height
-        val diff = lheight - rheight
-        
-        // see if rebalancing is necessary
-        if (diff > 1) {
-          // note that this means left is inner
-          val leftInner = left.asInstanceOf[Inner[T]]
-          if (leftInner.left.height > leftInner.right.height) {
-            // new left is the bigger left grandchild
-            val nleft = leftInner.left
-            nleft.parent = this
-            // new right is an inner node above the right child and the smaller left grandchild
-            val nright = new Inner(heightOf(leftInner.right, right), leftInner.right, right, this)
-            nright.left.parent = nright
-            nright.right.parent = nright
-            // and we update the children
-            left = nleft
-            right = nright
-          } else {
-            // everything mirrored
-            val nleft = leftInner.right
-            nleft.parent = this
-            val nright = new Inner(heightOf(leftInner.left, right), leftInner.left, right, this)
-            nright.left.parent = nright
-            nright.right.parent = nright
-            left = nleft
-            right = nright
-          }
-        } else if (diff < -1) {
-          // note that this means right is inner -- everything mirrored
-          val rightInner = right.asInstanceOf[Inner[T]]
-          if (rightInner.left.height > rightInner.right.height) {
-            val nright = rightInner.left
-            nright.parent = this
-            val nleft = new Inner(heightOf(rightInner.right, left), rightInner.right, left, this)
-            nleft.left.parent = nleft
-            nleft.right.parent = nleft
-            left = nleft
-            right = nright
-          } else {
-            val nright = rightInner.right
-            nright.parent = this
-            val nleft = new Inner(heightOf(rightInner.left, left), rightInner.left, left, this)
-            nleft.left.parent = nleft
-            nleft.right.parent = nleft
-            left = nleft
-            right = nright
-          }
+        housekeep(op)
+        val above = this.parent
+        val wasLeft = (above ne null) && isLeft
+        val n = rebalance(op)
+        n.parent = above
+        if (above != null) {
+          if (wasLeft) above.left = n
+          else above.right = n
         }
 
-        housekeep(op)
-
-        if (parent != null) parent.fix(op)
-        else this
+        if (n.parent != null) n.asInner.parent.fixUp(op)
+        else n
       }
 
       result
@@ -222,7 +207,7 @@ object CataMonoid {
         def isLeft = parent.left eq this
         if (isLeft) parent.left = null
         else parent.right = null
-        parent.fix(op)
+        parent.fixUp(op)
       }
     }
     def toString(indent: Int) = " " * indent + s"Leaf(${get()})"
