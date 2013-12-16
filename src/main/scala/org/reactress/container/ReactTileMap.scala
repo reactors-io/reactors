@@ -59,12 +59,12 @@ class ReactTileMap[@spec(Int, Long, Double) T: ClassTag](
   def +=(kv: (Int, Int, T)) = {
     if (kv._1 >= pow2size || kv._2 >= pow2size) breadth = math.max(kv._1, kv._2)
     update(kv._1, kv._2, kv._3)
-    this
+    true
   }
 
   def -=(kv: (Int, Int, T)) = {
     update(kv._1, kv._2, dflt)
-    this
+    true
   }
 
   def container = this
@@ -236,7 +236,7 @@ object ReactTileMap {
   def apply[@spec(Int, Long, Double) T: ClassTag](size: Int, default: T) = new ReactTileMap[T](size, default)
 
   implicit def factory[@spec(Int, Long, Double) S](implicit d: Default[S], ct: ClassTag[S]) = new ReactBuilder.Factory[(Int, Int, S), ReactTileMap[S]] {
-    def create() = new ReactTileMap[S](1, d())
+    def apply() = new ReactTileMap[S](1, d())
   }
 
   private[reactress] class Ref[@spec(Int, Long, Double) T] {

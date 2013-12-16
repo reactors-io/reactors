@@ -34,13 +34,12 @@ class ReactMap[@spec(Int, Long) K, V](
   def builder: ReactBuilder[(K, V), ReactMap[K, V]] = this
 
   def +=(kv: (K, V)) = {
-    update(kv._1, kv._2)
-    this
+    insert(kv._1, kv._2)
+    true
   }
 
   def -=(kv: (K, V)) = {
     remove(kv._1)
-    this
   }
 
   def container = this
@@ -246,7 +245,7 @@ object ReactMap {
   }
 
   implicit def factory[@spec(Int, Long) K: Empty, @spec(Int, Long) V: Empty] = new ReactBuilder.Factory[(K, V), ReactMap[K, V]] {
-    def create() = new ReactMap[K, V]
+    def apply() = new ReactMap[K, V]
   }
 }
 

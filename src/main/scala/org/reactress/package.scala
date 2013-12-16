@@ -33,13 +33,13 @@ package object reactress extends ReactiveApi {
 
   val ReactCell = container.ReactCell
 
-  type ReactCommuteAggregate[T] = container.ReactCommuteAggregate[T]
+  type ReactContainer[T] = container.ReactContainer[T]
 
-  val ReactCommuteAggregate = container.ReactCommuteAggregate
+  val ReactContainer = container.ReactContainer
 
-  type ReactTileMap[T] = container.ReactTileMap[T]
+  type ReactBuilder[T, Repr] = container.ReactBuilder[T, Repr]
 
-  val ReactTileMap = container.ReactTileMap
+  val ReactBuilder = container.ReactBuilder
 
   type ReactSet[T] = container.ReactSet[T]
 
@@ -53,13 +53,21 @@ package object reactress extends ReactiveApi {
 
   // TODO reactive sequence
 
-  type ReactContainer[T] = container.ReactContainer[T]
+  type ReactCatamorph[T, S] = container.ReactCatamorph[T, S]
 
-  val ReactContainer = container.ReactContainer
+  val ReactCatamorph = container.ReactCatamorph
 
-  type ReactBuilder[T, Repr] = container.ReactBuilder[T, Repr]
+  type ReactCommutoid[T, S] = container.ReactCommutoid[T, S]
 
-  val ReactBuilder = container.ReactBuilder
+  val ReactCommutoid = container.ReactCommutoid
+
+  type ReactTileMap[T] = container.ReactTileMap[T]
+
+  val ReactTileMap = container.ReactTileMap
+
+  type HigherCatamorph[T] = container.HigherCatamorph[T]
+
+  val HigherCatamorph = container.HigherCatamorph
 
   /* algebra */
 

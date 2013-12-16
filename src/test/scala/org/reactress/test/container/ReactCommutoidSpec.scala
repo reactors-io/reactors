@@ -8,16 +8,16 @@ import org.scalatest.matchers.ShouldMatchers
 
 
 
-class ReactCommuteAggregateSpec extends FlatSpec with ShouldMatchers {
+class ReactCommutoidSpec extends FlatSpec with ShouldMatchers {
 
-  "A ReactCommuteAggregate" should "be empty" in {
-    val aggregate = ReactCommuteAggregate.by[Int](0)(_ + _)
+  "A ReactCommutoid" should "be empty" in {
+    val aggregate = HigherCatamorph.monoid(Commutoid(0)(_ + _))
 
     aggregate() should equal (0)
   }
 
   it should "accurately reflect a single signal" in {
-    val aggregate = ReactCommuteAggregate.by[Int](0)(_ + _)
+    val aggregate = HigherCatamorph.monoid(Commutoid(0)(_ + _))
     val rc0 = ReactCell(0)
     aggregate += rc0
 
@@ -29,7 +29,7 @@ class ReactCommuteAggregateSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "accurately reflect two signals" in {
-    val aggregate = ReactCommuteAggregate.by[Int](0)(_ + _)
+    val aggregate = HigherCatamorph.monoid(Commutoid(0)(_ + _))
     val rc0 = ReactCell(0)
     val rc1 = ReactCell(0)
     aggregate += rc0
@@ -49,7 +49,7 @@ class ReactCommuteAggregateSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "accurately reflect many signals" in {
-    val aggregate = ReactCommuteAggregate.by[Int](0)(_ + _)
+    val aggregate = HigherCatamorph.monoid(Commutoid(0)(_ + _))
     val cells = for (_ <- 0 until 20) yield ReactCell(0)
     for (c <- cells) aggregate += c
 
@@ -61,7 +61,7 @@ class ReactCommuteAggregateSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "accurately reflect addition of new signals" in {
-    val aggregate = ReactCommuteAggregate.by[Int](0)(_ + _)
+    val aggregate = HigherCatamorph.monoid(Commutoid(0)(_ + _))
     val cells = for (i <- 0 until 50) yield ReactCell(i)
     for (c <- cells) aggregate += c
 
@@ -78,7 +78,7 @@ class ReactCommuteAggregateSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "accurately reflect removal of signals" in {
-    val aggregate = ReactCommuteAggregate.by[Int](0)(_ + _)
+    val aggregate = HigherCatamorph.monoid(Commutoid(0)(_ + _))
     val cells = for (i <- 0 until 50) yield ReactCell(i)
     for (c <- cells) aggregate += c
 
@@ -92,7 +92,7 @@ class ReactCommuteAggregateSpec extends FlatSpec with ShouldMatchers {
 
   it should "accurately reflect signals being removed and added" in {
     val max = 50
-    val aggregate = ReactCommuteAggregate.by[Int](0)(_ + _)
+    val aggregate = HigherCatamorph.monoid(Commutoid(0)(_ + _))
     val cells = for (i <- 0 until max) yield ReactCell(i)
     for (c <- cells) aggregate += c
 
@@ -108,23 +108,21 @@ class ReactCommuteAggregateSpec extends FlatSpec with ShouldMatchers {
     }
   }
 
-  "ReactCommuteAggregate.Tree" should "be balanced" in {
-    val tree = new ReactCommuteAggregate.Tree[Int, Value[Int]](0)(_ + _, () => {}, v => Reactive.Subscription.empty)
+  "ReactCommutoid" should "be balanced" in {
+    val tree = ReactCommutoid(Commutoid(0)(_ + _))
 
-    for (i <- 0 until 10) tree += new Value[Int] {
-      def apply() = i
-    }
+    for (i <- 0 until 10) tree += i
 
-    def check(node: ReactCommuteAggregate.Node[Int]): Unit = node match {
-      case in: ReactCommuteAggregate.Inner[Int] =>
+    def check(node: ReactCommutoid.Node[Int]): Unit = node match {
+      case in: ReactCommutoid.Inner[Int] =>
         in.height should equal (1 + math.max(in.left.height, in.right.height))
         in.left.height should (be (in.height - 1) or be (in.height - 2))
         in.right.height should (be (in.height - 1) or be (in.height - 2))
         check(in.left)
         check(in.right)
-      case leaf: ReactCommuteAggregate.Leaf[Int] =>
+      case leaf: ReactCommutoid.Leaf[Int] =>
         leaf.height should equal (0)
-      case empty: ReactCommuteAggregate.Empty[Int] =>
+      case empty: ReactCommutoid.Empty[Int] =>
         empty.height should equal (0)
     }
   }

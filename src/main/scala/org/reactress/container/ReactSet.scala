@@ -35,12 +35,11 @@ class ReactSet[@spec(Int, Long) T](
 
   def +=(elem: T) = {
     self add elem
-    this
+    true
   }
 
   def -=(elem: T) = {
     self remove elem
-    this
   }
 
   def container = self
@@ -205,7 +204,7 @@ object ReactSet {
   }
 
   implicit def factory[@spec(Int, Long) S: Empty] = new ReactBuilder.Factory[S, ReactSet[S]] {
-    def create() = new ReactSet[S]
+    def apply() = new ReactSet[S]
   }
 
 }

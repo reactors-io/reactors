@@ -7,127 +7,74 @@ import scala.collection._
 
 
 
-class ReactCommuteAggregate[@spec(Int, Long, Double) T](val zero: T)(private val op: (T, T) => T)
-extends Signal[T] with ReactContainer[Signal[T]] with ReactBuilder[Signal[T], ReactCommuteAggregate[T]] {
-  private var tree: ReactCommuteAggregate.Tree[T, Signal[T]] = null
-  private var insertsEmitter: Reactive.Emitter[Signal[T]] = null
-  private var removesEmitter: Reactive.Emitter[Signal[T]] = null
+class ReactCommutoid[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
+  (val get: S => T)(val zero: T)(val op: (T, T) => T)
+extends ReactCatamorph[T, S] with ReactBuilder[S, ReactCommutoid[T, S]] {
+  import ReactCommutoid._
+
+  private[reactress] var root: Node[T] = null
+  private[reactress] var leaves: mutable.Map[S, Leaf[T]] = null
+  private val insertsEmitter = new Reactive.Emitter[S]
+  private val removesEmitter = new Reactive.Emitter[S]
+
+  def inserts: Reactive[S] = insertsEmitter
+
+  def removes: Reactive[S] = removesEmitter
 
   def init(z: T) {
-    tree = new ReactCommuteAggregate.Tree(zero)(op, onTick, {
-      s => s onTick {
-        tree.pushUp(s)
-      }
-    })
-    insertsEmitter = new Reactive.Emitter[Signal[T]]
-    removesEmitter = new Reactive.Emitter[Signal[T]]
+    root = new Empty(zero)
+    leaves = mutable.Map[S, Leaf[T]]()
   }
 
   init(zero)
 
-  def builder: ReactBuilder[Signal[T], ReactCommuteAggregate[T]] = this
+  def apply() = root.value
+
+  def +=(v: S): Boolean = {
+    if (!leaves.contains(v)) {
+      val leaf = new Leaf[T](() => get(v), null)
+      leaves(v) = leaf
+      root = root.insert(leaf, op)
+      reactAll(apply())
+      insertsEmitter += v
+      true
+    } else false
+  }
+
+  def -=(v: S): Boolean = {
+    if (leaves.contains(v)) {
+      val leaf = leaves(v)
+      root = leaf.remove(zero, op)
+      leaves.remove(v)
+      reactAll(apply())
+      removesEmitter += v
+      true
+    } else false
+  }
 
   def container = this
 
-  private def onTick() {
-    reactAll(apply())
+  def push(v: S): Boolean = {
+    if (leaves.contains(v)) {
+      val leaf = leaves(v)
+      leaf.pushUp(op)
+      reactAll(apply())
+      true
+    } else false
   }
-
-  def apply(): T = tree.root.value
-  
-  def +=(s: Signal[T]): this.type = {
-    // update tree
-    tree += s
-    
-    // emit insertion event
-    insertsEmitter += s
-
-    // notify subscribers
-    onTick()
-
-    this
-  }
-
-  def -=(s: Signal[T]): this.type = {
-    // update tree
-    tree -= s
-    
-    // emit removal event
-    removesEmitter += s
-    
-    // notify subscribers
-    onTick()
-
-    this
-  }
-
-  def inserts: Reactive[Signal[T]] = insertsEmitter
-
-  def removes: Reactive[Signal[T]] = removesEmitter
-
-  override def toString = s"ReactCommuteAggregate(${apply()})"
 }
 
 
-object ReactCommuteAggregate {
-  def by[@spec(Int, Long, Double) T](zero: T)(op: (T, T) => T) = new ReactCommuteAggregate[T](zero)(op)
+object ReactCommutoid {
 
-  def apply[@spec(Int, Long, Double) T]()(implicit cm: Commutoid[T]) = new ReactCommuteAggregate(cm.zero)(cm.operator)
-
-  implicit def factory[@spec(Int, Long, Double) T](implicit cm: Commutoid[T]) = new ReactBuilder.Factory[Signal[T], ReactCommuteAggregate[T]] {
-    def create() = new ReactCommuteAggregate[T](cm.zero)(cm.operator)
-  }
-
-  // TODO refactor to couple aggregates more tightly
-
-  class Tree[@spec(Int, Long, Double) T, V <: Value[T]](val zero: T)(val op: (T, T) => T, val onTick: () => Unit, val subscribe: V => Reactive.Subscription) {
-    private[reactress] var _root: Node[T] = null
-    private[reactress] var leaves: mutable.Map[Value[T], (Leaf[T], Reactive.Subscription)] = null
-
-    def init(z: T) {
-      _root = new Empty(zero)
-      leaves = mutable.Map[Value[T], (Leaf[T], Reactive.Subscription)]()
-    }
-
-    init(zero)
-
-    def root = _root
-
-    def +=(v: V) = {
-      val leaf = new Leaf(v, null)
-
-      _root = _root.insert(leaf, op)
-
-      leaves(v) = (leaf, subscribe(v))
-      onTick()
-    }
-
-    def -=(v: V) = {
-      val leafsub = leaves(v)
-
-      _root = leafsub._1.remove(zero, op)
-
-      leafsub._2.unsubscribe()
-      leaves.remove(v)
-      onTick()
-    }
-
-    def pushUp(v: V) = {
-      val leafsub = leaves(v)
-
-      leafsub._1.refresh(op)
-
-      onTick()
-    }
-
-  }
+  def apply[@spec(Int, Long, Double) T](implicit m: Commutoid[T]) = new ReactCommutoid[T, T](v => v)(m.zero)(m.operator)
 
   sealed trait Node[@spec(Int, Long, Double) T] {
     def height: Int
     def value: T
     def parent: Inner[T]
     def parent_=(p: Inner[T]): Unit
-    def refresh(op: (T, T) => T): Unit
+    def pushUp(op: (T, T) => T): Unit
     def insert(leaf: Leaf[T], op: (T, T) => T): Node[T]
     def housekeep(op: (T, T) => T) {}
     def toString(indent: Int): String
@@ -139,9 +86,9 @@ object ReactCommuteAggregate {
     private var v: T = _
     def value: T = v
     def value_=(v: T) = this.v = v
-    def refresh(op: (T, T) => T) {
+    def pushUp(op: (T, T) => T) {
       v = op(left.value, right.value)
-      if (parent != null) parent.refresh(op)
+      if (parent != null) parent.pushUp(op)
     }
     private def heightOf(l: Node[T], r: Node[T]) = 1 + math.max(l.height, r.height)
     override def housekeep(op: (T, T) => T) {
@@ -252,11 +199,11 @@ object ReactCommuteAggregate {
     def toString(indent: Int) = " " * indent + s"Inner($height, \n${left.toString(indent + 2)}, \n${right.toString(indent + 2)})"
   }
 
-  class Leaf[@spec(Int, Long, Double) T](val source: Value[T], var parent: Inner[T]) extends Node[T] {
+  class Leaf[@spec(Int, Long, Double) T](val get: () => T, var parent: Inner[T]) extends Node[T] {
     def height = 0
-    def value = source()
-    def refresh(op: (T, T) => T) {
-      if (parent != null) parent.refresh(op)
+    def value = get()
+    def pushUp(op: (T, T) => T) {
+      if (parent != null) parent.pushUp(op)
     }
     def insert(leaf: Leaf[T], op: (T, T) => T): Node[T] = {
       val inner = new Inner(1, this, leaf, null)
@@ -276,15 +223,16 @@ object ReactCommuteAggregate {
         parent.fix(op)
       }
     }
-    def toString(indent: Int) = " " * indent + s"Leaf($source)"
+    def toString(indent: Int) = " " * indent + s"Leaf(${get()})"
   }
 
   class Empty[@spec(Int, Long, Double) T](val value: T) extends Node[T] {
     def height = 0
     def parent = null
     def parent_=(p: Inner[T]) = throw new IllegalStateException
-    def refresh(op: (T, T) => T) {}
+    def pushUp(op: (T, T) => T) {}
     def insert(leaf: Leaf[T], op: (T, T) => T) = leaf
     def toString(indent: Int) = " " * indent + s"Empty($value)"
   }
+
 }

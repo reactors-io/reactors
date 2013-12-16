@@ -13,8 +13,6 @@ trait ReactContainer[@spec(Int, Long, Double) T] extends ReactMutable {
   
   def removes: Reactive[T]
 
-  def adjustBuilder[S, That](b: ReactBuilder[S, That]) {}
-
   // TODO fix - reactAll
   def resizes: Signal[Int] with Reactive.Subscription = {
     new Signal[Int] with Reactive.ProxySubscription {
@@ -32,7 +30,7 @@ trait ReactContainer[@spec(Int, Long, Double) T] extends ReactMutable {
   }
 
   def to[That <: ReactContainer[T]](implicit factory: ReactBuilder.Factory[T, That]): That = {
-    val builder = factory(this)
+    val builder = factory()
     val result = builder.container
 
     inserts.mutate(builder) {
@@ -94,15 +92,16 @@ object ReactContainer {
 
   class Aggregate[@spec(Int, Long, Double) T](val container: ReactContainer[T], val z: T, val op: (T, T) => T)
   extends Signal[T] with Reactive.ProxySubscription {
-    agregated =>
-    var tree: ReactCommuteAggregate.Tree[T, Value[T]] = _ // TODO change with regular aggregate tree
+    commuted =>
+    val id = (v: T) => v
+    var tree: ReactCommutoid[T, T] = _
     var subscription: Reactive.Subscription = _
 
     def init(z: T) {
-      tree = new ReactCommuteAggregate.Tree[T, Value[T]](z)(op, () => onTick(z), v => Reactive.Subscription.empty)
+      tree = new ReactCommutoid[T, T](id)(z)(op)
       subscription = Reactive.CompositeSubscription(
-        container.inserts onValue { v => tree += new Value.Default(v) },
-        container.removes onValue { v => tree -= new Value.Default(v) }
+        container.inserts onValue { v => tree += v },
+        container.removes onValue { v => tree -= v }
       )
     }
 
@@ -116,14 +115,15 @@ object ReactContainer {
   class Commute[@spec(Int, Long, Double) T](val container: ReactContainer[T], val z: T, val op: (T, T) => T)
   extends Signal[T] with Reactive.ProxySubscription {
     commuted =>
-    var tree: ReactCommuteAggregate.Tree[T, Value[T]] = _
+    val id = (v: T) => v
+    var tree: ReactCommutoid[T, T] = _
     var subscription: Reactive.Subscription = _
 
     def init(z: T) {
-      tree = new ReactCommuteAggregate.Tree[T, Value[T]](z)(op, () => onTick(z), v => Reactive.Subscription.empty)
+      tree = new ReactCommutoid[T, T](id)(z)(op)
       subscription = Reactive.CompositeSubscription(
-        container.inserts onValue { v => tree += new Value.Default(v) },
-        container.removes onValue { v => tree -= new Value.Default(v) }
+        container.inserts onValue { v => tree += v },
+        container.removes onValue { v => tree -= v }
       )
     }
 
