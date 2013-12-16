@@ -13,7 +13,6 @@ trait ReactContainer[@spec(Int, Long, Double) T] extends ReactMutable {
   
   def removes: Reactive[T]
 
-  // TODO fix - reactAll
   def resizes: Signal[Int] with Reactive.Subscription = {
     new Signal.Default[Int] with Reactive.ProxySubscription {
       private var value = 0
@@ -73,7 +72,7 @@ object ReactContainer {
   }
 
   implicit def canAggregateMonoid[@spec(Int, Long, Double) T](implicit m: Monoid[T]) = new CanAggregate[T] {
-    def apply(c: ReactContainer[T]) = new Aggregate[T](c, CataCommutoid[T](Commutoid.from(m))) // TODO
+    def apply(c: ReactContainer[T]) = new Aggregate[T](c, CataMonoid(m))
   }
 
   implicit def monoidToCanAggregate[@spec(Int, Long, Double) T](m: Monoid[T]) = canAggregateMonoid(m)
