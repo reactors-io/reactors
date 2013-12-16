@@ -7,19 +7,20 @@ import scala.reflect.ClassTag
 
 
 
-class ReactMap[@spec(Int, Long) K, V](
-  implicit val emptyKey: ReactMap.Empty[K],
-  implicit val emptyVal: ReactMap.Empty[V]
+class ReactMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
+  implicit val emptyKey: Arrayable[K],
+  implicit val emptyVal: Arrayable[V]
 ) extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
   private var keytable: Array[K] = null
-  private var valtable: Array[V] = emptyVal.newEmptyArray(ReactMap.initSize)
+  private var valtable: Array[V] = null
   private var sz = 0
   private[reactress] var insertsEmitter: Reactive.Emitter[(K, V)] = null
   private[reactress] var removesEmitter: Reactive.Emitter[(K, V)] = null
   private[reactress] var clearsEmitter: Reactive.Emitter[Unit] = null
 
-  protected def init(ek: ReactMap.Empty[K], ev: ReactMap.Empty[V]) {
-    keytable = emptyKey.newEmptyArray(ReactMap.initSize)
+  protected def init(ek: Arrayable[K], ev: Arrayable[V]) {
+    keytable = emptyKey.newArray(ReactMap.initSize)
+    valtable = emptyVal.newArray(ReactMap.initSize)
     insertsEmitter = new Reactive.Emitter[(K, V)]
     removesEmitter = new Reactive.Emitter[(K, V)]
     clearsEmitter = new Reactive.Emitter[Unit]
@@ -136,8 +137,8 @@ class ReactMap[@spec(Int, Long) K, V](
       val okeytable = keytable
       val ovaltable = valtable
       val ncapacity = keytable.length * 2
-      keytable = emptyKey.newEmptyArray(ncapacity)
-      valtable = emptyVal.newEmptyArray(ncapacity)
+      keytable = emptyKey.newArray(ncapacity)
+      valtable = emptyVal.newArray(ncapacity)
       sz = 0
 
       var pos = 0
@@ -214,38 +215,14 @@ class ReactMap[@spec(Int, Long) K, V](
 
 object ReactMap {
 
-  def apply[@spec(Int, Long) K: Empty, V: Empty]() = new ReactMap[K, V]
+  def apply[@spec(Int, Long, Double) K: Arrayable, @spec(Int, Long, Double) V: Arrayable] = new ReactMap[K, V]
 
   val initSize = 16
 
   val loadFactor = 450
 
-  abstract class Empty[@spec(Int, Long) T] {
-    val classTag: ClassTag[T]
-    val nil: T
-    def newEmptyArray(sz: Int): Array[T]
-  }
-
-  implicit def emptyRef[T >: Null <: AnyRef: ClassTag]: Empty[T] = new Empty[T] {
-    val classTag = implicitly[ClassTag[T]]
-    val nil = null
-    def newEmptyArray(sz: Int) = new Array[T](sz)
-  }
-
-  implicit val emptyLong: Empty[Long] = new Empty[Long] {
-    val classTag = implicitly[ClassTag[Long]]
-    val nil = Long.MinValue
-    def newEmptyArray(sz: Int) = Array.fill[Long](sz)(nil)
-  }
-
-  implicit val emptyInt: Empty[Int] = new Empty[Int] {
-    val classTag = implicitly[ClassTag[Int]]
-    val nil = Int.MinValue
-    def newEmptyArray(sz: Int) = Array.fill[Int](sz)(nil)
-  }
-
-  implicit def factory[@spec(Int, Long) K: Empty, @spec(Int, Long) V: Empty] = new ReactBuilder.Factory[(K, V), ReactMap[K, V]] {
-    def apply() = new ReactMap[K, V]
+  implicit def factory[@spec(Int, Long, Double) K: Arrayable, @spec(Int, Double, Long) V: Arrayable] = new ReactBuilder.Factory[(K, V), ReactMap[K, V]] {
+    def apply() = ReactMap[K, V]
   }
 }
 

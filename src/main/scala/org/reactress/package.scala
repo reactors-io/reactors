@@ -29,6 +29,8 @@ package object reactress extends ReactiveApi {
     final def invalid = Long.MinValue
   }
 
+  type Arrayable[T] = container.Arrayable[T]
+
   type ReactCell[T] = container.ReactCell[T]
 
   val ReactCell = container.ReactCell

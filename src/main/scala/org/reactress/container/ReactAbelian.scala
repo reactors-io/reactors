@@ -9,6 +9,7 @@ import scala.collection._
 
 class ReactAbelian[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
   (val get: S => T, val zero: T, val op: (T, T) => T, val inv: (T, T) => T)
+  (implicit val canS: Arrayable[S], val canT: Arrayable[T])
 extends ReactCatamorph[T, S] with ReactBuilder[S, ReactAbelian[T, S]] {
   import ReactAbelian._
 
@@ -72,6 +73,8 @@ extends ReactCatamorph[T, S] with ReactBuilder[S, ReactAbelian[T, S]] {
 
 object ReactAbelian {
 
-  def apply[@spec(Int, Long, Double) T](implicit g: Abelian[T]) = new ReactAbelian[T, T](v => v, g.zero, g.operator, g.inverse)
+  def apply[@spec(Int, Long, Double) T](implicit g: Abelian[T], can: Arrayable[T]) = {
+    new ReactAbelian[T, T](v => v, g.zero, g.operator, g.inverse)
+  }
 
 }

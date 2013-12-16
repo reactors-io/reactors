@@ -84,11 +84,12 @@ object ReactContainer {
 
   implicit def commutoidToCanAggregate[@spec(Int, Long, Double) T](m: Commutoid[T]) = canAggregateCommutoid(m)
 
-  implicit def canAggregateAbelian[@spec(Int, Long, Double) T](implicit m: Abelian[T]) = new CanAggregate[T] {
+  implicit def canAggregateAbelian[@spec(Int, Long, Double) T](implicit m: Abelian[T], can: Arrayable[T]) = new CanAggregate[T] {
     def apply(c: ReactContainer[T]) = new Aggregate[T](c, ReactAbelian[T])
   }
 
-  implicit def abelianToCanAggregate[@spec(Int, Long, Double) T](g: Abelian[T]) = canAggregateAbelian(g)
+  implicit def abelianToCanAggregate[@spec(Int, Long, Double) T](g: Abelian[T])(implicit can: Arrayable[T]) =
+    canAggregateAbelian(g, can)
 
   class Aggregate[@spec(Int, Long, Double) T]
     (val container: ReactContainer[T], val proxy: ReactCatamorph[T, T])

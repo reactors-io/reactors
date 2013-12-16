@@ -7,8 +7,8 @@ import scala.reflect.ClassTag
 
 
 
-class ReactSet[@spec(Int, Long) T](
-  implicit val emptyElem: ReactSet.Empty[T]
+class ReactSet[@spec(Int, Long, Double) T](
+  implicit val emptyElem: Arrayable[T]
 ) extends ReactContainer[T] with ReactBuilder[T, ReactSet[T]] {
   self =>
 
@@ -18,8 +18,8 @@ class ReactSet[@spec(Int, Long) T](
   private[reactress] var removesEmitter: Reactive.Emitter[T] = null
   private[reactress] var clearsEmitter: Reactive.Emitter[Unit] = null
 
-  protected def init(ee: ReactSet.Empty[T]) {
-    table = emptyElem.newEmptyArray(ReactSet.initSize)
+  protected def init(ee: Arrayable[T]) {
+    table = emptyElem.newArray(ReactSet.initSize)
     insertsEmitter = new Reactive.Emitter[T]
     removesEmitter = new Reactive.Emitter[T]
     clearsEmitter = new Reactive.Emitter[Unit]
@@ -116,7 +116,7 @@ class ReactSet[@spec(Int, Long) T](
     if (sz * 1000 / ReactSet.loadFactor > table.length) {
       val otable = table
       val ncapacity = table.length * 2
-      table = emptyElem.newEmptyArray(ncapacity)
+      table = emptyElem.newArray(ncapacity)
       sz = 0
 
       var pos = 0
@@ -173,38 +173,14 @@ class ReactSet[@spec(Int, Long) T](
 
 object ReactSet {
 
-  def apply[@spec(Int, Long) T: Empty]() = new ReactSet[T]
+  def apply[@spec(Int, Long, Double) T: Arrayable]() = new ReactSet[T]
 
   val initSize = 16
 
   val loadFactor = 450
 
-  abstract class Empty[@spec(Int, Long) T] {
-    val classTag: ClassTag[T]
-    val nil: T
-    def newEmptyArray(sz: Int): Array[T]
-  }
-
-  implicit def emptyRef[T >: Null <: AnyRef: ClassTag]: Empty[T] = new Empty[T] {
-    val classTag = implicitly[ClassTag[T]]
-    val nil: T = null
-    def newEmptyArray(sz: Int) = Array.fill[T](sz)(nil)
-  }
-
-  implicit val emptyLong: Empty[Long] = new Empty[Long] {
-    val classTag = implicitly[ClassTag[Long]]
-    val nil = Long.MinValue
-    def newEmptyArray(sz: Int) = Array.fill[Long](sz)(nil)
-  }
-
-  implicit val emptyInt: Empty[Int] = new Empty[Int] {
-    val classTag = implicitly[ClassTag[Int]]
-    val nil = Int.MinValue
-    def newEmptyArray(sz: Int) = Array.fill[Int](sz)(nil)
-  }
-
-  implicit def factory[@spec(Int, Long) S: Empty] = new ReactBuilder.Factory[S, ReactSet[S]] {
-    def apply() = new ReactSet[S]
+  implicit def factory[@spec(Int, Long, Double) T: Arrayable] = new ReactBuilder.Factory[T, ReactSet[T]] {
+    def apply() = ReactSet[T]
   }
 
 }
