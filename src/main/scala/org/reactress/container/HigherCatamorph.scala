@@ -58,12 +58,17 @@ extends ReactCatamorph[T, Signal[T]] with ReactBuilder[Signal[T], HigherCatamorp
 object HigherCatamorph {
 
   def monoid[@spec(Int, Long, Double) T](implicit m: Monoid[T]) = {
-    val catamorph = new ReactCommutoid[T, Signal[T]](_())(m.zero)(m.operator)
+    val catamorph = new ReactCommutoid[T, Signal[T]](_())(m.zero)(m.operator) // TODO separate impl
     new HigherCatamorph[T](catamorph)
   }
 
   def commutoid[@spec(Int, Long, Double) T](implicit cm: Commutoid[T]) = {
     val catamorph = new ReactCommutoid[T, Signal[T]](_())(cm.zero)(cm.operator)
+    new HigherCatamorph[T](catamorph)
+  }
+
+  def group[@spec(Int, Long, Double) T](implicit m: Group[T]) = {
+    val catamorph = new ReactCommutoid[T, Signal[T]](_())(m.zero)(m.operator) // TODO separate impl
     new HigherCatamorph[T](catamorph)
   }
 
@@ -73,6 +78,10 @@ object HigherCatamorph {
 
   implicit def factory[@spec(Int, Long, Double) T](implicit cm: Commutoid[T]) = new ReactBuilder.Factory[Signal[T], HigherCatamorph[T]] {
     def apply() = HigherCatamorph.commutoid(cm)
+  }
+
+  implicit def factory[@spec(Int, Long, Double) T](implicit cm: Group[T]) = new ReactBuilder.Factory[Signal[T], HigherCatamorph[T]] {
+    def apply() = HigherCatamorph.group(cm)
   }
 
 }

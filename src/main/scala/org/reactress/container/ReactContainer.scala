@@ -73,24 +73,46 @@ object ReactContainer {
   }
 
   implicit def canAggregateMonoid[@spec(Int, Long, Double) T](implicit m: Monoid[T]) = new CanAggregate[T] {
-    def apply(c: ReactContainer[T]) = new Aggregate[T](c, m.zero, m.operator)
+    def apply(c: ReactContainer[T]) = new MonoidAggregate[T](c, m.zero, m.operator)
   }
 
   implicit def monoidToCanAggregate[@spec(Int, Long, Double) T](m: Monoid[T]) = canAggregateMonoid(m)
 
   implicit def canAggregateCommutoid[@spec(Int, Long, Double) T](implicit m: Commutoid[T]) = new CanAggregate[T] {
-    def apply(c: ReactContainer[T]) = new Commute[T](c, m.zero, m.operator)
+    def apply(c: ReactContainer[T]) = new CommutoidAggregate[T](c, m.zero, m.operator)
   }
 
   implicit def commutoidToCanAggregate[@spec(Int, Long, Double) T](m: Commutoid[T]) = canAggregateCommutoid(m)
 
   implicit def canAggregateGroup[@spec(Int, Long, Double) T](implicit m: Group[T]) = new CanAggregate[T] {
-    def apply(c: ReactContainer[T]) = new AggregateUndo[T](c, m.zero, m.operator, m.inverse)
+    def apply(c: ReactContainer[T]) = new GroupAggregate[T](c, m.zero, m.operator, m.inverse)
   }
 
   implicit def groupToCanAggregate[@spec(Int, Long, Double) T](g: Group[T]) = canAggregateGroup(g)
 
-  class Aggregate[@spec(Int, Long, Double) T](val container: ReactContainer[T], val z: T, val op: (T, T) => T)
+  class MonoidAggregate[@spec(Int, Long, Double) T](val container: ReactContainer[T], val z: T, val op: (T, T) => T)
+  extends Signal[T] with Reactive.ProxySubscription {
+    commuted =>
+    val id = (v: T) => v
+    var tree: ReactCommutoid[T, T] = _
+    var subscription: Reactive.Subscription = _
+
+    def init(z: T) {
+      tree = new ReactCommutoid[T, T](id)(z)(op) // TODO fix
+      subscription = Reactive.CompositeSubscription(
+        container.inserts onValue { v => tree += v },
+        container.removes onValue { v => tree -= v }
+      )
+    }
+
+    init(z)
+
+    def apply() = tree.root.value
+
+    def onTick(z: T) = reactAll(tree.root.value)
+  }
+
+  class CommutoidAggregate[@spec(Int, Long, Double) T](val container: ReactContainer[T], val z: T, val op: (T, T) => T)
   extends Signal[T] with Reactive.ProxySubscription {
     commuted =>
     val id = (v: T) => v
@@ -112,29 +134,7 @@ object ReactContainer {
     def onTick(z: T) = reactAll(tree.root.value)
   }
 
-  class Commute[@spec(Int, Long, Double) T](val container: ReactContainer[T], val z: T, val op: (T, T) => T)
-  extends Signal[T] with Reactive.ProxySubscription {
-    commuted =>
-    val id = (v: T) => v
-    var tree: ReactCommutoid[T, T] = _
-    var subscription: Reactive.Subscription = _
-
-    def init(z: T) {
-      tree = new ReactCommutoid[T, T](id)(z)(op)
-      subscription = Reactive.CompositeSubscription(
-        container.inserts onValue { v => tree += v },
-        container.removes onValue { v => tree -= v }
-      )
-    }
-
-    init(z)
-
-    def apply() = tree.root.value
-
-    def onTick(z: T) = reactAll(tree.root.value)
-  }
-
-  class AggregateUndo[@spec(Int, Long, Double) T](val container: ReactContainer[T], val z: T, val op: (T, T) => T, val inv: (T, T) => T)
+  class GroupAggregate[@spec(Int, Long, Double) T](val container: ReactContainer[T], val z: T, val op: (T, T) => T, val inv: (T, T) => T)
   extends Signal[T] with Reactive.ProxySubscription {
     aggregated =>
     private var value = z
