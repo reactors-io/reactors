@@ -14,7 +14,7 @@ extends ReactCatamorph[T, S] with ReactBuilder[S, CataBelian[T, S]] {
   import CataBelian._
 
   private[reactress] var value: T = _
-  private[reactress] var elements: ReactMap[S, T] = null
+  private[reactress] var elements: ReactTable[S, T] = null
   private var insertsEmitter: Reactive.Emitter[S] = null
   private var removesEmitter: Reactive.Emitter[S] = null
 
@@ -24,7 +24,7 @@ extends ReactCatamorph[T, S] with ReactBuilder[S, CataBelian[T, S]] {
 
   def init(z: T) {
     value = zero
-    elements = ReactMap[S, T]
+    elements = ReactTable[S, T]
     insertsEmitter = new Reactive.Emitter[S]
     removesEmitter = new Reactive.Emitter[S]
   }
