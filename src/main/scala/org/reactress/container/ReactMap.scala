@@ -45,6 +45,8 @@ class ReactMap[@spec(Int, Long, Double) K, V](
 
   def container = this
 
+  val reactive = new ReactMap.Lifted[K, V](this)
+
   def foreach[U](f: (K, V) => U) {
     var i = 0
     while (i < keytable.length) {
@@ -216,6 +218,10 @@ class ReactMap[@spec(Int, Long, Double) K, V](
 object ReactMap {
 
   def apply[@spec(Int, Long, Double) K: Arrayable, V: Arrayable] = new ReactMap[K, V]
+
+  class Lifted[@spec(Int, Long, Double) K, V](val outer: ReactMap[K, V]) extends ReactContainer.Lifted[(K, V)] {
+    def apply(k: K): Reactive[V] = ???
+  }
 
   val initSize = 16
 

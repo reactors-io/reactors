@@ -44,6 +44,8 @@ class ReactSet[@spec(Int, Long, Double) T](
 
   def container = self
 
+  val reactive = new ReactSet.Lifted[T](this)
+
   private def lookup(k: T): Boolean = {
     var pos = index(k)
     val nil = emptyElem.nil
@@ -174,6 +176,10 @@ class ReactSet[@spec(Int, Long, Double) T](
 object ReactSet {
 
   def apply[@spec(Int, Long, Double) T: Arrayable]() = new ReactSet[T]
+
+  class Lifted[@spec(Int, Long, Double) T](val outer: ReactSet[T]) extends ReactContainer.Lifted[T] {
+    def apply(elem: T): Reactive[Boolean] = ???
+  }
 
   val initSize = 16
 

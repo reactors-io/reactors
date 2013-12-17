@@ -69,6 +69,11 @@ object CataMonoid {
 
   def apply[@spec(Int, Long, Double) T](implicit m: Monoid[T]) = new CataMonoid[T, T](v => v, m.zero, m.operator)
 
+  implicit def factory[@spec(Int, Long, Double) T: Monoid] =
+    new ReactBuilder.Factory[T, CataMonoid[T, T]] {
+      def apply() = CataMonoid[T]
+    }
+
   sealed trait Node[@spec(Int, Long, Double) T] {
     def height: Int
     def value: T

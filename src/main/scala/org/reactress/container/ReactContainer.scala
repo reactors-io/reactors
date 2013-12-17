@@ -13,16 +13,7 @@ trait ReactContainer[@spec(Int, Long, Double) T] extends ReactMutable {
   
   def removes: Reactive[T]
 
-  def resizes: Signal[Int] with Reactive.Subscription = {
-    new Signal.Default[Int] with Reactive.ProxySubscription {
-      private var value = 0
-      def apply() = value
-      val subscription = Reactive.CompositeSubscription(
-        inserts onTick { value += 1; reactAll(value) },
-        removes onTick { value -= 1; reactAll(value) }
-      )
-    }
-  }
+  def reactive: ReactContainer.Lifted[T]
 
   def aggregate(implicit canAggregate: ReactContainer.CanAggregate[T]): Signal[T] with Reactive.Subscription = {
     canAggregate.apply(this)
@@ -55,16 +46,41 @@ trait ReactContainer[@spec(Int, Long, Double) T] extends ReactMutable {
 
 object ReactContainer {
 
+  trait Lifted[@spec(Int, Long, Double) T] {
+    val outer: ReactContainer[T]
+
+    def size: Signal[Int] with Reactive.Subscription =
+      new Signal.Default[Int] with Reactive.ProxySubscription {
+        private var value = 0
+        def apply() = value
+        val subscription = Reactive.CompositeSubscription(
+          outer.inserts onTick { value += 1; reactAll(value) },
+          outer.removes onTick { value -= 1; reactAll(value) }
+        )
+      }
+  }
+
+  object Lifted {
+    class Default[@spec(Int, Long, Double) T](val outer: ReactContainer[T])
+    extends Lifted[T]
+  }
+
+  trait Default[@spec(Int, Long, Double) T] extends ReactContainer[T] {
+    val reactive = new Lifted.Default[T](this)
+  }
+
   class Map[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](self: ReactContainer[T], f: T => S)
   extends ReactContainer[S] {
     val inserts = self.inserts.map(f)
     val removes = self.removes.map(f)
+    def reactive = new Lifted.Default(this)
   }
 
   class Filter[@spec(Int, Long, Double) T](self: ReactContainer[T], p: T => Boolean)
   extends ReactContainer[T] {
     val inserts = self.inserts.filter(p)
     val removes = self.removes.filter(p)
+    def reactive = new Lifted.Default(this)
   }
 
   trait CanAggregate[@spec(Int, Long, Double) T] {
@@ -72,7 +88,7 @@ object ReactContainer {
   }
 
   implicit def canAggregateMonoid[@spec(Int, Long, Double) T](implicit m: Monoid[T]) = new CanAggregate[T] {
-    def apply(c: ReactContainer[T]) = new Aggregate[T](c, CataMonoid(m))
+    def apply(c: ReactContainer[T]) = new Aggregate[T](c, CataMonoid[T])
   }
 
   implicit def monoidToCanAggregate[@spec(Int, Long, Double) T](m: Monoid[T]) = canAggregateMonoid(m)

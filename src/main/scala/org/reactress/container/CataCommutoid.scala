@@ -69,6 +69,11 @@ object CataCommutoid {
 
   def apply[@spec(Int, Long, Double) T](implicit m: Commutoid[T]) = new CataCommutoid[T, T](v => v, m.zero, m.operator)
 
+  implicit def factory[@spec(Int, Long, Double) T: Commutoid] =
+    new ReactBuilder.Factory[T, CataCommutoid[T, T]] {
+      def apply() = CataCommutoid[T]
+    }
+
   sealed trait Node[@spec(Int, Long, Double) T] {
     def height: Int
     def value: T

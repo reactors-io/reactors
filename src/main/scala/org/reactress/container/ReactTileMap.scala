@@ -11,7 +11,7 @@ class ReactTileMap[@spec(Int, Long, Double) T: ClassTag](
   private[reactress] var sz: Int,
   private[reactress] val dflt: T,
   private[reactress] val compress: Boolean = true
-) extends ReactContainer[(Int, Int, T)] with ReactBuilder[(Int, Int, T), ReactTileMap[T]] {
+) extends ReactContainer[(Int, Int, T)] with ReactBuilder[(Int, Int, T), ReactTileMap[T]] with ReactContainer.Default[(Int, Int, T)] {
   self =>
 
   import ReactTileMap._

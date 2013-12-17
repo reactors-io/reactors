@@ -9,7 +9,7 @@ import scala.collection._
 
 class CataBelian[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
   (val get: S => T, val zero: T, val op: (T, T) => T, val inv: (T, T) => T)
-  (implicit val canS: Arrayable[S], val canT: Arrayable[T])
+  (implicit val canT: Arrayable[T], val canS: Arrayable[S])
 extends ReactCatamorph[T, S] with ReactBuilder[S, CataBelian[T, S]] {
   import CataBelian._
 
@@ -76,5 +76,10 @@ object CataBelian {
   def apply[@spec(Int, Long, Double) T](implicit g: Abelian[T], can: Arrayable[T]) = {
     new CataBelian[T, T](v => v, g.zero, g.operator, g.inverse)
   }
+
+  implicit def factory[@spec(Int, Long, Double) T: Abelian: Arrayable] =
+    new ReactBuilder.Factory[T, CataBelian[T, T]] {
+      def apply() = CataBelian[T]
+    }
 
 }
