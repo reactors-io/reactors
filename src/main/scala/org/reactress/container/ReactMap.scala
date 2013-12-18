@@ -55,6 +55,7 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
   }
 
   private def lookup(k: K): ReactMap.Entry[K, V] = {
+    assert(k != null)
     val pos = index(k)
     var entry = table(pos)
 
@@ -67,6 +68,7 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
   }
 
   private[reactress] def ensure(k: K): ReactMap.Entry[K, V] = {
+    assert(k != null)
     val pos = index(k)
     var entry = table(pos)
 
@@ -75,14 +77,23 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
     }
 
     if (entry == null) {
-      entry = new ReactMap.Entry[K, V](k)
+      entry = new ReactMap.Entry[K, V](k, this)
       entry.next = table(pos)
       table(pos) = entry
       entry
     } else entry
   }
 
+  private[reactress] def clean(entry: ReactMap.Entry[K, V]) {
+    if (entry.value == null) {
+      val pos = index(entry.key)
+      table(pos) = table(pos).remove(entry)
+    }
+  }
+
   private def insert(k: K, v: V): V = {
+    assert(k != null)
+    assert(v != null)
     checkResize()
 
     val pos = index(k)
@@ -94,7 +105,7 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
 
     var previousValue: V = null
     if (entry == null) {
-      entry = new ReactMap.Entry[K, V](k)
+      entry = new ReactMap.Entry[K, V](k, this)
       entry.value = v
       entry.next = table(pos)
       table(pos) = entry
@@ -112,6 +123,7 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
   }
 
   private def delete(k: K): V = {
+    assert(k != null)
     val pos = index(k)
     var entry = table(pos)
 
@@ -162,9 +174,13 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
     math.abs(scala.util.hashing.byteswap32(hc)) % table.length
   }
 
-  // TODO reactive apply
-
   private def noKeyError(key: K) = throw new NoSuchElementException("key: " + key)
+
+  def applyOrNull(key: K): V = {
+    val entry = lookup(key)
+    if (entry == null || entry.value == null) null
+    else entry.value
+  }
 
   def apply(key: K): V = {
     val entry = lookup(key)
@@ -185,7 +201,6 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
   }
 
   def update(key: K, value: V): Unit = {
-    assert(value != null)
     insert(key, value)
   }
 
@@ -200,16 +215,20 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
       var entry = table(pos)
       while (entry != null) {
         val nextEntry = entry.next
+        val previousValue = entry.value
 
         entry.value = null
         if (!entry.hasSubscriptions) table(pos) = table(pos).remove(entry)
         entry.propagate()
-        sz -= 1
+        if (previousValue != null) sz -= 1
 
         entry = nextEntry
       }
 
       pos += 1
+    }
+    if (sz != 0) {
+      throw new IllegalStateException("Size not zero after clear: " + sz)
     }
 
     clearsEmitter += ()
@@ -222,7 +241,7 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
 
 object ReactMap {
 
-  class Entry[@spec(Int, Long, Double) K, V >: Null <: AnyRef](val key: K)
+  class Entry[@spec(Int, Long, Double) K, V >: Null <: AnyRef](val key: K, val outer: ReactMap[K, V])
   extends Signal.Default[V] {
     var value: V = _
     var next: Entry[K, V] = null
@@ -232,6 +251,7 @@ object ReactMap {
       if (next ne null) next = next.remove(e)
       this
     }
+    override def onSubscriptionChange() = if (!hasSubscriptions) outer.clean(this)
     override def toString = s"Entry($key, $value)"
   }
 
@@ -240,7 +260,7 @@ object ReactMap {
   class Lifted[@spec(Int, Long, Double) K, V >: Null <: AnyRef](val outer: ReactMap[K, V])
   extends ReactContainer.Lifted[(K, V)] {
     def apply(k: K): Signal[V] = {
-      outer.ensure(k)
+      outer.ensure(k).signal(outer.applyOrNull(k))
     }
   }
 

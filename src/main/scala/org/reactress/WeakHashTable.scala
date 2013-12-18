@@ -6,10 +6,10 @@ import java.lang.ref.{WeakReference => WeakRef}
 
 
 
-trait WeakHashTable[M <: AnyRef] {
-  protected var table = new Array[WeakRef[M]](2)
-  protected var size = 0
-  protected var threshold = 2
+class WeakHashTable[M <: AnyRef] {
+  protected[reactress] var table = new Array[WeakRef[M]](32)
+  protected[reactress] var size = 0
+  protected[reactress] var threshold = 2
 
   private def index(h: Int) = h & (table.length - 1)
 
@@ -23,7 +23,7 @@ trait WeakHashTable[M <: AnyRef] {
     entry
   }
 
-  protected def addEntry(mux: M) : Boolean = {
+  def addEntry(mux: M) : Boolean = {
     var h = index(mux.hashCode)
     var entry = table(h)
     while (null != entry) {
@@ -37,7 +37,7 @@ trait WeakHashTable[M <: AnyRef] {
     true
   }
 
-  protected def removeEntryAt(idx: Int, mux: M): Boolean = {
+  protected[reactress] def removeEntryAt(idx: Int, mux: M): Boolean = {
     def precedes(i: Int, j: Int) = {
       val d = table.length >> 1
       if (i <= j) j - i < d
@@ -67,7 +67,7 @@ trait WeakHashTable[M <: AnyRef] {
     false
   }
 
-  protected def removeEntry(mux: M): Boolean = {
+  def removeEntry(mux: M): Boolean = {
     val h = index(mux.hashCode)
     removeEntryAt(h, mux)
   }

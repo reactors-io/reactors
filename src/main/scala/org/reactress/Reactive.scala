@@ -2,7 +2,8 @@ package org.reactress
 
 
 
-import collection._
+import java.lang.ref.{WeakReference => WeakRef}
+import scala.collection._
 
 
 
@@ -214,70 +215,163 @@ object Reactive {
     }
   }
 
-  trait WeakSource[@spec(Int, Long, Double) T] extends Reactive[T] with WeakHashTable[Reactor[T]] {
+  private val bufferSizeBound = 8
+  private val hashTableSizeBound = 5
+
+  trait Default[@spec(Int, Long, Double) T] extends Reactive[T] {
+    private var demux: AnyRef = null
     def onReaction(reactor: Reactor[T]) = {
-      addEntry(reactor)
-      new Subscription {
-        def unsubscribe() = removeEntry(reactor)
+      demux match {
+        case null =>
+          demux = new WeakRef(reactor)
+        case w: WeakRef[Reactor[T] @unchecked] =>
+          val wb = new WeakBuffer[Reactor[T]]
+          demux = wb
+        case wb: WeakBuffer[Reactor[T] @unchecked] =>
+          if (wb.size < bufferSizeBound) {
+            wb.addEntry(reactor)
+          } else {
+            val wht = toHashTable(wb)
+            wht.addEntry(reactor)
+            demux = wht
+          }
+        case wht: WeakHashTable[Reactor[T] @unchecked] =>
+          wht.addEntry(reactor)
       }
+      newSubscription(reactor)
+    }
+    private def newSubscription(r: Reactor[T]) = new Subscription {
+      onSubscriptionChange()
+      def unsubscribe() = removeReaction(r)
+    }
+    private def removeReaction(r: Reactor[T]) {
+      demux match {
+        case null =>
+          // nothing to remove
+        case w: WeakRef[Reactor[T] @unchecked] =>
+          if (w.get eq r) demux = null
+        case wb: WeakBuffer[Reactor[T] @unchecked] =>
+          wb.removeEntry(r)
+        case wht: WeakHashTable[Reactor[T] @unchecked] =>
+          wht.removeEntry(r)
+      }
+      onSubscriptionChange()
     }
     def reactAll(value: T) {
+      demux match {
+        case null =>
+          // no need to inform anybody
+        case w: WeakRef[Reactor[T] @unchecked] =>
+          val r = w.get
+          if (r != null) r.react(value)
+          else demux = null
+        case wb: WeakBuffer[Reactor[T] @unchecked] =>
+          bufferReactAll(wb, value)
+        case wht: WeakHashTable[Reactor[T] @unchecked] =>
+          tableReactAll(wht, value)
+      }
+    }
+    def unreactAll() {
+      demux match {
+        case null =>
+          // no need to inform anybody
+        case w: WeakRef[Reactor[T] @unchecked] =>
+          val r = w.get
+          if (r != null) r.unreact()
+          else demux = null
+        case wb: WeakBuffer[Reactor[T] @unchecked] =>
+          bufferUnreactAll(wb)
+        case wht: WeakHashTable[Reactor[T] @unchecked] =>
+          tableUnreactAll(wht)
+      }
+    }
+    private def checkBuffer(wb: WeakBuffer[Reactor[T]]) {
+      if (wb.size == 1) demux = new WeakRef(wb(0))
+    }
+    private def bufferReactAll(wb: WeakBuffer[Reactor[T]], value: T) {
+      val array = wb.array
+      val until = wb.size
+      var i = 0
+      while (i < until) {
+        val ref = array(i)
+        val r = ref.get
+        if (r ne null) r.react(value)
+        else wb.removeEntryAt(i)
+        i += 1
+      }
+      checkBuffer(wb)
+    }
+    private def bufferUnreactAll(wb: WeakBuffer[Reactor[T]]) {
+      val array = wb.array
+      val until = wb.size
+      var i = 0
+      while (i < until) {
+        val ref = array(i)
+        val r = ref.get
+        if (r ne null) r.unreact()
+        else wb.removeEntryAt(i)
+        i += 1
+      }
+      checkBuffer(wb)
+    }
+    private def toHashTable(wb: WeakBuffer[Reactor[T]]) = {
+      val wht = new WeakHashTable[Reactor[T]]
+      val array = wb.array
+      val until = wb.size
+      var i = 0
+      while (i < until) {
+        val r = array(i).get
+        if (r != null) wht.addEntry(r)
+        i += 1
+      }
+      wht
+    }
+    private def toBuffer(wht: WeakHashTable[Reactor[T]]) = {
+      val wb = new WeakBuffer[Reactor[T]]
+      val table = wht.table
+      var i = 0
+      while (i < table.length) {
+        var ref = table(i)
+        wb.addRef(ref)
+        i += 1
+      }
+      wb
+    }
+    private def checkHashTable(wht: WeakHashTable[Reactor[T]]) {
+      if (wht.size < hashTableSizeBound) {
+        demux = toBuffer(wht)
+      }
+    }
+    private def tableReactAll(wht: WeakHashTable[Reactor[T]], value: T) {
+      val table = wht.table
       var i = 0
       while (i < table.length) {
         val ref = table(i)
         if (ref ne null) {
           val r = ref.get
           if (r ne null) r.react(value)
+          else wht.removeEntryAt(i, null)
         }
         i += 1
       }
+      checkHashTable(wht)
     }
-    def unreactAll() {
+    private def tableUnreactAll(wht: WeakHashTable[Reactor[T]]) {
+      val table = wht.table
       var i = 0
       while (i < table.length) {
         val ref = table(i)
         if (ref ne null) {
           val r = ref.get
           if (r ne null) r.unreact()
+          else wht.removeEntryAt(i, null)
           i += 1
-        } else {
-          removeEntryAt(i, null)
         }
       }
+      checkHashTable(wht)
     }
-    def hasSubscriptions = size > 0
-  }
-
-  trait Default[@spec(Int, Long, Double) T] extends Reactive[T] {
-    private val reactors = mutable.ArrayBuffer[Reactor[T]]()
-    // private val reactors = new Array[Reactor[T]](8) // TODO fix
-    // private var len = 0
-    def onReaction(reactor: Reactor[T]) = {
-      reactors += reactor
-      //reactors(len) = reactor
-      //len += 1
-      new Subscription {
-        //def unsubscribe() = {}
-        def unsubscribe() = reactors -= reactor
-      }
-    }
-    def reactAll(value: T) {
-      var i = 0
-      while (i < reactors.length) {
-      //while (i < len) {
-        reactors(i).react(value)
-        i += 1
-      }
-    }
-    def unreactAll() {
-      var i = 0
-      while (i < reactors.length) {
-      //while (i < len) {
-        reactors(i).unreact()
-        i += 1
-      }
-    }
-    def hasSubscriptions: Boolean = reactors.size > 0
+    def hasSubscriptions: Boolean = demux == null
+    def onSubscriptionChange() {}
   }
 
   class Emitter[@spec(Int, Long, Double) T]
