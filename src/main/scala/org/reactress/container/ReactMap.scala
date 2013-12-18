@@ -54,7 +54,7 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
     }
   }
 
-  private def lookup(k: K): V = {
+  private def lookup(k: K): ReactMap.Entry[K, V] = {
     val pos = index(k)
     var entry = table(pos)
 
@@ -63,11 +63,26 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
     }
 
     if (entry == null) null
-    else entry.value
+    else entry
+  }
+
+  private[reactress] def ensure(k: K): ReactMap.Entry[K, V] = {
+    val pos = index(k)
+    var entry = table(pos)
+
+    while (entry != null && entry.key != k) {
+      entry = entry.next
+    }
+
+    if (entry == null) {
+      entry = new ReactMap.Entry[K, V](k)
+      entry.next = table(pos)
+      table(pos) = entry
+      entry
+    } else entry
   }
 
   private def insert(k: K, v: V): V = {
-    assert(v != null)
     checkResize()
 
     val pos = index(k)
@@ -149,22 +164,30 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
 
   // TODO reactive apply
 
-  def apply(key: K): V = lookup(key) match {
-    case null => throw new NoSuchElementException("key: " + key)
-    case v => v
+  private def noKeyError(key: K) = throw new NoSuchElementException("key: " + key)
+
+  def apply(key: K): V = {
+    val entry = lookup(key)
+    if (entry == null || entry.value == null) noKeyError(key)
+    else entry.value
   }
 
-  def get(key: K): Option[V] = lookup(key) match {
-    case null => None
-    case v => Some(v)
+  def get(key: K): Option[V] = {
+    val entry = lookup(key)
+    if (entry == null || entry.value == null) None
+    else Some(entry.value)
   }
 
-  def contains(key: K): Boolean = lookup(key) match {
-    case null => false
-    case v => true
+  def contains(key: K): Boolean = {
+    val entry = lookup(key)
+    if (entry == null || entry.value == null) false
+    else true
   }
 
-  def update(key: K, value: V): Unit = insert(key, value)
+  def update(key: K, value: V): Unit = {
+    assert(value != null)
+    insert(key, value)
+  }
 
   def remove(key: K): Boolean = delete(key) match {
     case null => false
@@ -214,8 +237,11 @@ object ReactMap {
 
   def apply[@spec(Int, Long, Double) K, V >: Null <: AnyRef] = new ReactMap[K, V]
 
-  class Lifted[@spec(Int, Long, Double) K, V >: Null <: AnyRef](val outer: ReactMap[K, V]) extends ReactContainer.Lifted[(K, V)] {
-    def apply(k: K): Reactive[V] = ???
+  class Lifted[@spec(Int, Long, Double) K, V >: Null <: AnyRef](val outer: ReactMap[K, V])
+  extends ReactContainer.Lifted[(K, V)] {
+    def apply(k: K): Signal[V] = {
+      outer.ensure(k)
+    }
   }
 
   val initSize = 16

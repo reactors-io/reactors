@@ -71,7 +71,7 @@ class ReactMapSpec extends FlatSpec with ShouldMatchers {
   }
 
   def containManyElements() {
-    val many = 16
+    val many = 1024
     val table = new ReactMap[Long, String]
     for (i <- 0 until many) table(i) = i.toString
 
@@ -83,6 +83,28 @@ class ReactMapSpec extends FlatSpec with ShouldMatchers {
     table.clear()
     for (i <- 0 until many) table.get(i) should equal (None)
     table.size should equal (0)
+  }
+
+  it should "subscribe to a specific key" in {
+    val many = 512
+    val table = new ReactMap[Int, String]
+    for (i <- 0 until many) table(i) = i.toString
+    val specificKey = table.reactive(128)
+
+    table(128) = "new value"
+    specificKey() should equal ("new value")
+  }
+
+  it should "subscribe to many keys" in {
+    val size = 1024
+    val many = 512
+    val table = new ReactMap[Int, String]
+    for (i <- 0 until many) table(i) = i.toString
+    val signals = for (i <- 0 until many) yield table.reactive(i)
+    for (i <- 0 until size) table(i) = s"value$i"
+    for (i <- 0 until many) signals(i)() should equal (s"value$i")
+    val moresignals = for (i <- many until size) yield table.reactive(i)
+    for (i <- many until size) moresignals(i - many)() should equal (s"value$i")
   }
 
 }
