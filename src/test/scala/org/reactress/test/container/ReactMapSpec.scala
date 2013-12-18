@@ -5,6 +5,7 @@ package test.container
 
 import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers
+import java.util.NoSuchElementException
 
 
 
@@ -43,6 +44,10 @@ class ReactMapSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "contain several elements" in {
+    containSeveralElements()
+  }
+
+  def containSeveralElements() {
     val table = new ReactMap[String, String]
     table.update("a", "1")
     table.update("b", "2")
@@ -62,7 +67,11 @@ class ReactMapSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "contain many elements" in {
-    val many = 1024
+    containManyElements()
+  }
+
+  def containManyElements() {
+    val many = 16
     val table = new ReactMap[Long, String]
     for (i <- 0 until many) table(i) = i.toString
 

@@ -55,11 +55,10 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
   }
 
   private def lookup(k: K): V = {
-    var pos = index(k)
+    val pos = index(k)
     var entry = table(pos)
 
     while (entry != null && entry.key != k) {
-      pos = (pos + 1) % table.length
       entry = entry.next
     }
 
@@ -71,11 +70,10 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
     assert(v != null)
     checkResize()
 
-    var pos = index(k)
+    val pos = index(k)
     var entry = table(pos)
 
     while (entry != null && entry.key != k) {
-      pos = (pos + 1) % table.length
       entry = entry.next
     }
 
@@ -99,11 +97,10 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
   }
 
   private def delete(k: K): V = {
-    var pos = index(k)
+    val pos = index(k)
     var entry = table(pos)
 
     while (entry != null && entry.key != k) {
-      pos = (pos + 1) % table.length
       entry = entry.next
     }
 
@@ -129,17 +126,18 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
       table = new Array(ncapacity)
       sz = 0
 
-      var pos = 0
-      while (pos < otable.length) {
-        var entry = otable(pos)
+      var opos = 0
+      while (opos < otable.length) {
+        var entry = otable(opos)
         while (entry != null) {
           val nextEntry = entry.next
+          val pos = index(entry.key)
           entry.next = table(pos)
           table(pos) = entry
+          if (entry.value != null) sz += 1
           entry = nextEntry
         }
-
-        pos += 1
+        opos += 1
       }
     }
   }
@@ -211,6 +209,7 @@ object ReactMap {
       if (next ne null) next = next.remove(e)
       this
     }
+    override def toString = s"Entry($key, $value)"
   }
 
   def apply[@spec(Int, Long, Double) K, V >: Null <: AnyRef] = new ReactMap[K, V]
