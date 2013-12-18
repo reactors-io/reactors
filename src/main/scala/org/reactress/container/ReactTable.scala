@@ -89,11 +89,11 @@ class ReactTable[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
     val previousValue = valtable(pos)
     keytable(pos) = k
     valtable(pos) = v
-    val added = curr == nil
-    if (added) {
-      sz += 1
-      if (notify && insertsEmitter.hasSubscriptions) insertsEmitter += (k, v)
-    }
+    
+    val keyAdded = curr == nil
+    if (keyAdded) sz += 1
+    else if (notify && removesEmitter.hasSubscriptions) removesEmitter += (k, previousValue)
+    if (notify && insertsEmitter.hasSubscriptions) insertsEmitter += (k, v)
 
     previousValue
   }
@@ -124,11 +124,10 @@ class ReactTable[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
         h1 = (h1 + 1) % keytable.length
       }
 
-      val v = valtable(h0)
       keytable(h0) = emptyKey.nil
       valtable(h0) = emptyVal.nil
       sz -= 1
-      if (removesEmitter.hasSubscriptions) removesEmitter += (k, v)
+      if (removesEmitter.hasSubscriptions) removesEmitter += (k, previousValue)
 
       previousValue
     }

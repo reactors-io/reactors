@@ -75,10 +75,9 @@ class ReactSet[@spec(Int, Long, Double) T](
 
     table(pos) = k
     val added = curr == nil
-    if (added) {
-      sz += 1
-      if (notify) insertsEmitter += k
-    }
+    if (added) sz += 1
+    else removesEmitter += k
+    if (notify) insertsEmitter += k
 
     added
   }

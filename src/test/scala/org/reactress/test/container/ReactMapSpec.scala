@@ -43,22 +43,22 @@ class ReactMapSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "contain several elements" in {
-    val table = new ReactMap[String, Int]
-    table.update("a", 1)
-    table.update("b", 2)
-    table.update("c", 3)
-    table.update("d", 4)
+    val table = new ReactMap[String, String]
+    table.update("a", "1")
+    table.update("b", "2")
+    table.update("c", "3")
+    table.update("d", "4")
 
     table.size should equal (4)
-    table("a") should equal (1)
-    table("b") should equal (2)
-    table("c") should equal (3)
-    table("d") should equal (4)
+    table("a") should equal ("1")
+    table("b") should equal ("2")
+    table("c") should equal ("3")
+    table("d") should equal ("4")
 
     table.remove("b") should equal (true)
     table.remove("c") should equal (true)
-    table("a") should equal (1)
-    table("d") should equal (4)
+    table("a") should equal ("1")
+    table("d") should equal ("4")
   }
 
   it should "contain many elements" in {

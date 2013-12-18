@@ -51,7 +51,7 @@ package object reactress extends ReactiveApi {
 
   val ReactTable = container.ReactTable
 
-  type ReactMap[K, V] = container.ReactMap[K, V]
+  type ReactMap[K, V >: Null <: AnyRef] = container.ReactMap[K, V]
 
   val ReactMap = container.ReactMap
 
