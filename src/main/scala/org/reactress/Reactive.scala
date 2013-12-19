@@ -185,23 +185,6 @@ object Reactive {
     }
   }
 
-  trait SubscriptionSet extends ReactMutable {
-    val subscriptions = mutable.Set[Subscription]()
-
-    def clearSubscriptions() {
-      for (s <- subscriptions) s.unsubscribe()
-      subscriptions.clear()
-    }
-    
-    override def bindSubscription(s: Reactive.Subscription) = new Subscription {
-      subscriptions += this
-      def unsubscribe() {
-        s.unsubscribe()
-        subscriptions -= this
-      }
-    }
-  }
-
   trait ProxySubscription extends Subscription {
     def subscription: Subscription
     def unsubscribe() {

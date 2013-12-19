@@ -9,7 +9,7 @@ import scala.collection._
 
 class CataSignaloid[@spec(Int, Long, Double) T](val catamorph: ReactCatamorph[T, Signal[T]])
 extends ReactCatamorph[T, Signal[T]] with ReactBuilder[Signal[T], CataSignaloid[T]] {
-  private var subscriptions = mutable.Map[Signal[T], Reactive.Subscription]()
+  private var signalSubscriptions = mutable.Map[Signal[T], Reactive.Subscription]()
   private var insertsReactive: Reactive[Signal[T]] = null
   private var removesReactive: Reactive[Signal[T]] = null
 
@@ -28,7 +28,7 @@ extends ReactCatamorph[T, Signal[T]] with ReactBuilder[Signal[T], CataSignaloid[
   
   def +=(s: Signal[T]): Boolean = {
     if (catamorph += s) {
-      subscriptions(s) = s.onValue { v =>
+      signalSubscriptions(s) = s.onValue { v =>
         catamorph.push(s)
         reactAll(apply())
       }
@@ -39,8 +39,8 @@ extends ReactCatamorph[T, Signal[T]] with ReactBuilder[Signal[T], CataSignaloid[
 
   def -=(s: Signal[T]): Boolean = {
     if (catamorph -= s) {
-      subscriptions(s).unsubscribe()
-      subscriptions.remove(s)
+      signalSubscriptions(s).unsubscribe()
+      signalSubscriptions.remove(s)
       reactAll(apply())
       true
     } else false
