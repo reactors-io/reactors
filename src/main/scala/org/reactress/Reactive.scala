@@ -219,7 +219,7 @@ object Reactive {
   private val hashTableSizeBound = 5
 
   trait Default[@spec(Int, Long, Double) T] extends Reactive[T] {
-    private var demux: AnyRef = null
+    private[reactress] var demux: AnyRef = null
     def onReaction(reactor: Reactor[T]) = {
       demux match {
         case null =>
@@ -290,27 +290,35 @@ object Reactive {
     }
     private def bufferReactAll(wb: WeakBuffer[Reactor[T]], value: T) {
       val array = wb.array
-      val until = wb.size
+      var until = wb.size
       var i = 0
       while (i < until) {
         val ref = array(i)
         val r = ref.get
-        if (r ne null) r.react(value)
-        else wb.removeEntryAt(i)
-        i += 1
+        if (r ne null) {
+          r.react(value)
+          i += 1
+        } else {
+          wb.removeEntryAt(i)
+          until -= 1
+        }
       }
       checkBuffer(wb)
     }
     private def bufferUnreactAll(wb: WeakBuffer[Reactor[T]]) {
       val array = wb.array
-      val until = wb.size
+      var until = wb.size
       var i = 0
       while (i < until) {
         val ref = array(i)
         val r = ref.get
-        if (r ne null) r.unreact()
-        else wb.removeEntryAt(i)
-        i += 1
+        if (r ne null) {
+          r.unreact()
+          i += 1
+        } else {
+          wb.removeEntryAt(i)
+          until -= 1
+        }
       }
       checkBuffer(wb)
     }
