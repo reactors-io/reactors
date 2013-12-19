@@ -8,6 +8,7 @@ import scala.reflect.ClassTag
 
 
 class ReactMap[@spec(Int, Long, Double) K, V >: Null <: AnyRef]
+  (implicit val can: ReactMap.Can[K, V])
 extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
   private var table: Array[ReactMap.Entry[K, V]] = null
   private var elems = 0
@@ -56,7 +57,6 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
   }
 
   private def lookup(k: K): ReactMap.Entry[K, V] = {
-    assert(k != null)
     val pos = index(k)
     var entry = table(pos)
 
@@ -69,7 +69,6 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
   }
 
   private[reactress] def ensure(k: K): ReactMap.Entry[K, V] = {
-    assert(k != null)
     val pos = index(k)
     var entry = table(pos)
     checkResize()
@@ -79,7 +78,7 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
     }
 
     if (entry == null) {
-      entry = new ReactMap.Entry[K, V](k, this)
+      entry = can.newEntry(k, this)
       entry.next = table(pos)
       table(pos) = entry
       entry
@@ -94,7 +93,6 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
   }
 
   private def insert(k: K, v: V): V = {
-    assert(k != null)
     assert(v != null)
     checkResize()
 
@@ -107,7 +105,7 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
 
     var previousValue: V = null
     if (entry == null) {
-      entry = new ReactMap.Entry[K, V](k, this)
+      entry = can.newEntry(k, this)
       entry.value = v
       entry.next = table(pos)
       table(pos) = entry
@@ -126,7 +124,6 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
   }
 
   private def delete(k: K): V = {
-    assert(k != null)
     val pos = index(k)
     var entry = table(pos)
 
@@ -249,11 +246,15 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
 
 object ReactMap {
 
-  class Entry[@spec(Int, Long, Double) K, V >: Null <: AnyRef](val key: K, val outer: ReactMap[K, V])
+  trait Entry[@spec(Int, Long, Double) K, V >: Null <: AnyRef]
   extends Signal.Default[V] {
-    var value: V = _
-    var next: Entry[K, V] = null
-    def apply() = value
+    def outer: ReactMap[K, V]
+    def key: K
+    def value: V
+    def value_=(v: V): Unit
+    def next: Entry[K, V]
+    def next_=(e: Entry[K, V]): Unit
+    def apply(): V = value
     def propagate() = reactAll(value)
     def remove(e: Entry[K, V]): Entry[K, V] = if (this eq e) next else {
       if (next ne null) next = next.remove(e)
@@ -261,6 +262,46 @@ object ReactMap {
     }
     override def onSubscriptionChange() = if (!hasSubscriptions) outer.clean(this)
     override def toString = s"Entry($key, $value)"
+  }
+
+  trait Can[@spec(Int, Long, Double) K, V >: Null <: AnyRef] {
+    def newEntry(key: K, outer: ReactMap[K, V]): ReactMap.Entry[K, V]
+  }
+
+  implicit def canAnyRef[K, V >: Null <: AnyRef] = new Can[K, V] {
+    def newEntry(k: K, o: ReactMap[K, V]) = new ReactMap.Entry[K, V] {
+      def outer = o
+      def key = k
+      var value: V = _
+      var next: Entry[K, V] = null
+    }
+  }
+
+  implicit def canInt[V >: Null <: AnyRef] = new Can[Int, V] {
+    def newEntry(k: Int, o: ReactMap[Int, V]) = new ReactMap.Entry[Int, V] {
+      def outer = o
+      def key = k
+      var value: V = _
+      var next: Entry[Int, V] = null
+    }
+  }
+
+  implicit def canLong[V >: Null <: AnyRef] = new Can[Long, V] {
+    def newEntry(k: Long, o: ReactMap[Long, V]) = new ReactMap.Entry[Long, V] {
+      def outer = o
+      def key = k
+      var value: V = _
+      var next: Entry[Long, V] = null
+    }
+  }
+
+  implicit def canDouble[V >: Null <: AnyRef] = new Can[Double, V] {
+    def newEntry(k: Double, o: ReactMap[Double, V]) = new ReactMap.Entry[Double, V] {
+      def outer = o
+      def key = k
+      var value: V = _
+      var next: Entry[Double, V] = null
+    }
   }
 
   def apply[@spec(Int, Long, Double) K, V >: Null <: AnyRef] = new ReactMap[K, V]
