@@ -107,6 +107,39 @@ class ReactMapSpec extends FlatSpec with ShouldMatchers {
     for (i <- many until size) moresignals(i - many)() should equal (s"value$i")
   }
 
+  it should "subscribe to non-existing keys" in {
+    testSubscribeNonexisting()
+  }
+
+  def testSubscribeNonexisting() {
+    val size = 256
+    val many = 128
+    val table = new ReactMap[Int, String]
+    val signsOfLife = Array.fill(many)(false)
+    val subs = for (i <- 0 until many) yield {
+      val values = table.reactive(i)
+      values onTick {
+        signsOfLife(i) = true
+      }
+    }
+
+    for (i <- 0 until size) table(i) = "foobar"
+    for (i <- 0 until many) signsOfLife(i) should equal (true)
+  }
+
+  it should "accurately GC key subscriptions no longer used" in {
+    val size = 256
+    val many = 128
+    val table = new ReactMap[Int, String]
+    val signsOfLife = Array.fill(many)(false)
+    for (i <- 0 until many) yield table.reactive(i)
+
+    sys.runtime.gc()
+
+    for (i <- 0 until size) table(i) = "foobar"
+    for (i <- 0 until many) signsOfLife(i) should equal (false)
+  }
+
 }
 
 

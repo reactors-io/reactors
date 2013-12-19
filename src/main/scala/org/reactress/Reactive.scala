@@ -368,7 +368,7 @@ object Reactive {
       }
       checkHashTable(wht)
     }
-    def hasSubscriptions: Boolean = demux == null
+    def hasSubscriptions: Boolean = demux != null
     def onSubscriptionChange() {}
   }
 

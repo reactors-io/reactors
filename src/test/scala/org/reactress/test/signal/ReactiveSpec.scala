@@ -95,7 +95,13 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     afterCheck(emitter) should equal (true)
   }
 
-  it should "accurately GC some of the dependencies" in {
+  it should "accurately GC some of the several dependencies" in {
+    testGChalf(8) {
+      _.demux.isInstanceOf[WeakBuffer[_]]
+    }
+  }
+
+  it should "accurately GC some of the many dependencies" in {
     testGChalf(16) {
       _.demux.isInstanceOf[WeakHashTable[_]]
     }

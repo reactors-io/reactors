@@ -10,7 +10,8 @@ import scala.reflect.ClassTag
 class ReactMap[@spec(Int, Long, Double) K, V >: Null <: AnyRef]
 extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
   private var table: Array[ReactMap.Entry[K, V]] = null
-  private var sz = 0
+  private var elems = 0
+  private var entries = 0
   private[reactress] var insertsEmitter: Reactive.Emitter[(K, V)] = null
   private[reactress] var removesEmitter: Reactive.Emitter[(K, V)] = null
   private[reactress] var clearsEmitter: Reactive.Emitter[Unit] = null
@@ -71,6 +72,7 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
     assert(k != null)
     val pos = index(k)
     var entry = table(pos)
+    checkResize()
 
     while (entry != null && entry.key != k) {
       entry = entry.next
@@ -109,12 +111,13 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
       entry.value = v
       entry.next = table(pos)
       table(pos) = entry
+      entries += 1
     } else {
       previousValue = entry.value
       entry.value = v
     }
 
-    if (previousValue == null) sz += 1
+    if (previousValue == null) elems += 1
     else if (removesEmitter.hasSubscriptions) removesEmitter += (k, previousValue)
     if (insertsEmitter.hasSubscriptions) insertsEmitter += (k, v)
     entry.propagate()
@@ -136,8 +139,11 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
       val previousValue = entry.value
       entry.value = null
 
-      sz -= 1
-      if (!entry.hasSubscriptions) table(pos) = table(pos).remove(entry)
+      elems -= 1
+      if (!entry.hasSubscriptions) {
+        table(pos) = table(pos).remove(entry)
+        entries -= 1
+      }
 
       if (removesEmitter.hasSubscriptions) removesEmitter += (k, previousValue)
       entry.propagate()
@@ -147,11 +153,12 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
   }
 
   private def checkResize() {
-    if (sz * 1000 / ReactMap.loadFactor > table.length) {
+    if (entries * 1000 / ReactMap.loadFactor > table.length) {
       val otable = table
       val ncapacity = table.length * 2
       table = new Array(ncapacity)
-      sz = 0
+      elems = 0
+      entries = 0
 
       var opos = 0
       while (opos < otable.length) {
@@ -161,7 +168,8 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
           val pos = index(entry.key)
           entry.next = table(pos)
           table(pos) = entry
-          if (entry.value != null) sz += 1
+          entries += 1
+          if (entry.value != null) elems += 1
           entry = nextEntry
         }
         opos += 1
@@ -220,21 +228,21 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
         entry.value = null
         if (!entry.hasSubscriptions) table(pos) = table(pos).remove(entry)
         entry.propagate()
-        if (previousValue != null) sz -= 1
+        if (previousValue != null) elems -= 1
 
         entry = nextEntry
       }
 
       pos += 1
     }
-    if (sz != 0) {
-      throw new IllegalStateException("Size not zero after clear: " + sz)
+    if (elems != 0) {
+      throw new IllegalStateException("Size not zero after clear: " + elems)
     }
 
     clearsEmitter += ()
   }
 
-  def size: Int = sz
+  def size: Int = elems
   
 }
 
