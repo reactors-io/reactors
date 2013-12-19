@@ -49,13 +49,17 @@ class WeakHashTable[M <: AnyRef] {
       if (entry.get == mux) {
         var h0 = h
         var h1 = (h0 + 1) % table.length
-        while (null != table(h1)) {
-          val h2 = index(table(h1).get.hashCode)
-          if (h2 != h1 && precedes(h2, h0)) {
-            table(h0) = table(h1)
-            h0 = h1
-          }
-          h1 = (h1 + 1) % table.length
+        var found = false
+        while (!found) {
+          val elem = if (table(h1) == null) null else table(h1).get
+          if (elem != null) {
+            val h2 = index(elem.hashCode)
+            if (h2 != h1 && precedes(h2, h0)) {
+              table(h0) = table(h1)
+              h0 = h1
+            }
+            h1 = (h1 + 1) % table.length
+          } else found = true
         }
         table(h0) = null
         size -= 1

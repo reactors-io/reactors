@@ -15,7 +15,7 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
   def map() {
     val numbers = new ReactSet[Long]
     val mapped = numbers.map(-_).to[ReactSet[Long]]
-    
+
     mapped.size should equal (0)
 
     numbers += 1L

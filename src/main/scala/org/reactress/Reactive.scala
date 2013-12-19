@@ -226,6 +226,8 @@ object Reactive {
           demux = new WeakRef(reactor)
         case w: WeakRef[Reactor[T] @unchecked] =>
           val wb = new WeakBuffer[Reactor[T]]
+          wb.addRef(w)
+          wb.addEntry(reactor)
           demux = wb
         case wb: WeakBuffer[Reactor[T] @unchecked] =>
           if (wb.size < bufferSizeBound) {
@@ -286,7 +288,10 @@ object Reactive {
       }
     }
     private def checkBuffer(wb: WeakBuffer[Reactor[T]]) {
-      if (wb.size == 1) demux = new WeakRef(wb(0))
+      if (wb.size <= 1) {
+        if (wb.size == 1) demux = new WeakRef(wb(0))
+        else if (wb.size == 0) demux = null
+      }
     }
     private def bufferReactAll(wb: WeakBuffer[Reactor[T]], value: T) {
       val array = wb.array
@@ -335,19 +340,21 @@ object Reactive {
       wht
     }
     private def toBuffer(wht: WeakHashTable[Reactor[T]]) = {
-      val wb = new WeakBuffer[Reactor[T]]
+      val wb = new WeakBuffer[Reactor[T]](bufferSizeBound)
       val table = wht.table
       var i = 0
       while (i < table.length) {
         var ref = table(i)
-        wb.addRef(ref)
+        if (ref != null && ref.get != null) wb.addRef(ref)
         i += 1
       }
       wb
     }
     private def checkHashTable(wht: WeakHashTable[Reactor[T]]) {
       if (wht.size < hashTableSizeBound) {
-        demux = toBuffer(wht)
+        val wb = toBuffer(wht)
+        demux = wb
+        checkBuffer(wb)
       }
     }
     private def tableReactAll(wht: WeakHashTable[Reactor[T]], value: T) {

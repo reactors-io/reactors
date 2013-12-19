@@ -45,14 +45,19 @@ class WeakBuffer[M <: AnyRef](initialSize: Int = 4) {
 
   private def growArray() {
     val oldarray = array
+    val oldsize = size
     array = new Array[WeakRef[M]](array.length * 2)
     size = 0
-    while (size < oldarray.length) {
-      val entry = oldarray(size)
-      if (entry != null && entry.get != null) array(size) = entry
-      size += 1
+    var i = 0
+    while (i < oldsize) {
+      val entry = oldarray(i)
+      if (entry != null && entry.get != null) {
+        array(size) = entry
+        size += 1
+      }
+      i += 1
     }
   }
 
-  override def toString = getClass.getSimpleName + array.filter(_ != null).map(_.get).mkString("(", ", ", ")")
+  override def toString = getClass.getSimpleName + array.filter(_ != null).map(_.get).mkString(s"($size, ${array.length}:", ", ", ")")
 }
