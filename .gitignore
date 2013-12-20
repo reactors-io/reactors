@@ -1,6 +1,6 @@
 target
 deploy
-#tmp
+tmp
 
 # ctags stuff
 .tags

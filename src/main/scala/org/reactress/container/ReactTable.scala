@@ -220,7 +220,7 @@ object ReactTable {
 
   val initSize = 16
 
-  val loadFactor = 450
+  val loadFactor = 400
 
   implicit def factory[@spec(Int, Long, Double) K: Arrayable, V: Arrayable] = new ReactBuilder.Factory[(K, V), ReactTable[K, V]] {
     def apply() = ReactTable[K, V]
