@@ -54,8 +54,8 @@ object ReactContainer {
         private var value = 0
         def apply() = value
         val subscription = Reactive.CompositeSubscription(
-          outer.inserts onTick { value += 1; reactAll(value) },
-          outer.removes onTick { value -= 1; reactAll(value) }
+          outer.inserts onEvent { value += 1; reactAll(value) },
+          outer.removes onEvent { value -= 1; reactAll(value) }
         )
       }
   }

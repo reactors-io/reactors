@@ -19,7 +19,7 @@ trait Reactive[@spec(Int, Long, Double) T] {
     def unreact() {}
   })
 
-  def onTick(reactor: =>Unit): Reactive.Subscription = onReaction(new Reactor[T] {
+  def onEvent(reactor: =>Unit): Reactive.Subscription = onReaction(new Reactor[T] {
     def react(value: T) = reactor
     def unreact() {}
   })
@@ -29,20 +29,7 @@ trait Reactive[@spec(Int, Long, Double) T] {
   def unreactAll(): Unit
 
   def foldPast[@spec(Int, Long, Double) S](z: S)(op: (S, T) => S): Signal[S] with Reactive.Subscription = {
-    class Fold extends Signal.Default[S] with Reactor[T] with Reactive.ProxySubscription {
-      private var cached = z
-      def apply() = cached
-      def react(value: T) {
-        cached = op(cached, value)
-        reactAll(cached)
-      }
-      def unreact() {
-        unreactAll()
-      }
-      val subscription = self onReaction this
-    }
-
-    new Fold
+    new Reactive.FoldPast(self, z, op)
   }
 
   def signal(init: T) = foldPast(init) {
@@ -60,16 +47,9 @@ trait Reactive[@spec(Int, Long, Double) T] {
   }
 
   def mutate[M <: ReactMutable](mutable: M)(mutation: (M, T) => Unit): Reactive.Subscription = {
-    class Mutate extends Reactor[T] with Reactive.ProxySubscription {
-      def react(value: T) = {
-        mutation(mutable, value)
-        mutable.onMutated()
-      }
-      def unreact() {}
-      val subscription = mutable.bindSubscription(self onReaction this)
-    }
-
-    new Mutate
+    val rm = new Reactive.Mutate(self, mutable, mutation)
+    rm.subscription = mutable.bindSubscription(self onReaction rm)
+    rm
   }
 
   // TODO union
@@ -94,7 +74,7 @@ trait Reactive[@spec(Int, Long, Double) T] {
 
   /* higher-order combinators */
 
-  def mux[@spec(Int, Long, Double) S](implicit evidence: T <:< Reactive[S]): Reactive[S] = {
+  def mux[@spec(Int, Long, Double) S]()(implicit evidence: T <:< Reactive[S]): Reactive[S] = {
     new Reactive.Mux[T, S](this, evidence)
   }
 
@@ -106,6 +86,32 @@ trait Reactive[@spec(Int, Long, Double) T] {
 
 
 object Reactive {
+
+  class FoldPast[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
+    (val self: Reactive[T], val z: S, val op: (S, T) => S)
+  extends Signal.Default[S] with Reactor[T] with Reactive.ProxySubscription {
+    private var cached = z
+    def apply() = cached
+    def react(value: T) {
+      cached = op(cached, value)
+      reactAll(cached)
+    }
+    def unreact() {
+      unreactAll()
+    }
+    val subscription = self onReaction this
+  }
+
+  class Mutate[@spec(Int, Long, Double) T, M <: ReactMutable]
+    (val self: Reactive[T], val mutable: M, val mutation: (M, T) => Unit)
+  extends Reactor[T] with Reactive.ProxySubscription {
+    def react(value: T) = {
+      mutation(mutable, value)
+      mutable.onMutated()
+    }
+    def unreact() {}
+    var subscription = Subscription.empty
+  }
 
   class Filter[@spec(Int, Long, Double) T](val self: Reactive[T], val p: T => Boolean)
   extends Reactive.Default[T] with Reactor[T] with Reactive.ProxySubscription {

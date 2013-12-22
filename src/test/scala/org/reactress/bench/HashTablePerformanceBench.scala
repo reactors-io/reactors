@@ -46,7 +46,7 @@ class HashTablePerformanceBench extends PerformanceTest.Regression {
 
     measure method "ReactMap" in {
       using(hashTableSizes) curve("ReactMap") in { sz =>
-        val m = ReactMap[Int, String]
+        val m = new ReactMap[Int, String]
         for (i <- 1 until sz) m(i) = "value"
         m
       }

@@ -10,101 +10,92 @@ import org.scalatest.matchers.ShouldMatchers
 
 class ReactiveSpec extends FlatSpec with ShouldMatchers {
 
-  def testGC(num: Int)(afterCheck: Reactive.Emitter[Int] => Boolean) {
-    var signsOfLife = Array.fill(num)(false)
-    val emitter = new Reactive.Emitter[Int]
-    for (i <- 0 until num) emitter onTick {
-      signsOfLife(i) = true
-    }
-
-    sys.runtime.gc()
-
-    emitter += 1
-
-    for (i <- 0 until num) signsOfLife(i) should equal (false)
-    afterCheck(emitter) should equal (true)
+  class ReactiveTest {
+    val x = ReactCell(0)
+    val y = ReactCell(0)
+    val z = ReactCell(0)
+    val w = ReactCell(0)
   }
 
-  "A reactive" should "GC a single dependency" in {
-    testGC(1) {
-      _.demux == null
+  "A reactive" should "be filtered" in {
+    val rt = new ReactiveTest
+    val s = rt.x.filter {
+      _ % 2 == 0
     }
+    val a = s onValue { x =>
+      assert(x % 2 == 0)
+    }
+
+    rt.x := 1
+    rt.x := 2
   }
 
-  it should "GC several dependencies" in {
-    testGC(4) {
-      _.demux == null
+  it should "be mapped" in {
+    val e = new Reactive.Emitter[Int]
+    val s = e.map {
+      _ + 1
     }
+    val a = s onValue { x =>
+      assert(x == 2)
+    }
+
+    e += 1
   }
 
-  it should "GC many dependencies" in {
-    testGC(32) {
-      _.demux == null
+  it should "be folded past" in {
+    val rt = new ReactiveTest
+    val s = rt.x.foldPast(List[Int]()) { (acc, x) =>
+      x :: acc
     }
+    val a = s onValue { xs =>
+      assert(xs.reverse == Stream.from(1).take(xs.length))
+    }
+
+    rt.x := 1
+    rt.x := 2
+    rt.x := 3
+    rt.x := 4
+    rt.x := 5
   }
 
-  def testDep(num: Int)(afterCheck: Reactive.Emitter[Int] => Boolean) {
-    var signsOfLife = Array.fill(num)(false)
-    val emitter = new Reactive.Emitter[Int]
-    val subs = for (i <- 0 until num) yield emitter onTick {
-      signsOfLife(i) = true
-    }
+  it should "be muxed" in {
+    val s = ReactCell[Reactive[Int]](Signal.Constant(0))
+    val e1 = new Reactive.Emitter[Int]
+    val e2 = new Reactive.Emitter[Int]
+    val ints = s.mux().signal(0)
 
-    sys.runtime.gc()
-
-    emitter += 1
-
-    for (i <- 0 until num) signsOfLife(i) should equal (true)
-    afterCheck(emitter) should equal (true)
+    assert(ints() == 0)
+    s := e1
+    e1 += 10
+    assert(ints() == 10)
+    e1 += 20
+    assert(ints() == 20)
+    e2 += 30
+    assert(ints() == 20)
+    s := e2
+    assert(ints() == 20)
+    e2 += 40
+    assert(ints() == 40)
+    e1 += 50
+    assert(ints() == 40)
+    e2 += 60
+    assert(ints() == 60)
   }
 
-  it should "accurately reflect a single dependency" in {
-    testDep(1) {
-      _.demux.isInstanceOf[java.lang.ref.WeakReference[_]]
-    }
-  }
+  class Cell(var x: Int = 0)
 
-  it should "accurately reflect several dependency" in {
-    testDep(6) {
-      _.demux.isInstanceOf[WeakBuffer[_]]
-    }
-  }
-
-  it should "accurately reflect many dependency" in {
-    testDep(32) {
-      _.demux.isInstanceOf[WeakHashTable[_]]
-    }
-  }
-
-  def testGChalf(num: Int)(afterCheck: Reactive.Emitter[Int] => Boolean) {
-    var signsOfLife = Array.fill(num)(false)
-    val emitter = new Reactive.Emitter[Int]
-    val kept = for (i <- 0 until num / 2) yield emitter onTick {
-      signsOfLife(i) = true
-    }
-    for (i <- num / 2 until num) emitter onTick {
-      signsOfLife(i) = true
+  it should "mutate" in {
+    val ms = Signal.Mutable(new Cell)
+    val vals = ms.map(_.x).signal(0)
+    val e = new ReactCell[Int](0)
+    e.mutate(ms) {
+      _().x = _
     }
 
-    sys.runtime.gc()
-
-    emitter += 1
-
-    for (i <- 0 until num / 2) signsOfLife(i) should equal (true)
-    for (i <- num / 2 until num) signsOfLife(i) should equal (false)
-    afterCheck(emitter) should equal (true)
-  }
-
-  it should "accurately GC some of the several dependencies" in {
-    testGChalf(8) {
-      _.demux.isInstanceOf[WeakBuffer[_]]
-    }
-  }
-
-  it should "accurately GC some of the many dependencies" in {
-    testGChalf(16) {
-      _.demux.isInstanceOf[WeakHashTable[_]]
-    }
+    e := 1
+    assert(vals() == 1)
+    e := 2
+    assert(vals() == 2)
   }
 
 }

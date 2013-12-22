@@ -304,7 +304,7 @@ object ReactMap {
     }
   }
 
-  def apply[@spec(Int, Long, Double) K, V >: Null <: AnyRef] = new ReactMap[K, V]
+  def apply[@spec(Int, Long, Double) K, V >: Null <: AnyRef](implicit can: Can[K, V]) = new ReactMap[K, V]()(can)
 
   class Lifted[@spec(Int, Long, Double) K, V >: Null <: AnyRef](val outer: ReactMap[K, V])
   extends ReactContainer.Lifted[(K, V)] {
