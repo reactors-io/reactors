@@ -45,7 +45,7 @@ class ReactTable[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
 
   def container = this
 
-  val reactive = new ReactTable.Lifted[K, V](this)
+  val react = new ReactTable.Lifted[K, V](this)
 
   def foreach[U](f: (K, V) => U) {
     var i = 0
@@ -216,7 +216,7 @@ object ReactTable {
 
   def apply[@spec(Int, Long, Double) K: Arrayable, V: Arrayable] = new ReactTable[K, V]
 
-  class Lifted[@spec(Int, Long, Double) K, V](val outer: ReactTable[K, V]) extends ReactContainer.Lifted[(K, V)]
+  class Lifted[@spec(Int, Long, Double) K, V](val self: ReactTable[K, V]) extends ReactContainer.Lifted[(K, V)]
 
   val initSize = 16
 

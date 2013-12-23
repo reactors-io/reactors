@@ -43,7 +43,7 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
 
   def container = this
 
-  val reactive = new ReactMap.Lifted[K, V](this)
+  val react = new ReactMap.Lifted[K, V](this)
 
   def foreach[U](f: (K, V) => U) {
     var i = 0
@@ -306,10 +306,10 @@ object ReactMap {
 
   def apply[@spec(Int, Long, Double) K, V >: Null <: AnyRef](implicit can: Can[K, V]) = new ReactMap[K, V]()(can)
 
-  class Lifted[@spec(Int, Long, Double) K, V >: Null <: AnyRef](val outer: ReactMap[K, V])
+  class Lifted[@spec(Int, Long, Double) K, V >: Null <: AnyRef](val self: ReactMap[K, V])
   extends ReactContainer.Lifted[(K, V)] {
     def apply(k: K): Signal[V] = {
-      outer.ensure(k).signal(outer.applyOrNull(k))
+      self.ensure(k).signal(self.applyOrNull(k))
     }
   }
 

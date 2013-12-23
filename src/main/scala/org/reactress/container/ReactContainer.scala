@@ -13,33 +13,7 @@ trait ReactContainer[@spec(Int, Long, Double) T] extends ReactMutable.Subscripti
   
   def removes: Reactive[T]
 
-  def reactive: ReactContainer.Lifted[T]
-
-  def aggregate(implicit canAggregate: ReactContainer.CanAggregate[T]): Signal[T] with Reactive.Subscription = {
-    canAggregate.apply(this)
-  }
-
-  def to[That <: ReactContainer[T]](implicit factory: ReactBuilder.Factory[T, That]): That = {
-    val builder = factory()
-    val result = builder.container
-
-    inserts.mutate(builder) {
-      _ += _
-    }
-    removes.mutate(builder) {
-      _ -= _
-    }
-
-    result
-  }
-
-  def map[@spec(Int, Long, Double) S](f: T => S): ReactContainer[S] =
-    new ReactContainer.Map[T, S](self, f)
-
-  def filter(p: T => Boolean): ReactContainer[T] =
-    new ReactContainer.Filter[T](self, p)
-
-  // TODO union
+  def react: ReactContainer.Lifted[T]
 
 }
 
@@ -47,40 +21,71 @@ trait ReactContainer[@spec(Int, Long, Double) T] extends ReactMutable.Subscripti
 object ReactContainer {
 
   trait Lifted[@spec(Int, Long, Double) T] {
-    val outer: ReactContainer[T]
+    val self: ReactContainer[T]
 
     def size: Signal[Int] with Reactive.Subscription =
       new Signal.Default[Int] with Reactive.ProxySubscription {
         private var value = 0
         def apply() = value
         val subscription = Reactive.CompositeSubscription(
-          outer.inserts onEvent { value += 1; reactAll(value) },
-          outer.removes onEvent { value -= 1; reactAll(value) }
+          self.inserts onEvent { value += 1; reactAll(value) },
+          self.removes onEvent { value -= 1; reactAll(value) }
         )
       }
+
+    def foreach[@spec(Int, Long, Double) U](f: T => U): Reactive[Unit] with Reactive.Subscription = {
+      self.inserts.foreach(f)
+    }
+    
+    def aggregate(implicit canAggregate: ReactContainer.CanAggregate[T]): Signal[T] with Reactive.Subscription = {
+      canAggregate.apply(self)
+    }
+  
+    def to[That <: ReactContainer[T]](implicit factory: ReactBuilder.Factory[T, That]): That = {
+      val builder = factory()
+      val result = builder.container
+  
+      self.inserts.mutate(builder) {
+        _ += _
+      }
+      self.removes.mutate(builder) {
+        _ -= _
+      }
+  
+      result
+    }
+  
+    def map[@spec(Int, Long, Double) S](f: T => S): ReactContainer.Lifted[S] =
+      (new ReactContainer.Map[T, S](self, f)).react
+  
+    def filter(p: T => Boolean): ReactContainer.Lifted[T] =
+      (new ReactContainer.Filter[T](self, p)).react
+  
+    // TODO union
+
   }
 
   object Lifted {
-    class Default[@spec(Int, Long, Double) T](val outer: ReactContainer[T])
+    class Default[@spec(Int, Long, Double) T](val self: ReactContainer[T])
     extends Lifted[T]
   }
 
   trait Default[@spec(Int, Long, Double) T] extends ReactContainer[T] {
-    val reactive = new Lifted.Default[T](this)
+    val react = new Lifted.Default[T](this)
   }
 
   class Map[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](self: ReactContainer[T], f: T => S)
   extends ReactContainer[S] {
     val inserts = self.inserts.map(f)
     val removes = self.removes.map(f)
-    def reactive = new Lifted.Default(this)
+    def react = new Lifted.Default(this)
   }
 
   class Filter[@spec(Int, Long, Double) T](self: ReactContainer[T], p: T => Boolean)
   extends ReactContainer[T] {
     val inserts = self.inserts.filter(p)
     val removes = self.removes.filter(p)
-    def reactive = new Lifted.Default(this)
+    def react = new Lifted.Default(this)
   }
 
   trait CanAggregate[@spec(Int, Long, Double) T] {

@@ -28,6 +28,12 @@ trait Reactive[@spec(Int, Long, Double) T] {
 
   def unreactAll(): Unit
 
+  def foreach[@spec(Int, Long, Double) U](f: T => U): Reactive[Unit] with Reactive.Subscription = {
+    val rf = new Reactive.Foreach(self, f)
+    rf.subscription = self onReaction rf
+    rf
+  }
+
   def foldPast[@spec(Int, Long, Double) S](z: S)(op: (S, T) => S): Signal[S] with Reactive.Subscription = {
     new Reactive.FoldPast(self, z, op)
   }
@@ -52,13 +58,25 @@ trait Reactive[@spec(Int, Long, Double) T] {
     rm
   }
 
+  def after[@spec(Int, Long, Double) S](that: Reactive[S]): Reactive[T] with Reactive.Subscription = {
+    val ra = new Reactive.After(self, that)
+    ra.selfSubscription = self onReaction ra.selfReactor
+    ra.thatSubscription = that onReaction ra.thatReactor
+    ra.subscription = Reactive.CompositeSubscription(ra.selfSubscription, ra.thatSubscription)
+    ra
+  }
+
+  def until[@spec(Int, Long, Double) S](that: Reactive[S]): Reactive[T] with Reactive.Subscription = {
+    val ru = new Reactive.Until(self, that)
+    ru.selfSubscription = self onReaction ru.selfReactor
+    ru.thatSubscription = that onReaction ru.thatReactor
+    ru.subscription = Reactive.CompositeSubscription(ru.selfSubscription, ru.thatSubscription)
+    ru
+  }
+
   // TODO union
 
   // TODO concat
-
-  // TODO after
-
-  // TODO until
 
   def filter(p: T => Boolean): Reactive[T] with Reactive.Subscription = {
     val rf = new Reactive.Filter[T](self, p)
@@ -87,6 +105,19 @@ trait Reactive[@spec(Int, Long, Double) T] {
 
 object Reactive {
 
+  class Foreach[@spec(Int, Long, Double) T, @spec(Int, Long, Double) U]
+    (val self: Reactive[T], val f: T => U)
+  extends Reactive.Default[Unit] with Reactor[T] with Reactive.ProxySubscription {
+    def react(value: T) {
+      f(value)
+      reactAll(())
+    }
+    def unreact() {
+      unreactAll()
+    }
+    var subscription = Subscription.empty
+  }
+
   class FoldPast[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
     (val self: Reactive[T], val z: S, val op: (S, T) => S)
   extends Signal.Default[S] with Reactor[T] with Reactive.ProxySubscription {
@@ -110,6 +141,53 @@ object Reactive {
       mutable.onMutated()
     }
     def unreact() {}
+    var subscription = Subscription.empty
+  }
+
+  class After[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
+    (val self: Reactive[T], val that: Reactive[S])
+  extends Reactive.Default[T] with Reactive.ProxySubscription {
+    var started = false
+    var live = true
+    def unreactBoth() = if (live) {
+      live = false
+      unreactAll()
+    }
+    val selfReactor = new Reactor[T] {
+      def react(value: T) {
+        if (started) reactAll(value)
+      }
+      def unreact() = unreactBoth()
+    }
+    val thatReactor = new Reactor[S] {
+      def react(value: S) {
+        started = true
+      }
+      def unreact() = unreactBoth()
+    }
+    var selfSubscription = Subscription.empty
+    var thatSubscription = Subscription.empty
+    var subscription = Subscription.empty
+  }
+
+  class Until[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
+    (val self: Reactive[T], val that: Reactive[S])
+  extends Reactive.Default[T] with Reactive.ProxySubscription {
+    var live = true
+    def unreactBoth() = if (live) {
+      live = false
+      unreactAll()
+    }
+    val selfReactor = new Reactor[T] {
+      def react(value: T) = if (live) reactAll(value)
+      def unreact() = unreactBoth()
+    }
+    val thatReactor = new Reactor[S] {
+      def react(value: S) = unreactBoth()
+      def unreact() {}
+    }
+    var selfSubscription: Reactive.Subscription = Subscription.empty
+    var thatSubscription: Reactive.Subscription = Subscription.empty
     var subscription = Subscription.empty
   }
 

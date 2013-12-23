@@ -14,7 +14,7 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
 
   def map() {
     val numbers = new ReactSet[Long]
-    val mapped = numbers.map(-_).to[ReactSet[Long]]
+    val mapped = numbers.react.map(-_).to[ReactSet[Long]]
     
     sys.runtime.gc()
 
@@ -31,7 +31,7 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
 
   it should "be mapped into a different container" in {
     val numbers = new ReactSet[Int]
-    val mapped = numbers.map(2 * _).to[ReactSet[Int]]
+    val mapped = numbers.react.map(2 * _).to[ReactSet[Int]]
 
     mapped.size should equal (0)
 
@@ -43,7 +43,7 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
 
   it should "filter" in {
     val numbers = new ReactSet[Int]
-    val filtered = numbers.filter(_ % 2 == 0).to[ReactSet[Int]]
+    val filtered = numbers.react.filter(_ % 2 == 0).to[ReactSet[Int]]
 
     filtered.size should equal (0)
 
@@ -53,7 +53,7 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
 
   it should "aggregate" in {
     val numbers = new ReactSet[Int]
-    val sum = numbers.aggregate(Commutoid(0)(_ + _))
+    val sum = numbers.react.aggregate(Commutoid(0)(_ + _))
 
     sum() should equal (0)
 
@@ -66,7 +66,7 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
   it should "aggregate using a typeclass" in {
     import algebra.structure.setUnion
     val numbers = new ReactSet[Set[Int]]
-    val union = numbers.aggregate
+    val union = numbers.react.aggregate
 
     union() should equal (Set())
 

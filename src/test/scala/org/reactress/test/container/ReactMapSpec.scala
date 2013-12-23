@@ -89,7 +89,7 @@ class ReactMapSpec extends FlatSpec with ShouldMatchers {
     val many = 512
     val table = new ReactMap[Int, String]
     for (i <- 0 until many) table(i) = i.toString
-    val specificKey = table.reactive(128)
+    val specificKey = table.react(128)
 
     table(128) = "new value"
     specificKey() should equal ("new value")
@@ -100,10 +100,10 @@ class ReactMapSpec extends FlatSpec with ShouldMatchers {
     val many = 512
     val table = new ReactMap[Int, String]
     for (i <- 0 until many) table(i) = i.toString
-    val signals = for (i <- 0 until many) yield table.reactive(i)
+    val signals = for (i <- 0 until many) yield table.react(i)
     for (i <- 0 until size) table(i) = s"value$i"
     for (i <- 0 until many) signals(i)() should equal (s"value$i")
-    val moresignals = for (i <- many until size) yield table.reactive(i)
+    val moresignals = for (i <- many until size) yield table.react(i)
     for (i <- many until size) moresignals(i - many)() should equal (s"value$i")
   }
 
@@ -117,7 +117,7 @@ class ReactMapSpec extends FlatSpec with ShouldMatchers {
     val table = new ReactMap[Int, String]
     val signsOfLife = Array.fill(many)(false)
     val subs = for (i <- 0 until many) yield {
-      val values = table.reactive(i)
+      val values = table.react(i)
       values onEvent {
         signsOfLife(i) = true
       }
@@ -132,7 +132,7 @@ class ReactMapSpec extends FlatSpec with ShouldMatchers {
     val many = 128
     val table = new ReactMap[Int, String]
     val signsOfLife = Array.fill(many)(false)
-    for (i <- 0 until many) yield table.reactive(i)
+    for (i <- 0 until many) yield table.react(i)
 
     sys.runtime.gc()
 
