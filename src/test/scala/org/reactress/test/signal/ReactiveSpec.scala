@@ -117,6 +117,38 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     buffer should equal (Seq(1, 2))
   }
 
+  it should "be union" in {
+    val xs = new Reactive.Emitter[Int]
+    val ys = new Reactive.Emitter[Int]
+    val buffer = mutable.Buffer[Int]()
+    val s = (xs union ys) onValue { buffer += _ }
+
+    xs += 1
+    ys += 11
+    xs += 2
+    ys += 12
+    ys += 15
+    xs += 7
+    buffer should equal (Seq(1, 11, 2, 12, 15, 7))
+  }
+
+  it should "be concat" in {
+    val xs = new Reactive.Emitter[Int]
+    val closeXs = new Reactive.Emitter[Unit]
+    val ys = new Reactive.Emitter[Int]
+    val buffer = mutable.Buffer[Int]()
+    val s = ((xs until closeXs) concat ys) onValue { buffer += _ }
+
+    xs += 1
+    ys += 11
+    xs += 2
+    ys += 12
+    ys += 15
+    xs += 7
+    closeXs += ()
+    buffer should equal (Seq(1, 2, 7, 11, 12, 15))
+  }
+
   class Cell(var x: Int = 0)
 
   it should "mutate" in {

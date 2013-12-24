@@ -2,6 +2,7 @@ package org
 
 
 
+import scala.reflect.ClassTag
 
 
 
@@ -28,8 +29,6 @@ package object reactress extends ReactiveApi {
     final def value(x: Int, y: Int): Long = (y.toLong << 32) | (x.toLong & 0xffffffffL)
     final def invalid = Long.MinValue
   }
-
-  type Arrayable[T] = container.Arrayable[T]
 
   type ReactCell[T] = container.ReactCell[T]
 
@@ -109,6 +108,45 @@ package object reactress extends ReactiveApi {
     v |= v >> 8
     v |= v >> 16
     v + 1
+  }
+
+  abstract class Arrayable[@spec(Int, Long) T] {
+    val classTag: ClassTag[T]
+    val nil: T
+    def newArray(sz: Int): Array[T]
+    def newNonNilArray(sz: Int): Array[T]
+  }
+
+  object Arrayable {
+  
+    implicit def arrayableRef[T >: Null <: AnyRef: ClassTag]: Arrayable[T] = new Arrayable[T] {
+      val classTag = implicitly[ClassTag[T]]
+      val nil = null
+      def newArray(sz: Int) = new Array[T](sz)
+      def newNonNilArray(sz: Int) = newArray(sz)
+    }
+  
+    implicit val arrayableLong: Arrayable[Long] = new Arrayable[Long] {
+      val classTag = implicitly[ClassTag[Long]]
+      val nil = Long.MinValue
+      def newArray(sz: Int) = Array.fill[Long](sz)(nil)
+      def newNonNilArray(sz: Int) = new Array[Long](sz)
+    }
+  
+    implicit val arrayableDouble: Arrayable[Double] = new Arrayable[Double] {
+      val classTag = implicitly[ClassTag[Double]]
+      val nil = Double.NaN
+      def newArray(sz: Int) = Array.fill[Double](sz)(nil)
+      def newNonNilArray(sz: Int) = new Array[Double](sz)
+    }
+  
+    implicit val arrayableInt: Arrayable[Int] = new Arrayable[Int] {
+      val classTag = implicitly[ClassTag[Int]]
+      val nil = Int.MinValue
+      def newArray(sz: Int) = Array.fill[Int](sz)(nil)
+      def newNonNilArray(sz: Int) = new Array[Int](sz)
+    }
+  
   }
 
 }

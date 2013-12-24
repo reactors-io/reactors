@@ -4,6 +4,7 @@ package org.reactress
 
 import java.lang.ref.{WeakReference => WeakRef}
 import scala.collection._
+import util._
 
 
 
@@ -74,9 +75,23 @@ trait Reactive[@spec(Int, Long, Double) T] {
     ru
   }
 
-  // TODO union
+  def union(that: Reactive[T]): Reactive[T] with Reactive.Subscription = {
+    val ru = new Reactive.Union(self, that)
+    ru.selfSubscription = self onReaction ru.selfReactor
+    ru.thatSubscription = that onReaction ru.thatReactor
+    ru.subscription = Reactive.CompositeSubscription(ru.selfSubscription, ru.thatSubscription)
+    ru
+  }
 
-  // TODO concat
+  def concat(that: Reactive[T])(implicit a: Arrayable[T]): Reactive[T] with Reactive.Subscription = {
+    val rc = new Reactive.Concat(self, that, a)
+    rc.selfSubscription = self onReaction rc.selfReactor
+    rc.thatSubscription = that onReaction rc.thatReactor
+    rc.subscription = Reactive.CompositeSubscription(rc.selfSubscription, rc.thatSubscription)
+    rc
+  }
+
+  // TODO sync
 
   def filter(p: T => Boolean): Reactive[T] with Reactive.Subscription = {
     val rf = new Reactive.Filter[T](self, p)
@@ -185,6 +200,63 @@ object Reactive {
     val thatReactor = new Reactor[S] {
       def react(value: S) = unreactBoth()
       def unreact() {}
+    }
+    var selfSubscription: Reactive.Subscription = Subscription.empty
+    var thatSubscription: Reactive.Subscription = Subscription.empty
+    var subscription = Subscription.empty
+  }
+
+  class Union[@spec(Int, Long, Double) T](val self: Reactive[T], val that: Reactive[T])
+  extends Reactive.Default[T] with Reactive.ProxySubscription {
+    var live = 2
+    def unreactBoth() = {
+      live -= 1
+      if (live == 0) unreactAll()
+    }
+    val selfReactor = new Reactor[T] {
+      def react(value: T) = reactAll(value)
+      def unreact() = unreactBoth()
+    }
+    val thatReactor = new Reactor[T] {
+      def react(value: T) = reactAll(value)
+      def unreact() = unreactBoth()
+    }
+    var selfSubscription: Reactive.Subscription = Subscription.empty
+    var thatSubscription: Reactive.Subscription = Subscription.empty
+    var subscription = Subscription.empty
+  }
+
+  class Concat[@spec(Int, Long, Double) T](val self: Reactive[T], val that: Reactive[T], val a: Arrayable[T])
+  extends Reactive.Default[T] with Reactive.ProxySubscription {
+    var selfLive = true
+    var thatLive = true
+    val buffer = new UnrolledBuffer[T]()(a)
+    def unreactBoth() {
+      if (!selfLive && !thatLive) {
+        unreactAll()
+      }
+    }
+    def flush() {
+      buffer.foreach(v => reactAll(v))
+      buffer.clear()
+    }
+    val selfReactor = new Reactor[T] {
+      def react(value: T) = reactAll(value)
+      def unreact() {
+        selfLive = false
+        flush()
+        unreactBoth()
+      }
+    }
+    val thatReactor = new Reactor[T] {
+      def react(value: T) = {
+        if (selfLive) buffer += value
+        else reactAll(value)
+      }
+      def unreact() {
+        thatLive = false
+        unreactBoth()
+      }
     }
     var selfSubscription: Reactive.Subscription = Subscription.empty
     var thatSubscription: Reactive.Subscription = Subscription.empty
