@@ -2,6 +2,7 @@ package org
 
 
 
+import scala.annotation.implicitNotFound
 import scala.reflect.ClassTag
 
 
@@ -108,6 +109,14 @@ package object reactress extends ReactiveApi {
     v |= v >> 8
     v |= v >> 16
     v + 1
+  }
+
+  @implicitNotFound("This operation can buffer events, and may consume an arbitrary amount of memory. " +
+    "Import the value `Permission.canBuffer` to allow buffering operations.")
+  sealed trait CanBeBuffered
+
+  object Permission {
+    implicit def canBuffer = new CanBeBuffered {}
   }
 
   abstract class Arrayable[@spec(Int, Long) T] {

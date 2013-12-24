@@ -133,6 +133,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "be concat" in {
+    import Permission.canBuffer
     val xs = new Reactive.Emitter[Int]
     val closeXs = new Reactive.Emitter[Unit]
     val ys = new Reactive.Emitter[Int]
@@ -147,6 +148,24 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     xs += 7
     closeXs += ()
     buffer should equal (Seq(1, 2, 7, 11, 12, 15))
+  }
+
+  def testSynced() {
+    import Permission.canBuffer
+    val xs = new Reactive.Emitter[Int]
+    val ys = new Reactive.Emitter[Int]
+    val synced = (xs sync ys) { _ + _ }
+    val buffer = mutable.Buffer[Int]()
+    val s = synced onValue { buffer += _ }
+
+    for (i <- 0 until 200) xs += i
+    for (j <- 200 to 51 by -1) ys += j
+    buffer.size should equal (150)
+    for (x <- buffer) x should equal (200)
+  }
+
+  it should "be synced" in {
+    testSynced()
   }
 
   class Cell(var x: Int = 0)

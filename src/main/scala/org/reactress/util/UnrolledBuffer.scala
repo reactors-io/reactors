@@ -3,26 +3,51 @@ package util
 
 
 
+import annotation.tailrec
 
 
 
 class UnrolledBuffer[@spec(Int, Long, Double) T](implicit val arrayable: Arrayable[T]) {
   import UnrolledBuffer._
 
-  private[reactress] var head = new Node[T](this, arrayable.newNonNilArray(INITIAL_LENGTH))
-  private[reactress] var last = head
+  private[reactress] var start = new Node[T](this, arrayable.newNonNilArray(INITIAL_LENGTH))
+  private[reactress] var end = start
+
+  def isEmpty = !nonEmpty
+
+  @tailrec private def advance() {
+    if (start.startIndex >= start.endIndex) {
+      if (start.next != null) {
+        start = start.next
+        advance()
+      }
+    }
+  }
+
+  def nonEmpty = {
+    advance()
+    start.startIndex < start.endIndex
+  }
+
+  def head = if (nonEmpty) start.array(start.startIndex) else throw new IllegalStateException("empty")
+
+  def dequeue() = {
+    val elem = head
+    start.startIndex += 1
+    elem
+  }
 
   def +=(elem: T): this.type = {
-    head += elem
+    end += elem
     this
   }
 
   def foreach(f: T => Unit) {
-    var node = head
+    var node = start
     while (node != null) {
-      var i = 0
+      var i = node.startIndex
       val array = node.array
-      val until = node.size
+      val until = node.endIndex
       while (i < until) {
         f(array(i))
         i += 1
@@ -32,8 +57,8 @@ class UnrolledBuffer[@spec(Int, Long, Double) T](implicit val arrayable: Arrayab
   }
 
   def clear() {
-    head = new Node[T](this, arrayable.newNonNilArray(INITIAL_LENGTH))
-    last = head
+    start = new Node[T](this, arrayable.newNonNilArray(INITIAL_LENGTH))
+    end = start
   }
 }
 
@@ -44,17 +69,18 @@ object UnrolledBuffer {
   def MAX_LENGTH = 64
 
   class Node[@spec(Int, Long, Double) T](val outer: UnrolledBuffer[T], val array: Array[T]) {
-    private[reactress] var size = 0
+    private[reactress] var startIndex = 0
+    private[reactress] var endIndex = 0
     private[reactress] var next: Node[T] = null
 
     def +=(elem: T) {
-      if (size < array.length) {
-        array(size) = elem
-        size += 1
+      if (endIndex < array.length) {
+        array(endIndex) = elem
+        endIndex += 1
       } else {
         val nlen = math.min(MAX_LENGTH, array.length * 2)
         next = new Node(outer, outer.arrayable.newNonNilArray(nlen))
-        outer.last = next
+        outer.end = next
         next += elem
       }
     }

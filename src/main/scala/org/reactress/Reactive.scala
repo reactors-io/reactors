@@ -43,6 +43,11 @@ trait Reactive[@spec(Int, Long, Double) T] {
     (cached, value) => value
   }
 
+  def isSignal: Boolean = this match {
+    case s: Signal[T] => true
+    case _ => false
+  }
+
   def asSignalOrElse(init: T) = this match {
     case s: Signal[T] => s
     case _ => this.signal(init)
@@ -83,7 +88,7 @@ trait Reactive[@spec(Int, Long, Double) T] {
     ru
   }
 
-  def concat(that: Reactive[T])(implicit a: Arrayable[T]): Reactive[T] with Reactive.Subscription = {
+  def concat(that: Reactive[T])(implicit a: Arrayable[T], b: CanBeBuffered): Reactive[T] with Reactive.Subscription = {
     val rc = new Reactive.Concat(self, that, a)
     rc.selfSubscription = self onReaction rc.selfReactor
     rc.thatSubscription = that onReaction rc.thatReactor
@@ -91,7 +96,14 @@ trait Reactive[@spec(Int, Long, Double) T] {
     rc
   }
 
-  // TODO sync
+  def sync[@spec(Int, Long, Double) S, @spec(Int, Long, Double) R](that: Reactive[S])(f: (T, S) => R)
+    (implicit at: Arrayable[T], as: Arrayable[S], b: CanBeBuffered): Reactive[R] with Reactive.Subscription = {
+    val rs = new Reactive.Sync(self, that, f, at, as)
+    rs.selfSubscription = self onReaction rs.selfReactor
+    rs.thatSubscription = that onReaction rs.thatReactor
+    rs.subscription = Reactive.CompositeSubscription(rs.selfSubscription, rs.thatSubscription)
+    rs
+  }
 
   def filter(p: T => Boolean): Reactive[T] with Reactive.Subscription = {
     val rf = new Reactive.Filter[T](self, p)
@@ -257,6 +269,41 @@ object Reactive {
         thatLive = false
         unreactBoth()
       }
+    }
+    var selfSubscription: Reactive.Subscription = Subscription.empty
+    var thatSubscription: Reactive.Subscription = Subscription.empty
+    var subscription = Subscription.empty
+  }
+
+  class Sync[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S, @spec(Int, Long, Double) R]
+    (val self: Reactive[T], val that: Reactive[S], val f: (T, S) => R, val at: Arrayable[T], val as: Arrayable[S])
+  extends Reactive.Default[R] with Reactive.ProxySubscription {
+    val tbuffer = new UnrolledBuffer[T]()(at)
+    val sbuffer = new UnrolledBuffer[S]()(as)
+    def unreactBoth() {
+      tbuffer.clear()
+      sbuffer.clear()
+      unreactAll()
+    }
+    val selfReactor = new Reactor[T] {
+      def react(tvalue: T) {
+        if (sbuffer.isEmpty) tbuffer += tvalue
+        else {
+          val svalue = sbuffer.dequeue()
+          reactAll(f(tvalue, svalue))
+        }
+      }
+      def unreact() = unreactBoth()
+    }
+    val thatReactor = new Reactor[S] {
+      def react(svalue: S) = {
+        if (tbuffer.isEmpty) sbuffer += svalue
+        else {
+          val tvalue = tbuffer.dequeue()
+          reactAll(f(tvalue, svalue))
+        }
+      }
+      def unreact() = unreactBoth()
     }
     var selfSubscription: Reactive.Subscription = Subscription.empty
     var thatSubscription: Reactive.Subscription = Subscription.empty
