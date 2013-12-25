@@ -128,7 +128,9 @@ trait Reactive[@spec(Int, Long, Double) T] {
   }
 
   def concat[@spec(Int, Long, Double) S]()(implicit evidence: T <:< Reactive[S], a: Arrayable[S], b: CanBeBuffered): Reactive[S] = {
-    new Reactive.PostfixConcat[T, S](this, evidence)
+    val pc = new Reactive.PostfixConcat[T, S](this, evidence)
+    pc.subscription = self onReaction pc
+    pc
   }
 
 }
@@ -336,7 +338,7 @@ object Reactive {
     var subscription = Subscription.empty
   }
 
-  class Mux[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
+  class Mux[T, @spec(Int, Long, Double) S]
     (val self: Reactive[T], val evidence: T <:< Reactive[S])
   extends Reactive.Default[S] with Reactor[T] with Reactive.ProxySubscription {
     muxed =>
@@ -367,7 +369,7 @@ object Reactive {
     val subscription = self onReaction this
   }
 
-  class PostfixUnion[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
+  class PostfixUnion[T, @spec(Int, Long, Double) S]
     (val self: Reactive[T], val evidence: T <:< Reactive[S])
   extends Reactive.Default[S] with Reactor[T] with Reactive.ProxySubscription {
     union =>
@@ -404,7 +406,7 @@ object Reactive {
     def ready = buffer == null
   }
 
-  class PostfixConcat[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
+  class PostfixConcat[T, @spec(Int, Long, Double) S]
     (val self: Reactive[T], val evidence: T <:< Reactive[S])(implicit val arrayable: Arrayable[S])
   extends Reactive.Default[S] with Reactor[T] with Reactive.ProxySubscription {
     union =>
@@ -454,7 +456,7 @@ object Reactive {
       }
       super.unsubscribe()
     }
-    val subscription = self onReaction this
+    var subscription = Subscription.empty
   }
 
   trait Never[@spec(Int, Long, Double) T]
