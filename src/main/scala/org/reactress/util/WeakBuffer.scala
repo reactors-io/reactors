@@ -3,7 +3,6 @@ package util
 
 
 
-import java.lang.ref.{WeakReference => WeakRef}
 
 
 
@@ -24,6 +23,17 @@ class WeakBuffer[M <: AnyRef](initialSize: Int = 4) {
     while (i < size) {
       if (array(i).get eq elem) {
         removeEntryAt(i)
+        i = size
+      }
+      i += 1
+    }
+  }
+
+  def invalidateEntry(elem: M) {
+    var i = 0
+    while (i < size) {
+      if (array(i).get eq elem) {
+        array(i).invalidated = true
         i = size
       }
       i += 1

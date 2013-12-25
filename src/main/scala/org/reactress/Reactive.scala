@@ -2,7 +2,6 @@ package org.reactress
 
 
 
-import java.lang.ref.{WeakReference => WeakRef}
 import scala.collection._
 import util._
 
@@ -336,27 +335,24 @@ object Reactive {
   extends Reactive.Default[S] with Reactor[T] with Reactive.ProxySubscription {
     muxed =>
     private[reactress] var currentSubscription: Reactive.Subscription = Reactive.Subscription.empty
-    private[reactress] var currentTerminated = true
     private[reactress] var terminated = false
-    def checkTerminate() = if (terminated && currentTerminated) muxed.unreactAll()
-    val reactor = new Reactor[S] {
-      def react(value: S) {
-        muxed.reactAll(value)
-      }
-      def unreact() {
-        currentTerminated = true
-        checkTerminate()
-      }
+    def newReactor = new Reactor[S] {
+      def react(value: S) = if (!terminated) reactAll(value)
+      def unreact() {}
     }
     def react(value: T) {
       val nextReactive = evidence(value)
-      currentTerminated = false
       currentSubscription.unsubscribe()
-      currentSubscription = nextReactive onReaction reactor
+      currentSubscription = nextReactive onReaction newReactor
     }
     def unreact() {
       terminated = true
-      checkTerminate()
+      currentSubscription.unsubscribe()
+      unreactAll()
+    }
+    override def unsubscribe() {
+      currentSubscription.unsubscribe()
+      super.unsubscribe()
     }
     val subscription = self onReaction this
   }
@@ -430,18 +426,20 @@ object Reactive {
     }
     private def newSubscription(r: Reactor[T]) = new Subscription {
       onSubscriptionChange()
-      def unsubscribe() = removeReaction(r)
+      def unsubscribe() {
+        removeReaction(r)
+      }
     }
     private def removeReaction(r: Reactor[T]) {
       demux match {
         case null =>
-          // nothing to remove
+          // nothing to invalidate
         case w: WeakRef[Reactor[T] @unchecked] =>
-          if (w.get eq r) demux = null
+          if (w.get eq r) w.invalidated = true
         case wb: WeakBuffer[Reactor[T] @unchecked] =>
-          wb.removeEntry(r)
+          wb.invalidateEntry(r)
         case wht: WeakHashTable[Reactor[T] @unchecked] =>
-          wht.removeEntry(r)
+          wht.invalidateEntry(r)
       }
       onSubscriptionChange()
     }
@@ -451,7 +449,7 @@ object Reactive {
           // no need to inform anybody
         case w: WeakRef[Reactor[T] @unchecked] =>
           val r = w.get
-          if (r != null) r.react(value)
+          if (!w.invalidated && r != null) r.react(value)
           else demux = null
         case wb: WeakBuffer[Reactor[T] @unchecked] =>
           bufferReactAll(wb, value)
@@ -486,7 +484,7 @@ object Reactive {
       while (i < until) {
         val ref = array(i)
         val r = ref.get
-        if (r ne null) {
+        if (!ref.invalidated && (r ne null)) {
           r.react(value)
           i += 1
         } else {
@@ -503,7 +501,7 @@ object Reactive {
       while (i < until) {
         val ref = array(i)
         val r = ref.get
-        if (r ne null) {
+        if (!ref.invalidated && (r ne null)) {
           r.unreact()
           i += 1
         } else {
@@ -550,7 +548,7 @@ object Reactive {
         val ref = table(i)
         if (ref ne null) {
           val r = ref.get
-          if (r ne null) r.react(value)
+          if (!ref.invalidated && (r ne null)) r.react(value)
           else wht.removeEntryAt(i, null)
         }
         i += 1
@@ -564,7 +562,7 @@ object Reactive {
         val ref = table(i)
         if (ref ne null) {
           val r = ref.get
-          if (r ne null) r.unreact()
+          if (!ref.invalidated && (r ne null)) r.unreact()
           else wht.removeEntryAt(i, null)
           i += 1
         }

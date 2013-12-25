@@ -3,7 +3,6 @@ package util
 
 
 
-import java.lang.ref.{WeakReference => WeakRef}
 
 
 
@@ -75,6 +74,11 @@ class WeakHashTable[M <: AnyRef] {
   def removeEntry(mux: M): Boolean = {
     val h = index(mux.hashCode)
     removeEntryAt(h, mux)
+  }
+
+  def invalidateEntry(mux: M) {
+    val w = findEntryImpl(mux)
+    if (w != null) w.invalidated = true
   }
 
   private def growTable() {
