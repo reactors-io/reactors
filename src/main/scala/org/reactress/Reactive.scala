@@ -122,7 +122,9 @@ trait Reactive[@spec(Int, Long, Double) T] {
     new Reactive.Mux[T, S](this, evidence)
   }
 
-  // TODO union
+  def union[@spec(Int, Long, Double) S]()(implicit evidence: T <:< Reactive[S]): Reactive[S] = {
+    new Reactive.PostfixUnion[T, S](this, evidence)
+  }
 
   // TODO concat
 
@@ -331,27 +333,65 @@ object Reactive {
     var subscription = Subscription.empty
   }
 
-  class Mux[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](val self: Reactive[T], val evidence: T <:< Reactive[S])
+  class Mux[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
+    (val self: Reactive[T], val evidence: T <:< Reactive[S])
   extends Reactive.Default[S] with Reactor[T] with Reactive.ProxySubscription {
     muxed =>
-    private[reactress] var currentSubscription: Reactive.Subscription = Reactive.Subscription.empty
+    private[reactress] var currentSubscription = Subscription.empty
     private[reactress] var terminated = false
-    def newReactor = new Reactor[S] {
-      def react(value: S) = if (!terminated) reactAll(value)
-      def unreact() {}
+    def checkUnreact() = if (terminated && currentSubscription == Subscription.empty) unreactAll()
+    def newReactor() = new Reactor[S] {
+      def react(value: S) = reactAll(value)
+      def unreact() {
+        currentSubscription = Reactive.Subscription.empty
+        checkUnreact()
+      }
     }
     def react(value: T) {
       val nextReactive = evidence(value)
       currentSubscription.unsubscribe()
-      currentSubscription = nextReactive onReaction newReactor
+      currentSubscription = nextReactive onReaction newReactor()
     }
     def unreact() {
       terminated = true
-      currentSubscription.unsubscribe()
-      unreactAll()
+      checkUnreact()
     }
     override def unsubscribe() {
       currentSubscription.unsubscribe()
+      currentSubscription = Subscription.empty
+      super.unsubscribe()
+    }
+    val subscription = self onReaction this
+  }
+
+  class PostfixUnion[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
+    (val self: Reactive[T], val evidence: T <:< Reactive[S])
+  extends Reactive.Default[S] with Reactor[T] with Reactive.ProxySubscription {
+    union =>
+    private[reactress] var subscriptions = mutable.Map[Reactive[S], Subscription]()
+    private[reactress] var terminated = false
+    def checkUnreact() = if (terminated && subscriptions.isEmpty) unreactAll()
+    def newReactor(r: Reactive[S]) = new Reactor[S] {
+      def react(value: S) = reactAll(value)
+      def unreact() = {
+        subscriptions.remove(r)
+        checkUnreact()
+      }
+    }
+    def react(value: T) {
+      val nextReactive = evidence(value)
+      if (!subscriptions.contains(nextReactive)) {
+        val sub = nextReactive onReaction newReactor(nextReactive)
+        subscriptions(nextReactive) = sub
+      }
+    }
+    def unreact() {
+      terminated = true
+      checkUnreact()
+    }
+    override def unsubscribe() {
+      for (kv <- subscriptions) kv._2.unsubscribe()
+      subscriptions.clear()
       super.unsubscribe()
     }
     val subscription = self onReaction this

@@ -185,20 +185,20 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "be muxed" in {
-    val s = ReactCell[Reactive[Int]](Signal.Constant(0))
+    val cell = ReactCell[Reactive[Int]](Signal.Constant(0))
     val e1 = new Reactive.Emitter[Int]
     val e2 = new Reactive.Emitter[Int]
-    val ints = s.mux().signal(0)
+    val ints = cell.mux().signal(0)
 
     assert(ints() == 0)
-    s := e1
+    cell := e1
     e1 += 10
     assert(ints() == 10)
     e1 += 20
     assert(ints() == 20)
     e2 += 30
     assert(ints() == 20)
-    s := e2
+    cell := e2
     assert(ints() == 20)
     e2 += 40
     assert(ints() == 40)
@@ -206,6 +206,44 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     assert(ints() == 40)
     e2 += 60
     assert(ints() == 60)
+  }
+
+  it should "be unioned" in {
+    val cell = ReactCell[Reactive[Int]](Signal.Constant(0))
+    val e1 = new Reactive.Emitter[Int]
+    val e2 = new Reactive.Emitter[Int]
+    val e3 = new Reactive.Emitter[Int]
+    val e4 = new Reactive.Emitter[Int]
+    val closeE4 = new Reactive.Emitter[Unit]
+    val buffer = mutable.Buffer[Int]()
+    val s = cell.union() onValue { buffer += _ }
+
+    e1 += -1
+    e2 += -2
+    e3 += -3
+
+    cell := e1
+    e1 += 1
+    e1 += 11
+    e2 += -22
+    e3 += -33
+    cell := e2
+    e1 += 111
+    e2 += 2
+    e3 += -333
+    cell := e3
+    e1 += 1111
+    e2 += 22
+    e3 += 3
+    cell := e1
+    e1 += 11111
+    e2 += 222
+    e3 += 33
+    cell := (e4 until closeE4)
+    e4 += 4
+    closeE4 += ()
+    e4 += -44
+    buffer should equal (Seq(1, 11, 111, 2, 1111, 22, 3, 11111, 222, 33, 4))
   }
 
 }
