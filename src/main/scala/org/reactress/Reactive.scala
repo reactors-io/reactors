@@ -2,6 +2,7 @@ package org.reactress
 
 
 
+import scala.annotation.tailrec
 import scala.collection._
 import util._
 
@@ -126,7 +127,9 @@ trait Reactive[@spec(Int, Long, Double) T] {
     new Reactive.PostfixUnion[T, S](this, evidence)
   }
 
-  // TODO concat
+  def concat[@spec(Int, Long, Double) S]()(implicit evidence: T <:< Reactive[S], a: Arrayable[S], b: CanBeBuffered): Reactive[S] = {
+    new Reactive.PostfixConcat[T, S](this, evidence)
+  }
 
 }
 
@@ -392,6 +395,63 @@ object Reactive {
     override def unsubscribe() {
       for (kv <- subscriptions) kv._2.unsubscribe()
       subscriptions.clear()
+      super.unsubscribe()
+    }
+    val subscription = self onReaction this
+  }
+
+  final class ConcatEntry[S](var subscription: Subscription, var buffer: UnrolledBuffer[S], var live: Boolean) {
+    def ready = buffer == null
+  }
+
+  class PostfixConcat[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
+    (val self: Reactive[T], val evidence: T <:< Reactive[S])(implicit val arrayable: Arrayable[S])
+  extends Reactive.Default[S] with Reactor[T] with Reactive.ProxySubscription {
+    union =>
+    private[reactress] var subscriptions = new UnrolledBuffer[ConcatEntry[S]]()
+    private[reactress] var terminated = false
+    private def checkUnreact() = if (terminated && subscriptions.isEmpty) unreactAll()
+    def moveToNext() {
+      if (subscriptions.isEmpty) checkUnreact()
+      else {
+        val entry = subscriptions.head
+        val buffer = entry.buffer
+        entry.buffer = null
+        while (buffer.nonEmpty) reactAll(buffer.dequeue())
+        if (!entry.live) {
+          subscriptions.dequeue()
+          moveToNext()
+        }
+      }
+    }
+    def newReactor(entry: ConcatEntry[S]) = new Reactor[S] {
+      def react(value: S) {
+        if (entry.ready) reactAll(value)
+        else entry.buffer.enqueue(value)
+      }
+      def unreact() {
+        if (entry.ready) {
+          subscriptions.dequeue()
+          moveToNext()
+        } else entry.live = false
+      }
+    }
+    def react(value: T) {
+      val nextReactive = evidence(value)
+      val entry = new ConcatEntry(null, new UnrolledBuffer[S], true)
+      entry.subscription = nextReactive onReaction newReactor(entry)
+      subscriptions.enqueue(entry)
+      if (!subscriptions.head.ready) moveToNext()
+    }
+    def unreact() {
+      terminated = true
+      checkUnreact()
+    }
+    override def unsubscribe() {
+      while (subscriptions.nonEmpty) {
+        subscriptions.head.subscription.unsubscribe()
+        subscriptions.dequeue()
+      }
       super.unsubscribe()
     }
     val subscription = self onReaction this

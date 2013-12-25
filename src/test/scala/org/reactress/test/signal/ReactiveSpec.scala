@@ -208,7 +208,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     assert(ints() == 60)
   }
 
-  it should "be unioned" in {
+  it should "be higher-order union" in {
     val cell = ReactCell[Reactive[Int]](Signal.Constant(0))
     val e1 = new Reactive.Emitter[Int]
     val e2 = new Reactive.Emitter[Int]
@@ -244,6 +244,49 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     closeE4 += ()
     e4 += -44
     buffer should equal (Seq(1, 11, 111, 2, 1111, 22, 3, 11111, 222, 33, 4))
+  }
+
+  it should "be higher-order concat" in {
+    import Permission.canBuffer
+    val cell = ReactCell[Reactive[Int]](Signal.Constant(0))
+    val e1 = new Reactive.Emitter[Int]
+    val closeE1 = new Reactive.Emitter[Unit]
+    val e2 = new Reactive.Emitter[Int]
+    val closeE2 = new Reactive.Emitter[Unit]
+    val e3 = new Reactive.Emitter[Int]
+    val closeE3 = new Reactive.Emitter[Unit]
+    val e4 = new Reactive.Emitter[Int]
+    val buffer = mutable.Buffer[Int]()
+    val s = cell.concat() onValue { buffer += _ }
+
+    e1 += -1
+    e2 += -2
+    e3 += -3
+
+    cell := e1 until closeE1
+    e1 += 1
+    e1 += 11
+    e2 += -22
+    e3 += -33
+    cell := e2 until closeE2
+    e1 += 111
+    e2 += 2
+    e3 += -333
+    cell := e3 until closeE3
+    e1 += 1111
+    e2 += 22
+    e3 += 3
+    closeE1 += ()
+    closeE2 += ()
+    e1 += -11111
+    e2 += -222
+    e3 += 33
+    closeE3 += ()
+    e3 += -333
+    cell := e4
+    e4 += 4
+
+    buffer should equal (Seq(1, 11, 111, 1111, 2, 22, 3, 33, 4))
   }
 
 }

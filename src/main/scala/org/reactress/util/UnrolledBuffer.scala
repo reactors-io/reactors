@@ -37,6 +37,8 @@ class UnrolledBuffer[@spec(Int, Long, Double) T](implicit val arrayable: Arrayab
     elem
   }
 
+  def enqueue(elem: T) = this += elem
+
   def +=(elem: T): this.type = {
     end += elem
     this
