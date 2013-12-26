@@ -134,7 +134,7 @@ class SignalSpec extends FlatSpec with ShouldMatchers {
     val e1 = new ReactCell[Int](0)
     val e2 = new ReactCell[Int](0)
     (e1 zip e2)(_ + _).mutate(ms) {
-      _().x = _
+      ms().x = _
     }
 
     e1 := 1

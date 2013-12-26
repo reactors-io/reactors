@@ -58,7 +58,7 @@ trait Reactive[@spec(Int, Long, Double) T] {
     case _ => throw new UnsupportedOperationException("This is not a signal.")
   }
 
-  def mutate[M <: ReactMutable](mutable: M)(mutation: (M, T) => Unit): Reactive.Subscription = {
+  def mutate[M <: ReactMutable](mutable: M)(mutation: T => Unit): Reactive.Subscription = {
     val rm = new Reactive.Mutate(self, mutable, mutation)
     rm.subscription = mutable.bindSubscription(self onReaction rm)
     rm
@@ -167,10 +167,10 @@ object Reactive {
   }
 
   class Mutate[@spec(Int, Long, Double) T, M <: ReactMutable]
-    (val self: Reactive[T], val mutable: M, val mutation: (M, T) => Unit)
+    (val self: Reactive[T], val mutable: M, val mutation: T => Unit)
   extends Reactor[T] with Reactive.ProxySubscription {
     def react(value: T) = {
-      mutation(mutable, value)
+      mutation(value)
       mutable.onMutated()
     }
     def unreact() {}
@@ -504,27 +504,33 @@ object Reactive {
 
   trait Default[@spec(Int, Long, Double) T] extends Reactive[T] {
     private[reactress] var demux: AnyRef = null
+    private[reactress] var unreacted: Boolean = false
     def onReaction(reactor: Reactor[T]) = {
-      demux match {
-        case null =>
-          demux = new WeakRef(reactor)
-        case w: WeakRef[Reactor[T] @unchecked] =>
-          val wb = new WeakBuffer[Reactor[T]]
-          wb.addRef(w)
-          wb.addEntry(reactor)
-          demux = wb
-        case wb: WeakBuffer[Reactor[T] @unchecked] =>
-          if (wb.size < bufferSizeBound) {
+      if (unreacted) {
+        reactor.unreact()
+        Subscription.empty
+      } else {
+        demux match {
+          case null =>
+            demux = new WeakRef(reactor)
+          case w: WeakRef[Reactor[T] @unchecked] =>
+            val wb = new WeakBuffer[Reactor[T]]
+            wb.addRef(w)
             wb.addEntry(reactor)
-          } else {
-            val wht = toHashTable(wb)
+            demux = wb
+          case wb: WeakBuffer[Reactor[T] @unchecked] =>
+            if (wb.size < bufferSizeBound) {
+              wb.addEntry(reactor)
+            } else {
+              val wht = toHashTable(wb)
+              wht.addEntry(reactor)
+              demux = wht
+            }
+          case wht: WeakHashTable[Reactor[T] @unchecked] =>
             wht.addEntry(reactor)
-            demux = wht
-          }
-        case wht: WeakHashTable[Reactor[T] @unchecked] =>
-          wht.addEntry(reactor)
+        }
+        newSubscription(reactor)
       }
-      newSubscription(reactor)
     }
     private def newSubscription(r: Reactor[T]) = new Subscription {
       onSubscriptionChange()
@@ -560,6 +566,7 @@ object Reactive {
       }
     }
     def unreactAll() {
+      unreacted = true
       demux match {
         case null =>
           // no need to inform anybody

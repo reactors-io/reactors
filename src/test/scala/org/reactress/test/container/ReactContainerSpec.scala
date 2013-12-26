@@ -51,6 +51,56 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
     for (n <- 0 until 20) filtered(n) should equal (n % 2 == 0)
   }
 
+  it should "union primitives" in {
+    import Permission.canBuffer
+    val xs = new ReactSet[Int]
+    val ys = new ReactSet[Int]
+    val both = (xs.react union ys).to[ReactSet[Int]]
+    def check(nums: Int*) {
+      for (n <- nums) both(n) should equal (true)
+    }
+
+    xs += 1
+    check(1)
+    ys += 1
+    check(1)
+    xs -= 1
+    check(1)
+    ys -= 1
+    check()
+    ys += 1
+    check(1)
+    xs += 2
+    check(1, 2)
+    ys += 3
+    check(1, 2, 3)
+  }
+
+  it should "union references" in {
+    import Permission.canBuffer
+    val xs = new ReactSet[String]
+    val ys = new ReactSet[String]
+    val both = (xs.react union ys).to[ReactSet[String]]
+    def check(nums: String*) {
+      for (n <- nums) both(n) should equal (true)
+    }
+
+    xs += "1"
+    check("1")
+    ys += "1"
+    check("1")
+    xs -= "1"
+    check("1")
+    ys -= "1"
+    check()
+    ys += "1"
+    check("1")
+    xs += "2"
+    check("1", "2")
+    ys += "3"
+    check("1", "2", "3")
+  }
+
   it should "aggregate" in {
     val numbers = new ReactSet[Int]
     val sum = numbers.react.aggregate(Commutoid(0)(_ + _))
@@ -74,6 +124,46 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
       numbers += Set(n)
       union() should equal (Set() ++ (1 to n))
     }
+  }
+
+  it should "update the size" in {
+    val numbers = ReactSet[Int]
+    val size = numbers.react.size
+
+    numbers += 1
+    assert(size() == 1)
+    numbers += 2
+    assert(size() == 2)
+    numbers += 3
+    assert(size() == 3)
+    numbers -= 2
+    assert(size() == 2)
+    numbers += 2
+    assert(size() == 3)
+    numbers += 4
+    assert(size() == 4)
+    numbers += 4
+    assert(size() == 4)
+  }
+
+  it should "foreach the elements" in {
+    import scala.collection._
+    val numbers = ReactSet[Int]
+    val buffer = mutable.Buffer[Int]()
+    val _ = for (x <- numbers.react) buffer += x
+
+    numbers += 1
+    numbers += 2
+
+    buffer should equal (Seq(1, 2))
+
+    numbers -= 2
+
+    buffer should equal (Seq(1, 2))
+
+    numbers += 3
+
+    buffer should equal (Seq(1, 2, 3))
   }
 
 }

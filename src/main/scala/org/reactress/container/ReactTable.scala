@@ -171,6 +171,13 @@ class ReactTable[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
     case v => v
   }
 
+  def applyOrElse(key: K, otherValue: V): V = lookup(key) match {
+    case `emptyVal`.nil => otherValue
+    case v => v
+  }
+
+  def applyOrNil(key: K): V = lookup(key)
+
   def get(key: K): Option[V] = lookup(key) match {
     case `emptyVal`.nil => None
     case v => Some(v)
@@ -216,7 +223,7 @@ object ReactTable {
 
   def apply[@spec(Int, Long, Double) K: Arrayable, V: Arrayable] = new ReactTable[K, V]
 
-  class Lifted[@spec(Int, Long, Double) K, V](val self: ReactTable[K, V]) extends ReactContainer.Lifted[(K, V)]
+  class Lifted[@spec(Int, Long, Double) K, V](val container: ReactTable[K, V]) extends ReactContainer.Lifted[(K, V)]
 
   val initSize = 16
 

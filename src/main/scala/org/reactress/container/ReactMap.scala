@@ -181,7 +181,7 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
 
   private def noKeyError(key: K) = throw new NoSuchElementException("key: " + key)
 
-  def applyOrNull(key: K): V = {
+  def applyOrNil(key: K): V = {
     val entry = lookup(key)
     if (entry == null || entry.value == null) null
     else entry.value
@@ -306,10 +306,10 @@ object ReactMap {
 
   def apply[@spec(Int, Long, Double) K, V >: Null <: AnyRef](implicit can: Can[K, V]) = new ReactMap[K, V]()(can)
 
-  class Lifted[@spec(Int, Long, Double) K, V >: Null <: AnyRef](val self: ReactMap[K, V])
+  class Lifted[@spec(Int, Long, Double) K, V >: Null <: AnyRef](val container: ReactMap[K, V])
   extends ReactContainer.Lifted[(K, V)] {
     def apply(k: K): Signal[V] = {
-      self.ensure(k).signal(self.applyOrNull(k))
+      container.ensure(k).signal(container.applyOrNil(k))
     }
   }
 

@@ -175,7 +175,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     val vals = ms.map(_.x).signal(0)
     val e = new ReactCell[Int](0)
     e.mutate(ms) {
-      _().x = _
+      ms().x = _
     }
 
     e := 1

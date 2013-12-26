@@ -176,7 +176,7 @@ object ReactSet {
 
   def apply[@spec(Int, Long, Double) T: Arrayable]() = new ReactSet[T]
 
-  class Lifted[@spec(Int, Long, Double) T](val self: ReactSet[T]) extends ReactContainer.Lifted[T]
+  class Lifted[@spec(Int, Long, Double) T](val container: ReactSet[T]) extends ReactContainer.Lifted[T]
 
   val initSize = 16
 
