@@ -29,7 +29,7 @@ trait Reactive[@spec(Int, Long, Double) T] {
 
   def unreactAll(): Unit
 
-  def foreach[@spec(Int, Long, Double) U](f: T => U): Reactive[Unit] with Reactive.Subscription = {
+  def foreach(f: T => Unit): Reactive[Unit] with Reactive.Subscription = {
     val rf = new Reactive.Foreach(self, f)
     rf.subscription = self onReaction rf
     rf
@@ -138,8 +138,8 @@ trait Reactive[@spec(Int, Long, Double) T] {
 
 object Reactive {
 
-  class Foreach[@spec(Int, Long, Double) T, @spec(Int, Long, Double) U]
-    (val self: Reactive[T], val f: T => U)
+  class Foreach[@spec(Int, Long, Double) T]
+    (val self: Reactive[T], val f: T => Unit)
   extends Reactive.Default[Unit] with Reactor[T] with Reactive.ProxySubscription {
     def react(value: T) {
       f(value)

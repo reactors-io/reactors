@@ -45,7 +45,7 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
 
   val react = new ReactMap.Lifted[K, V](this)
 
-  def foreach[U](f: (K, V) => U) {
+  def foreach(f: (K, V) => Unit) {
     var i = 0
     while (i < table.length) {
       val entry = table(i)
@@ -53,6 +53,12 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
         f(entry.key, entry.value)
       }
       i += 1
+    }
+  }
+
+  def foreach(f: ((K, V)) => Unit) {
+    foreach { (k, v) =>
+      f((k, v))
     }
   }
 

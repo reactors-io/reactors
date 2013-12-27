@@ -13,32 +13,31 @@ class CataBelian[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
 extends ReactCatamorph[T, S] with ReactBuilder[S, CataBelian[T, S]] {
   import CataBelian._
 
-  private[reactress] var value: T = _
   private[reactress] var elements: ReactTable[S, T] = null
   private var insertsEmitter: Reactive.Emitter[S] = null
   private var removesEmitter: Reactive.Emitter[S] = null
+  private var value: ReactCell[T] = null
 
   def inserts: Reactive[S] = insertsEmitter
 
   def removes: Reactive[S] = removesEmitter
 
   def init(z: T) {
-    value = zero
     elements = ReactTable[S, T]
     insertsEmitter = new Reactive.Emitter[S]
     removesEmitter = new Reactive.Emitter[S]
+    value = ReactCell[T](zero)
   }
 
   init(zero)
 
-  def apply() = value
+  def signal = value
 
   def +=(v: S): Boolean = {
     if (!elements.contains(v)) {
       val x = get(v)
-      value = op(value, x)
       elements(v) = x
-      reactAll(apply())
+      value := op(value(), x)
       insertsEmitter += v
       true
     } else false
@@ -47,9 +46,8 @@ extends ReactCatamorph[T, S] with ReactBuilder[S, CataBelian[T, S]] {
   def -=(v: S): Boolean = {
     if (elements.contains(v)) {
       val y = elements(v)
-      value = inv(value, y)
       elements.remove(v)
-      reactAll(apply())
+      value := inv(value(), y)
       removesEmitter += v
       true
     } else false
@@ -61,13 +59,15 @@ extends ReactCatamorph[T, S] with ReactBuilder[S, CataBelian[T, S]] {
     if (elements.contains(v)) {
       val y = elements(v)
       val x = get(v)
-      value = inv(value, y)
-      value = op(value, x)
       elements(v) = x
-      reactAll(apply())
+      value := op(inv(value(), y), x)
       true
     } else false
   }
+
+  def size = elements.size
+
+  def foreach(f: S => Unit) = elements.foreach((k, v) => f(k))
 }
 
 

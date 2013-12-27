@@ -12,10 +12,14 @@ extends ReactCatamorph[T, Signal[T]] with ReactBuilder[Signal[T], CataSignaloid[
   private var signalSubscriptions = mutable.Map[Signal[T], Reactive.Subscription]()
   private var insertsReactive: Reactive[Signal[T]] = null
   private var removesReactive: Reactive[Signal[T]] = null
+  private var defaultSignal: Signal.Default[T] = null
 
   def init(c: ReactCatamorph[T, Signal[T]]) {
     insertsReactive = catamorph.inserts
     removesReactive = catamorph.removes
+    defaultSignal = new Signal.Default[T] {
+      def apply() = catamorph.signal()
+    }
   }
 
   init(catamorph)
@@ -24,15 +28,15 @@ extends ReactCatamorph[T, Signal[T]] with ReactBuilder[Signal[T], CataSignaloid[
 
   def container = this
 
-  def apply(): T = catamorph()
+  def signal: Signal[T] = defaultSignal
   
   def +=(s: Signal[T]): Boolean = {
     if (catamorph += s) {
       signalSubscriptions(s) = s.onValue { v =>
         catamorph.push(s)
-        reactAll(apply())
+        defaultSignal.reactAll(catamorph.signal())
       }
-      reactAll(apply())
+      defaultSignal.reactAll(catamorph.signal())
       true
     } else false
   }
@@ -41,7 +45,7 @@ extends ReactCatamorph[T, Signal[T]] with ReactBuilder[Signal[T], CataSignaloid[
     if (catamorph -= s) {
       signalSubscriptions(s).unsubscribe()
       signalSubscriptions.remove(s)
-      reactAll(apply())
+      defaultSignal.reactAll(catamorph.signal())
       true
     } else false
   }
@@ -52,7 +56,11 @@ extends ReactCatamorph[T, Signal[T]] with ReactBuilder[Signal[T], CataSignaloid[
 
   def removes: Reactive[Signal[T]] = removesReactive
 
-  override def toString = s"CataSignaloid(${apply()})"
+  def size = signalSubscriptions.size
+
+  def foreach(f: Signal[T] => Unit) = signalSubscriptions.keys.foreach(f)
+
+  override def toString = s"CataSignaloid(${signal()})"
 }
 
 

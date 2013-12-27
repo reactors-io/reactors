@@ -98,7 +98,7 @@ package object reactress extends ReactiveApi {
   val Abelian = algebra.Abelian
 
   trait Foreach[@spec(Int, Long, Double) T] {
-    def foreach[U](f: T => U): Unit
+    def foreach[@spec(Int, Long, Double) U](f: T => U): Unit
   }
 
   private[reactress] def nextPow2(num: Int): Int = {

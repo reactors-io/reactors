@@ -46,6 +46,17 @@ class ReactSet[@spec(Int, Long, Double) T](
 
   val react = new ReactSet.Lifted[T](this)
 
+  def foreach(f: T => Unit) {
+    var i = 0
+    while (i < table.length) {
+      val k = table(i)
+      if (k != emptyElem.nil) {
+        f(k)
+      }
+      i += 1
+    }
+  }
+
   private def lookup(k: T): Boolean = {
     var pos = index(k)
     val nil = emptyElem.nil

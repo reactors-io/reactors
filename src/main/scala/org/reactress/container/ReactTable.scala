@@ -47,7 +47,7 @@ class ReactTable[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
 
   val react = new ReactTable.Lifted[K, V](this)
 
-  def foreach[U](f: (K, V) => U) {
+  def foreach(f: (K, V) => Unit) {
     var i = 0
     while (i < keytable.length) {
       val k = keytable(i)
@@ -56,6 +56,12 @@ class ReactTable[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
         f(k, v)
       }
       i += 1
+    }
+  }
+
+  def foreach(f: ((K, V)) => Unit) {
+    foreach { (k, v) =>
+      f((k, v))
     }
   }
 

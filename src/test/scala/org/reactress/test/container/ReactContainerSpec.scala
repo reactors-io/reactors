@@ -103,11 +103,12 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
 
   it should "aggregate" in {
     val numbers = new ReactSet[Int]
+    numbers += 1
     val sum = numbers.react.aggregate(Commutoid(0)(_ + _))
 
-    sum() should equal (0)
+    sum() should equal (1)
 
-    for (n <- 1 until 20) {
+    for (n <- 2 until 20) {
       numbers += n
       sum() should equal (n * (n + 1) / 2)
     }
@@ -128,22 +129,24 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
 
   it should "update the size" in {
     val numbers = ReactSet[Int]
+    numbers += 0
     val size = numbers.react.size
 
-    numbers += 1
     assert(size() == 1)
-    numbers += 2
+    numbers += 1
     assert(size() == 2)
+    numbers += 2
+    assert(size() == 3)
     numbers += 3
-    assert(size() == 3)
+    assert(size() == 4)
     numbers -= 2
-    assert(size() == 2)
-    numbers += 2
     assert(size() == 3)
-    numbers += 4
+    numbers += 2
     assert(size() == 4)
     numbers += 4
-    assert(size() == 4)
+    assert(size() == 5)
+    numbers += 4
+    assert(size() == 5)
   }
 
   it should "foreach the elements" in {
@@ -164,6 +167,24 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
     numbers += 3
 
     buffer should equal (Seq(1, 2, 3))
+  }
+
+  it should "count the elements" in {
+    val numbers = ReactSet[Int]
+    numbers += 0
+    val even = numbers.react.count(_ % 2 == 0)
+
+    even() should equal (1)
+    numbers += 1
+    even() should equal (1)
+    numbers += 2
+    even() should equal (2)
+    numbers += 4
+    even() should equal (3)
+    numbers += 7
+    even() should equal (3)
+    numbers -= 2
+    even() should equal (2)
   }
 
 }

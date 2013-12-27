@@ -15,6 +15,16 @@ trait ReactContainer[@spec(Int, Long, Double) T] extends ReactMutable.Subscripti
 
   def react: ReactContainer.Lifted[T]
 
+  def foreach(f: T => Unit): Unit
+
+  def size: Int
+
+  def count(p: T => Boolean): Int = {
+    var num = 0
+    for (v <- this) if (p(v)) num += 1
+    num
+  }
+
 }
 
 
@@ -23,9 +33,11 @@ object ReactContainer {
   trait Lifted[@spec(Int, Long, Double) T] {
     val container: ReactContainer[T]
 
+    /* queries */
+
     def size: Signal[Int] with Reactive.Subscription =
       new Signal.Default[Int] with Reactive.ProxySubscription {
-        private var value = 0
+        private[reactress] var value = container.size
         def apply() = value
         val subscription = Reactive.CompositeSubscription(
           container.inserts onEvent { value += 1; reactAll(value) },
@@ -33,13 +45,28 @@ object ReactContainer {
         )
       }
 
-    def foreach[@spec(Int, Long, Double) U](f: T => U): Reactive[Unit] with Reactive.Subscription = {
+    def count(p: T => Boolean): Signal[Int] with Reactive.Subscription =
+      new Signal.Default[Int] with Reactive.ProxySubscription {
+        private[reactress] var value = container.count(p)
+        def apply() = value
+        val subscription = Reactive.CompositeSubscription(
+          container.inserts onValue { x => if (p(x)) { value += 1; reactAll(value) } },
+          container.removes onValue { x => if (p(x)) { value -= 1; reactAll(value) } }
+        )
+      }
+
+    def exists(p: T => Boolean): Signal[Boolean] with Reactive.Subscription = count(p).map(_ > 0)
+
+    def foreach(f: T => Unit): Reactive[Unit] with Reactive.Subscription = {
+      container.foreach(f)
       container.inserts.foreach(f)
     }
     
     def aggregate(implicit canAggregate: ReactContainer.CanAggregate[T]): Signal[T] with Reactive.Subscription = {
       canAggregate.apply(container)
     }
+
+    /* transformers */
   
     def to[That <: ReactContainer[T]](implicit factory: ReactBuilder.Factory[T, That]): That = {
       val builder = factory()
@@ -61,7 +88,7 @@ object ReactContainer {
     def filter(p: T => Boolean): ReactContainer.Lifted[T] =
       (new ReactContainer.Filter[T](container, p)).react
   
-    def union(that: ReactContainer[T])(implicit count: Union.Count[T], b: CanBeBuffered): ReactContainer.Lifted[T] =
+    def union(that: ReactContainer[T])(implicit count: Union.Count[T], a: Arrayable[T], b: CanBeBuffered): ReactContainer.Lifted[T] =
       (new ReactContainer.Union[T](container, that, count)).react
 
   }
@@ -79,15 +106,20 @@ object ReactContainer {
   extends ReactContainer.Default[S] {
     val inserts = self.inserts.map(f)
     val removes = self.removes.map(f)
+    def size = self.size
+    def foreach(g: S => Unit) = self.foreach(x => g(f(x)))
   }
 
   class Filter[@spec(Int, Long, Double) T](self: ReactContainer[T], p: T => Boolean)
   extends ReactContainer.Default[T] {
     val inserts = self.inserts.filter(p)
     val removes = self.removes.filter(p)
+    def size = self.count(p)
+    def foreach(f: T => Unit) = self.foreach(x => if (p(x)) f(x))
   }
 
-  class Union[@spec(Int, Long, Double) T](self: ReactContainer[T], that: ReactContainer[T], count: Union.Count[T])
+  class Union[@spec(Int, Long, Double) T]
+    (self: ReactContainer[T], that: ReactContainer[T], count: Union.Count[T])(implicit at: Arrayable[T])
   extends ReactContainer.Default[T] {
     val inserts = new Reactive.Emitter[T]
     val removes = new Reactive.Emitter[T]
@@ -98,6 +130,14 @@ object ReactContainer {
     var removeUnion = (self.removes union that.removes).mutate(countSignal) { x =>
       if (count.dec(x)) removes += x
     }
+    def computeUnion = {
+      val s = ReactSet[T]
+      for (v <- self) s += v
+      for (v <- that) s += v
+      s
+    }
+    def size = computeUnion.size
+    def foreach(f: T => Unit) = computeUnion.foreach(f)
   }
 
   object Union {
@@ -198,16 +238,19 @@ object ReactContainer {
     canAggregateAbelian(g, can)
 
   class Aggregate[@spec(Int, Long, Double) T]
-    (val container: ReactContainer[T], val proxy: ReactCatamorph[T, T])
+    (val container: ReactContainer[T], val catamorph: ReactCatamorph[T, T])
   extends Signal.Proxy[T] with Reactive.ProxySubscription {
     commuted =>
     val id = (v: T) => v
     var subscription: Reactive.Subscription = _
+    var proxy: Signal[T] = _
 
     def init(c: ReactContainer[T]) {
+      proxy = catamorph.signal
+      for (v <- container) catamorph += v
       subscription = Reactive.CompositeSubscription(
-        container.inserts onValue { v => proxy += v },
-        container.removes onValue { v => proxy -= v }
+        container.inserts onValue { v => catamorph += v },
+        container.removes onValue { v => catamorph -= v }
       )
     }
 

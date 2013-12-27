@@ -154,6 +154,10 @@ class ReactTileMap[@spec(Int, Long, Double) T: ClassTag](
     }
   }
 
+  def foreach(f: ((Int, Int, T)) => Unit) = nonDefault.foreach(0, 0, sz, sz) {
+    (x, y, elem) => f((x, y, elem))
+  }
+
   def clear() = {
     checkRoot(dflt)
 

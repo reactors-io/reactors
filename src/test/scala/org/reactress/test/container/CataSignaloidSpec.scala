@@ -26,7 +26,7 @@ class CataSignaloidSpec extends FlatSpec with ShouldMatchers {
       catamorph += rc1
       catamorph += rc2
 
-      catamorph() should equal ("ab")
+      catamorph.signal() should equal ("ab")
     }
 
     it should "correctly reflect many added signals" in {
@@ -34,7 +34,7 @@ class CataSignaloidSpec extends FlatSpec with ShouldMatchers {
       val cells = for (i <- 0 until 100) yield new ReactCell(i + " ")
       for ((c, i) <- cells.zipWithIndex) {
         catamorph += c
-        catamorph() should equal ((0 to i).foldLeft("")(_ + _ + " "))
+        catamorph.signal() should equal ((0 to i).foldLeft("")(_ + _ + " "))
       }
     }
 
@@ -45,7 +45,7 @@ class CataSignaloidSpec extends FlatSpec with ShouldMatchers {
       for ((c, i) <- cells.zipWithIndex; if (i % 2 == 0)) {
         catamorph -= c
         val expected = (0 until 50).filter(x => x % 2 == 1 || x > i).foldLeft("")(_ + _ + " ")
-        catamorph() should equal (expected)
+        catamorph.signal() should equal (expected)
       }
     }
   }
@@ -54,7 +54,7 @@ class CataSignaloidSpec extends FlatSpec with ShouldMatchers {
     s"A CataSignaloid using ${structure}s" should "be empty" in {
       val catamorph = newCataSignaloid
   
-      catamorph() should equal (0)
+      catamorph.signal() should equal (0)
     }
   
     it should "accurately reflect a single signal" in {
@@ -62,11 +62,11 @@ class CataSignaloidSpec extends FlatSpec with ShouldMatchers {
       val rc0 = ReactCell(0)
       catamorph += rc0
   
-      catamorph() should equal (0)
+      catamorph.signal() should equal (0)
       rc0 := 1
-      catamorph() should equal (1)
+      catamorph.signal() should equal (1)
       rc0 := 2
-      catamorph() should equal (2)
+      catamorph.signal() should equal (2)
     }
   
     it should "accurately reflect two signals" in {
@@ -76,17 +76,17 @@ class CataSignaloidSpec extends FlatSpec with ShouldMatchers {
       catamorph += rc0
       catamorph += rc1
   
-      catamorph() should equal (0)
+      catamorph.signal() should equal (0)
       rc0 := 1
-      catamorph() should equal (1)
+      catamorph.signal() should equal (1)
       rc1 := 2
-      catamorph() should equal (3)
+      catamorph.signal() should equal (3)
       rc0 := 3
-      catamorph() should equal (5)
+      catamorph.signal() should equal (5)
       rc1 := 20
-      catamorph() should equal (23)
+      catamorph.signal() should equal (23)
       rc0 := -21
-      catamorph() should equal (-1)
+      catamorph.signal() should equal (-1)
     }
   
     it should "accurately reflect many signals" in {
@@ -94,11 +94,11 @@ class CataSignaloidSpec extends FlatSpec with ShouldMatchers {
       val cells = for (_ <- 0 until 20) yield ReactCell(0)
       for (c <- cells) catamorph += c
   
-      catamorph() should equal (0)
+      catamorph.signal() should equal (0)
       for ((c, i) <- cells.zipWithIndex) c := i
-      catamorph() should equal (cells.length * (cells.length - 1) / 2)
+      catamorph.signal() should equal (cells.length * (cells.length - 1) / 2)
       cells(10) := 0
-      catamorph() should equal (cells.length * (cells.length - 1) / 2 - 10)
+      catamorph.signal() should equal (cells.length * (cells.length - 1) / 2 - 10)
     }
   
     it should "accurately reflect addition of new signals" in {
@@ -107,15 +107,15 @@ class CataSignaloidSpec extends FlatSpec with ShouldMatchers {
       for (c <- cells) catamorph += c
   
       def total(n: Int) = n * (n - 1) / 2
-      catamorph() should equal (total(cells.length))
+      catamorph.signal() should equal (total(cells.length))
       catamorph += ReactCell(50)
-      catamorph() should equal (total(cells.length + 1))
+      catamorph.signal() should equal (total(cells.length + 1))
       catamorph += ReactCell(51)
-      catamorph() should equal (total(cells.length + 2))
+      catamorph.signal() should equal (total(cells.length + 2))
       catamorph += ReactCell(52)
-      catamorph() should equal (total(cells.length + 3))
+      catamorph.signal() should equal (total(cells.length + 3))
       catamorph += ReactCell(53)
-      catamorph() should equal (total(cells.length + 4))
+      catamorph.signal() should equal (total(cells.length + 4))
     }
   
     it should "accurately reflect removal of signals" in {
@@ -124,10 +124,10 @@ class CataSignaloidSpec extends FlatSpec with ShouldMatchers {
       for (c <- cells) catamorph += c
   
       def total(n: Int) = n * (n - 1) / 2
-      catamorph() should equal (total(cells.length))
+      catamorph.signal() should equal (total(cells.length))
       for ((c, i) <- cells.reverse.zipWithIndex) {
         catamorph -= c
-        catamorph() should equal (total(cells.length - i - 1))
+        catamorph.signal() should equal (total(cells.length - i - 1))
       }
     }
   
@@ -138,14 +138,14 @@ class CataSignaloidSpec extends FlatSpec with ShouldMatchers {
       for (c <- cells) catamorph += c
   
       def total(n: Int) = n * (n - 1) / 2
-      catamorph() should equal (total(cells.length))
+      catamorph.signal() should equal (total(cells.length))
       for ((c, i) <- cells.reverse.take(max / 2).zipWithIndex) {
         catamorph -= c
-        catamorph() should equal (total(cells.length - i - 1))
+        catamorph.signal() should equal (total(cells.length - i - 1))
       }
       for (i <- (max - max / 2) until max) {
         catamorph += ReactCell(i)
-        catamorph() should equal (total(i + 1))
+        catamorph.signal() should equal (total(i + 1))
       }
     }
 

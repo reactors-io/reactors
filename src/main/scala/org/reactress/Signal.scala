@@ -158,7 +158,7 @@ object Signal {
 
   trait Proxy[@spec(Int, Long, Double) T]
   extends Signal[T] {
-    val proxy: Signal[T]
+    def proxy: Signal[T]
     def apply() = proxy()
     def hasSubscriptions = proxy.hasSubscriptions
     def onReaction(r: Reactor[T]) = proxy.onReaction(r)

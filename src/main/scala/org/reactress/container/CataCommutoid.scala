@@ -16,6 +16,7 @@ extends ReactCatamorph[T, S] with ReactBuilder[S, CataCommutoid[T, S]] {
   private[reactress] var leaves: mutable.Map[S, Leaf[T]] = null
   private val insertsEmitter = new Reactive.Emitter[S]
   private val removesEmitter = new Reactive.Emitter[S]
+  private var rootValue: ReactCell[T] = null
 
   def inserts: Reactive[S] = insertsEmitter
 
@@ -24,18 +25,19 @@ extends ReactCatamorph[T, S] with ReactBuilder[S, CataCommutoid[T, S]] {
   def init(z: T) {
     root = new Empty(zero)
     leaves = mutable.Map[S, Leaf[T]]()
+    rootValue = ReactCell(root.value)
   }
 
   init(zero)
 
-  def apply() = root.value
+  def signal: Signal[T] = rootValue
 
   def +=(v: S): Boolean = {
     if (!leaves.contains(v)) {
       val leaf = new Leaf[T](() => get(v), null)
       leaves(v) = leaf
       root = root.insert(leaf, op)
-      reactAll(apply())
+      rootValue := root.value
       insertsEmitter += v
       true
     } else false
@@ -46,7 +48,7 @@ extends ReactCatamorph[T, S] with ReactBuilder[S, CataCommutoid[T, S]] {
       val leaf = leaves(v)
       root = leaf.remove(zero, op)
       leaves.remove(v)
-      reactAll(apply())
+      rootValue := root.value
       removesEmitter += v
       true
     } else false
@@ -58,10 +60,14 @@ extends ReactCatamorph[T, S] with ReactBuilder[S, CataCommutoid[T, S]] {
     if (leaves.contains(v)) {
       val leaf = leaves(v)
       leaf.pushUp(op)
-      reactAll(apply())
+      rootValue := root.value
       true
     } else false
   }
+
+  def size = leaves.size
+
+  def foreach(f: S => Unit) = leaves.keys.foreach(f)
 }
 
 
