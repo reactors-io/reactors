@@ -3,14 +3,14 @@ package util
 
 
 
-import annotation.tailrec
+import scala.annotation.tailrec
 
 
 
 class UnrolledBuffer[@spec(Int, Long, Double) T](implicit val arrayable: Arrayable[T]) {
   import UnrolledBuffer._
 
-  private[reactress] var start = new Node[T](this, arrayable.newNonNilArray(INITIAL_LENGTH))
+  private[reactress] var start = new Node[T](this, arrayable.newRawArray(INITIAL_NODE_LENGTH))
   private[reactress] var end = start
 
   def isEmpty = !nonEmpty
@@ -29,7 +29,7 @@ class UnrolledBuffer[@spec(Int, Long, Double) T](implicit val arrayable: Arrayab
     start.startIndex < start.endIndex
   }
 
-  def head = if (nonEmpty) start.array(start.startIndex) else throw new IllegalStateException("empty")
+  def head = if (nonEmpty) start.array(start.startIndex) else throw new NoSuchElementException("empty")
 
   def dequeue() = {
     val elem = head
@@ -59,7 +59,7 @@ class UnrolledBuffer[@spec(Int, Long, Double) T](implicit val arrayable: Arrayab
   }
 
   def clear() {
-    start = new Node[T](this, arrayable.newNonNilArray(INITIAL_LENGTH))
+    start = new Node[T](this, arrayable.newRawArray(INITIAL_NODE_LENGTH))
     end = start
   }
 }
@@ -67,8 +67,8 @@ class UnrolledBuffer[@spec(Int, Long, Double) T](implicit val arrayable: Arrayab
 
 object UnrolledBuffer {
 
-  def INITIAL_LENGTH = 8
-  def MAX_LENGTH = 64
+  def INITIAL_NODE_LENGTH = 8
+  def MAXIMUM_NODE_LENGTH = 128
 
   class Node[@spec(Int, Long, Double) T](val outer: UnrolledBuffer[T], val array: Array[T]) {
     private[reactress] var startIndex = 0
@@ -80,8 +80,8 @@ object UnrolledBuffer {
         array(endIndex) = elem
         endIndex += 1
       } else {
-        val nlen = math.min(MAX_LENGTH, array.length * 2)
-        next = new Node(outer, outer.arrayable.newNonNilArray(nlen))
+        val nlen = math.min(MAXIMUM_NODE_LENGTH, array.length * 2)
+        next = new Node(outer, outer.arrayable.newRawArray(nlen))
         outer.end = next
         next += elem
       }

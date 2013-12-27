@@ -123,7 +123,7 @@ package object reactress extends ReactiveApi {
     val classTag: ClassTag[T]
     val nil: T
     def newArray(sz: Int): Array[T]
-    def newNonNilArray(sz: Int): Array[T]
+    def newRawArray(sz: Int): Array[T]
   }
 
   object Arrayable {
@@ -132,35 +132,35 @@ package object reactress extends ReactiveApi {
       val classTag = implicitly[ClassTag[T]]
       val nil = null
       def newArray(sz: Int) = new Array[T](sz)
-      def newNonNilArray(sz: Int) = newArray(sz)
+      def newRawArray(sz: Int) = newArray(sz)
     }
   
     implicit val long: Arrayable[Long] = new Arrayable[Long] {
       val classTag = implicitly[ClassTag[Long]]
       val nil = Long.MinValue
       def newArray(sz: Int) = Array.fill[Long](sz)(nil)
-      def newNonNilArray(sz: Int) = new Array[Long](sz)
+      def newRawArray(sz: Int) = new Array[Long](sz)
     }
   
     implicit val double: Arrayable[Double] = new Arrayable[Double] {
       val classTag = implicitly[ClassTag[Double]]
       val nil = Double.NaN
       def newArray(sz: Int) = Array.fill[Double](sz)(nil)
-      def newNonNilArray(sz: Int) = new Array[Double](sz)
+      def newRawArray(sz: Int) = new Array[Double](sz)
     }
   
     implicit val int: Arrayable[Int] = new Arrayable[Int] {
       val classTag = implicitly[ClassTag[Int]]
       val nil = Int.MinValue
       def newArray(sz: Int) = Array.fill[Int](sz)(nil)
-      def newNonNilArray(sz: Int) = new Array[Int](sz)
+      def newRawArray(sz: Int) = new Array[Int](sz)
     }
 
     val nonZeroInt: Arrayable[Int] = new Arrayable[Int] {
       val classTag = implicitly[ClassTag[Int]]
       val nil = 0
-      def newArray(sz: Int) = newNonNilArray(sz)
-      def newNonNilArray(sz: Int) = new Array[Int](sz)
+      def newArray(sz: Int) = newRawArray(sz)
+      def newRawArray(sz: Int) = new Array[Int](sz)
     }
   
   }

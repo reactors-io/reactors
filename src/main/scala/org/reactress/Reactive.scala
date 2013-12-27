@@ -499,8 +499,8 @@ object Reactive {
     }
   }
 
-  private val bufferSizeBound = 8
-  private val hashTableSizeBound = 5
+  private val bufferUpperBound = 8
+  private val hashTableLowerBound = 5
 
   trait Default[@spec(Int, Long, Double) T] extends Reactive[T] {
     private[reactress] var demux: AnyRef = null
@@ -519,7 +519,7 @@ object Reactive {
             wb.addEntry(reactor)
             demux = wb
           case wb: WeakBuffer[Reactor[T] @unchecked] =>
-            if (wb.size < bufferSizeBound) {
+            if (wb.size < bufferUpperBound) {
               wb.addEntry(reactor)
             } else {
               val wht = toHashTable(wb)
@@ -633,7 +633,7 @@ object Reactive {
       wht
     }
     private def toBuffer(wht: WeakHashTable[Reactor[T]]) = {
-      val wb = new WeakBuffer[Reactor[T]](bufferSizeBound)
+      val wb = new WeakBuffer[Reactor[T]](bufferUpperBound)
       val table = wht.table
       var i = 0
       while (i < table.length) {
@@ -644,7 +644,7 @@ object Reactive {
       wb
     }
     private def checkHashTable(wht: WeakHashTable[Reactor[T]]) {
-      if (wht.size < hashTableSizeBound) {
+      if (wht.size < hashTableLowerBound) {
         val wb = toBuffer(wht)
         demux = wb
         checkBuffer(wb)
