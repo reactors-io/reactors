@@ -51,7 +51,7 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
     for (n <- 0 until 20) filtered(n) should equal (n % 2 == 0)
   }
 
-  it should "union primitives" in {
+  def testUnionPrimitives() {
     import Permission.canBuffer
     val xs = new ReactSet[Int]
     val ys = new ReactSet[Int]
@@ -59,6 +59,8 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
     def check(nums: Int*) {
       for (n <- nums) both(n) should equal (true)
     }
+
+    sys.runtime.gc()
 
     xs += 1
     check(1)
@@ -74,6 +76,10 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
     check(1, 2)
     ys += 3
     check(1, 2, 3)
+  }
+
+  it should "union primitives" in {
+    testUnionPrimitives()
   }
 
   it should "union references" in {
@@ -185,6 +191,32 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
     even() should equal (3)
     numbers -= 2
     even() should equal (2)
+  }
+
+  it should "forall the elements" in {
+    val numbers = ReactSet[Int]
+    numbers += 11
+    val allodd = numbers.react.forall(_ % 2 == 1)
+
+    allodd() should equal (true)
+    numbers += 17
+    allodd() should equal (true)
+    numbers += 12
+    allodd() should equal (false)
+    numbers += 15
+    allodd() should equal (false)
+    numbers += 20
+    allodd() should equal (false)
+    numbers -= 12
+    allodd() should equal (false)
+    numbers -= 15
+    allodd() should equal (false)
+    numbers -= 20
+    allodd() should equal (true)
+    numbers -= 11
+    allodd() should equal (true)
+    numbers -= 17
+    allodd() should equal (true)
   }
 
 }

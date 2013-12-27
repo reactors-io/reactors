@@ -25,6 +25,16 @@ trait ReactContainer[@spec(Int, Long, Double) T] extends ReactMutable.Subscripti
     num
   }
 
+  def forall(p: T => Boolean): Boolean = count(p) == size
+
+  def exists(p: T => Boolean): Boolean = count(p) > 0
+
+  def aggregate(m: Monoid[T]): T = {
+    var agg = m.zero
+    for (v <- this) agg = m.operator(agg, v)
+    agg
+  }
+
 }
 
 
@@ -56,6 +66,16 @@ object ReactContainer {
       }
 
     def exists(p: T => Boolean): Signal[Boolean] with Reactive.Subscription = count(p).map(_ > 0)
+
+    def forall(p: T => Boolean): Signal[Boolean] with Reactive.Subscription =
+      new Signal.Default[Boolean] with Reactive.ProxySubscription {
+        private[reactress] var value = container.count(p)
+        def apply() = value == container.size
+        val subscription = Reactive.CompositeSubscription(
+          container.inserts onValue { x => if (p(x)) value += 1; reactAll(value == container.size) },
+          container.removes onValue { x => if (p(x)) value -= 1; reactAll(value == container.size) }
+        )
+      }
 
     def foreach(f: T => Unit): Reactive[Unit] with Reactive.Subscription = {
       container.foreach(f)
@@ -121,13 +141,13 @@ object ReactContainer {
   class Union[@spec(Int, Long, Double) T]
     (self: ReactContainer[T], that: ReactContainer[T], count: Union.Count[T])(implicit at: Arrayable[T])
   extends ReactContainer.Default[T] {
-    val inserts = new Reactive.Emitter[T]
-    val removes = new Reactive.Emitter[T]
+    val inserts = new Reactive.BindEmitter[T]
+    val removes = new Reactive.BindEmitter[T]
     var countSignal: Signal.Mutable[Union.Count[T]] = new Signal.Mutable(count)
-    var insertUnion = (self.inserts union that.inserts).mutate(countSignal) { x =>
+    var insertSubscription = (self.inserts union that.inserts).mutate(countSignal, inserts) { x =>
       if (count.inc(x)) inserts += x
     }
-    var removeUnion = (self.removes union that.removes).mutate(countSignal) { x =>
+    var removeSubscription = (self.removes union that.removes).mutate(countSignal, removes) { x =>
       if (count.dec(x)) removes += x
     }
     def computeUnion = {

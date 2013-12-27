@@ -32,7 +32,10 @@ class UnrolledBuffer[@spec(Int, Long, Double) T](implicit val arrayable: Arrayab
   def head = if (nonEmpty) start.array(start.startIndex) else throw new NoSuchElementException("empty")
 
   def dequeue() = {
-    val elem = head
+    val array = start.array
+    val si = start.startIndex
+    val elem = array(si)
+    array(si) = arrayable.nil
     start.startIndex += 1
     elem
   }
