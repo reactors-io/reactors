@@ -543,7 +543,7 @@ object Reactive {
         case null =>
           // nothing to invalidate
         case w: WeakRef[Reactor[T] @unchecked] =>
-          if (w.get eq r) w.invalidated = true
+          if (w.get eq r) w.clear()
         case wb: WeakBuffer[Reactor[T] @unchecked] =>
           wb.invalidateEntry(r)
         case wht: WeakHashTable[Reactor[T] @unchecked] =>
@@ -557,7 +557,7 @@ object Reactive {
           // no need to inform anybody
         case w: WeakRef[Reactor[T] @unchecked] =>
           val r = w.get
-          if (!w.invalidated && r != null) r.react(value)
+          if (r != null) r.react(value)
           else demux = null
         case wb: WeakBuffer[Reactor[T] @unchecked] =>
           bufferReactAll(wb, value)
@@ -593,7 +593,7 @@ object Reactive {
       while (i < until) {
         val ref = array(i)
         val r = ref.get
-        if (!ref.invalidated && (r ne null)) {
+        if (r ne null) {
           r.react(value)
           i += 1
         } else {
@@ -610,7 +610,7 @@ object Reactive {
       while (i < until) {
         val ref = array(i)
         val r = ref.get
-        if (!ref.invalidated && (r ne null)) {
+        if (r ne null) {
           r.unreact()
           i += 1
         } else {
@@ -657,7 +657,7 @@ object Reactive {
         val ref = table(i)
         if (ref ne null) {
           val r = ref.get
-          if (!ref.invalidated && (r ne null)) r.react(value)
+          if (r ne null) r.react(value)
           else wht.removeEntryAt(i, null)
         }
         i += 1
@@ -671,7 +671,7 @@ object Reactive {
         val ref = table(i)
         if (ref ne null) {
           val r = ref.get
-          if (!ref.invalidated && (r ne null)) r.unreact()
+          if (r ne null) r.unreact()
           else wht.removeEntryAt(i, null)
           i += 1
         }

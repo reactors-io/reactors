@@ -78,7 +78,7 @@ class WeakHashTable[M <: AnyRef] {
 
   def invalidateEntry(mux: M) {
     val w = findEntryImpl(mux)
-    if (w != null) w.invalidated = true
+    if (w != null) w.clear()
   }
 
   private def growTable() {
