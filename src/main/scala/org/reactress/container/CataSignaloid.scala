@@ -87,15 +87,15 @@ object CataSignaloid {
 
   def apply[@spec(Int, Long, Double) T](cm: Abelian[T])(implicit a: Arrayable[T]) = abelian(cm, a)
 
-  implicit def factory[@spec(Int, Long, Double) T](implicit m: Monoid[T]) = new ReactBuilder.Factory[Signal[T], CataSignaloid[T]] {
+  implicit def monoidFactory[@spec(Int, Long, Double) T](implicit m: Monoid[T]) = new ReactBuilder.Factory[Signal[T], CataSignaloid[T]] {
     def apply() = CataSignaloid.monoid
   }
 
-  implicit def factory[@spec(Int, Long, Double) T](implicit cm: Commutoid[T]) = new ReactBuilder.Factory[Signal[T], CataSignaloid[T]] {
+  implicit def commutoidFactory[@spec(Int, Long, Double) T](implicit cm: Commutoid[T]) = new ReactBuilder.Factory[Signal[T], CataSignaloid[T]] {
     def apply() = CataSignaloid.commutoid
   }
 
-  implicit def factory[@spec(Int, Long, Double) T](implicit cm: Abelian[T], a: Arrayable[T]) = new ReactBuilder.Factory[Signal[T], CataSignaloid[T]] {
+  implicit def abelianFactory[@spec(Int, Long, Double) T](implicit cm: Abelian[T], a: Arrayable[T]) = new ReactBuilder.Factory[Signal[T], CataSignaloid[T]] {
     def apply() = CataSignaloid.abelian
   }
 
