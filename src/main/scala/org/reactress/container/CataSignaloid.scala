@@ -64,7 +64,14 @@ extends ReactCatamorph[T, Signal[T]] with ReactBuilder[Signal[T], CataSignaloid[
 }
 
 
-object CataSignaloid {
+trait LowPriorityCataSignaloid {
+  implicit def monoidFactory[@spec(Int, Long, Double) T](implicit m: Monoid[T]) = new ReactBuilder.Factory[Signal[T], CataSignaloid[T]] {
+    def apply() = CataSignaloid.monoid
+  }
+}
+
+
+object CataSignaloid extends LowPriorityCataSignaloid {
 
   def monoid[@spec(Int, Long, Double) T](implicit m: Monoid[T]) = {
     val catamorph = new CataMonoid[T, Signal[T]](_(), m.zero, m.operator)
@@ -86,10 +93,6 @@ object CataSignaloid {
   def apply[@spec(Int, Long, Double) T](cm: Commutoid[T]) = commutoid(cm)
 
   def apply[@spec(Int, Long, Double) T](cm: Abelian[T])(implicit a: Arrayable[T]) = abelian(cm, a)
-
-  implicit def monoidFactory[@spec(Int, Long, Double) T](implicit m: Monoid[T]) = new ReactBuilder.Factory[Signal[T], CataSignaloid[T]] {
-    def apply() = CataSignaloid.monoid
-  }
 
   implicit def commutoidFactory[@spec(Int, Long, Double) T](implicit cm: Commutoid[T]) = new ReactBuilder.Factory[Signal[T], CataSignaloid[T]] {
     def apply() = CataSignaloid.commutoid
