@@ -39,6 +39,10 @@ package object reactress extends ReactiveApi {
 
   val ReactCell = container.ReactCell
 
+  type ReactRecord = container.ReactRecord
+
+  val ReactRecord = container.ReactRecord
+
   type ReactContainer[T] = container.ReactContainer[T]
 
   val ReactContainer = container.ReactContainer
