@@ -31,9 +31,17 @@ package object reactress extends ReactiveApi {
     final def invalid = Long.MinValue
   }
 
+  type SubscriptionSet = container.SubscriptionSet
+
+  val SubscriptionSet = container.SubscriptionSet
+
   type ReactCell[T] = container.ReactCell[T]
 
   val ReactCell = container.ReactCell
+
+  type ReactRecord = container.ReactRecord
+
+  val ReactRecord = container.ReactRecord
 
   type ReactContainer[T] = container.ReactContainer[T]
 

@@ -64,6 +64,19 @@ trait Reactive[@spec(Int, Long, Double) T] {
     rm
   }
 
+  private def mutablesCompositeSubscription[M <: ReactMutable](mutables: Seq[M], selfsub: Reactive.Subscription) = {
+    for (m <- mutables) yield m.bindSubscription(selfsub)
+  }
+
+  def mutate[M <: ReactMutable](m1: M, m2: M, mr: M*)(mutation: T => Unit): Reactive.Subscription = {
+    val mutables = Seq(m1, m2) ++ mr
+    val rm = new Reactive.MutateMany(self, mutables, mutation)
+    val selfsub = self onReaction rm
+    val subs = mutablesCompositeSubscription(mutables, selfsub)
+    rm.subscription = Reactive.CompositeSubscription(subs: _*)
+    rm
+  }
+
   def after[@spec(Int, Long, Double) S](that: Reactive[S]): Reactive[T] with Reactive.Subscription = {
     val ra = new Reactive.After(self, that)
     ra.selfSubscription = self onReaction ra.selfReactor
@@ -172,6 +185,17 @@ object Reactive {
     def react(value: T) = {
       mutation(value)
       mutable.onMutated()
+    }
+    def unreact() {}
+    var subscription = Subscription.empty
+  }
+
+  class MutateMany[@spec(Int, Long, Double) T, M <: ReactMutable]
+    (val self: Reactive[T], val mutables: Seq[M], val mutation: T => Unit)
+  extends Reactor[T] with Reactive.ProxySubscription {
+    def react(value: T) = {
+      mutation(value)
+      for (m <- mutables) m.onMutated()
     }
     def unreact() {}
     var subscription = Subscription.empty
@@ -684,6 +708,13 @@ object Reactive {
 
   class Emitter[@spec(Int, Long, Double) T]
   extends Reactive[T] with Default[T] {
+    def +=(value: T) {
+      reactAll(value)
+    }
+  }
+
+  class BindEmitter[@spec(Int, Long, Double) T]
+  extends Reactive[T] with Default[T] with ReactMutable.SubscriptionSet {
     def +=(value: T) {
       reactAll(value)
     }
