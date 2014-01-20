@@ -3,7 +3,7 @@ import bintray.Keys._
 
 name := "reactress"
 
-version := "0.0.2-SNAPSHOT"
+version := "0.0.2"
 
 seq(bintrayPublishSettings:_*)
 
