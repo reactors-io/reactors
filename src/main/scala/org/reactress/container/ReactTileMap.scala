@@ -158,7 +158,7 @@ class ReactTileMap[@spec(Int, Long, Double) T: ClassTag](
     (x, y, elem) => f((x, y, elem))
   }
 
-  def clear() = {
+  protected def clearSafe(dummy: T) = {
     checkRoot(dflt)
 
     val oldroot = root
@@ -172,9 +172,13 @@ class ReactTileMap[@spec(Int, Long, Double) T: ClassTag](
     }
   }
 
+  def clear() = clearSafe(dflt)
+
   def breadth = sz
 
-  def breadth_=(nsz: Int) {
+  def breadth_=(nsz: Int) = setBreadthSafe(nsz, dflt)
+
+  protected def setBreadthSafe(nsz: Int, dummy: T) {
     checkRoot(dflt)
 
     val npow2size = nextPow2(nsz)
