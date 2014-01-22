@@ -138,25 +138,21 @@ class ReactTileMap[@spec(Int, Long, Double) T: ClassTag](
     updatesEmitter += XY(x, y)
   }
 
-  object safe {
-    def update(x: Int, y: Int, elem: T): Unit = {
-      if (contains(x, y)) update(x, y, elem)
-    }
+  def updateSafe(x: Int, y: Int, elem: T): Unit = {
+    if (contains(x, y)) update(x, y, elem)
   }
   
   def foreachLeaf[U](f: T => U): Unit = root.foreachLeaf(f)
 
-  object nonDefault {
-    def foreach[U](fromx: Int, fromy: Int, untilx: Int, untily: Int)(f: (Int, Int, T) => U): Unit = {
-      checkRoot(dflt)
-      def clamp(v: Int) = if (v < 0) 0 else if (v >= sz) sz - 1 else v
-      root.foreachNonDefault[U](clamp(fromx), clamp(fromy), clamp(untilx), clamp(untily), 0, 0, pow2size, dflt)(f)
-    }
+  def foreachNonDefault[U](fromx: Int, fromy: Int, untilx: Int, untily: Int)(t: Applier[T]): Unit = {
+    checkRoot(dflt)
+    def clamp(v: Int) = if (v < 0) 0 else if (v >= sz) sz - 1 else v
+    root.foreachNonDefault[U](clamp(fromx), clamp(fromy), clamp(untilx), clamp(untily), 0, 0, pow2size, dflt)(t)
   }
 
-  def foreach(f: ((Int, Int, T)) => Unit) = nonDefault.foreach(0, 0, sz, sz) {
-    (x, y, elem) => f((x, y, elem))
-  }
+  def foreach(f: ((Int, Int, T)) => Unit) = foreachNonDefault(0, 0, sz, sz)(new Applier[T] {
+    def apply(x: Int, y: Int, elem: T) = f((x, y, elem))
+  })
 
   protected def clearSafe(dummy: T) = {
     checkRoot(dflt)
@@ -166,9 +162,9 @@ class ReactTileMap[@spec(Int, Long, Double) T: ClassTag](
     clearsEmitter += ()
 
     if (removesEmitter.hasSubscriptions) {
-      oldroot.foreachNonDefault(0, 0, sz, sz, 0, 0, sz, dflt) { (x, y, elem) =>
-        removesEmitter += (x, y, elem)
-      }
+      oldroot.foreachNonDefault(0, 0, sz, sz, 0, 0, sz, dflt)(new Applier[T] {
+        def apply(x: Int, y: Int, elem: T) = removesEmitter += (x, y, elem)
+      })
     }
   }
 
@@ -227,6 +223,10 @@ class ReactTileMap[@spec(Int, Long, Double) T: ClassTag](
 
 object ReactTileMap {
 
+  trait Applier[@spec(Int, Long, Double) T] {
+    def apply(x: Int, y: Int, elem: T): Unit
+  }
+
   sealed trait Event
   case object NoEvent extends Event
   case class Resize(sz: Int) extends Event
@@ -260,7 +260,7 @@ object ReactTileMap {
     def read(array: Array[T], width: Int, height: Int, fromx: Int, fromy: Int, untilx: Int, untily: Int, offsetx: Int, offsety: Int, sz: Int): Unit
     def update(x: Int, y: Int, sz: Int, tag: ClassTag[T], d: T, elem: T, compress: Boolean, previous: Ref[T]): Node[T]
     def foreachLeaf[U](f: T => U): Unit
-    def foreachNonDefault[U](fromx: Int, fromy: Int, untilx: Int, untily: Int, offsetx: Int, offsety: Int, sz: Int, dflt: T)(f: (Int, Int, T) => U): Unit
+    def foreachNonDefault[U](fromx: Int, fromy: Int, untilx: Int, untily: Int, offsetx: Int, offsety: Int, sz: Int, dflt: T)(f: Applier[T]): Unit
     def leaf(x: Int, y: Int, sz: Int): Node[T]
     def isLeaf: Boolean = false
     def asLeaf: Node.Leaf[T] = ???
@@ -300,7 +300,7 @@ object ReactTileMap {
       def foreachLeaf[U](f: T => U) {
         f(element)
       }
-      def foreachNonDefault[U](fromx: Int, fromy: Int, untilx: Int, untily: Int, offsetx: Int, offsety: Int, sz: Int, dflt: T)(f: (Int, Int, T) => U) {
+      def foreachNonDefault[U](fromx: Int, fromy: Int, untilx: Int, untily: Int, offsetx: Int, offsety: Int, sz: Int, dflt: T)(f: Applier[T]) {
         if (element != dflt) {
           var x = offsetx
           while (x < offsetx + sz) {
@@ -377,7 +377,7 @@ object ReactTileMap {
         sw.foreachLeaf(f)
         se.foreachLeaf(f)
       }
-      def foreachNonDefault[U](fromx: Int, fromy: Int, untilx: Int, untily: Int, offsetx: Int, offsety: Int, sz: Int, dflt: T)(f: (Int, Int, T) => U) {
+      def foreachNonDefault[U](fromx: Int, fromy: Int, untilx: Int, untily: Int, offsetx: Int, offsety: Int, sz: Int, dflt: T)(f: Applier[T]) {
         val xmid = offsetx + sz / 2
         val ymid = offsety + sz / 2
         if (fromx < xmid) {
@@ -454,7 +454,7 @@ object ReactTileMap {
           x += 1
         }
       }
-      def foreachNonDefault[U](fromx: Int, fromy: Int, untilx: Int, untily: Int, offsetx: Int, offsety: Int, sz: Int, dflt: T)(f: (Int, Int, T) => U) {
+      def foreachNonDefault[U](fromx: Int, fromy: Int, untilx: Int, untily: Int, offsetx: Int, offsety: Int, sz: Int, dflt: T)(f: Applier[T]) {
         val xlimit = math.min(offsetx + sz, untilx)
         val ylimit = math.min(offsety + sz, untily)
         var y = math.max(offsety, fromy)
