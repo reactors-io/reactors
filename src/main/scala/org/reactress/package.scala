@@ -28,7 +28,7 @@ package object reactress extends ReactiveApi {
     final def yOf(v: Long) = (v >>> 32).toInt
     final def apply(x: Int, y: Int): XY = value(x, y)
     final def value(x: Int, y: Int): Long = (y.toLong << 32) | (x.toLong & 0xffffffffL)
-    final def invalid = Long.MinValue
+    final def invalid = (Int.MinValue.toLong << 32) | ((Int.MinValue >>> 1).toLong << 1)
   }
 
   type SubscriptionSet = container.SubscriptionSet
