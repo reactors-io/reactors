@@ -1,4 +1,4 @@
-[![Build Status](https://ci.storm-enroute.com:8080/job/public-reactress/badge/icon)](https://ci.storm-enroute.com:8080/job/public-reactress/)
+<a href='https://ci.storm-enroute.com:8080/job/public-reactress/'><img src='https://ci.storm-enroute.com:8080/job/public-reactress/badge/icon'></a>
 
 reactress
 =========
