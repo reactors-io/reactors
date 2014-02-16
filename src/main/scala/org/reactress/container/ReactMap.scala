@@ -3,6 +3,7 @@ package container
 
 
 
+import scala.collection._
 import scala.reflect.ClassTag
 
 
@@ -48,9 +49,10 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
   def foreach(f: (K, V) => Unit) {
     var i = 0
     while (i < table.length) {
-      val entry = table(i)
-      if (entry ne null) {
+      var entry = table(i)
+      while (entry ne null) {
         f(entry.key, entry.value)
+        entry = entry.next
       }
       i += 1
     }
@@ -247,6 +249,12 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
 
   def size: Int = elems
   
+  override def toString = {
+    val elems = mutable.Buffer[(K, V)]()
+    for (kv <- this) elems += kv
+    s"ReactMap($size, ${elems.mkString(", ")})"
+  }
+
 }
 
 
@@ -326,6 +334,7 @@ object ReactMap {
   implicit def factory[@spec(Int, Long, Double) K, V >: Null <: AnyRef] = new ReactBuilder.Factory[(K, V), ReactMap[K, V]] {
     def apply() = ReactMap[K, V]
   }
+
 }
 
 

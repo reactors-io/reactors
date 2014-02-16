@@ -10,9 +10,9 @@ import org.scalatest.matchers.ShouldMatchers
 
 class ReactTileMapSpec extends FlatSpec with ShouldMatchers {
 
-  "A ReactTileMap" should "have size 128" in {
+  "A ReactTileMap" should "have dimension 128" in {
     val table = new ReactTileMap[String](128, "")
-    table.size should equal (128)
+    table.dimension should equal (128)
     table(30, 30) should equal ("")
     table(90, 90) should equal ("")
   }
@@ -22,7 +22,7 @@ class ReactTileMapSpec extends FlatSpec with ShouldMatchers {
 
     table(0, 0) = "ok"
 
-    table.size should equal (128)
+    table.dimension should equal (128)
     table(0, 0) should equal ("ok")
     table(1, 1) should equal ("")
     table(56, 72) should equal ("")
