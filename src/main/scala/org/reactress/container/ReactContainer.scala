@@ -116,10 +116,27 @@ object ReactContainer {
   object Lifted {
     class Default[@spec(Int, Long, Double) T](val container: ReactContainer[T])
     extends Lifted[T]
+
+    class Eager[@spec(Int, Long, Double) T](val container: ReactContainer[T])
+    extends Lifted[T] {
+      override val size: Signal[Int] with Reactive.Subscription =
+        new Signal.Default[Int] with Reactive.ProxySubscription {
+          private[reactress] var value = 0
+          def apply() = value
+          val subscription = Reactive.CompositeSubscription(
+            container.inserts onEvent { value += 1; reactAll(value) },
+            container.removes onEvent { value -= 1; reactAll(value) }
+          )
+        }
+    }
   }
 
   trait Default[@spec(Int, Long, Double) T] extends ReactContainer[T] {
     val react = new Lifted.Default[T](this)
+  }
+
+  trait Eager[@spec(Int, Long, Double) T] extends ReactContainer[T] {
+    val react = new Lifted.Eager[T](this)
   }
 
   class Map[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](self: ReactContainer[T], f: T => S)
