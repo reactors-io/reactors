@@ -4,3 +4,5 @@ resolvers += Resolver.url(
         Resolver.ivyStylePatterns)
 
 addSbtPlugin("me.lessis" % "bintray-sbt" % "0.1.1")
+
+addSbtPlugin("com.typesafe.sbt" % "sbt-pgp" % "0.8.1")
