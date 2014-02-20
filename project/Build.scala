@@ -27,7 +27,7 @@ object ReactressBuild extends Build {
 
   val reactressSettings = Defaults.defaultSettings ++ Seq (
     name := "reactress",
-    version := "0.2-SNAPSHOT",
+    version := "0.2",
     organization := "org.reactress",
     scalaVersion := "2.10.2",
     libraryDependencies ++= Seq(
