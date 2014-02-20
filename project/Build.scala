@@ -25,10 +25,10 @@ object ReactressBuild extends Build {
       publish <<= streams.map(_.log.info("Publishing to Sonatype is disabled since the \"" + publishUser + "\" and/or \"" + publishPass + "\" environment variables are not set."))
   })
 
-  val reactressSettings = Defaults.defaultSettings ++ Seq (
+  val reactressSettings = Defaults.defaultSettings ++ publishCreds ++ Seq (
     name := "reactress",
     version := "0.2",
-    organization := "org.reactress",
+    organization := "com.storm-enroute",
     scalaVersion := "2.10.2",
     libraryDependencies ++= Seq(
       "org.scalatest" % "scalatest_2.10" % "1.9.1" % "test",
