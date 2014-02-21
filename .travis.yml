@@ -3,7 +3,7 @@ scala:
   - "2.10.2"
 jdk:
   - oraclejdk7
-script: (if [[ $TRAVIS_PULL_REQUEST == "false" ]]; then (echo "Only building pull requests - build passed."; exit 0); else sbt ++${TRAVIS_SCALA_VERSION} test; fi)
+script: ./tools/validate-pr.sh
 env:
   global:
     - secure: "adngy4wHe+DLnkLW0K7S8KFe+GR2mTMHx3VPs4YFooXSkJlRZMzhMzd2nJN0VNb2U7zkIrtLvsykLGIaeKF3u02iheHt3RCpRoKmxOjAkFXSRm6V7Z1J+EMVHqAG/72L2P2KkjJEaXrQqE3yG6e6elRk+qp2V3zKpQ6E5sS/g3c="
