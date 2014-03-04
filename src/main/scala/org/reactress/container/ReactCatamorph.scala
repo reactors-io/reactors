@@ -22,10 +22,10 @@ extends ReactContainer[S] with ReactContainer.Default[S] {
 
 object ReactCatamorph {
 
-  def apply[@spec(Int, Long, Double) T](m: Monoid[T]) = new CataMonoid[T, Signal[T]](_(), m.zero, m.operator)
+  def apply[@spec(Int, Long, Double) T](m: Monoid[T]) = new MonoidCatamorph[T, Signal[T]](_(), m.zero, m.operator)
 
-  def apply[@spec(Int, Long, Double) T](cm: Commutoid[T]) = new CataCommutoid[T, Signal[T]](_(), cm.zero, cm.operator)
+  def apply[@spec(Int, Long, Double) T](cm: Commutoid[T]) = new CommuteCatamorph[T, Signal[T]](_(), cm.zero, cm.operator)
 
-  def apply[@spec(Int, Long, Double) T](m: Abelian[T])(implicit a: Arrayable[T]) = new CataBelian[T, Signal[T]](_(), m.zero, m.operator, m.inverse)
+  def apply[@spec(Int, Long, Double) T](m: Abelian[T])(implicit a: Arrayable[T]) = new AbelianCatamorph[T, Signal[T]](_(), m.zero, m.operator, m.inverse)
 
 }

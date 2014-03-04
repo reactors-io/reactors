@@ -63,25 +63,21 @@ package object reactress extends ReactiveApi {
 
   val ReactMap = container.ReactMap
 
-  // TODO reactive sorted set
-
-  // TODO reactive sequence
-
   type ReactCatamorph[T, S] = container.ReactCatamorph[T, S]
 
   val ReactCatamorph = container.ReactCatamorph
 
-  type CataMonoid[T, S] = container.CataMonoid[T, S]
+  type MonoidCatamorph[T, S] = container.MonoidCatamorph[T, S]
 
-  val CataMonoid = container.CataMonoid
+  val MonoidCatamorph = container.MonoidCatamorph
 
-  type CataCommutoid[T, S] = container.CataCommutoid[T, S]
+  type CommuteCatamorph[T, S] = container.CommuteCatamorph[T, S]
 
-  val CataCommutoid = container.CataCommutoid
+  val CommuteCatamorph = container.CommuteCatamorph
 
-  type CataBelian[T, S] = container.CataBelian[T, S]
+  type AbelianCatamorph[T, S] = container.AbelianCatamorph[T, S]
 
-  val CataBelian = container.CataBelian
+  val AbelianCatamorph = container.AbelianCatamorph
 
   type ReactTileMap[T] = container.ReactTileMap[T]
 

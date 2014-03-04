@@ -7,10 +7,10 @@ import scala.collection._
 
 
 
-class CataCommutoid[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
+class CommuteCatamorph[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
   (val get: S => T, val zero: T, val op: (T, T) => T)
-extends ReactCatamorph[T, S] with ReactBuilder[S, CataCommutoid[T, S]] {
-  import CataCommutoid._
+extends ReactCatamorph[T, S] with ReactBuilder[S, CommuteCatamorph[T, S]] {
+  import CommuteCatamorph._
 
   private[reactress] var root: Node[T] = null
   private[reactress] var leaves: mutable.Map[S, Leaf[T]] = null
@@ -71,13 +71,13 @@ extends ReactCatamorph[T, S] with ReactBuilder[S, CataCommutoid[T, S]] {
 }
 
 
-object CataCommutoid {
+object CommuteCatamorph {
 
-  def apply[@spec(Int, Long, Double) T](implicit m: Commutoid[T]) = new CataCommutoid[T, T](v => v, m.zero, m.operator)
+  def apply[@spec(Int, Long, Double) T](implicit m: Commutoid[T]) = new CommuteCatamorph[T, T](v => v, m.zero, m.operator)
 
   implicit def factory[@spec(Int, Long, Double) T: Commutoid] =
-    new ReactBuilder.Factory[T, CataCommutoid[T, T]] {
-      def apply() = CataCommutoid[T]
+    new ReactBuilder.Factory[T, CommuteCatamorph[T, T]] {
+      def apply() = CommuteCatamorph[T]
     }
 
   sealed trait Node[@spec(Int, Long, Double) T] {

@@ -82,9 +82,11 @@ object ReactContainer {
       container.inserts.foreach(f)
     }
     
-    def aggregate(implicit canAggregate: ReactContainer.CanAggregate[T]): Signal[T] with Reactive.Subscription = {
-      canAggregate.apply(container)
-    }
+    def monoidFold(implicit m: Monoid[T]): Signal[T] with Reactive.Subscription = new Aggregate(container, MonoidCatamorph[T])
+
+    def commuteFold(implicit m: Commutoid[T]): Signal[T] with Reactive.Subscription = new Aggregate(container, CommuteCatamorph[T])
+
+    def abelianFold(implicit m: Abelian[T], a: Arrayable[T]): Signal[T] with Reactive.Subscription = new Aggregate(container, AbelianCatamorph[T])
 
     /* transformers */
   
@@ -250,29 +252,6 @@ object ReactContainer {
     implicit def refCount[T >: Null <: AnyRef](implicit at: Arrayable[T]) = new RefCount[T]
 
   }
-
-  trait CanAggregate[@spec(Int, Long, Double) T] {
-    def apply(c: ReactContainer[T]): Signal[T] with Reactive.Subscription
-  }
-
-  implicit def canAggregateMonoid[@spec(Int, Long, Double) T](implicit m: Monoid[T]) = new CanAggregate[T] {
-    def apply(c: ReactContainer[T]) = new Aggregate[T](c, CataMonoid[T])
-  }
-
-  implicit def monoidToCanAggregate[@spec(Int, Long, Double) T](m: Monoid[T]) = canAggregateMonoid(m)
-
-  implicit def canAggregateCommutoid[@spec(Int, Long, Double) T](implicit m: Commutoid[T]) = new CanAggregate[T] {
-    def apply(c: ReactContainer[T]) = new Aggregate[T](c, CataCommutoid[T])
-  }
-
-  implicit def commutoidToCanAggregate[@spec(Int, Long, Double) T](m: Commutoid[T]) = canAggregateCommutoid(m)
-
-  implicit def canAggregateAbelian[@spec(Int, Long, Double) T](implicit m: Abelian[T], can: Arrayable[T]) = new CanAggregate[T] {
-    def apply(c: ReactContainer[T]) = new Aggregate[T](c, CataBelian[T])
-  }
-
-  implicit def abelianToCanAggregate[@spec(Int, Long, Double) T](g: Abelian[T])(implicit can: Arrayable[T]) =
-    canAggregateAbelian(g, can)
 
   class Aggregate[@spec(Int, Long, Double) T]
     (val container: ReactContainer[T], val catamorph: ReactCatamorph[T, T])

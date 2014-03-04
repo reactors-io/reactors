@@ -110,7 +110,7 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
   it should "aggregate" in {
     val numbers = new ReactSet[Int]
     numbers += 1
-    val sum = numbers.react.aggregate(Commutoid(0)(_ + _))
+    val sum = numbers.react.commuteFold(Commutoid(0)(_ + _))
 
     sum() should equal (1)
 
@@ -123,7 +123,7 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
   it should "aggregate using a typeclass" in {
     import algebra.structure.setUnion
     val numbers = new ReactSet[Set[Int]]
-    val union = numbers.react.aggregate
+    val union = numbers.react.monoidFold
 
     union() should equal (Set())
 
