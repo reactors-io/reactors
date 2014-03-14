@@ -7,10 +7,10 @@ import scala.collection._
 
 
 
-class CataMonoid[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
+class MonoidCatamorph[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
   (val get: S => T, val zero: T, val op: (T, T) => T)
-extends ReactCatamorph[T, S] with ReactBuilder[S, CataMonoid[T, S]] {
-  import CataMonoid._
+extends ReactCatamorph[T, S] with ReactBuilder[S, MonoidCatamorph[T, S]] {
+  import MonoidCatamorph._
 
   private[reactress] var root: Node[T] = null
   private[reactress] var leaves: mutable.Map[S, Leaf[T]] = null
@@ -72,13 +72,13 @@ extends ReactCatamorph[T, S] with ReactBuilder[S, CataMonoid[T, S]] {
 }
 
 
-object CataMonoid {
+object MonoidCatamorph {
 
-  def apply[@spec(Int, Long, Double) T](implicit m: Monoid[T]) = new CataMonoid[T, T](v => v, m.zero, m.operator)
+  def apply[@spec(Int, Long, Double) T](implicit m: Monoid[T]) = new MonoidCatamorph[T, T](v => v, m.zero, m.operator)
 
   implicit def factory[@spec(Int, Long, Double) T: Monoid] =
-    new ReactBuilder.Factory[T, CataMonoid[T, T]] {
-      def apply() = CataMonoid[T]
+    new ReactBuilder.Factory[T, MonoidCatamorph[T, T]] {
+      def apply() = MonoidCatamorph[T]
     }
 
   sealed trait Node[@spec(Int, Long, Double) T] {

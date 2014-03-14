@@ -81,17 +81,17 @@ trait LowCataSignaloid extends LowLowCataSignaloid {
 object CataSignaloid extends LowCataSignaloid {
 
   def monoid[@spec(Int, Long, Double) T](implicit m: Monoid[T]) = {
-    val catamorph = new CataMonoid[T, Signal[T]](_(), m.zero, m.operator)
+    val catamorph = new MonoidCatamorph[T, Signal[T]](_(), m.zero, m.operator)
     new CataSignaloid[T](catamorph)
   }
 
   def commutoid[@spec(Int, Long, Double) T](implicit cm: Commutoid[T]) = {
-    val catamorph = new CataCommutoid[T, Signal[T]](_(), cm.zero, cm.operator)
+    val catamorph = new CommuteCatamorph[T, Signal[T]](_(), cm.zero, cm.operator)
     new CataSignaloid[T](catamorph)
   }
 
   def abelian[@spec(Int, Long, Double) T](implicit m: Abelian[T], a: Arrayable[T]) = {
-    val catamorph = new CataBelian[T, Signal[T]](_(), m.zero, m.operator, m.inverse)
+    val catamorph = new AbelianCatamorph[T, Signal[T]](_(), m.zero, m.operator, m.inverse)
     new CataSignaloid[T](catamorph)
   }
 
