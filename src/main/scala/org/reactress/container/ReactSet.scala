@@ -35,7 +35,6 @@ class ReactSet[@spec(Int, Long, Double) T](
 
   def +=(elem: T) = {
     self add elem
-    true
   }
 
   def -=(elem: T) = {
@@ -159,7 +158,7 @@ class ReactSet[@spec(Int, Long, Double) T](
 
   def contains(key: T): Boolean = lookup(key)
 
-  def add(key: T): Unit = insert(key)
+  def add(key: T): Boolean = insert(key)
 
   def remove(key: T): Boolean = delete(key)
 
