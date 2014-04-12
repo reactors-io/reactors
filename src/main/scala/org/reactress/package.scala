@@ -51,6 +51,10 @@ package object reactress {
 
   val ReactBuilder = container.ReactBuilder
 
+  val ReactArray = container.ReactArray
+
+  type ReactArray[T] = container.ReactArray[T]
+
   type ReactSet[T] = container.ReactSet[T]
 
   val ReactSet = container.ReactSet
