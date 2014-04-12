@@ -8,19 +8,19 @@ import org.scalatest.matchers.ShouldMatchers
 
 
 
-class CataSignaloidSpec extends FlatSpec with ShouldMatchers {
+class SignalCatamorphSpec extends FlatSpec with ShouldMatchers {
 
-  plus("Int Monoid", CataSignaloid(Monoid(0)(_ + _)))
+  plus("Int Monoid", SignalCatamorph(Monoid(0)(_ + _)))
 
-  concat("String Monoid", CataSignaloid(Monoid("")(_ + _)))
+  concat("String Monoid", SignalCatamorph(Monoid("")(_ + _)))
 
-  plus("Int Commutoid", CataSignaloid(Commutoid(0)(_ + _)))
+  plus("Int Commutoid", SignalCatamorph(Commutoid(0)(_ + _)))
 
-  plus("Int Abelian", CataSignaloid(Abelian(0)(_ + _)(_ - _)))
+  plus("Int Abelian", SignalCatamorph(Abelian(0)(_ + _)(_ - _)))
 
-  def concat(structure: String, newCataSignaloid: =>CataSignaloid[String]) {
-    s"A CataSignaloid using ${structure}s" should "correctly reflect added signals" in {
-      val catamorph = newCataSignaloid
+  def concat(structure: String, newSignalCatamorph: =>SignalCatamorph[String]) {
+    s"A SignalCatamorph using ${structure}s" should "correctly reflect added signals" in {
+      val catamorph = newSignalCatamorph
       val rc1 = ReactCell("a")
       val rc2 = ReactCell("b")
       catamorph += rc1
@@ -30,7 +30,7 @@ class CataSignaloidSpec extends FlatSpec with ShouldMatchers {
     }
 
     it should "correctly reflect many added signals" in {
-      val catamorph = newCataSignaloid
+      val catamorph = newSignalCatamorph
       val cells = for (i <- 0 until 100) yield new ReactCell(i + " ")
       for ((c, i) <- cells.zipWithIndex) {
         catamorph += c
@@ -39,7 +39,7 @@ class CataSignaloidSpec extends FlatSpec with ShouldMatchers {
     }
 
     it should "correctly reflect removing signals" in {
-      val catamorph = newCataSignaloid
+      val catamorph = newSignalCatamorph
       val cells = for (i <- 0 until 50) yield new ReactCell(i + " ")
       for (c <- cells) catamorph += c
       for ((c, i) <- cells.zipWithIndex; if (i % 2 == 0)) {
@@ -50,15 +50,15 @@ class CataSignaloidSpec extends FlatSpec with ShouldMatchers {
     }
   }
 
-  def plus(structure: String, newCataSignaloid: =>CataSignaloid[Int]) {
-    s"A CataSignaloid using ${structure}s" should "be empty" in {
-      val catamorph = newCataSignaloid
+  def plus(structure: String, newSignalCatamorph: =>SignalCatamorph[Int]) {
+    s"A SignalCatamorph using ${structure}s" should "be empty" in {
+      val catamorph = newSignalCatamorph
   
       catamorph.signal() should equal (0)
     }
   
     it should "accurately reflect a single signal" in {
-      val catamorph = newCataSignaloid
+      val catamorph = newSignalCatamorph
       val rc0 = ReactCell(0)
       catamorph += rc0
   
@@ -70,7 +70,7 @@ class CataSignaloidSpec extends FlatSpec with ShouldMatchers {
     }
   
     it should "accurately reflect two signals" in {
-      val catamorph = newCataSignaloid
+      val catamorph = newSignalCatamorph
       val rc0 = ReactCell(0)
       val rc1 = ReactCell(0)
       catamorph += rc0
@@ -90,7 +90,7 @@ class CataSignaloidSpec extends FlatSpec with ShouldMatchers {
     }
   
     it should "accurately reflect many signals" in {
-      val catamorph = newCataSignaloid
+      val catamorph = newSignalCatamorph
       val cells = for (_ <- 0 until 20) yield ReactCell(0)
       for (c <- cells) catamorph += c
   
@@ -102,7 +102,7 @@ class CataSignaloidSpec extends FlatSpec with ShouldMatchers {
     }
   
     it should "accurately reflect addition of new signals" in {
-      val catamorph = newCataSignaloid
+      val catamorph = newSignalCatamorph
       val cells = for (i <- 0 until 50) yield ReactCell(i)
       for (c <- cells) catamorph += c
   
@@ -119,7 +119,7 @@ class CataSignaloidSpec extends FlatSpec with ShouldMatchers {
     }
   
     it should "accurately reflect removal of signals" in {
-      val catamorph = newCataSignaloid
+      val catamorph = newSignalCatamorph
       val cells = for (i <- 0 until 50) yield ReactCell(i)
       for (c <- cells) catamorph += c
   
@@ -133,7 +133,7 @@ class CataSignaloidSpec extends FlatSpec with ShouldMatchers {
   
     it should "accurately reflect signals being removed and added" in {
       val max = 50
-      val catamorph = newCataSignaloid
+      val catamorph = newSignalCatamorph
       val cells = for (i <- 0 until max) yield ReactCell(i)
       for (c <- cells) catamorph += c
   

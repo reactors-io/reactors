@@ -6,7 +6,7 @@ package container
 
 
 
-trait ReactContainer[@spec(Int, Long, Double) T] extends ReactMutable.SubscriptionSet {
+trait ReactContainer[@spec(Int, Long, Double) T] extends ReactMutable.Subscriptions {
   self =>
 
   def inserts: Reactive[T]

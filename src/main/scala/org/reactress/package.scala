@@ -83,9 +83,9 @@ package object reactress {
 
   val ReactTileMap = container.ReactTileMap
 
-  type CataSignaloid[T] = container.CataSignaloid[T]
+  type SignalCatamorph[T] = container.SignalCatamorph[T]
 
-  val CataSignaloid = container.CataSignaloid
+  val SignalCatamorph = container.SignalCatamorph
 
   /* algebra */
 

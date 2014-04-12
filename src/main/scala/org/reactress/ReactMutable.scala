@@ -17,7 +17,7 @@ trait ReactMutable {
 
 object ReactMutable {
 
-  trait SubscriptionSet extends ReactMutable {
+  trait Subscriptions extends ReactMutable {
     val subscriptions = mutable.Set[Reactive.Subscription]()
 
     def clearSubscriptions() {

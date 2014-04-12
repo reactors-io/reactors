@@ -714,7 +714,7 @@ object Reactive {
   }
 
   class BindEmitter[@spec(Int, Long, Double) T]
-  extends Reactive[T] with Default[T] with ReactMutable.SubscriptionSet {
+  extends Reactive[T] with Default[T] with ReactMutable.Subscriptions {
     def +=(value: T) {
       reactAll(value)
     }

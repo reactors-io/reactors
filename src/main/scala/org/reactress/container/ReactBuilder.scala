@@ -8,7 +8,7 @@ import scala.annotation.implicitNotFound
 
 
 
-trait ReactBuilder[@spec(Int, Long, Double) -T, +Repr] extends ReactMutable.SubscriptionSet {
+trait ReactBuilder[@spec(Int, Long, Double) -T, +Repr] extends ReactMutable.Subscriptions {
 
   def +=(value: T): Boolean
 

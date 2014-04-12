@@ -167,7 +167,7 @@ object Signal {
   }
 
   final class Mutable[T <: AnyRef](private val m: T)
-  extends Signal.Default[T] with ReactMutable.SubscriptionSet {
+  extends Signal.Default[T] with ReactMutable.Subscriptions {
     def apply() = m
     override def onMutated() = reactAll(m)
   }
