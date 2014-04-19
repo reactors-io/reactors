@@ -12,7 +12,7 @@ import org.scalatest.matchers.ShouldMatchers
 class UnrolledRingSpec extends FlatSpec with ShouldMatchers {
 
   "UnrolledRing" should "be empty" in {
-    val ring = new UnrolledRing
+    val ring = new UnrolledRing[String]
 
     ring.isEmpty should be (true)
     ring.nonEmpty should be (false)
