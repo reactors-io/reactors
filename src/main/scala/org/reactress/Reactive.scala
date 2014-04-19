@@ -508,6 +508,9 @@ object Reactive {
     val empty = new Subscription {
       def unsubscribe() {}
     }
+    def apply(onUnsubscribe: =>Unit) = new Subscription {
+      def unsubscribe() = onUnsubscribe
+    }
   }
 
   trait ProxySubscription extends Subscription {

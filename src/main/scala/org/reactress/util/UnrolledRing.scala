@@ -7,7 +7,7 @@ import scala.annotation.tailrec
 
 
 
-class UnrolledRing[T >: Null <: AnyRef](implicit val arrayable: Arrayable[T]) {
+class UnrolledRing[@specialized(Int, Long, Double) T](implicit val arrayable: Arrayable[T]) {
   import UnrolledRing._
 
   private[reactress] var start: Node[T] = _
@@ -72,7 +72,7 @@ object UnrolledRing {
   val INITIAL_NODE_LENGTH = 8
   val MAXIMUM_NODE_LENGTH = 128
 
-  class Node[T >: Null <: AnyRef](val array: Array[T], var start: Int, var until: Int) {
+  class Node[@specialized(Int, Long, Double) T](val array: Array[T], var start: Int, var until: Int) {
     var next: Node[T] = null
 
     final def isEmpty = start == until
@@ -116,7 +116,7 @@ object UnrolledRing {
       if (isEmpty) throw new NoSuchElementException("empty")
 
       val elem = array(start)
-      array(start) = null
+      array(start) = null.asInstanceOf[T]
       start += 1
       elem
     }

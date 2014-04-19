@@ -134,7 +134,16 @@ package object reactress {
     def newRawArray(sz: Int): Array[T]
   }
 
-  object Arrayable {
+  trait LowPriorityArrayableImplicits {
+    implicit def any[T: ClassTag]: Arrayable[T] = new Arrayable[T] {
+      val classTag = implicitly[ClassTag[T]]
+      val nil = null.asInstanceOf[T]
+      def newArray(sz: Int) = new Array[T](sz)
+      def newRawArray(sz: Int) = newArray(sz)
+    }
+  }
+
+  object Arrayable extends LowPriorityArrayableImplicits {
   
     implicit def ref[T >: Null <: AnyRef: ClassTag]: Arrayable[T] = new Arrayable[T] {
       val classTag = implicitly[ClassTag[T]]
