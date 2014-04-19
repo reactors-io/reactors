@@ -55,7 +55,7 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
     import Permission.canBuffer
     val xs = new ReactSet[Int]
     val ys = new ReactSet[Int]
-    val both = (xs.react union ys).to[ReactSet[Int]]
+    val both = (xs.react union ys.react).to[ReactSet[Int]]
     def check(nums: Int*) {
       for (n <- nums) both(n) should equal (true)
     }
@@ -86,7 +86,7 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
     import Permission.canBuffer
     val xs = new ReactSet[String]
     val ys = new ReactSet[String]
-    val both = (xs.react union ys).to[ReactSet[String]]
+    val both = (xs.react union ys.react).to[ReactSet[String]]
     def check(nums: String*) {
       for (n <- nums) both(n) should equal (true)
     }

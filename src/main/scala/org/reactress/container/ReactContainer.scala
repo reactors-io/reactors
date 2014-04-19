@@ -110,8 +110,8 @@ object ReactContainer {
     def filter(p: T => Boolean): ReactContainer.Lifted[T] =
       (new ReactContainer.Filter[T](container, p)).react
   
-    def union(that: ReactContainer[T])(implicit count: Union.Count[T], a: Arrayable[T], b: CanBeBuffered): ReactContainer.Lifted[T] =
-      (new ReactContainer.Union[T](container, that, count)).react
+    def union(that: ReactContainer.Lifted[T])(implicit count: Union.Count[T], a: Arrayable[T], b: CanBeBuffered): ReactContainer.Lifted[T] =
+      (new ReactContainer.Union[T](this.container, that.container, count)).react
 
   }
 
