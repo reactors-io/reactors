@@ -8,8 +8,8 @@ import scala.concurrent.ExecutionContext
 
 package object isolate {
 
-  lazy val globalExecutionContext: Reactor = new Reactor.SyncedExecutor(ExecutionContext.Implicits.global)
-  lazy val default: Reactor = new Reactor.SyncedExecutor(new java.util.concurrent.ForkJoinPool)
+  lazy val globalExecutionContext: Scheduler = new SyncedScheduler.Executor(ExecutionContext.Implicits.global)
+  lazy val default: Scheduler = new SyncedScheduler.Executor(new java.util.concurrent.ForkJoinPool)
 
   object Implicits {
     implicit lazy val globalExecutionContext = isolate.globalExecutionContext
