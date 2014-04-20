@@ -14,13 +14,14 @@ extends Isolate[T] with Runnable {
   @volatile private[isolate] var emitter: Reactive.Emitter[T] = _
   @volatile private[isolate] var monitor: AnyRef = _
   @volatile private[isolate] var work: Runnable = _
+  @volatile private[isolate] var info: AnyRef = _
   private var default: T = _
 
   def init(dummy: T) {
     eventQueue = new util.UnrolledRing[T]
     emitter = new Reactive.Emitter[T]
     monitor = new AnyRef
-    work = executionService.caughtExceptions(this)
+    work = executionService.runnableInIsolate(this, this)
   }
 
   init(default)

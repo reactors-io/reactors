@@ -50,14 +50,40 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
     assert(sv.get == expected, "${sv.get} vs $expected")
   }
 
+  it should "see itself as an isolate" in {
+    val sv = new SyncVar[Boolean]
+
+    object Container {
+      val i: Isolate[Int] = scheduler.schedule[Int] { src =>
+        src.onValue { _ =>
+          sv.put(Isolate.self == i)
+        }
+      }
+    }
+
+    val emitter = new Reactive.Emitter[Int]
+    val sub = Container.i.bind(emitter)
+    emitter += 7
+
+    sv.get should equal (true)
+  }
+
 }
 
 
-class SyncedIsolateSpec extends IsolateSpec {
+class ExecutorSyncedIsolateSpec extends IsolateSpec {
 
-  implicit val scheduler = org.reactress.isolate.default
-  
+  implicit val scheduler = Scheduler.default
+
 }
+
+
+class NewThreadSyncedIsolateSpec extends IsolateSpec {
+
+  implicit val scheduler = Scheduler.default
+
+}
+
 
 
 
