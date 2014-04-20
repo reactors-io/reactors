@@ -28,19 +28,19 @@ class SignalSpec extends FlatSpec with ShouldMatchers {
     val s = rt.x.map {
       _ + 1
     }
-    val a = s onValue { x =>
+    val a = s onEvent { x =>
       assert(x == 2)
     }
 
     rt.x := 1
   }
 
-  it should "be reduced past" in {
+  it should "be scanned past from now" in {
     val cell = ReactCell(0)
-    val sum = cell.reducePast { (s, x) =>
+    val sum = cell.scanPastNow { (s, x) =>
       s + x
     }
-    val a = sum.past2 onValue { t =>
+    val a = sum.past2 onEvent { t =>
       assert(t._2 - t._1 == cell())
     }
 
@@ -55,7 +55,7 @@ class SignalSpec extends FlatSpec with ShouldMatchers {
     val cell = ReactCell(1)
     val diff = cell.diffPast(0)(_ - _)
     var total = 0
-    val a = diff onValue { d =>
+    val a = diff onEvent { d =>
       total += 2
       assert(d == 2)
     }
@@ -90,7 +90,7 @@ class SignalSpec extends FlatSpec with ShouldMatchers {
   it should "reflect changes" in {
     val rc = ReactCell(0)
     val buffer = mutable.Buffer[Int]()
-    val subscription = rc.changes.onValue {
+    val subscription = rc.changes.onEvent {
       buffer += _
     }
 

@@ -5,7 +5,7 @@ package org.reactress
 
 
 
-trait Signal[@spec(Int, Long, Double) T]
+trait Signal[@spec(Int, Long, Double) +T]
 extends Reactive[T] {
   self =>
 
@@ -21,14 +21,7 @@ extends Reactive[T] {
     sm
   }
 
-  def reducePast(op: (T, T) => T): Signal[T] with Reactive.Subscription = {
-    val initial = this()
-    val srp = new Signal.ReducePast(self, initial, op)
-    srp.subscription = self onReaction srp
-    srp
-  }
-
-  def renewed: Signal[T] with Reactive.Subscription = signal(apply())
+  def renewed: Signal[T] with Reactive.Subscription = this.signal(apply())
 
   def changes: Signal[T] with Reactive.Subscription = {
     val initial = this()
@@ -58,6 +51,15 @@ extends Reactive[T] {
 
 object Signal {
 
+  implicit class SignalOps[@spec(Int, Long, Double) T](val self: Signal[T]) {
+    def scanPastNow(op: (T, T) => T): Signal[T] with Reactive.Subscription = {
+      val initial = self()
+      val srp = new Signal.ScanPastNow(self, initial, op)
+      srp.subscription = self onReaction srp
+      srp
+    }
+  }
+
   class Map[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
     (val self: Signal[T], val f: T => S)
   extends Signal.Default[S] with Reactor[T] with Reactive.ProxySubscription {
@@ -73,7 +75,7 @@ object Signal {
     var subscription = Reactive.Subscription.empty
   }
 
-  class ReducePast[@spec(Int, Long, Double) T]
+  class ScanPastNow[@spec(Int, Long, Double) T]
     (val self: Signal[T], initial: T, op: (T, T) => T)
   extends Signal.Default[T] with Reactor[T] with Reactive.ProxySubscription {
     private var cached = initial
@@ -162,8 +164,6 @@ object Signal {
     def apply() = proxy()
     def hasSubscriptions = proxy.hasSubscriptions
     def onReaction(r: Reactor[T]) = proxy.onReaction(r)
-    def reactAll(v: T) = proxy.reactAll(v)
-    def unreactAll() = proxy.unreactAll()
   }
 
   final class Mutable[T <: AnyRef](private val m: T)

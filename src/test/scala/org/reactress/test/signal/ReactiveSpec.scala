@@ -23,7 +23,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     val s = rt.x.filter {
       _ % 2 == 0
     }
-    val a = s onValue { x =>
+    val a = s onEvent { x =>
       assert(x % 2 == 0)
     }
 
@@ -36,7 +36,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     val s = e.map {
       _ + 1
     }
-    val a = s onValue { x =>
+    val a = s onEvent { x =>
       assert(x == 2)
     }
 
@@ -60,7 +60,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     val s = cell.scanPast(List[Int]()) { (acc, x) =>
       x :: acc
     }
-    val a = s onValue { xs =>
+    val a = s onEvent { xs =>
       assert(xs.reverse == Stream.from(1).take(xs.length))
     }
 
@@ -75,7 +75,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     val e = new Reactive.Emitter[Int]
     val start = new Reactive.Emitter[Boolean]
     val buffer = mutable.Buffer[Int]()
-    val s = (e after start) onValue { buffer += _ }
+    val s = (e after start) onEvent { buffer += _ }
 
     e += 1
     e += 2
@@ -94,7 +94,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     val e = new Reactive.Emitter[Int]
     val start = Reactive.Never[Int]
     val buffer = mutable.Buffer[Int]()
-    val s = (e after start) onValue { buffer += _ }
+    val s = (e after start) onEvent { buffer += _ }
 
     e += 1
     e += 2
@@ -106,7 +106,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     val e = new Reactive.Emitter[Int]
     val end = new Reactive.Emitter[Boolean]
     val buffer = mutable.Buffer[Int]()
-    val s = (e until end) onValue { buffer += _ }
+    val s = (e until end) onEvent { buffer += _ }
 
     e += 1
     e += 2
@@ -121,7 +121,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     val xs = new Reactive.Emitter[Int]
     val ys = new Reactive.Emitter[Int]
     val buffer = mutable.Buffer[Int]()
-    val s = (xs union ys) onValue { buffer += _ }
+    val s = (xs union ys) onEvent { buffer += _ }
 
     xs += 1
     ys += 11
@@ -138,7 +138,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     val closeXs = new Reactive.Emitter[Unit]
     val ys = new Reactive.Emitter[Int]
     val buffer = mutable.Buffer[Int]()
-    val s = ((xs until closeXs) concat ys) onValue { buffer += _ }
+    val s = ((xs until closeXs) concat ys) onEvent { buffer += _ }
 
     xs += 1
     ys += 11
@@ -156,7 +156,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     val ys = new Reactive.Emitter[Int]
     val synced = (xs sync ys) { _ + _ }
     val buffer = mutable.Buffer[Int]()
-    val s = synced onValue { buffer += _ }
+    val s = synced onEvent { buffer += _ }
 
     for (i <- 0 until 200) xs += i
     for (j <- 200 to 51 by -1) ys += j
@@ -216,7 +216,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     val e4 = new Reactive.Emitter[Int]
     val closeE4 = new Reactive.Emitter[Unit]
     val buffer = mutable.Buffer[Int]()
-    val s = cell.union() onValue { buffer += _ }
+    val s = cell.union() onEvent { buffer += _ }
 
     e1 += -1
     e2 += -2
@@ -257,7 +257,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     val closeE3 = new Reactive.Emitter[Unit]
     val e4 = new Reactive.Emitter[Int]
     val buffer = mutable.Buffer[Int]()
-    val s = cell.concat() onValue { buffer += _ }
+    val s = cell.concat() onEvent { buffer += _ }
 
     e1 += -1
     e2 += -2
@@ -290,7 +290,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
   }
 
   "A passive reactive" should "emit events multiple times" in {
-    val passive = Reactive.Passive[Int] { r =>
+    val passive = Reactive.passive[Int] { r =>
       r.react(1)
       r.react(2)
       r.unreact()
@@ -312,10 +312,10 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "traverse all the elements" in {
-    val passive = Reactive.Passive.items(Array(5, 10, 15, 20))
+    val passive = Reactive.items(Array(5, 10, 15, 20))
     var sum = 0
 
-    passive.onValue(x => sum += x)
+    passive.onEvent(x => sum += x)
 
     sum should equal (50)
   }

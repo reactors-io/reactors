@@ -14,7 +14,7 @@ class ReactiveGCSpec extends FlatSpec with ShouldMatchers {
   def testGC(num: Int)(afterCheck: Reactive.Emitter[Int] => Boolean) {
     var signsOfLife = Array.fill(num)(false)
     val emitter = new Reactive.Emitter[Int]
-    for (i <- 0 until num) emitter onEvent {
+    for (i <- 0 until num) emitter on {
       signsOfLife(i) = true
     }
 
@@ -47,7 +47,7 @@ class ReactiveGCSpec extends FlatSpec with ShouldMatchers {
   def testDep(num: Int)(afterCheck: Reactive.Emitter[Int] => Boolean) {
     var signsOfLife = Array.fill(num)(false)
     val emitter = new Reactive.Emitter[Int]
-    val subs = for (i <- 0 until num) yield emitter onEvent {
+    val subs = for (i <- 0 until num) yield emitter on {
       signsOfLife(i) = true
     }
 
@@ -80,10 +80,10 @@ class ReactiveGCSpec extends FlatSpec with ShouldMatchers {
   def testGChalf(num: Int)(afterCheck: Reactive.Emitter[Int] => Boolean) {
     var signsOfLife = Array.fill(num)(false)
     val emitter = new Reactive.Emitter[Int]
-    val kept = for (i <- 0 until num / 2) yield emitter onEvent {
+    val kept = for (i <- 0 until num / 2) yield emitter on {
       signsOfLife(i) = true
     }
-    for (i <- num / 2 until num) emitter onEvent {
+    for (i <- num / 2 until num) emitter on {
       signsOfLife(i) = true
     }
 

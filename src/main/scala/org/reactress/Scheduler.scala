@@ -9,11 +9,12 @@ import scala.annotation.tailrec
 
 
 trait Scheduler {
-  def schedule[@spec(Int, Long, Double) T: Arrayable](body: Reactive[T] => Unit): Isolate[T]
+
+  def schedule[@spec(Int, Long, Double) T: Arrayable, I <: Isolate[T]](channels: Reactive[Reactive[T]])(newIsolate: Reactive[T] => I): I
 
   def handler: Scheduler.Handler
 
-  final def runnableInIsolate(i: Isolate[_], r: Runnable) = new Runnable {
+  final def runnableInIsolate(r: Runnable, i: Isolate[_]) = new Runnable {
     def run() {
       if (Isolate.selfIsolate.get != null) {
         throw new IllegalStateException("Cannot execute isolate inside of another isolate.")
@@ -36,7 +37,7 @@ object Scheduler {
 
   val defaultHandler: Handler = {
     case t: Throwable =>
-      println(t)
+      Console.err.println(t)
       t.printStackTrace()
   }
 

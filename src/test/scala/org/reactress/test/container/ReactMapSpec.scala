@@ -118,7 +118,7 @@ class ReactMapSpec extends FlatSpec with ShouldMatchers {
     val signsOfLife = Array.fill(many)(false)
     val subs = for (i <- 0 until many) yield {
       val values = table.react(i)
-      values onEvent {
+      values on {
         signsOfLife(i) = true
       }
     }

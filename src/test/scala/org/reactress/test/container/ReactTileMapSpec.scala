@@ -67,7 +67,7 @@ class ReactTileMapSpec extends FlatSpec with ShouldMatchers {
     val size = 32
     val tilemap = new ReactTileMap[String](size, null)
     val m = tilemap.updates
-    val a = m onValue { _ =>
+    val a = m onEvent { _ =>
       assert(tilemap(0, 0) == "OK")
     }
 

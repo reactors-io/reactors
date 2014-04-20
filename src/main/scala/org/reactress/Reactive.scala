@@ -8,26 +8,22 @@ import util._
 
 
 
-trait Reactive[@spec(Int, Long, Double) T] {
+trait Reactive[@spec(Int, Long, Double) +T] {
   self =>
 
   def hasSubscriptions: Boolean
 
   def onReaction(reactor: Reactor[T]): Reactive.Subscription
 
-  def onValue(reactor: T => Unit): Reactive.Subscription = onReaction(new Reactor[T] {
-    def react(value: T) = reactor(value)
+  def onEvent(reactor: T => Unit): Reactive.Subscription = onReaction(new Reactor[T] {
+    def react(event: T) = reactor(event)
     def unreact() {}
   })
 
-  def onEvent(reactor: =>Unit): Reactive.Subscription = onReaction(new Reactor[T] {
+  def on(reactor: =>Unit): Reactive.Subscription = onReaction(new Reactor[T] {
     def react(value: T) = reactor
     def unreact() {}
   })
-
-  protected[reactress] def reactAll(value: T): Unit
-
-  protected[reactress] def unreactAll(): Unit
 
   def foreach(f: T => Unit): Reactive[Unit] with Reactive.Subscription = {
     val rf = new Reactive.Foreach(self, f)
@@ -36,26 +32,14 @@ trait Reactive[@spec(Int, Long, Double) T] {
   }
 
   def scanPast[@spec(Int, Long, Double) S](z: S)(op: (S, T) => S): Signal[S] with Reactive.Subscription = {
-    new Reactive.ScanPast(self, z, op)
-  }
-
-  def signal(init: T) = scanPast(init) {
-    (cached, value) => value
+    val r = new Reactive.ScanPast(self, z, op)
+    r.subscription = self onReaction r
+    r
   }
 
   def isSignal: Boolean = this match {
     case s: Signal[T] => true
     case _ => false
-  }
-
-  def asSignalOrElse(init: T) = this match {
-    case s: Signal[T] => s
-    case _ => this.signal(init)
-  }
-
-  def asSignal = this match {
-    case s: Signal[T] => s
-    case _ => throw new UnsupportedOperationException("This is not a signal.")
   }
 
   def mutate[M <: ReactMutable](mutable: M)(mutation: T => Unit): Reactive.Subscription = {
@@ -93,31 +77,6 @@ trait Reactive[@spec(Int, Long, Double) T] {
     ru
   }
 
-  def union(that: Reactive[T]): Reactive[T] with Reactive.Subscription = {
-    val ru = new Reactive.Union(self, that)
-    ru.selfSubscription = self onReaction ru.selfReactor
-    ru.thatSubscription = that onReaction ru.thatReactor
-    ru.subscription = Reactive.CompositeSubscription(ru.selfSubscription, ru.thatSubscription)
-    ru
-  }
-
-  def concat(that: Reactive[T])(implicit a: Arrayable[T], b: CanBeBuffered): Reactive[T] with Reactive.Subscription = {
-    val rc = new Reactive.Concat(self, that, a)
-    rc.selfSubscription = self onReaction rc.selfReactor
-    rc.thatSubscription = that onReaction rc.thatReactor
-    rc.subscription = Reactive.CompositeSubscription(rc.selfSubscription, rc.thatSubscription)
-    rc
-  }
-
-  def sync[@spec(Int, Long, Double) S, @spec(Int, Long, Double) R](that: Reactive[S])(f: (T, S) => R)
-    (implicit at: Arrayable[T], as: Arrayable[S], b: CanBeBuffered): Reactive[R] with Reactive.Subscription = {
-    val rs = new Reactive.Sync(self, that, f, at, as)
-    rs.selfSubscription = self onReaction rs.selfReactor
-    rs.thatSubscription = that onReaction rs.thatReactor
-    rs.subscription = Reactive.CompositeSubscription(rs.selfSubscription, rs.thatSubscription)
-    rs
-  }
-
   def filter(p: T => Boolean): Reactive[T] with Reactive.Subscription = {
     val rf = new Reactive.Filter[T](self, p)
     rf.subscription = self onReaction rf
@@ -136,20 +95,63 @@ trait Reactive[@spec(Int, Long, Double) T] {
     new Reactive.Mux[T, S](this, evidence)
   }
 
-  def union[@spec(Int, Long, Double) S]()(implicit evidence: T <:< Reactive[S]): Reactive[S] = {
-    new Reactive.PostfixUnion[T, S](this, evidence)
-  }
-
-  def concat[@spec(Int, Long, Double) S]()(implicit evidence: T <:< Reactive[S], a: Arrayable[S], b: CanBeBuffered): Reactive[S] = {
-    val pc = new Reactive.PostfixConcat[T, S](this, evidence)
-    pc.subscription = self onReaction pc
-    pc
-  }
-
 }
 
 
 object Reactive {
+
+  implicit class ReactiveOps[@spec(Int, Long, Double) T](val self: Reactive[T]) {
+    def signal(init: T) = self.scanPast(init) {
+      (cached, value) => value
+    }
+
+    def asSignalOrElse(init: T) = self match {
+      case s: Signal[T] => s
+      case _ => signal(init)
+    }
+
+    def asSignal = this match {
+      case s: Signal[T] => s
+      case _ => throw new UnsupportedOperationException("This is not a signal.")
+    }
+
+    def union(that: Reactive[T]): Reactive[T] with Reactive.Subscription = {
+      val ru = new Reactive.Union(self, that)
+      ru.selfSubscription = self onReaction ru.selfReactor
+      ru.thatSubscription = that onReaction ru.thatReactor
+      ru.subscription = Reactive.CompositeSubscription(ru.selfSubscription, ru.thatSubscription)
+      ru
+    }
+  
+    def concat(that: Reactive[T])(implicit a: Arrayable[T], b: CanBeBuffered): Reactive[T] with Reactive.Subscription = {
+      val rc = new Reactive.Concat(self, that, a)
+      rc.selfSubscription = self onReaction rc.selfReactor
+      rc.thatSubscription = that onReaction rc.thatReactor
+      rc.subscription = Reactive.CompositeSubscription(rc.selfSubscription, rc.thatSubscription)
+      rc
+    }
+  
+    def sync[@spec(Int, Long, Double) S, @spec(Int, Long, Double) R](that: Reactive[S])(f: (T, S) => R)
+      (implicit at: Arrayable[T], as: Arrayable[S], b: CanBeBuffered): Reactive[R] with Reactive.Subscription = {
+      val rs = new Reactive.Sync(self, that, f, at, as)
+      rs.selfSubscription = self onReaction rs.selfReactor
+      rs.thatSubscription = that onReaction rs.thatReactor
+      rs.subscription = Reactive.CompositeSubscription(rs.selfSubscription, rs.thatSubscription)
+      rs
+    }
+
+    /* higher-order combinators */
+
+    def union[@spec(Int, Long, Double) S]()(implicit evidence: T <:< Reactive[S]): Reactive[S] = {
+      new Reactive.PostfixUnion[T, S](self, evidence)
+    }
+
+    def concat[@spec(Int, Long, Double) S]()(implicit evidence: T <:< Reactive[S], a: Arrayable[S], b: CanBeBuffered): Reactive[S] = {
+      val pc = new Reactive.PostfixConcat[T, S](self, evidence)
+      pc.subscription = self onReaction pc
+      pc
+    }
+  }
 
   class Foreach[@spec(Int, Long, Double) T]
     (val self: Reactive[T], val f: T => Unit)
@@ -167,7 +169,11 @@ object Reactive {
   class ScanPast[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
     (val self: Reactive[T], val z: S, val op: (S, T) => S)
   extends Signal.Default[S] with Reactor[T] with Reactive.ProxySubscription {
-    private var cached = z
+    private var cached: S = _
+    def init(z: S) {
+      cached = z
+    }
+    init(z)
     def apply() = cached
     def react(value: T) {
       cached = op(cached, value)
@@ -176,7 +182,7 @@ object Reactive {
     def unreact() {
       unreactAll()
     }
-    val subscription = self onReaction this
+    var subscription = Subscription.empty
   }
 
   class Mutate[@spec(Int, Long, Double) T, M <: ReactMutable]
@@ -723,33 +729,30 @@ object Reactive {
     }
   }
 
-  object Passive {
-    def apply[@spec(Int, Long, Double) T](f: Reactor[T] => Subscription): Reactive[T] = {
-      new Reactive[T] {
-        def hasSubscriptions = false
-        def reactAll(value: T) {}
-        def unreactAll() {}
-        def onReaction(r: Reactor[T]) = f(r)
-      }
+  def passive[@spec(Int, Long, Double) T](f: Reactor[T] => Subscription): Reactive[T] = {
+    new Reactive[T] {
+      def hasSubscriptions = false
+      def reactAll(value: T) {}
+      def unreactAll() {}
+      def onReaction(r: Reactor[T]) = f(r)
     }
+  }
 
-    def single[@spec(Int, Long, Double) T](elem: T): Reactive[T] = apply { r =>
-      var cancelled = false
-      r.react(elem)
-      if (!cancelled) r.unreact()
-      Subscription { cancelled = true }
-    }
+  def single[@spec(Int, Long, Double) T](elem: T): Reactive[T] = passive[T] { r =>
+    var cancelled = false
+    r.react(elem)
+    if (!cancelled) r.unreact()
+    Subscription { cancelled = true }
+  }
 
-    def items[@spec(Int, Long, Double) T](elems: Array[T]): Reactive[T] = apply { r =>
-      var cancelled = false
-      var i = 0
-      while (!cancelled && i < elems.length) {
-        r.react(elems(i))
-        i += 1
-      }
-      if (!cancelled) r.unreact()
-      Subscription { cancelled = true }
+  def items[@spec(Int, Long, Double) T](elems: Array[T]): Reactive[T] = passive[T] { r =>
+    var cancelled = false
+    var it = elems.iterator
+    while (!cancelled && it.hasNext) {
+      r.react(it.next())
     }
+    if (!cancelled) r.unreact()
+    Subscription { cancelled = true }
   }
 
 }
