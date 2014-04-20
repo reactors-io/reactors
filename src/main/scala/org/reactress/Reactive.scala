@@ -25,9 +25,9 @@ trait Reactive[@spec(Int, Long, Double) T] {
     def unreact() {}
   })
 
-  def reactAll(value: T): Unit
+  protected[reactress] def reactAll(value: T): Unit
 
-  def unreactAll(): Unit
+  protected[reactress] def unreactAll(): Unit
 
   def foreach(f: T => Unit): Reactive[Unit] with Reactive.Subscription = {
     val rf = new Reactive.Foreach(self, f)
@@ -35,11 +35,11 @@ trait Reactive[@spec(Int, Long, Double) T] {
     rf
   }
 
-  def foldPast[@spec(Int, Long, Double) S](z: S)(op: (S, T) => S): Signal[S] with Reactive.Subscription = {
-    new Reactive.FoldPast(self, z, op)
+  def scanPast[@spec(Int, Long, Double) S](z: S)(op: (S, T) => S): Signal[S] with Reactive.Subscription = {
+    new Reactive.ScanPast(self, z, op)
   }
 
-  def signal(init: T) = foldPast(init) {
+  def signal(init: T) = scanPast(init) {
     (cached, value) => value
   }
 
@@ -164,7 +164,7 @@ object Reactive {
     var subscription = Subscription.empty
   }
 
-  class FoldPast[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
+  class ScanPast[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
     (val self: Reactive[T], val z: S, val op: (S, T) => S)
   extends Signal.Default[S] with Reactor[T] with Reactive.ProxySubscription {
     private var cached = z
@@ -720,6 +720,35 @@ object Reactive {
   extends Reactive[T] with Default[T] with ReactMutable.Subscriptions {
     def +=(value: T) {
       reactAll(value)
+    }
+  }
+
+  object Passive {
+    def apply[@spec(Int, Long, Double) T](f: Reactor[T] => Subscription): Reactive[T] = {
+      new Reactive[T] {
+        def hasSubscriptions = false
+        def reactAll(value: T) {}
+        def unreactAll() {}
+        def onReaction(r: Reactor[T]) = f(r)
+      }
+    }
+
+    def single[@spec(Int, Long, Double) T](elem: T): Reactive[T] = apply { r =>
+      var cancelled = false
+      r.react(elem)
+      if (!cancelled) r.unreact()
+      Subscription { cancelled = true }
+    }
+
+    def items[@spec(Int, Long, Double) T](elems: Array[T]): Reactive[T] = apply { r =>
+      var cancelled = false
+      var i = 0
+      while (!cancelled && i < elems.length) {
+        r.react(elems(i))
+        i += 1
+      }
+      if (!cancelled) r.unreact()
+      Subscription { cancelled = true }
     }
   }
 

@@ -37,7 +37,7 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
     val sv = new SyncVar[List[Int]]
 
     val i = scheduler.schedule[Int] { src =>
-      val history = src.foldPast(List[Int]()) {
+      val history = src.scanPast(List[Int]()) {
         (acc, x) => x :: acc
       }
       history.onValue(x => if (x.size == many) sv.put(x))

@@ -21,7 +21,7 @@ class ReactiveBench extends PerformanceTest.Regression {
   ) in {
     using(sumSizes) curve("Reactress") in { sz =>
       val e = new Reactive.Emitter[Int]
-      val sum = e.foldPast(0)(_ + _)
+      val sum = e.scanPast(0)(_ + _)
 
       var i = 0
       while (i < sz) {

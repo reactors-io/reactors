@@ -11,7 +11,7 @@ extends Reactive[T] {
 
   def apply(): T
 
-  def past2 = foldPast((this(), this())) {
+  def past2 = scanPast((this(), this())) {
     (t, x) => (t._2, x)
   }
 

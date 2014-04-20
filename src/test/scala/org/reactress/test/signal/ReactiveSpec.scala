@@ -55,9 +55,9 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     assert(buffer == Seq(1, 2, 3))
   }
 
-  it should "be folded past" in {
+  it should "be scanned past" in {
     val cell = ReactCell(0)
-    val s = cell.foldPast(List[Int]()) { (acc, x) =>
+    val s = cell.scanPast(List[Int]()) { (acc, x) =>
       x :: acc
     }
     val a = s onValue { xs =>
@@ -287,6 +287,37 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     e4 += 4
 
     buffer should equal (Seq(1, 11, 111, 1111, 2, 22, 3, 33, 4))
+  }
+
+  "A passive reactive" should "emit events multiple times" in {
+    val passive = Reactive.Passive[Int] { r =>
+      r.react(1)
+      r.react(2)
+      r.unreact()
+      Reactive.Subscription.empty
+    }
+
+    var elems = mutable.ArrayBuffer[Int]()
+    var unreacts = 0
+    val reactor = new Reactor[Int] {
+      def react(x: Int) = elems += x
+      def unreact() = unreacts += 1
+    }
+
+    passive.onReaction(reactor)
+    passive.onReaction(reactor)
+
+    elems should equal (Seq(1, 2, 1, 2))
+    unreacts should equal (2)
+  }
+
+  it should "traverse all the elements" in {
+    val passive = Reactive.Passive.items(Array(5, 10, 15, 20))
+    var sum = 0
+
+    passive.onValue(x => sum += x)
+
+    sum should equal (50)
   }
 
 }
