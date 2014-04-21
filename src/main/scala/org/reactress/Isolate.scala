@@ -62,7 +62,7 @@ object Isolate {
   extends Isolate[T] {
     def stop() = emitter.close()
 
-    react <<= sysEvents onEvent {
+    react <<= sysEvents onCase {
       case Isolate.EmptyEventQueue =>
         emitter += loopEvent()
     }

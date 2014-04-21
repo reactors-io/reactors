@@ -46,22 +46,15 @@ object ReactContainer {
     /* queries */
 
     def size: Signal[Int] with Reactive.Subscription =
-      new Signal.Default[Int] with Reactive.ProxySubscription {
-        private[reactress] var value = container.size
-        def apply() = value
-        val subscription = Reactive.CompositeSubscription(
-          container.inserts on { value += 1; reactAll(value) },
-          container.removes on { value -= 1; reactAll(value) }
-        )
-      }
+      new Size(container)
 
     def count(p: T => Boolean): Signal[Int] with Reactive.Subscription =
       new Signal.Default[Int] with Reactive.ProxySubscription {
         private[reactress] var value = container.count(p)
         def apply() = value
         val subscription = Reactive.CompositeSubscription(
-          container.inserts onEvent { case x => if (p(x)) { value += 1; reactAll(value) } },
-          container.removes onEvent { case x => if (p(x)) { value -= 1; reactAll(value) } }
+          container.inserts onEvent { x => if (p(x)) { value += 1; reactAll(value) } },
+          container.removes onEvent { x => if (p(x)) { value -= 1; reactAll(value) } }
         )
       }
 
@@ -72,8 +65,8 @@ object ReactContainer {
         private[reactress] var value = container.count(p)
         def apply() = value == container.size
         val subscription = Reactive.CompositeSubscription(
-          container.inserts onEvent { case x => if (p(x)) value += 1; reactAll(value == container.size) },
-          container.removes onEvent { case x => if (p(x)) value -= 1; reactAll(value == container.size) }
+          container.inserts onEvent { x => if (p(x)) value += 1; reactAll(value == container.size) },
+          container.removes onEvent { x => if (p(x)) value -= 1; reactAll(value == container.size) }
         )
       }
 
@@ -139,6 +132,16 @@ object ReactContainer {
 
   trait Eager[@spec(Int, Long, Double) T] extends ReactContainer[T] {
     val react = new Lifted.Eager[T](this)
+  }
+
+  class Size[@spec(Int, Long, Double) T](self: ReactContainer[T])
+  extends Signal.Default[Int] with Reactive.ProxySubscription {
+    private[reactress] var value = self.size
+    def apply() = value
+    val subscription = Reactive.CompositeSubscription(
+      self.inserts on { value += 1; reactAll(value) },
+      self.removes on { value -= 1; reactAll(value) }
+    )
   }
 
   class Map[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](self: ReactContainer[T], f: T => S)
@@ -265,8 +268,8 @@ object ReactContainer {
       proxy = catamorph.signal
       for (v <- container) catamorph += v
       subscription = Reactive.CompositeSubscription(
-        container.inserts onEvent { case v => catamorph += v },
-        container.removes onEvent { case v => catamorph -= v }
+        container.inserts onEvent { v => catamorph += v },
+        container.removes onEvent { v => catamorph -= v }
       )
     }
 

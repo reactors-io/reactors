@@ -106,7 +106,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     val e = new Reactive.Emitter[Int]
     val end = new Reactive.Emitter[Boolean]
     val buffer = mutable.Buffer[Int]()
-    val s = (e until end) onEvent { case x => buffer += x }
+    val s = (e until end) onEvent { x => buffer += x }
 
     e += 1
     e += 2
@@ -257,7 +257,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     val closeE3 = new Reactive.Emitter[Unit]
     val e4 = new Reactive.Emitter[Int]
     val buffer = mutable.Buffer[Int]()
-    val s = cell.concat() onEvent { case x => buffer += x }
+    val s = cell.concat() onEvent { x => buffer += x }
 
     e1 += -1
     e2 += -2

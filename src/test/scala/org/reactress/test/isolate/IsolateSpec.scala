@@ -20,7 +20,7 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
     val sv = new SyncVar[String]
 
     class Iso(src: Reactive[String]) extends Isolate[String] {
-      react <<= src.onEvent { case v =>
+      react <<= src.onEvent { v =>
         log(s"got event '$v'")
         sv.put(v)
       }
@@ -43,7 +43,7 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
         (acc, x) => x :: acc
       }
       react <<= history.onEvent {
-        case x => if (x.size == many) sv.put(x)
+        x => if (x.size == many) sv.put(x)
       }
     }
 
@@ -62,7 +62,7 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
     val emitter = new Reactive.Emitter[Int]
     object Container {
       class Iso(src: Reactive[Int]) extends Isolate[Int] {
-        react <<= src.onEvent { case _ =>
+        react <<= src.onEvent { _ =>
           log(s"${Isolate.self} vs $i}")
           sv.put(Isolate.self == i)
         }
@@ -84,12 +84,12 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
     val emitter = new Reactive.Emitter[Int]
 
     class Iso(src: Reactive[Int]) extends Isolate[Int] {
-      react <<= sysEvents.onEvent {
+      react <<= sysEvents onCase {
         case Isolate.EmptyEventQueue =>
           log("empty event queue!")
           sv.put(true)
       }
-      react <<= src.onEvent {
+      react <<= src onEvent {
         case e => log(s"got event '$e'")
       }
     }

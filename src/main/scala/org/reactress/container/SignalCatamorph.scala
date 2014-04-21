@@ -32,10 +32,13 @@ extends ReactCatamorph[T, Signal[T]] with ReactBuilder[Signal[T], SignalCatamorp
   
   def +=(s: Signal[T]): Boolean = {
     if (catamorph += s) {
-      signalSubscriptions(s) = s.onEvent { case v =>
-        catamorph.push(s)
-        defaultSignal.reactAll(catamorph.signal())
-      }
+      signalSubscriptions(s) = s.onReaction(new Reactor[T] {
+        def react(v: T) {
+          catamorph.push(s)
+          defaultSignal.reactAll(catamorph.signal())
+        }
+        def unreact() {}
+      })
       defaultSignal.reactAll(catamorph.signal())
       true
     } else false
