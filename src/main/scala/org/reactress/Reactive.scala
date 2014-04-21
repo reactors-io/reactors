@@ -717,7 +717,7 @@ object Reactive {
 
   class Emitter[@spec(Int, Long, Double) T]
   extends Reactive[T] with Default[T] {
-    var live = true
+    private var live = true
     def +=(value: T) {
       if (live) reactAll(value)
     }
@@ -729,13 +729,28 @@ object Reactive {
 
   class BindEmitter[@spec(Int, Long, Double) T]
   extends Reactive[T] with Default[T] with ReactMutable.Subscriptions {
-    var live = true
+    private var live = true
     def +=(value: T) {
       if (live) reactAll(value)
     }
     def close(): Unit = if (live) {
       live = false
       unreactAll()
+    }
+  }
+
+  class SynchronizedEmitter[@spec(Int, Long, Double) T]
+  extends Reactive[T] with Default[T] {
+    private var live = true
+    private var monitor = new AnyRef
+    def +=(value: T) = monitor.synchronized {
+      if (live) reactAll(value)
+    }
+    def close(): Unit = monitor.synchronized {
+      if (live) {
+        live = false
+        unreactAll()
+      }
     }
   }
 

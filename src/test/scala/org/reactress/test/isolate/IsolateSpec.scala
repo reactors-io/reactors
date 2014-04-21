@@ -76,19 +76,72 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
     sv.get should equal (true)
   }
 
+  it should "get an empty queue system event" in {
+    val sv = new SyncVar[Boolean]
+
+    val emitter = new Reactive.Emitter[Int]
+
+    class Iso(src: Reactive[Int]) extends Isolate[Int] {
+      react <<= sysEvents.onEvent {
+        case Isolate.EmptyEventQueue =>
+          log("empty event queue!")
+          sv.put(true)
+      }
+      react <<= src.onEvent {
+        e => log(s"got event '$e'")
+      }
+    }
+
+    val i = scheduler.schedule(Reactive.single(emitter))(new Iso(_))
+
+    emitter += 11
+    emitter.close()
+
+    sv.get should equal (true)
+  }
+
 }
 
 
-class ExecutorSyncedIsolateSpec extends IsolateSpec {
+trait LooperIsolateSpec extends FlatSpec with ShouldMatchers {
+  implicit val scheduler: Scheduler
+
+  "A LooperIsolate" should "do 3 loops" in {
+    val sv = new SyncVar[Int]
+
+    Isolate.looper(1) { src =>
+      Isolate.self.react <<= src.scanPast(0)(_ + _) onEvent { e =>
+        if (e >= 3) {
+          sv.put(e)
+          Isolate.self match {
+            case i: Isolate.Looper[_] => i.stop()
+          }
+        }
+      }
+    }
+
+    sv.get should equal (3)
+  }
+}
+
+
+class ExecutorSyncedIsolateSpec extends IsolateSpec with LooperIsolateSpec {
 
   implicit val scheduler = Scheduler.default
 
 }
 
 
-class NewThreadSyncedIsolateSpec extends IsolateSpec {
+class NewThreadSyncedIsolateSpec extends IsolateSpec with LooperIsolateSpec {
 
   implicit val scheduler = Scheduler.newThread
+
+}
+
+
+class PiggybackSyncedIsolateSpec extends LooperIsolateSpec {
+
+  implicit val scheduler = Scheduler.piggyback
 
 }
 

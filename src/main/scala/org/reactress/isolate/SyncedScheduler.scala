@@ -30,27 +30,31 @@ object SyncedScheduler {
 
   abstract class PerThread extends SyncedScheduler {
     trait WaitingWorker {
-      val monitor = new AnyRef
       @volatile var workRequested = false
       @volatile var placeHolder: SyncedPlaceholder[_] = null
 
       def shouldTerminate: Boolean
 
-      @tailrec final def waitAndWork(i: SyncedPlaceholder[_]) {
-        monitor.synchronized {
-          if (i.eventQueue.isEmpty && !shouldTerminate) workRequested = false
-          while (!workRequested) monitor.wait()
+      final def waitAndWork(p: SyncedPlaceholder[_]) {
+        @tailrec def repeat() {
+          p.monitor.synchronized {
+            if (p.eventQueue.isEmpty && !shouldTerminate) workRequested = false
+            while (!workRequested) p.monitor.wait()
+          }
+          p.work.run()
+          if (!shouldTerminate) repeat()
         }
-        i.work.run()
-        if (!shouldTerminate) waitAndWork(i)
+
+        p.work.run()
+        repeat()
       }
     }
 
-    def requestProcessing[@spec(Int, Long, Double) T](i: SyncedPlaceholder[T]) = {
-      val t = i.worker.asInstanceOf[WaitingWorker]
-      t.monitor.synchronized {
+    def requestProcessing[@spec(Int, Long, Double) T](p: SyncedPlaceholder[T]) = {
+      val t = p.worker.asInstanceOf[WaitingWorker]
+      p.monitor.synchronized {
         t.workRequested = true
-        t.monitor.notify()
+        p.monitor.notify()
       }
     }
   }

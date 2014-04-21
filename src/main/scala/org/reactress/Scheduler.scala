@@ -2,6 +2,7 @@ package org.reactress
 
 
 
+import java.util.concurrent._
 import scala.collection._
 import scala.concurrent.ExecutionContext
 import scala.annotation.tailrec
@@ -42,7 +43,16 @@ object Scheduler {
   }
 
   lazy val globalExecutionContext: Scheduler = new isolate.SyncedScheduler.Executor(ExecutionContext.Implicits.global)
-  lazy val default: Scheduler = new isolate.SyncedScheduler.Executor(new java.util.concurrent.ForkJoinPool)
+  lazy val default: Scheduler = new isolate.SyncedScheduler.Executor(new ForkJoinPool(
+    Runtime.getRuntime.availableProcessors,
+    new ForkJoinPool.ForkJoinWorkerThreadFactory {
+      def newThread(pool: ForkJoinPool) = new ForkJoinWorkerThread(pool) {
+        setName(s"IsolateScheduler-${getName}")
+      }
+    },
+    null,
+    true
+  ))
   lazy val newThread: Scheduler = new isolate.SyncedScheduler.NewThread(true)
   lazy val piggyback: Scheduler = new isolate.SyncedScheduler.Piggyback()
 

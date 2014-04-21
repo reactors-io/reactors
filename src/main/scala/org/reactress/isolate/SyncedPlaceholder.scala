@@ -9,7 +9,7 @@ import scala.collection._
 
 
 class SyncedPlaceholder[@spec(Int, Long, Double) T: Arrayable]
-  (val executionService: SyncedScheduler, val channels: Reactive[Reactive[T]], val newIsolate: Reactive[T] => Isolate[T], w: AnyRef)
+  (val syncedScheduler: SyncedScheduler, val channels: Reactive[Reactive[T]], val newIsolate: Reactive[T] => Isolate[T], w: AnyRef)
 extends Reactor[Reactive[T]] with Runnable {
   @volatile private[isolate] var state: SyncedPlaceholder.State = SyncedPlaceholder.Idle
   @volatile private[isolate] var eventQueue: util.UnrolledRing[T] = _
@@ -28,7 +28,7 @@ extends Reactor[Reactive[T]] with Runnable {
     emitter = new Reactive.Emitter[T]
     monitor = new AnyRef
     isolate = newIsolate(emitter)
-    work = executionService.runnableInIsolate(this, isolate)
+    work = syncedScheduler.runnableInIsolate(this, isolate)
     worker = w
     liveChannels = mutable.Set()
     channelsTerminated = false
@@ -40,7 +40,7 @@ extends Reactor[Reactive[T]] with Runnable {
 
   private def checkShouldTerminate() {
     if (channelsTerminated && liveChannels.isEmpty) shouldTerminate = true
-    executionService.requestProcessing(this)
+    syncedScheduler.requestProcessing(this)
   }
 
   private def unbind(r: Reactive[T]): Unit = monitor.synchronized {
@@ -64,12 +64,12 @@ extends Reactor[Reactive[T]] with Runnable {
   def scheduleEvent(event: T) = monitor.synchronized {
     eventQueue.enqueue(event)
     if (state == SyncedPlaceholder.Idle) {
-      executionService.requestProcessing(this)
+      syncedScheduler.requestProcessing(this)
       state = SyncedPlaceholder.Requested
     }
   }
 
-  def chunk = 50
+  def chunk = 100
 
   def run() = {
     var claimed = false
@@ -85,12 +85,15 @@ extends Reactor[Reactive[T]] with Runnable {
       monitor.synchronized {
         if (claimed) {
           if (eventQueue.nonEmpty) {
-            executionService.requestProcessing(this)
+            syncedScheduler.requestProcessing(this)
             state = SyncedPlaceholder.Requested
           } else {
             state = SyncedPlaceholder.Idle
           }
         }
+      }
+      if (claimed && state == SyncedPlaceholder.Idle) {
+        isolate.sysEventsEmitter += Isolate.EmptyEventQueue
       }
     }
   }
