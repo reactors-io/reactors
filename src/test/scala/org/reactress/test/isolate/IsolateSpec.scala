@@ -20,7 +20,7 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
     val sv = new SyncVar[String]
 
     class Iso(src: Reactive[String]) extends Isolate[String] {
-      react <<= src.onEvent { v =>
+      react <<= src.onEvent { case v =>
         log(s"got event '$v'")
         sv.put(v)
       }
@@ -42,7 +42,9 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
       val history = src.scanPast(List[Int]()) {
         (acc, x) => x :: acc
       }
-      react <<= history.onEvent(x => if (x.size == many) sv.put(x))
+      react <<= history.onEvent {
+        case x => if (x.size == many) sv.put(x)
+      }
     }
 
     val emitter = new Reactive.Emitter[Int]
@@ -60,7 +62,7 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
     val emitter = new Reactive.Emitter[Int]
     object Container {
       class Iso(src: Reactive[Int]) extends Isolate[Int] {
-        react <<= src.onEvent { _ =>
+        react <<= src.onEvent { case _ =>
           log(s"${Isolate.self} vs $i}")
           sv.put(Isolate.self == i)
         }
@@ -88,7 +90,7 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
           sv.put(true)
       }
       react <<= src.onEvent {
-        e => log(s"got event '$e'")
+        case e => log(s"got event '$e'")
       }
     }
 
@@ -110,7 +112,7 @@ trait LooperIsolateSpec extends FlatSpec with ShouldMatchers {
     val sv = new SyncVar[Int]
 
     Isolate.looper(1) { src =>
-      Isolate.self.react <<= src.scanPast(0)(_ + _) onEvent { e =>
+      Isolate.self.react <<= src.scanPast(0)(_ + _) onEvent { case e =>
         if (e >= 3) {
           sv.put(e)
           Isolate.self match {

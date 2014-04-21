@@ -18,8 +18,8 @@ object SyncedScheduler {
 
   class Executor(val executor: java.util.concurrent.Executor, val handler: Scheduler.Handler = Scheduler.defaultHandler)
   extends SyncedScheduler {
-    def requestProcessing[@spec(Int, Long, Double) T](i: SyncedPlaceholder[T]) = {
-      executor.execute(i.work)
+    def requestProcessing[@spec(Int, Long, Double) T](p: SyncedPlaceholder[T]) = {
+      executor.execute(p.work)
     }
 
     def schedule[@spec(Int, Long, Double) T: Arrayable, I <: Isolate[T]](channels: Reactive[Reactive[T]])(newIsolate: Reactive[T] => I): I = {

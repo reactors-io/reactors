@@ -15,8 +15,8 @@ trait Reactive[@spec(Int, Long, Double) +T] {
 
   def onReaction(reactor: Reactor[T]): Reactive.Subscription
 
-  def onEvent(reactor: T => Unit): Reactive.Subscription = onReaction(new Reactor[T] {
-    def react(event: T) = reactor(event)
+  def onEvent(reactor: PartialFunction[T, Unit]): Reactive.Subscription = onReaction(new Reactor[T] {
+    def react(event: T) = if (reactor.isDefinedAt(event)) reactor(event)
     def unreact() {}
   })
 

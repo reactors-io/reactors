@@ -60,8 +60,8 @@ object ReactContainer {
         private[reactress] var value = container.count(p)
         def apply() = value
         val subscription = Reactive.CompositeSubscription(
-          container.inserts onEvent { x => if (p(x)) { value += 1; reactAll(value) } },
-          container.removes onEvent { x => if (p(x)) { value -= 1; reactAll(value) } }
+          container.inserts onEvent { case x => if (p(x)) { value += 1; reactAll(value) } },
+          container.removes onEvent { case x => if (p(x)) { value -= 1; reactAll(value) } }
         )
       }
 
@@ -72,8 +72,8 @@ object ReactContainer {
         private[reactress] var value = container.count(p)
         def apply() = value == container.size
         val subscription = Reactive.CompositeSubscription(
-          container.inserts onEvent { x => if (p(x)) value += 1; reactAll(value == container.size) },
-          container.removes onEvent { x => if (p(x)) value -= 1; reactAll(value == container.size) }
+          container.inserts onEvent { case x => if (p(x)) value += 1; reactAll(value == container.size) },
+          container.removes onEvent { case x => if (p(x)) value -= 1; reactAll(value == container.size) }
         )
       }
 
@@ -265,8 +265,8 @@ object ReactContainer {
       proxy = catamorph.signal
       for (v <- container) catamorph += v
       subscription = Reactive.CompositeSubscription(
-        container.inserts onEvent { v => catamorph += v },
-        container.removes onEvent { v => catamorph -= v }
+        container.inserts onEvent { case v => catamorph += v },
+        container.removes onEvent { case v => catamorph -= v }
       )
     }
 

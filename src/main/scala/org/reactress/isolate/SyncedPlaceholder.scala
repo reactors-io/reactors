@@ -3,6 +3,7 @@ package isolate
 
 
 
+import java.util.concurrent.atomic.AtomicReference
 import scala.annotation.tailrec
 import scala.collection._
 
@@ -17,10 +18,11 @@ extends Reactor[Reactive[T]] with Runnable {
   @volatile private[isolate] var monitor: AnyRef = _
   @volatile private[isolate] var work: Runnable = _
   @volatile private[isolate] var worker: AnyRef = _
-  @volatile private[isolate] var liveChannels: mutable.Set[Reactive[T]] = _
+  @volatile private[isolate] var liveChannels: mutable.MultiMap[Reactive[T], Reactive.Subscription] = _
   @volatile private[isolate] var channelsTerminated: Boolean = _
   @volatile private[isolate] var shouldTerminate: Boolean = _
   @volatile private[isolate] var isolate: Isolate[T] = _
+  @volatile private[isolate] var isolateState: AtomicReference[Isolate.State] = _
   private var default: T = _
 
   def init(dummy: T) {
@@ -30,21 +32,31 @@ extends Reactor[Reactive[T]] with Runnable {
     isolate = newIsolate(emitter)
     work = syncedScheduler.runnableInIsolate(this, isolate)
     worker = w
-    liveChannels = mutable.Set()
+    liveChannels = new mutable.HashMap[Reactive[T], mutable.Set[Reactive.Subscription]] with mutable.MultiMap[Reactive[T], Reactive.Subscription]
     channelsTerminated = false
     shouldTerminate = false
+    isolateState = new AtomicReference(Isolate.Created)
     channels.onReaction(this)
   }
 
   init(default)
+
+  @tailrec final def trySetRunning(): Boolean = {
+    val s0 = isolateState.get
+    if (s0 != Isolate.Created) false
+    else {
+      if (isolateState.compareAndSet(s0, Isolate.Running)) true
+      else trySetRunning()
+    }
+  }
 
   private def checkShouldTerminate() {
     if (channelsTerminated && liveChannels.isEmpty) shouldTerminate = true
     syncedScheduler.requestProcessing(this)
   }
 
-  private def unbind(r: Reactive[T]): Unit = monitor.synchronized {
-    liveChannels -= r
+  private def unbind(reactive: Reactive[T], reactor: Reactive.Subscription): Unit = monitor.synchronized {
+    liveChannels.removeBinding(reactive, reactor)
     checkShouldTerminate()
   }
 
@@ -54,11 +66,12 @@ extends Reactor[Reactive[T]] with Runnable {
   }
 
   def react(r: Reactive[T]) = monitor.synchronized {
-    liveChannels += r
-    r.onReaction(new Reactor[T] {
+    @volatile var sub: Reactive.Subscription = null
+    sub = r.onReaction(new Reactor[T] {
       def react(event: T) = scheduleEvent(event)
-      def unreact() = unbind(r)
+      def unreact() = unbind(r, sub)
     })
+    liveChannels.addBinding(r, sub)
   }
 
   def scheduleEvent(event: T) = monitor.synchronized {
@@ -80,8 +93,9 @@ extends Reactor[Reactive[T]] with Runnable {
           claimed = true
         }
       }
-      if (claimed) run(chunk)
+      if (claimed) runClaimedIsolate(chunk)
     } finally {
+      var emptyEventQueue = false
       monitor.synchronized {
         if (claimed) {
           if (eventQueue.nonEmpty) {
@@ -91,14 +105,20 @@ extends Reactor[Reactive[T]] with Runnable {
             state = SyncedPlaceholder.Idle
           }
         }
+        emptyEventQueue = eventQueue.isEmpty
       }
-      if (claimed && state == SyncedPlaceholder.Idle) {
+      if (claimed && emptyEventQueue) {
         isolate.sysEventsEmitter += Isolate.EmptyEventQueue
+      }
+      if (claimed && shouldTerminate && emptyEventQueue) {
+        isolate.sysEventsEmitter += Isolate.Terminate
       }
     }
   }
 
-  @tailrec private def run(n: Int) {
+  @tailrec private def runClaimedIsolate(n: Int) {
+    if (trySetRunning()) isolate.sysEventsEmitter += Isolate.Start
+
     var event = default
     var shouldEmit = false
     monitor.synchronized {
@@ -109,7 +129,7 @@ extends Reactor[Reactive[T]] with Runnable {
     }
     if (shouldEmit) {
       emitter += event
-      if (n > 0) run(n - 1)
+      if (n > 0) runClaimedIsolate(n - 1)
     }
   }
 }

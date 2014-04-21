@@ -2,11 +2,13 @@ package org.reactress
 
 
 
+import scala.annotation.tailrec
 
 
 
 trait Isolate[@spec(Int, Long, Double) T] extends ReactRecord {
   private[reactress] val sysEventsEmitter = new Reactive.Emitter[Isolate.SysEvent]
+
   final def sysEvents: Reactive[Isolate.SysEvent] = sysEventsEmitter
 }
 
@@ -14,7 +16,14 @@ trait Isolate[@spec(Int, Long, Double) T] extends ReactRecord {
 object Isolate {
 
   sealed trait SysEvent
+  case object Start extends SysEvent
   case object EmptyEventQueue extends SysEvent
+  case object Terminate extends SysEvent
+
+  sealed trait State
+  case object Created extends State
+  case object Running extends State
+  case object Terminated extends State
 
   private[reactress] val selfIsolate = new ThreadLocal[Isolate[_]] {
     override def initialValue = null
@@ -54,7 +63,8 @@ object Isolate {
     def stop() = emitter.close()
 
     react <<= sysEvents onEvent {
-      case Isolate.EmptyEventQueue => emitter += loopEvent()
+      case Isolate.EmptyEventQueue =>
+        emitter += loopEvent()
     }
 
     val currentIsolate = selfIsolate.get
@@ -64,6 +74,10 @@ object Isolate {
     } finally {
       selfIsolate.set(currentIsolate)
     }
+  }
+
+  object Looper {
+    def self[@spec(Int, Long, Double) T]: Looper[T] = Isolate.self.asInstanceOf[Looper[T]]
   }
 
 }
