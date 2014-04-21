@@ -59,6 +59,8 @@ object Scheduler {
   object Implicits {
     implicit lazy val globalExecutionContext = Scheduler.globalExecutionContext
     implicit lazy val default = Scheduler.default
+    implicit lazy val newThread = Scheduler.newThread
+    implicit lazy val piggyback = Scheduler.piggyback
   }
 
 }
