@@ -23,7 +23,7 @@ object SyncedScheduler {
     }
 
     def schedule[@spec(Int, Long, Double) T: Arrayable, I <: Isolate[T]](channels: Reactive[Reactive[T]])(newIsolate: Reactive[T] => I): I = {
-      val holder = new SyncedPlaceholder(this, channels, newIsolate)
+      val holder = new SyncedPlaceholder(this, channels, newIsolate, null)
       holder.isolate.asInstanceOf[I]
     }
   }
@@ -32,11 +32,13 @@ object SyncedScheduler {
     trait WaitingWorker {
       val monitor = new AnyRef
       @volatile var workRequested = false
+      @volatile var placeHolder: SyncedPlaceholder[_] = null
 
       def shouldTerminate: Boolean
 
       @tailrec final def waitAndWork(i: SyncedPlaceholder[_]) {
         monitor.synchronized {
+          if (i.eventQueue.isEmpty && !shouldTerminate) workRequested = false
           while (!workRequested) monitor.wait()
         }
         i.work.run()
@@ -45,7 +47,7 @@ object SyncedScheduler {
     }
 
     def requestProcessing[@spec(Int, Long, Double) T](i: SyncedPlaceholder[T]) = {
-      val t = i.info.asInstanceOf[WaitingWorker]
+      val t = i.worker.asInstanceOf[WaitingWorker]
       t.monitor.synchronized {
         t.workRequested = true
         t.monitor.notify()
@@ -55,25 +57,27 @@ object SyncedScheduler {
 
   class NewThread(isDaemon: Boolean, val handler: Scheduler.Handler = Scheduler.defaultHandler)
   extends PerThread {
-    private class SyncedThread(i: SyncedPlaceholder[_]) extends Thread with WaitingWorker {
+    class WaitingWorkerThread extends Thread with WaitingWorker {
+      setName(s"IsolateThread-${getId}")
       setDaemon(isDaemon)
 
-      def shouldTerminate = i.eventQueue.isEmpty && i.shouldTerminate
+      def shouldTerminate = placeHolder.eventQueue.isEmpty && placeHolder.shouldTerminate
 
       final override def run() {
-        waitAndWork(i)
+        waitAndWork(placeHolder)
       }
     }
 
-    def newWaitingWorker(i: SyncedPlaceholder[_]): WaitingWorker = {
-      val t = new SyncedThread(i)
-      t.start()
+    def newWaitingWorker(): WaitingWorkerThread = {
+      val t = new WaitingWorkerThread()
       t
     }
 
     def schedule[@spec(Int, Long, Double) T: Arrayable, I <: Isolate[T]](channels: Reactive[Reactive[T]])(newIsolate: Reactive[T] => I): I = {
-      val holder = new SyncedPlaceholder[T](this, channels, newIsolate)
-      holder.info = newWaitingWorker(holder)
+      val worker = newWaitingWorker()
+      val holder = new SyncedPlaceholder[T](this, channels, newIsolate, worker)
+      worker.placeHolder = holder
+      worker.start()
       holder.isolate.asInstanceOf[I]
     }
 
@@ -81,14 +85,14 @@ object SyncedScheduler {
 
   class Piggyback(val handler: Scheduler.Handler = Scheduler.defaultHandler)
   extends PerThread {
-    def newWaitingWorker(i: SyncedPlaceholder[_]): WaitingWorker = new WaitingWorker {
-      def shouldTerminate = i.eventQueue.isEmpty && i.shouldTerminate
+    def newWaitingWorker(): WaitingWorker = new WaitingWorker {
+      def shouldTerminate = placeHolder.eventQueue.isEmpty && placeHolder.shouldTerminate
     }
 
     def schedule[@spec(Int, Long, Double) T: Arrayable, I <: Isolate[T]](channels: Reactive[Reactive[T]])(newIsolate: Reactive[T] => I): I = {
-      val holder = new SyncedPlaceholder[T](this, channels, newIsolate)
-      val worker = newWaitingWorker(holder)
-      holder.info = worker
+      val worker = newWaitingWorker()
+      val holder = new SyncedPlaceholder[T](this, channels, newIsolate, worker)
+      worker.placeHolder = holder
       worker.waitAndWork(holder)
       holder.isolate.asInstanceOf[I]
     }

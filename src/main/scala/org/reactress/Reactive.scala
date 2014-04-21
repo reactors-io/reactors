@@ -717,15 +717,25 @@ object Reactive {
 
   class Emitter[@spec(Int, Long, Double) T]
   extends Reactive[T] with Default[T] {
+    var live = true
     def +=(value: T) {
-      reactAll(value)
+      if (live) reactAll(value)
+    }
+    def close(): Unit = if (live) {
+      live = false
+      unreactAll()
     }
   }
 
   class BindEmitter[@spec(Int, Long, Double) T]
   extends Reactive[T] with Default[T] with ReactMutable.Subscriptions {
+    var live = true
     def +=(value: T) {
-      reactAll(value)
+      if (live) reactAll(value)
+    }
+    def close(): Unit = if (live) {
+      live = false
+      unreactAll()
     }
   }
 

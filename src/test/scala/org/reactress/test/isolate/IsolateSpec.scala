@@ -29,6 +29,7 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
     val emitter = new Reactive.Emitter[String]
     val i = scheduler.schedule(Reactive.single(emitter))(new Iso(_))
     emitter += "test event"
+    emitter.close()
 
     sv.take() should equal ("test event")
   }
@@ -47,6 +48,7 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
     val emitter = new Reactive.Emitter[Int]
     val i = scheduler.schedule(Reactive.single(emitter))(new Iso(_))
     for (i <- 0 until 50) emitter += i
+    emitter.close()
 
     val expected = (0 until 50).reverse
     assert(sv.get == expected, "${sv.get} vs $expected")
@@ -69,6 +71,7 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
     Container
 
     emitter += 7
+    emitter.close()
 
     sv.get should equal (true)
   }
@@ -85,7 +88,7 @@ class ExecutorSyncedIsolateSpec extends IsolateSpec {
 
 class NewThreadSyncedIsolateSpec extends IsolateSpec {
 
-  implicit val scheduler = Scheduler.default
+  implicit val scheduler = Scheduler.newThread
 
 }
 

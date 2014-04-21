@@ -9,14 +9,14 @@ import scala.collection._
 
 
 class SyncedPlaceholder[@spec(Int, Long, Double) T: Arrayable]
-  (val executionService: SyncedScheduler, val channels: Reactive[Reactive[T]], val newIsolate: Reactive[T] => Isolate[T])
+  (val executionService: SyncedScheduler, val channels: Reactive[Reactive[T]], val newIsolate: Reactive[T] => Isolate[T], w: AnyRef)
 extends Reactor[Reactive[T]] with Runnable {
   @volatile private[isolate] var state: SyncedPlaceholder.State = SyncedPlaceholder.Idle
   @volatile private[isolate] var eventQueue: util.UnrolledRing[T] = _
   @volatile private[isolate] var emitter: Reactive.Emitter[T] = _
   @volatile private[isolate] var monitor: AnyRef = _
   @volatile private[isolate] var work: Runnable = _
-  @volatile private[isolate] var info: AnyRef = _
+  @volatile private[isolate] var worker: AnyRef = _
   @volatile private[isolate] var liveChannels: mutable.Set[Reactive[T]] = _
   @volatile private[isolate] var channelsTerminated: Boolean = _
   @volatile private[isolate] var shouldTerminate: Boolean = _
@@ -29,6 +29,7 @@ extends Reactor[Reactive[T]] with Runnable {
     monitor = new AnyRef
     isolate = newIsolate(emitter)
     work = executionService.runnableInIsolate(this, isolate)
+    worker = w
     liveChannels = mutable.Set()
     channelsTerminated = false
     shouldTerminate = false
@@ -39,6 +40,7 @@ extends Reactor[Reactive[T]] with Runnable {
 
   private def checkShouldTerminate() {
     if (channelsTerminated && liveChannels.isEmpty) shouldTerminate = true
+    executionService.requestProcessing(this)
   }
 
   private def unbind(r: Reactive[T]): Unit = monitor.synchronized {
@@ -67,7 +69,7 @@ extends Reactor[Reactive[T]] with Runnable {
     }
   }
 
-  def chunk = 20
+  def chunk = 50
 
   def run() = {
     var claimed = false
