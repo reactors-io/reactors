@@ -105,6 +105,21 @@ class SignalSpec extends FlatSpec with ShouldMatchers {
     buffer should equal (Seq(1, 2, 3, 4))
   }
 
+  it should "be muxed as signal" in {
+    val c1 = ReactCell[Int](1)
+    val c2 = ReactCell[Int](2)
+    val cell = ReactCell(c1)
+    val ints = cell.muxSignal()
+
+    assert(ints() == 1, ints())
+    cell := c2
+    assert(ints() == 2, ints())
+    c2 := 3
+    assert(ints() == 3, ints())
+    cell := c1
+    assert(ints() == 1, ints())
+  }
+
   it should "be aggregated" in {
     val rt = new ReactiveTest
     rt.x := 1

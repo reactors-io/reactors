@@ -208,21 +208,6 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     assert(ints() == 60, ints())
   }
 
-  it should "be muxed as signal" in {
-    val c1 = ReactCell[Int](1)
-    val c2 = ReactCell[Int](2)
-    val cell = ReactCell(c1)
-    val ints = cell.muxSignal()
-
-    assert(ints() == 1, ints())
-    cell := c2
-    assert(ints() == 2, ints())
-    c2 := 3
-    assert(ints() == 3, ints())
-    cell := c1
-    assert(ints() == 1, ints())
-  }
-
   it should "be higher-order union" in {
     val cell = ReactCell[Reactive[Int]](Signal.Constant(0))
     val e1 = new Reactive.Emitter[Int]
