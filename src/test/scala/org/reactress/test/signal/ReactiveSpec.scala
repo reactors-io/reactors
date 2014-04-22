@@ -190,22 +190,37 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     val e2 = new Reactive.Emitter[Int]
     val ints = cell.mux().signal(0)
 
-    assert(ints() == 0)
+    assert(ints() == 0, ints())
     cell := e1
     e1 += 10
-    assert(ints() == 10)
+    assert(ints() == 10, ints())
     e1 += 20
-    assert(ints() == 20)
+    assert(ints() == 20, ints())
     e2 += 30
-    assert(ints() == 20)
+    assert(ints() == 20, ints())
     cell := e2
-    assert(ints() == 20)
+    assert(ints() == 20, ints())
     e2 += 40
-    assert(ints() == 40)
+    assert(ints() == 40, ints())
     e1 += 50
-    assert(ints() == 40)
+    assert(ints() == 40, ints())
     e2 += 60
-    assert(ints() == 60)
+    assert(ints() == 60, ints())
+  }
+
+  it should "be muxed as signal" in {
+    val c1 = ReactCell[Int](1)
+    val c2 = ReactCell[Int](2)
+    val cell = ReactCell(c1)
+    val ints = cell.muxSignal()
+
+    assert(ints() == 1, ints())
+    cell := c2
+    assert(ints() == 2, ints())
+    c2 := 3
+    assert(ints() == 3, ints())
+    cell := c1
+    assert(ints() == 1, ints())
   }
 
   it should "be higher-order union" in {
@@ -318,6 +333,15 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     passive.onEvent { case x => sum += x }
 
     sum should equal (50)
+  }
+
+  it should "traverse the single element" in {
+    val passive = Reactive.single(7)
+    var sum = 0
+
+    passive.onEvent { case x => sum += x }
+
+    sum should equal (7)
   }
 
 }

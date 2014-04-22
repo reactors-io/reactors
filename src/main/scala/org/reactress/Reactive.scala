@@ -377,20 +377,20 @@ object Reactive {
     (val self: Reactive[T], val evidence: T <:< Reactive[S])
   extends Reactive.Default[S] with Reactor[T] with Reactive.ProxySubscription {
     muxed =>
-    private[reactress] var currentSubscription = Subscription.empty
+    private[reactress] var currentSubscription: Subscription = null
     private[reactress] var terminated = false
-    def checkUnreact() = if (terminated && currentSubscription == Subscription.empty) unreactAll()
-    def newReactor() = new Reactor[S] {
+    def newReactor: Reactor[S] = new Reactor[S] {
       def react(value: S) = reactAll(value)
       def unreact() {
-        currentSubscription = Reactive.Subscription.empty
+        currentSubscription = Subscription.empty
         checkUnreact()
       }
     }
+    def checkUnreact() = if (terminated && currentSubscription == Subscription.empty) unreactAll()
     def react(value: T) {
       val nextReactive = evidence(value)
       currentSubscription.unsubscribe()
-      currentSubscription = nextReactive onReaction newReactor()
+      currentSubscription = nextReactive onReaction newReactor
     }
     def unreact() {
       terminated = true
@@ -401,7 +401,12 @@ object Reactive {
       currentSubscription = Subscription.empty
       super.unsubscribe()
     }
-    val subscription = self onReaction this
+    var subscription: Subscription = null
+    def init(e: T <:< Reactive[S]) {
+      currentSubscription = Subscription.empty
+      subscription = self onReaction this
+    }
+    init(evidence)
   }
 
   class PostfixUnion[T, @spec(Int, Long, Double) S]

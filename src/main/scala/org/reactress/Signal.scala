@@ -46,6 +46,12 @@ extends Reactive[T] {
     sz
   }
 
+  /* higher order */
+
+  def muxSignal[@spec(Int, Long, Double) S]()(implicit evidence: T <:< Signal[S]): Signal[S] = {
+    new Signal.Mux[T, S](this, evidence)
+  }
+
 }
 
 
@@ -122,7 +128,7 @@ object Signal {
   }
 
   class Zip[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S, @spec(Int, Long, Double) R]
-    (val self: Signal[T], that: Signal[S], f: (T, S) => R)
+    (val self: Signal[T], val that: Signal[S], val f: (T, S) => R)
   extends Signal.Default[R] with Reactive.ProxySubscription {
     zipped =>
     private[reactress] var cached = f(self(), that())
@@ -196,6 +202,51 @@ object Signal {
     }
     val root = ss(0)
     new Aggregate[T](root, leaves)
+  }
+
+  class Mux[T, @spec(Int, Long, Double) S]
+    (val self: Signal[T], val evidence: T <:< Signal[S])
+  extends Signal.Default[S] with Reactor[T] with Reactive.ProxySubscription {
+    muxed =>
+    import Reactive.Subscription
+    private var value: S = _
+    private[reactress] var currentSubscription: Subscription = null
+    private[reactress] var terminated = false
+    def apply() = value
+    def newReactor: Reactor[S] = new Reactor[S] {
+      def react(v: S) = {
+        value = v
+        reactAll(value)
+      }
+      def unreact() {
+        currentSubscription = Subscription.empty
+        checkUnreact()
+      }
+    }
+    def checkUnreact() = if (terminated && currentSubscription == Subscription.empty) unreactAll()
+    def react(v: T) {
+      val nextSignal = evidence(v)
+      currentSubscription.unsubscribe()
+      value = nextSignal()
+      currentSubscription = nextSignal onReaction newReactor
+      reactAll(value)
+    }
+    def unreact() {
+      terminated = true
+      checkUnreact()
+    }
+    override def unsubscribe() {
+      currentSubscription.unsubscribe()
+      currentSubscription = Subscription.empty
+      super.unsubscribe()
+    }
+    var subscription: Subscription = null
+    def init(e: T <:< Reactive[S]) {
+      value = evidence(self()).apply()
+      currentSubscription = Subscription.empty
+      subscription = self onReaction this
+    }
+    init(evidence)
   }
 
 }
