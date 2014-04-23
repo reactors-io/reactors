@@ -8,6 +8,27 @@ import util._
 
 
 
+/** A basic reactive value.
+ *
+ *  Reactive values are special objects that may produce events
+ *  of a certain type `T`.
+ *  Clients may subscribe side-effecting functions (i.e. callbacks)
+ *  to these events with `onReaction`, `onEvent`, `onCase` and `on` --
+ *  each of these methods will invoke the callback when an event
+ *  is produced, but some may be more suitable depending on the use-case.
+ *  
+ *  Reactive values can also be manipulated using declarative combinators
+ *  such as `map`, `filter`, `until`, `after` and `scanPast`:
+ *
+ *      def positiveSquares(r: Reactive[Int]) = r.map(x => x * x).filter(_ != 0)
+ *
+ *  The result of using a declarative combinator on `Reactive[T]` is another
+ *  `Reactive[S]`, possibly with a different type parameter.
+ *
+ *  Reactive values are specialized for `Int`, `Long` and `Double`.
+ *
+ *  @tparam T      type of the events in this reactive value
+ */
 trait Reactive[@spec(Int, Long, Double) +T] {
   self =>
 
