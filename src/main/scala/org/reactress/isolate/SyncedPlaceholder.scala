@@ -10,33 +10,35 @@ import scala.collection._
 
 
 class SyncedPlaceholder[@spec(Int, Long, Double) T: Arrayable]
-  (val syncedScheduler: SyncedScheduler, val channels: Reactive[Reactive[T]], val newIsolate: Reactive[T] => Isolate[T], w: AnyRef)
-extends Reactor[Reactive[T]] with Runnable {
+  (val syncedScheduler: SyncedScheduler, val newIsolate: () => Isolate[T], nullOrWorker: AnyRef)
+extends Reactor[T] with Runnable {
   @volatile private[isolate] var state: SyncedPlaceholder.State = SyncedPlaceholder.Idle
-  @volatile private[isolate] var eventQueue: util.UnrolledRing[T] = _
-  @volatile private[isolate] var emitter: Reactive.Emitter[T] = _
   @volatile private[isolate] var monitor: AnyRef = _
   @volatile private[isolate] var work: Runnable = _
   @volatile private[isolate] var worker: AnyRef = _
-  @volatile private[isolate] var liveChannels: mutable.MultiMap[Reactive[T], Reactive.Subscription] = _
-  @volatile private[isolate] var channelsTerminated: Boolean = _
   @volatile private[isolate] var shouldTerminate: Boolean = _
   @volatile private[isolate] var isolate: Isolate[T] = _
   @volatile private[isolate] var isolateState: AtomicReference[Isolate.State] = _
+  @volatile private[isolate] var channel: Channel[T] = _
   private var default: T = _
 
   def init(dummy: T) {
-    eventQueue = new util.UnrolledRing[T]
-    emitter = new Reactive.Emitter[T]
     monitor = new AnyRef
-    isolate = newIsolate(emitter)
+    channel = new Channel.Synced(this, monitor)
+    Isolate.argEventQueue.withValue(new EventQueue.SyncedUnrolledRing(monitor)) {
+      Isolate.argChannel.withValue(channel) {
+        val oldiso = Isolate.selfIsolate.get
+        try {
+          isolate = newIsolate()
+        } finally {
+          Isolate.selfIsolate.set(oldiso)
+        }
+      }
+    }
     work = syncedScheduler.runnableInIsolate(this, isolate)
-    worker = w
-    liveChannels = new mutable.HashMap[Reactive[T], mutable.Set[Reactive.Subscription]] with mutable.MultiMap[Reactive[T], Reactive.Subscription]
-    channelsTerminated = false
+    worker = nullOrWorker
     shouldTerminate = false
     isolateState = new AtomicReference(Isolate.Created)
-    channels.onReaction(this)
   }
 
   init(default)
@@ -50,32 +52,16 @@ extends Reactor[Reactive[T]] with Runnable {
     }
   }
 
-  private def checkShouldTerminate() {
-    if (channelsTerminated && liveChannels.isEmpty) shouldTerminate = true
-    syncedScheduler.requestProcessing(this)
-  }
-
-  private def unbind(reactive: Reactive[T], reactor: Reactive.Subscription): Unit = monitor.synchronized {
-    liveChannels.removeBinding(reactive, reactor)
-    checkShouldTerminate()
-  }
-
   def unreact(): Unit = monitor.synchronized {
-    channelsTerminated = true
-    checkShouldTerminate()
+    shouldTerminate = true
   }
 
-  def react(r: Reactive[T]) = monitor.synchronized {
-    @volatile var sub: Reactive.Subscription = null
-    sub = r.onReaction(new Reactor[T] {
-      def react(event: T) = scheduleEvent(event)
-      def unreact() = unbind(r, sub)
-    })
-    liveChannels.addBinding(r, sub)
+  def react(event: T) = monitor.synchronized {
+    scheduleEvent(event)
   }
 
   def scheduleEvent(event: T) = monitor.synchronized {
-    eventQueue.enqueue(event)
+    isolate.eventQueue += event
     if (state == SyncedPlaceholder.Idle) {
       syncedScheduler.requestProcessing(this)
       state = SyncedPlaceholder.Requested
@@ -85,52 +71,48 @@ extends Reactor[Reactive[T]] with Runnable {
   def chunk = 100
 
   def run() = {
+    if (trySetRunning()) isolate.sysEventsEmitter += Isolate.Start
+
+    var empty0 = false
+    var empty1 = false
     var claimed = false
     try {
       monitor.synchronized {
         if (state != SyncedPlaceholder.Claimed) {
           state = SyncedPlaceholder.Claimed
           claimed = true
+          empty0 = isolate.eventQueue.isEmpty
         }
       }
       if (claimed) runClaimedIsolate(chunk)
     } finally {
-      var emptyEventQueue = false
       monitor.synchronized {
         if (claimed) {
-          if (eventQueue.nonEmpty) {
+          empty1 = isolate.eventQueue.isEmpty
+          if (!empty1) {
             syncedScheduler.requestProcessing(this)
             state = SyncedPlaceholder.Requested
           } else {
             state = SyncedPlaceholder.Idle
           }
         }
-        emptyEventQueue = eventQueue.isEmpty
       }
-      if (claimed && emptyEventQueue) {
-        isolate.sysEventsEmitter += Isolate.EmptyEventQueue
+      if (claimed && !empty0 && empty1) {
+        isolate.sysEventsEmitter += Isolate.EmptyQueue
       }
-      if (claimed && shouldTerminate && emptyEventQueue) {
+      if (claimed && shouldTerminate && !empty0 && empty1) {
         isolate.sysEventsEmitter += Isolate.Terminate
       }
     }
   }
 
   @tailrec private def runClaimedIsolate(n: Int) {
-    if (trySetRunning()) isolate.sysEventsEmitter += Isolate.Start
+    try isolate.propagate()
+    catch {
+      case t: Throwable => isolate.sysEventsEmitter += Isolate.Failed(t)
+    }
 
-    var event = default
-    var shouldEmit = false
-    monitor.synchronized {
-      if (eventQueue.nonEmpty) {
-        event = eventQueue.dequeue()
-        shouldEmit = true
-      }
-    }
-    if (shouldEmit) {
-      emitter += event
-      if (n > 0) runClaimedIsolate(n - 1)
-    }
+    if (n > 0 && isolate.eventQueue.nonEmpty) runClaimedIsolate(n - 1)
   }
 }
 

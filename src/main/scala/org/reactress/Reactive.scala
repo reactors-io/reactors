@@ -30,6 +30,11 @@ trait Reactive[@spec(Int, Long, Double) +T] {
     def unreact() {}
   })
 
+  def onUnreact(reactor: =>Unit): Reactive.Subscription = onReaction(new Reactor[T] {
+    def react(value: T) {}
+    def unreact() = reactor
+  })
+
   def foreach(f: T => Unit): Reactive[Unit] with Reactive.Subscription = {
     val rf = new Reactive.Foreach(self, f)
     rf.subscription = self onReaction rf
@@ -510,11 +515,20 @@ object Reactive {
     def unreactAll() {}
   }
 
+
+
   private object NeverImpl extends Never[Nothing]
 
   def Never[T] = NeverImpl.asInstanceOf[Reactive[T]]
 
   // TODO Amb
+
+  trait Proxy[@spec(Int, Long, Double) T]
+  extends Reactive[T] {
+    val underlying: Reactive[T]
+    def hasSubscriptions = underlying.hasSubscriptions
+    def onReaction(r: Reactor[T]) = underlying.onReaction(r)
+  }
 
   trait Subscription {
     def unsubscribe(): Unit
@@ -746,21 +760,6 @@ object Reactive {
     def close(): Unit = if (live) {
       live = false
       unreactAll()
-    }
-  }
-
-  class SynchronizedEmitter[@spec(Int, Long, Double) T]
-  extends Reactive[T] with Default[T] {
-    private var live = true
-    private var monitor = new AnyRef
-    def +=(value: T) = monitor.synchronized {
-      if (live) reactAll(value)
-    }
-    def close(): Unit = monitor.synchronized {
-      if (live) {
-        live = false
-        unreactAll()
-      }
     }
   }
 
