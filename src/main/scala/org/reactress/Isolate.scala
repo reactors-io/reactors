@@ -27,6 +27,7 @@ trait Isolate[@spec(Int, Long, Double) T] extends ReactRecord {
     }
     Isolate.selfIsolate.set(this)
   }
+
   init(this)
 
   private[reactress] final def eventQueue = eventQueueSpec

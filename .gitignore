@@ -13,3 +13,6 @@ tmp
 *.iml
 .idea/
 
+# misc
+*.dmp
+
