@@ -1,8 +1,5 @@
 <img src='reactress-title-96.png'></img>
 
-reactress
-=========
-
 A concurrent reactive programming framework.
 
 
