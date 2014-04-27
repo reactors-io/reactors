@@ -919,6 +919,10 @@ object Reactive {
     var subscription = Subscription.empty
   }
 
+  /** A base trait for reactives that never emit events.
+   *
+   *  @tparam T         type of events never emitted by this reactive
+   */
   trait Never[@spec(Int, Long, Double) T]
   extends Reactive[T] {
     def hasSubscriptions = false
@@ -930,14 +934,18 @@ object Reactive {
     def unreactAll() {}
   }
 
-
-
   private object NeverImpl extends Never[Nothing]
 
+  /** A reactive that never emits events.
+   * 
+   *  @tparam T         type of events in this reactive
+   */
   def Never[T] = NeverImpl.asInstanceOf[Reactive[T]]
 
   // TODO Amb
 
+  /** The proxy reactive that emits events of its underlying reactive.
+   */
   trait Proxy[@spec(Int, Long, Double) T]
   extends Reactive[T] {
     val underlying: Reactive[T]
@@ -945,19 +953,36 @@ object Reactive {
     def onReaction(r: Reactor[T]) = underlying.onReaction(r)
   }
 
+  /** A subscription to a certain kind of event,
+   *  event processing or computation in general.
+   *  Calling `unsubscribe` on the subscription
+   *  causes the events to no longer be propagated
+   *  to this particular subscription or some computation to cease.
+   *
+   *  Unsubscribing is idempotent -- calling `unsubscribe` second time does nothing.
+   */
   trait Subscription {
     def unsubscribe(): Unit
   }
 
+  /** Contains factory methods for subscription.
+   */
   object Subscription {
+    /** Unsubscribing does nothing. */
     val empty = new Subscription {
       def unsubscribe() {}
     }
+    /** Invokes the specified `onUnsubscribe` block when `unsubscribe` is called.
+     *
+     *  @param onUnsubscribe     code to execute when `unsubscribe` is called
+     */
     def apply(onUnsubscribe: =>Unit) = new Subscription {
       def unsubscribe() = onUnsubscribe
     }
   }
 
+  /** Unsubscribes by calling `unsubscribe` on the underlying subscription.
+   */
   trait ProxySubscription extends Subscription {
     def subscription: Subscription
     def unsubscribe() {
@@ -965,6 +990,12 @@ object Reactive {
     }
   }
 
+  /** Unsubscribing will call `unsubscribe` on all the 
+   *  subscriptions in `ss`.
+   *
+   *  @param ss         the child subscriptions
+   *  @return           the composite subscription
+   */
   def CompositeSubscription(ss: Subscription*): Subscription = new Subscription {
     def unsubscribe() {
       for (s <- ss) s.unsubscribe()
@@ -974,6 +1005,14 @@ object Reactive {
   private val bufferUpperBound = 8
   private val hashTableLowerBound = 5
 
+  /** The default implementation of a reactive value.
+   *
+   *  Keeps an optimized weak collection of weak references to subscribers.
+   *  References to subscribers that are no longer reachable in the application
+   *  will be removed eventually.
+   *
+   *  @tparam T       type of the events in this reactive value
+   */
   trait Default[@spec(Int, Long, Double) T] extends Reactive[T] {
     private[reactress] var demux: AnyRef = null
     private[reactress] var unreacted: Boolean = false
@@ -1154,6 +1193,21 @@ object Reactive {
     def onSubscriptionChange() {}
   }
 
+  /** A reactive value that can programatically emit events.
+   *
+   *  Events are emitted to the reactive value by calling the `+=` method.
+   *  The emitter can be closed by calling the `close` method --
+   *  after this no more events will be accepted through `+=`.
+   *
+   *  Example:
+   *
+   *      val emitter = new Reactive.Emitter[Int]
+   *      val prints = emitter.onEvent(println)
+   *      emitter += 1
+   *      emitter += 2
+   *
+   *  @tparam       the type of events that this emitter can emit
+   */
   class Emitter[@spec(Int, Long, Double) T]
   extends Reactive[T] with Default[T] {
     private var live = true
@@ -1166,6 +1220,15 @@ object Reactive {
     }
   }
 
+  /** A reactive emitter that can be used with the `mutate` block.
+   *  
+   *  Calling `mutate` with this bind emitter will add a subscription
+   *  to the emitter that can unsubscribe from that `mutate` statement.
+   *
+   *  For most purposes, clients should just use the regular `Reactive.Emitter`.
+   *
+   *  @tparam T     the type of events in the bind emitter
+   */
   class BindEmitter[@spec(Int, Long, Double) T]
   extends Reactive[T] with Default[T] with ReactMutable.Subscriptions {
     private var live = true
@@ -1178,6 +1241,43 @@ object Reactive {
     }
   }
 
+  /** Creates a new reactive that invokes the function `f` on any `Reactor` that subscribes to it.
+   *
+   *  Passive reactives usually emit separate event streams to each reactor
+   *  for which `onReaction` has been called.
+   *  
+   *  Once all the events are emitted, clients should call `unreact` to notify
+   *  the reactor that there will be no more events.
+   *
+   *  Example:
+   *
+   *      val r = passive[Int] { reactor =>
+   *        reactor.react(1)
+   *        reactor.react(2)
+   *        reactor.unreact()
+   *      }
+   *
+   *  Never use `passive` to install adapt a callback in a 3rd party API.
+   *  For example, *never* do this:
+   *
+   *      val r = passive[String] { reactor =>
+   *        Future { "... " * 5 + "done!" } onSuccess {
+   *          case e => reactor.react(e); reactor.unreact()
+   *        }
+   *      }
+   *      val m = Signal.Mutable(mutable.ArrayBuffer[String]())
+   *      val s1 = r.onEvent(e => m += e)
+   *      val s2 = r.onEvent(e => m += e)
+   *
+   *  Above, subscriptions `s1` and `s2` could execute concurrenctly and corrupt the buffer.
+   *
+   *  @note You should never use this method to bind reactors to bind reactors to custom callbacks
+   *        in 3rd party APIs. Those callbacks may execute on another thread, and that is *unsafe*.
+   *
+   *  @tparam T         type of the events in this passive reactive
+   *  @param f          function to execute on any newly subscribed reactor
+   *  @return           the passive reactive defined by `f`
+   */
   def passive[@spec(Int, Long, Double) T](f: Reactor[T] => Subscription): Reactive[T] = {
     new Reactive[T] {
       def hasSubscriptions = false
@@ -1187,16 +1287,30 @@ object Reactive {
     }
   }
 
-  def single[@spec(Int, Long, Double) T](elem: T): Reactive[T] = passive[T] { r =>
+  /** Defines a new passive reactive that emits a single event
+   *  to any new subscriber.
+   *
+   *  @tparam T         type of the event to emit
+   *  @param event      event to emit
+   *  @return           a reactive that emits a single event
+   */
+  def single[@spec(Int, Long, Double) T](event: T): Reactive[T] = passive[T] { r =>
     var cancelled = false
-    r.react(elem)
+    r.react(event)
     if (!cancelled) r.unreact()
     Subscription { cancelled = true }
   }
 
-  def items[@spec(Int, Long, Double) T](elems: Array[T]): Reactive[T] = passive[T] { r =>
+  /** Defines a new passive reactive that emits several events
+   *  to any new subscriber.
+   *
+   *  @tparam T         type of the events to emit
+   *  @param events     events to emit
+   *  @return           a reactive that emits the specified events
+   */
+  def items[@spec(Int, Long, Double) T](events: Array[T]): Reactive[T] = passive[T] { r =>
     var cancelled = false
-    var it = elems.iterator
+    var it = events.iterator
     while (!cancelled && it.hasNext) {
       r.react(it.next())
     }
