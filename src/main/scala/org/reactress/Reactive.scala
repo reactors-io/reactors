@@ -260,7 +260,7 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    *  def mutate(mutable: ReactMutable)(mutation: T => Unit): Reactive.Subscription
    *  }}}
    *
-   *  @note no two events will ever be concurrently processed by different threads on the same reactive mutable,
+   *  @note No two events will ever be concurrently processed by different threads on the same reactive mutable,
    *  but an event that is propagated from within the `mutation` can trigger an event on `this`.
    *  The result is that `mutation` is invoked concurrently on the same thread.
    *  The following code is problematic has a feedback loop in the dataflow graph:
@@ -487,7 +487,7 @@ object Reactive {
      *  }}}
      *
      *  @param that      another reactive value for the concatenation
-     *  @note this operation potentially caches events from `that`.
+     *  @note This operation potentially caches events from `that`.
      *  Unless certain that `this` eventually unreacts, `concat` should not be used.
      *  To enforce this, clients must import the `CanBeBuffered` evidence explicitly
      *  into the scope in which they call `concat`.
@@ -539,7 +539,7 @@ object Reactive {
      *  def sync[S, R](that: Reactive[S])(f: (T, S) => R): Reactive[R]
      *  }}}
      *
-     *  @note this operation potentially caches events from `this` and `that`.
+     *  @note This operation potentially caches events from `this` and `that`.
      *  Unless certain that both `this` produces a bounded number of events
      *  before the `that` produces an event, and vice versa, this operation should not be called.
      *  To enforce this, clients must import the `CanBeBuffered` evidence explicitly
@@ -610,7 +610,7 @@ object Reactive {
      *  def concat[S](): Reactive[S]
      *  }}}
      *
-     *  @note this operation potentially buffers events from the nested reactives.
+     *  @note This operation potentially buffers events from the nested reactives.
      *  Unless each reactive emitted by `this` is known to unreact eventually,
      *  this operation should not be called.
      *  To enforce this, clients are required to import the `CanBeBuffered` evidence
