@@ -40,9 +40,22 @@ import util._
  *  Active reactive values produce events irregardless if there are any subscribers
  *  to these events.
  *  Examples are mouse movement, file changes or operating system events.
+ *  Here is an active reactive:
+ *
+ *      val emitter = new Reactive.Emitter[Int]
+ *      emitter += 1 // events are produced regardless
+ *                   // of subscribers like evens below
+ *      val evens = emitter.filter(_ % 2 == 0)
+ *
  *  Passive reactive values produce events depending on whether there are any
  *  subscribers -- typically, each subscriber gets a sequence of events
  *  upon subscription.
+ *
+ *      val items = Reactive.items(Array(1, 2, 3))
+ *      items.onEvent(println) // array elements are emitted on-demand
+ *      items.onEvent(println) // twice -- once for each `onEvent` call
+ *
+ *  @author        Aleksandar Prokopec
  *
  *  @tparam T      type of the events in this reactive value
  */
@@ -167,7 +180,7 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    *      val s = r.scanPast(0)((sum, n) => sum + n)
    *
    *  will produce events `1`, `3` (`1 + 2`) and `6` (`3 + 3`).
-   *  Note: the initial value `0` is *not emitted*.
+   *  **Note:** the initial value `0` is *not emitted*.
    *  
    *  The `scanPast` can also be used to produce a reactive value of a different type:
    *  The following produces a complete history of all the events seen so far:
@@ -177,7 +190,7 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    *      }
    *  
    *  The `s2` will produce events `1 :: Nil`, `2 :: 1 :: Nil` and `3 :: 2 :: 1 :: Nil`.
-   *  Note: the initial value `Nil` is *not emitted*.
+   *  **Note:** the initial value `Nil` is *not emitted*.
    *
    *  The resulting reactive value is not only a reactive value, but also a `Signal`,
    *  so the value of the previous event can be obtained by calling `apply` at any time.
@@ -225,7 +238,7 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    *        eventListWidget.add(b.last)
    *      }
    *
-   *  Note: no two events will ever be concurrently processed by different threads on the same reactive mutable,
+   *  **Note:** no two events will ever be concurrently processed by different threads on the same reactive mutable,
    *  but an event that is propagated from within the `mutation` can trigger an event on `this`.
    *  The result is that `mutation` is invoked concurrently on the same thread.
    *  The following code is problematic has a feedback loop in the dataflow graph:
@@ -358,6 +371,10 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    *  This combinator is only available if this reactive value emits events
    *  that are themselves reactive values.
    *
+   *  Example:
+   *
+   *      val emitter = new Reactive.Emitter
+   *
    *  @usecase def mux[S](): Reactive[S]
    *
    *  @tparam S          the type of the events in the nested reactive
@@ -372,23 +389,53 @@ trait Reactive[@spec(Int, Long, Double) +T] {
 }
 
 
+/** Contains useful `Reactive` implementations and factory methods.
+ */
 object Reactive {
 
   implicit class ReactiveOps[@spec(Int, Long, Double) T](val self: Reactive[T]) {
+    /** Given an initial event `init`, converts this reactive into a `Signal`.
+     *
+     *  The resulting signal initially contains the event `init`,
+     *  and subsequently any event that the `this` reactive produces.
+     *
+     *  @param init      an initial value for the signal
+     *  @return          the signal version of the current reactive
+     */
     def signal(init: T) = self.scanPast(init) {
       (cached, value) => value
     }
 
+    /** If the current reactive is a signal already this method downcasts it,
+     *  otherwise it lifts it into a signal with the initial value `init`.
+     *
+     *  @param init      optional value to use when converting the reactive to a signal
+     *  @return          the signal version of the current reactive
+     */
     def asSignalOrElse(init: T) = self match {
       case s: Signal[T] => s
       case _ => signal(init)
     }
 
+    /** Downcasts this reactive into a signal.
+     *
+     *  Throws an exception if the current reactive is not a signal.
+     *
+     *  @return          the signal version of the current reactive
+     */
     def asSignal = this match {
       case s: Signal[T] => s
       case _ => throw new UnsupportedOperationException("This is not a signal.")
     }
 
+    /** Creates a union of `this` and `that` reactive.
+     *  
+     *  The resulting reactive value emits events from both `this` and `that` reactive.
+     *  It unreacts when both `this` and `that` reactive unreact.
+     *
+     *  @param that      another reactive value for the union
+     *  @return          a subscription and the reactive value with unified events from `this` and `that`
+     */
     def union(that: Reactive[T]): Reactive[T] with Reactive.Subscription = {
       val ru = new Reactive.Union(self, that)
       ru.selfSubscription = self onReaction ru.selfReactor
@@ -397,6 +444,26 @@ object Reactive {
       ru
     }
   
+    /** Creates a concatenation of `this` and `that` reactive.
+     *
+     *  The resulting reactive value produces all the events from `this` reactive
+     *  until `this` unreacts, and then outputs all the events from `that`
+     *  that happened before and after `this` unreacted.
+     *  To do this, this operation potentially caches all the events from `that`.
+     *  When `that` unreacts, the resulting reactive value unreacts.
+     *
+     *  **Note:** this reactive value potentially caches events from `that`.
+     *  Unless certain that `this` eventually unreacts, `concat` should not be used.
+     *  To enforce this, clients must import the `CanBeBuffered` evidence explicitly
+     *  into the scope in which they call `concat`.
+     *  
+     *  @usecase def concat(that: Reactive[T]): Reactive[T]
+     *
+     *  @param that      another reactive value for the concatenation
+     *  @param a         evidence that arrays can be created for the type `T`
+     *  @param b         evidence that the client allows events from `that` to be cached
+     *  @return          a subscription and a reactive value that concatenates events from `this` and `that`
+     */
     def concat(that: Reactive[T])(implicit a: Arrayable[T], b: CanBeBuffered): Reactive[T] with Reactive.Subscription = {
       val rc = new Reactive.Concat(self, that, a)
       rc.selfSubscription = self onReaction rc.selfReactor
