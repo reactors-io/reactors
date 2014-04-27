@@ -47,6 +47,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     val e = new Reactive.Emitter[Int]
     val buffer = mutable.Buffer[Int]()
     val s = e.foreach(buffer += _)
+    val s1: Reactive[Unit] = for (x <- e) buffer += x
 
     e += 1
     e += 2

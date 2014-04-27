@@ -10,24 +10,27 @@ import org.scalatest.matchers.ShouldMatchers
 
 
 
-trait IsolateSpec extends FlatSpec with ShouldMatchers {
+trait Logging {
+  def log(msg: String) = println(s"${Thread.currentThread.getName}: $msg")
+}
+
+
+trait IsolateSpec extends FlatSpec with ShouldMatchers with Logging {
 
   implicit val scheduler: Scheduler
-
-  def log(msg: String) = println(s"${Thread.currentThread.getName}: $msg")
 
   "A synced isolate" should "react to an event" in {
     val sv = new SyncVar[String]
 
-    class Iso(src: Reactive[String]) extends Isolate[String] {
-      react <<= src.onEvent { v =>
+    class OneIso extends Isolate[String] {
+      react <<= source.onEvent { v =>
         log(s"got event '$v'")
         sv.put(v)
       }
     }
 
     val emitter = new Reactive.Emitter[String]
-    val i = scheduler.schedule(Reactive.single(emitter))(new Iso(_))
+    val c = scheduler.schedule(new OneIso).attach(emitter).seal()
     emitter += "test event"
     emitter.close()
 
@@ -38,8 +41,8 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
     val many = 50
     val sv = new SyncVar[List[Int]]
 
-    class Iso(src: Reactive[Int]) extends Isolate[Int] {
-      val history = src.scanPast(List[Int]()) {
+    class ManyIso extends Isolate[Int] {
+      val history = source.scanPast(List[Int]()) {
         (acc, x) => x :: acc
       }
       react <<= history.onEvent {
@@ -48,7 +51,7 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
     }
 
     val emitter = new Reactive.Emitter[Int]
-    val i = scheduler.schedule(Reactive.single(emitter))(new Iso(_))
+    val c = scheduler.schedule(new ManyIso).attach(emitter).seal()
     for (i <- 0 until 50) emitter += i
     emitter.close()
 
@@ -60,43 +63,17 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
     val sv = new SyncVar[Boolean]
 
     val emitter = new Reactive.Emitter[Int]
-    object Container {
-      class Iso(src: Reactive[Int]) extends Isolate[Int] {
-        react <<= src.onEvent { _ =>
-          log(s"${Isolate.self} vs $i}")
-          sv.put(Isolate.self == i)
-        }
-      }
 
-      val i: Isolate[Int] = scheduler.schedule(Reactive.single(emitter))(new Iso(_))
+    class SelfIso extends Isolate[Int] {
+      react <<= source.onEvent { _ =>
+        log(s"${Isolate.self} vs ${this}}")
+        sv.put(Isolate.self == this)
+      }
     }
-    Container
+
+    val c = scheduler.schedule(new SelfIso).attach(emitter).seal()
 
     emitter += 7
-    emitter.close()
-
-    sv.get should equal (true)
-  }
-
-  it should "get an empty queue system event" in {
-    val sv = new SyncVar[Boolean]
-
-    val emitter = new Reactive.Emitter[Int]
-
-    class Iso(src: Reactive[Int]) extends Isolate[Int] {
-      react <<= sysEvents onCase {
-        case Isolate.EmptyEventQueue =>
-          log("empty event queue!")
-          sv.put(true)
-      }
-      react <<= src onEvent {
-        case e => log(s"got event '$e'")
-      }
-    }
-
-    val i = scheduler.schedule(Reactive.single(emitter))(new Iso(_))
-
-    emitter += 11
     emitter.close()
 
     sv.get should equal (true)
@@ -105,22 +82,27 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
 }
 
 
-trait LooperIsolateSpec extends FlatSpec with ShouldMatchers {
+trait LooperIsolateSpec extends FlatSpec with ShouldMatchers with Logging {
   implicit val scheduler: Scheduler
 
   "A LooperIsolate" should "do 3 loops" in {
     val sv = new SyncVar[Int]
 
-    Isolate.looper(1) { src =>
-      Isolate.self.react <<= src.scanPast(0)(_ + _) onEvent { case e =>
+    println("looper -----------")
+
+    class TestLooper extends Isolate.Looper[Int] {
+      val fallback = ReactCell(Option(1))
+
+      react <<= source.scanPast(0)(_ + _) onEvent { e =>
+        log(s"scanned to $e")
         if (e >= 3) {
           sv.put(e)
-          Isolate.self match {
-            case i: Isolate.Looper[_] => i.stop()
-          }
+          fallback := None
         }
       }
     }
+
+    scheduler.schedule(new TestLooper)
 
     sv.get should equal (3)
   }
