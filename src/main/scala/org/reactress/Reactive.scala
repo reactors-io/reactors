@@ -238,7 +238,7 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    *        eventListWidget.add(b.last)
    *      }
    *
-   *  **Note:** no two events will ever be concurrently processed by different threads on the same reactive mutable,
+   *  @note no two events will ever be concurrently processed by different threads on the same reactive mutable,
    *  but an event that is propagated from within the `mutation` can trigger an event on `this`.
    *  The result is that `mutation` is invoked concurrently on the same thread.
    *  The following code is problematic has a feedback loop in the dataflow graph:
@@ -452,7 +452,7 @@ object Reactive {
      *  To do this, this operation potentially caches all the events from `that`.
      *  When `that` unreacts, the resulting reactive value unreacts.
      *
-     *  **Note:** this reactive value potentially caches events from `that`.
+     *  @note this operation potentially caches events from `that`.
      *  Unless certain that `this` eventually unreacts, `concat` should not be used.
      *  To enforce this, clients must import the `CanBeBuffered` evidence explicitly
      *  into the scope in which they call `concat`.
@@ -461,7 +461,7 @@ object Reactive {
      *
      *  @param that      another reactive value for the concatenation
      *  @param a         evidence that arrays can be created for the type `T`
-     *  @param b         evidence that the client allows events from `that` to be cached
+     *  @param b         evidence that the client allows events from `that` to be buffered
      *  @return          a subscription and a reactive value that concatenates events from `this` and `that`
      */
     def concat(that: Reactive[T])(implicit a: Arrayable[T], b: CanBeBuffered): Reactive[T] with Reactive.Subscription = {
@@ -472,6 +472,46 @@ object Reactive {
       rc
     }
   
+    /** Syncs the arrival of events from `this` and `that` reactive value.
+     *  
+     *  Ensures that pairs of events from this reactive value and that reactive value
+     *  are emitted together.
+     *  If the events produced in time by `this` and `that`, the sync will be as follows:
+     *
+     *      time   --------------------------->
+     *      this       1         2       4
+     *      that     1     2  3             
+     *      sync       1,1       2,2     4,3
+     *
+     *  Pairs of events produced from `this` and `that` are then transformed using
+     *  specified function `f`.
+     *  For example, clients that want to output tuples do:
+     *
+     *      val synced = (a sync b) { (a, b) => (a, b) }
+     *
+     *  Clients that, for example, want to create differences in pairs of events do:
+     *
+     *      val diffs = (a sync b)(_ - _)
+     *
+     *  The resulting reactive terminates when either `this` or `that` terminates.
+     *
+     *  @note this operation potentially caches events from `this` and `that`.
+     *  Unless certain that both `this` produces a bounded number of events
+     *  before the `that` produces an event, and vice versa, this operation should not be called.
+     *  To enforce this, clients must import the `CanBeBuffered` evidence explicitly
+     *  into the scope in which they call `sync`.
+     *
+     *  @usecase def sync[S, R](that: Reactive[S])(f: (T, S) => R): Reactive[R]
+     *
+     *  @tparam S         the type of the events in `that` reactive
+     *  @tparam R         the type of the events in the resulting reactive
+     *  @param that       the reactive to sync with
+     *  @param f          the mapping function for the pair of events
+     *  @param at         evidence that arrays can be created for the type `T`
+     *  @param as         evidence that arrays can be created for the type `S`
+     *  @param b          evidence that the client allows events to be buffered
+     *  @return           a subscription and the reactive with the resulting events
+     */
     def sync[@spec(Int, Long, Double) S, @spec(Int, Long, Double) R](that: Reactive[S])(f: (T, S) => R)
       (implicit at: Arrayable[T], as: Arrayable[S], b: CanBeBuffered): Reactive[R] with Reactive.Subscription = {
       val rs = new Reactive.Sync(self, that, f, at, as)
@@ -483,18 +523,62 @@ object Reactive {
 
     /* higher-order combinators */
 
-    def union[@spec(Int, Long, Double) S]()(implicit evidence: T <:< Reactive[S]): Reactive[S] = {
+    /** Unifies the events produced by all the reactives emitted by `this`.
+     *
+     *  This operation is only available for reactive values that emit
+     *  other reactives as events.
+     *  The resulting reactive unifies events of all the reactives emitted by `this`.
+     *  Once `this` and all the reactives emitted by `this` unreact, the resulting reactive terminates.
+     *
+     *  Example:
+     *  
+     *      time  -------------------------->
+     *      this     --1----2--------3------>
+     *                   ---------5----6---->
+     *                     ---4----------7-->
+     *      union      1    2 4   5  3 6 7
+     *  
+     *  @usecase def union[S](): Reactive[S]
+     *
+     *  @tparam S         the type of the events in reactives emitted by `this`
+     *  @param evidence   evidence that events of type `T` produced by `this` are
+     *                    actually reactive values of type `S`
+     *  @return           a subscription and the reactive with the union of all the events
+     *  
+     */
+    def union[@spec(Int, Long, Double) S]()(implicit evidence: T <:< Reactive[S]): Reactive[S] with Reactive.Subscription = {
       new Reactive.PostfixUnion[T, S](self, evidence)
     }
 
-    def concat[@spec(Int, Long, Double) S]()(implicit evidence: T <:< Reactive[S], a: Arrayable[S], b: CanBeBuffered): Reactive[S] = {
+    /** Concatenates the events produced by all the reactives emitted by `this`.
+     *
+     *  This operation is only available for reactive values that emit
+     *  other reactives as events.
+     *  Once `this` and all the reactives unreact, this reactive unreacts.
+     *
+     *  @note this operation potentially buffers events from the nested reactives.
+     *  Unless each reactive emitted by `this` is known to unreact eventually,
+     *  this operation should not be called.
+     *  To enforce this, clients are required to import the `CanBeBuffered` evidence
+     *  explicitly into the scope in which they call `concat`.
+     *  
+     *  @usecase def concat[S](): Reactive[S]
+     *
+     *  @tparam S         the type of the events in reactives emitted by `this`
+     *  @param evidence   evidence that events of type `T` produced by `this` are
+     *                    actually reactive values of type `S`
+     *  @param a          evidence that arrays can be created for type `S`
+     *  @param b          evidence that buffering events is allowed
+     *  @return           a subscription and the reactive that concatenates all the events
+     */
+    def concat[@spec(Int, Long, Double) S]()(implicit evidence: T <:< Reactive[S], a: Arrayable[S], b: CanBeBuffered): Reactive[S] with Reactive.Subscription = {
       val pc = new Reactive.PostfixConcat[T, S](self, evidence)
       pc.subscription = self onReaction pc
       pc
     }
   }
 
-  class Foreach[@spec(Int, Long, Double) T]
+  private[reactress] class Foreach[@spec(Int, Long, Double) T]
     (val self: Reactive[T], val f: T => Unit)
   extends Reactive.Default[Unit] with Reactor[T] with Reactive.ProxySubscription {
     def react(value: T) {
@@ -507,7 +591,7 @@ object Reactive {
     var subscription = Subscription.empty
   }
 
-  class ScanPast[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
+  private[reactress] class ScanPast[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
     (val self: Reactive[T], val z: S, val op: (S, T) => S)
   extends Signal.Default[S] with Reactor[T] with Reactive.ProxySubscription {
     private var cached: S = _
@@ -526,7 +610,7 @@ object Reactive {
     var subscription = Subscription.empty
   }
 
-  class Mutate[@spec(Int, Long, Double) T, M <: ReactMutable]
+  private[reactress] class Mutate[@spec(Int, Long, Double) T, M <: ReactMutable]
     (val self: Reactive[T], val mutable: M, val mutation: T => Unit)
   extends Reactor[T] with Reactive.ProxySubscription {
     def react(value: T) = {
@@ -537,7 +621,7 @@ object Reactive {
     var subscription = Subscription.empty
   }
 
-  class MutateMany[@spec(Int, Long, Double) T, M <: ReactMutable]
+  private[reactress] class MutateMany[@spec(Int, Long, Double) T, M <: ReactMutable]
     (val self: Reactive[T], val mutables: Seq[M], val mutation: T => Unit)
   extends Reactor[T] with Reactive.ProxySubscription {
     def react(value: T) = {
@@ -548,7 +632,7 @@ object Reactive {
     var subscription = Subscription.empty
   }
 
-  class After[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
+  private[reactress] class After[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
     (val self: Reactive[T], val that: Reactive[S])
   extends Reactive.Default[T] with Reactive.ProxySubscription {
     var started = false
@@ -574,7 +658,7 @@ object Reactive {
     var subscription = Subscription.empty
   }
 
-  class Until[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
+  private[reactress] class Until[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
     (val self: Reactive[T], val that: Reactive[S])
   extends Reactive.Default[T] with Reactive.ProxySubscription {
     var live = true
@@ -595,7 +679,7 @@ object Reactive {
     var subscription = Subscription.empty
   }
 
-  class Union[@spec(Int, Long, Double) T](val self: Reactive[T], val that: Reactive[T])
+  private[reactress] class Union[@spec(Int, Long, Double) T](val self: Reactive[T], val that: Reactive[T])
   extends Reactive.Default[T] with Reactive.ProxySubscription {
     var live = 2
     def unreactBoth() = {
@@ -615,7 +699,7 @@ object Reactive {
     var subscription = Subscription.empty
   }
 
-  class Concat[@spec(Int, Long, Double) T](val self: Reactive[T], val that: Reactive[T], val a: Arrayable[T])
+  private[reactress] class Concat[@spec(Int, Long, Double) T](val self: Reactive[T], val that: Reactive[T], val a: Arrayable[T])
   extends Reactive.Default[T] with Reactive.ProxySubscription {
     var selfLive = true
     var thatLive = true
@@ -652,7 +736,7 @@ object Reactive {
     var subscription = Subscription.empty
   }
 
-  class Sync[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S, @spec(Int, Long, Double) R]
+  private[reactress] class Sync[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S, @spec(Int, Long, Double) R]
     (val self: Reactive[T], val that: Reactive[S], val f: (T, S) => R, val at: Arrayable[T], val as: Arrayable[S])
   extends Reactive.Default[R] with Reactive.ProxySubscription {
     val tbuffer = new UnrolledBuffer[T]()(at)
@@ -687,7 +771,7 @@ object Reactive {
     var subscription = Subscription.empty
   }
 
-  class Filter[@spec(Int, Long, Double) T](val self: Reactive[T], val p: T => Boolean)
+  private[reactress] class Filter[@spec(Int, Long, Double) T](val self: Reactive[T], val p: T => Boolean)
   extends Reactive.Default[T] with Reactor[T] with Reactive.ProxySubscription {
     def react(value: T) {
       if (p(value)) reactAll(value)
@@ -698,7 +782,7 @@ object Reactive {
     var subscription = Subscription.empty
   }
 
-  class Map[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](val self: Reactive[T], val f: T => S)
+  private[reactress] class Map[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](val self: Reactive[T], val f: T => S)
   extends Reactive.Default[S] with Reactor[T] with Reactive.ProxySubscription {
     def react(value: T) {
       reactAll(f(value))
@@ -709,7 +793,7 @@ object Reactive {
     var subscription = Subscription.empty
   }
 
-  class Mux[T, @spec(Int, Long, Double) S]
+  private[reactress] class Mux[T, @spec(Int, Long, Double) S]
     (val self: Reactive[T], val evidence: T <:< Reactive[S])
   extends Reactive.Default[S] with Reactor[T] with Reactive.ProxySubscription {
     muxed =>
@@ -745,7 +829,7 @@ object Reactive {
     init(evidence)
   }
 
-  class PostfixUnion[T, @spec(Int, Long, Double) S]
+  private[reactress] class PostfixUnion[T, @spec(Int, Long, Double) S]
     (val self: Reactive[T], val evidence: T <:< Reactive[S])
   extends Reactive.Default[S] with Reactor[T] with Reactive.ProxySubscription {
     union =>
@@ -778,11 +862,11 @@ object Reactive {
     val subscription = self onReaction this
   }
 
-  final class ConcatEntry[S](var subscription: Subscription, var buffer: UnrolledBuffer[S], var live: Boolean) {
+  private[reactress] final class ConcatEntry[S](var subscription: Subscription, var buffer: UnrolledBuffer[S], var live: Boolean) {
     def ready = buffer == null
   }
 
-  class PostfixConcat[T, @spec(Int, Long, Double) S]
+  private[reactress] class PostfixConcat[T, @spec(Int, Long, Double) S]
     (val self: Reactive[T], val evidence: T <:< Reactive[S])(implicit val arrayable: Arrayable[S])
   extends Reactive.Default[S] with Reactor[T] with Reactive.ProxySubscription {
     union =>

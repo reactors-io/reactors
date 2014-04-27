@@ -47,13 +47,12 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     val e = new Reactive.Emitter[Int]
     val buffer = mutable.Buffer[Int]()
     val s = e.foreach(buffer += _)
-    val s1: Reactive[Unit] = for (x <- e) buffer += x
 
     e += 1
     e += 2
     e += 3
 
-    assert(buffer == Seq(1, 2, 3))
+    buffer should equal (Seq(1, 2, 3))
   }
 
   it should "be scanned past" in {
