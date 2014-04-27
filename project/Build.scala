@@ -37,6 +37,9 @@ object ReactressBuild extends Build {
     ),
     testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
     parallelExecution in Test := false,
+    scalacOptions in (Compile, doc) ++= Seq(
+      "-implicits"
+    ),
     resolvers ++= Seq(
       "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots",
       "Sonatype OSS Releases" at "https://oss.sonatype.org/content/repositories/releases"

@@ -10,20 +10,22 @@ import util._
 
 /** A basic reactive value.
  *
- *  Reactive values, or simply, _reactives_ are special objects that may produce events
+ *  Reactive values, or simply, ''reactives'' are special objects that may produce events
  *  of a certain type `T`.
  *  Clients may subscribe side-effecting functions (i.e. callbacks)
  *  to these events with `onReaction`, `onEvent`, `onCase` and `on` --
  *  each of these methods will invoke the callback when an event
  *  is produced, but some may be more suitable depending on the use-case.
  *
- *  A reactive produces events until it _unreacts_.
+ *  A reactive produces events until it ''unreacts''.
  *  After the reactive value unreacts, it never produces an event again.
  *  
  *  Reactive values can also be manipulated using declarative combinators
  *  such as `map`, `filter`, `until`, `after` and `scanPast`:
  *
- *      def positiveSquares(r: Reactive[Int]) = r.map(x => x * x).filter(_ != 0)
+ *  {{{
+ *  def positiveSquares(r: Reactive[Int]) = r.map(x => x * x).filter(_ != 0)
+ *  }}}
  *
  *  The result of using a declarative combinator on `Reactive[T]` is another
  *  `Reactive[S]`, possibly with a different type parameter.
@@ -36,24 +38,28 @@ import util._
  *  It is forbidden to share reactive values between isolates --
  *  instead, an isolate should be attached to a specific channel.
  *
- *  Every reactive value is either _active_ or _passive_.
+ *  Every reactive value is either ''active'' or ''passive''.
  *  Active reactive values produce events irregardless if there are any subscribers
  *  to these events.
  *  Examples are mouse movement, file changes or operating system events.
  *  Here is an active reactive:
  *
- *      val emitter = new Reactive.Emitter[Int]
- *      emitter += 1 // events are produced regardless
- *                   // of subscribers like evens below
- *      val evens = emitter.filter(_ % 2 == 0)
+ *  {{{
+ *  val emitter = new Reactive.Emitter[Int]
+ *  emitter += 1 // events are produced regardless
+ *               // of subscribers like evens below
+ *  val evens = emitter.filter(_ % 2 == 0)
+ *  }}}
  *
  *  Passive reactive values produce events depending on whether there are any
  *  subscribers -- typically, each subscriber gets a sequence of events
  *  upon subscription.
  *
- *      val items = Reactive.items(Array(1, 2, 3))
- *      items.onEvent(println) // array elements are emitted on-demand
- *      items.onEvent(println) // twice -- once for each `onEvent` call
+ *  {{{
+ *  val items = Reactive.items(Array(1, 2, 3))
+ *  items.onEvent(println) // array elements are emitted on-demand
+ *  items.onEvent(println) // twice -- once for each `onEvent` call
+ *  }}}
  *
  *  @author        Aleksandar Prokopec
  *
@@ -76,11 +82,11 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    *  and once when the reactive is terminated.
    *
    *  Reactives can create events specifically for this reactor,
-   *  in which case they are called _passive_.
+   *  in which case they are called ''passive''.
    *  A passive reactive can create events both synchronously and asynchronously,
    *  but it will only do so on its own isolate.
    *
-   *  An _active_ reactive value will produce events irregardless of the reactors subscribed to it.
+   *  An ''active'' reactive value will produce events irregardless of the reactors subscribed to it.
    *  Subscribing to an active reactive value only forwards those events that have
    *  been produced after the subscription started.
    *
@@ -106,12 +112,18 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    *
    *  Example: 
    *
-   *      r onCase {
-   *        case s: String => println(s)
-   *        case n: Int    => println("number " + s)
-   *      }
+   *  {{{
+   *  r onCase {
+   *    case s: String => println(s)
+   *    case n: Int    => println("number " + s)
+   *  }
+   *  }}}
    *
-   *  @usecase def onCase(reactor: PartialFunction[T, Unit]): Reactive.Subscription
+   *  '''Use case''':
+   *
+   *  {{{
+   *  def onCase(reactor: PartialFunction[T, Unit]): Reactive.Subscription
+   *  }}}
    *  
    *  @param reactor     the callback for those events for which it is defined
    *  @return            a subscription for unsubscribing from reactions
@@ -134,16 +146,10 @@ trait Reactive[@spec(Int, Long, Double) +T] {
     def unreact() {}
   })
 
-  /** Executes the specified function every time an event arrives.
+  /** Executes the specified block when `this` reactive unreacts.
    *
-   *  Semantically equivalent to `onEvent`,
-   *  but supports `for`-loop syntax with reactive values.
-   *
-   *      for (event <- r) println("Event arrived: " + event)
-   *
-   *  @param f           the callback invoked when an event arrives
-   *  @return            a subscription that is also a reactive value
-   *                     producing `Unit` events after each callback invocation
+   *  @param f           the callback invoked when `this` unreacts
+   *  @return            a subscription for the unreaction notification
    */
   def onUnreact(reactor: =>Unit): Reactive.Subscription = onReaction(new Reactor[T] {
     def react(value: T) {}
@@ -155,7 +161,9 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    *  Semantically equivalent to `onEvent`,
    *  but supports `for`-loop syntax with reactive values.
    *
-   *      for (event <- r) println("Event arrived: " + event)
+   *  {{{
+   *  for (event <- r) println("Event arrived: " + event)
+   *  }}}
    *
    *  @param f           the callback invoked when an event arrives
    *  @return            a subscription that is also a reactive value
@@ -177,20 +185,24 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    *  Example -- assume that a reactive value `r` produces events `1`, `2` and `3`.
    *  The following `s`:
    *
-   *      val s = r.scanPast(0)((sum, n) => sum + n)
+   *  {{{
+   *  val s = r.scanPast(0)((sum, n) => sum + n)
+   *  }}}
    *
    *  will produce events `1`, `3` (`1 + 2`) and `6` (`3 + 3`).
-   *  **Note:** the initial value `0` is *not emitted*.
+   *  '''Note:''' the initial value `0` is '''not emitted'''.
    *  
    *  The `scanPast` can also be used to produce a reactive value of a different type:
    *  The following produces a complete history of all the events seen so far:
    *
-   *      val s2 = r.scanPast(List[Int]()) {
-   *        (history, n) => n :: history
-   *      }
+   *  {{{
+   *  val s2 = r.scanPast(List[Int]()) {
+   *    (history, n) => n :: history
+   *  }
+   *  }}}
    *  
    *  The `s2` will produce events `1 :: Nil`, `2 :: 1 :: Nil` and `3 :: 2 :: 1 :: Nil`.
-   *  **Note:** the initial value `Nil` is *not emitted*.
+   *  '''Note:''' the initial value `Nil` is '''not emitted'''.
    *
    *  The resulting reactive value is not only a reactive value, but also a `Signal`,
    *  so the value of the previous event can be obtained by calling `apply` at any time.
@@ -225,33 +237,39 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    *  which is a wrapper for regular mutable objects.
    *  Here is an example, given a reactive of type `r`:
    *
-   *      val eventLog = Signal.Mutable(mutable.Buffer[String]())
-   *      r.mutate(eventLog) { event =>
-   *        eventLog() += s"${System.nanoTime}: $event\n"
-   *      } // <-- eventLog event propagated
+   *  {{{
+   *  val eventLog = Signal.Mutable(mutable.Buffer[String]())
+   *  val eventLogMutations = r.mutate(eventLog) { event =>
+   *    eventLog() += "at " + System.nanoTime + ": " + event
+   *  } // <-- eventLog event propagated
+   *  }}}
    *
    *  Whenever an event arrives on `r`, an entry is added to the buffer underlying `eventLog`.
    *  After the `mutation` completes, a modification event is produced by the `eventLog`
    *  and can be used subsequently:
    *
-   *      val uiUpdates = eventLog onEvent { b =>
-   *        eventListWidget.add(b.last)
-   *      }
+   *  {{{
+   *  val uiUpdates = eventLog onEvent { b =>
+   *    eventListWidget.add(b.last)
+   *  }
+   *  }}}
    *
    *  @note no two events will ever be concurrently processed by different threads on the same reactive mutable,
    *  but an event that is propagated from within the `mutation` can trigger an event on `this`.
    *  The result is that `mutation` is invoked concurrently on the same thread.
    *  The following code is problematic has a feedback loop in the dataflow graph:
    *  
-   *     val emitter = new Reactive.Emitter[Int]
-   *     val cell = ReactCell(0) // type of ReactMutable
-   *     emitter.mutate(cell) { n =>
-   *       cell := n
-   *       if (n == 0)
-   *         emitter += n + 1 // <-- event propagated
-   *       assert(cell() == n)
-   *     }
-   *     emitter += 0
+   *  {{{
+   *  val emitter = new Reactive.Emitter[Int]
+   *  val cell = ReactCell(0) // type of ReactMutable
+   *  emitter.mutate(cell) { n =>
+   *    cell := n
+   *    if (n == 0)
+   *      emitter += n + 1 // <-- event propagated
+   *    assert(cell() == n)
+   *  }
+   *  emitter += 0
+   *  }}}
    *  
    *  The statement `emitter += n + 1` in the `mutate` block
    *  suspends the current mutation, calls the mutation
@@ -260,7 +278,11 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    *
    *  Care must be taken to avoid `mutation` from emitting events that have feedback loops.
    *
-   *  @usecase def mutate(mutable: ReactMutable)(mutation: T => Unit): Reactive.Subscription
+   *  '''Use case:'''
+   *
+   *  {{{
+   *  def mutate(mutable: ReactMutable)(mutation: T => Unit): Reactive.Subscription
+   *  }}}
    *
    *  @tparam M         the type of the reactive mutable value
    *  @param mutable    the target mutable to be mutated with events from this stream
@@ -373,9 +395,15 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    *
    *  Example:
    *
-   *      val emitter = new Reactive.Emitter
+   *  {{{
+   *  val emitter = new Reactive.Emitter
+   *  }}}
    *
-   *  @usecase def mux[S](): Reactive[S]
+   *  '''Use case:'''
+   *
+   *  {{{
+   *  def mux[S](): Reactive[S]
+   *  }}}
    *
    *  @tparam S          the type of the events in the nested reactive
    *  @param evidence    an implicit evidence that `this` reactive is nested --
@@ -457,7 +485,11 @@ object Reactive {
      *  To enforce this, clients must import the `CanBeBuffered` evidence explicitly
      *  into the scope in which they call `concat`.
      *  
-     *  @usecase def concat(that: Reactive[T]): Reactive[T]
+     *  '''Use case:'''
+     *
+     *  {{{
+     *  def concat(that: Reactive[T]): Reactive[T]
+     *  }}}
      *
      *  @param that      another reactive value for the concatenation
      *  @param a         evidence that arrays can be created for the type `T`
@@ -478,20 +510,26 @@ object Reactive {
      *  are emitted together.
      *  If the events produced in time by `this` and `that`, the sync will be as follows:
      *
-     *      time   --------------------------->
-     *      this       1         2       4
-     *      that     1     2  3             
-     *      sync       1,1       2,2     4,3
+     *  {{{
+     *  time   --------------------------->
+     *  this       1         2       4
+     *  that     1     2  3             
+     *  sync       1,1       2,2     4,3
+     *  }}}
      *
      *  Pairs of events produced from `this` and `that` are then transformed using
      *  specified function `f`.
      *  For example, clients that want to output tuples do:
      *
-     *      val synced = (a sync b) { (a, b) => (a, b) }
+     *  {{{
+     *  val synced = (a sync b) { (a, b) => (a, b) }
+     *  }}}
      *
      *  Clients that, for example, want to create differences in pairs of events do:
      *
-     *      val diffs = (a sync b)(_ - _)
+     *  {{{
+     *  val diffs = (a sync b)(_ - _)
+     *  }}}
      *
      *  The resulting reactive terminates when either `this` or `that` terminates.
      *
@@ -501,7 +539,11 @@ object Reactive {
      *  To enforce this, clients must import the `CanBeBuffered` evidence explicitly
      *  into the scope in which they call `sync`.
      *
-     *  @usecase def sync[S, R](that: Reactive[S])(f: (T, S) => R): Reactive[R]
+     *  '''Use case:'''
+     *
+     *  {{{
+     *  def sync[S, R](that: Reactive[S])(f: (T, S) => R): Reactive[R]
+     *  }}}
      *
      *  @tparam S         the type of the events in `that` reactive
      *  @tparam R         the type of the events in the resulting reactive
@@ -532,13 +574,19 @@ object Reactive {
      *
      *  Example:
      *  
-     *      time  -------------------------->
-     *      this     --1----2--------3------>
-     *                   ---------5----6---->
-     *                     ---4----------7-->
-     *      union      1    2 4   5  3 6 7
+     *  {{{
+     *  time  -------------------------->
+     *  this     --1----2--------3------>
+     *               ---------5----6---->
+     *                 ---4----------7-->
+     *  union      1    2 4   5  3 6 7
+     *  }}}
      *  
-     *  @usecase def union[S](): Reactive[S]
+     *  '''Use case:'''
+     *
+     *  {{{
+     *  def union[S](): Reactive[S]
+     *  }}}
      *
      *  @tparam S         the type of the events in reactives emitted by `this`
      *  @param evidence   evidence that events of type `T` produced by `this` are
@@ -562,7 +610,11 @@ object Reactive {
      *  To enforce this, clients are required to import the `CanBeBuffered` evidence
      *  explicitly into the scope in which they call `concat`.
      *  
-     *  @usecase def concat[S](): Reactive[S]
+     *  '''Use case:'''
+     *
+     *  {{{
+     *  def concat[S](): Reactive[S]
+     *  }}}
      *
      *  @tparam S         the type of the events in reactives emitted by `this`
      *  @param evidence   evidence that events of type `T` produced by `this` are
@@ -1200,11 +1252,13 @@ object Reactive {
    *  after this no more events will be accepted through `+=`.
    *
    *  Example:
-   *
-   *      val emitter = new Reactive.Emitter[Int]
-   *      val prints = emitter.onEvent(println)
-   *      emitter += 1
-   *      emitter += 2
+   *  
+   *  {{{
+   *  val emitter = new Reactive.Emitter[Int]
+   *  val prints = emitter.onEvent(println)
+   *  emitter += 1
+   *  emitter += 2
+   *  }}}
    *
    *  @tparam       the type of events that this emitter can emit
    */
@@ -1251,23 +1305,27 @@ object Reactive {
    *
    *  Example:
    *
-   *      val r = passive[Int] { reactor =>
-   *        reactor.react(1)
-   *        reactor.react(2)
-   *        reactor.unreact()
-   *      }
+   *  {{{
+   *  val r = passive[Int] { reactor =>
+   *    reactor.react(1)
+   *    reactor.react(2)
+   *    reactor.unreact()
+   *  }
+   *  }}}
    *
    *  Never use `passive` to install adapt a callback in a 3rd party API.
    *  For example, *never* do this:
    *
-   *      val r = passive[String] { reactor =>
-   *        Future { "... " * 5 + "done!" } onSuccess {
-   *          case e => reactor.react(e); reactor.unreact()
-   *        }
-   *      }
-   *      val m = Signal.Mutable(mutable.ArrayBuffer[String]())
-   *      val s1 = r.onEvent(e => m += e)
-   *      val s2 = r.onEvent(e => m += e)
+   *  {{{
+   *  val r = passive[String] { reactor =>
+   *    Future { "... " * 5 + "done!" } onSuccess {
+   *      case e => reactor.react(e); reactor.unreact()
+   *    }
+   *  }
+   *  val m = Signal.Mutable(mutable.ArrayBuffer[String]())
+   *  val s1 = r.onEvent(e => m += e)
+   *  val s2 = r.onEvent(e => m += e)
+   *  }}}
    *
    *  Above, subscriptions `s1` and `s2` could execute concurrenctly and corrupt the buffer.
    *
