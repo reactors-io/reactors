@@ -16,3 +16,6 @@ tmp
 # misc
 *.dmp
 
+# deployed docs
+apidocs/
+
