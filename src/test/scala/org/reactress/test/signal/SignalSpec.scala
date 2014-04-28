@@ -40,7 +40,7 @@ class SignalSpec extends FlatSpec with ShouldMatchers {
     val sum = cell.scanPastNow { (s, x) =>
       s + x
     }
-    val a = sum.past2 onEvent { case t =>
+    val a = sum.past2(cell()) onEvent { case t =>
       assert(t._2 - t._1 == cell())
     }
 

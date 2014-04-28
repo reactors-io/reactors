@@ -22,22 +22,6 @@ extends Reactive[T] {
    */
   def apply(): T
 
-  /** Creates a new signal that emits tuples of the current
-   *  and the last event emitted by `this` signal.
-   *
-   *  {{{
-   *  time  ---------------------->
-   *  this  1----2------3----4---->
-   *  past2 i,1--1,2----2,3--3,4-->
-   *  }}}
-   *
-   *  @param init     the initial previous value, `i` in the diagram above
-   *  @return         a subscription and a signal of tuples of the current and last event
-   */
-  def past2(init: T) = scanPast((init, this())) {
-    (t, x) => (t._2, x)
-  }
-
   /** Maps the signal using the specified mapping function `f`.
    *
    *  @tparam S       type of the mapped signal
@@ -97,6 +81,22 @@ object Signal {
       val srp = new Signal.ScanPastNow(self, initial, op)
       srp.subscription = self onReaction srp
       srp
+    }
+
+    /** Creates a new signal that emits tuples of the current
+     *  and the last event emitted by `this` signal.
+     *
+     *  {{{
+     *  time  ---------------------->
+     *  this  1----2------3----4---->
+     *  past2 i,1--1,2----2,3--3,4-->
+     *  }}}
+     *
+     *  @param init     the initial previous value, `i` in the diagram above
+     *  @return         a subscription and a signal of tuples of the current and last event
+     */
+    def past2(init: T) = self.scanPast((init, self())) {
+      (t, x) => (t._2, x)
     }
   }
 
