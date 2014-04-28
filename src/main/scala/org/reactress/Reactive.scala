@@ -31,8 +31,12 @@ import util._
  *  operators passed to these declarative combinators should be pure --
  *  they should not have any side-effects.
  *
- *  The result of using a declarative combinator on `Reactive[T]` is another
+ *  The result of applying a declarative combinator on `Reactive[T]` is usually another
  *  `Reactive[S]`, possibly with a different type parameter.
+ *  Most declarative combinators return a `Subscription` object used to
+ *  `unsubscribe` from their event source.
+ *  This is not necessary in most situations,
+ *  but can be used to prune the dataflow graph.
  *
  *  Reactive values are specialized for `Int`, `Long` and `Double`.
  *
@@ -557,7 +561,9 @@ object Reactive {
      *  val diffs = (a sync b)(_ - _)
      *  }}}
      *
-     *  The resulting reactive terminates when either `this` or `that` terminates.
+     *  The resulting reactive unreacts either when
+     *  `this` unreacts and there are no more buffered events from this,
+     *  or when `that` unreacts and there are no more buffered events from `that`.
      *
      *  '''Use case:'''
      *
