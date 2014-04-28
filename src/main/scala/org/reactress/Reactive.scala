@@ -27,6 +27,10 @@ import util._
  *  def positiveSquares(r: Reactive[Int]) = r.map(x => x * x).filter(_ != 0)
  *  }}}
  *
+ *  With the exception of `onX` family of methods,
+ *  operators passed to these declarative combinators should be pure --
+ *  they should not have any side-effects.
+ *
  *  The result of using a declarative combinator on `Reactive[T]` is another
  *  `Reactive[S]`, possibly with a different type parameter.
  *
@@ -411,6 +415,16 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    *  e1 += 7 // nothing is printed
    *  }}}
    *
+   *  Shown on the diagram:
+   *
+   *  {{{
+   *  time            ------------------->
+   *  currentReactive --e1------e2------->
+   *  e1              --------2----6----->
+   *  e2              -----1----------7-->
+   *  currentEvent    --------2----6----->
+   *  }}}
+   *
    *  '''Use case:'''
    *
    *  {{{
@@ -591,7 +605,7 @@ object Reactive {
      *  this     --1----2--------3------>
      *               ---------5----6---->
      *                 ---4----------7-->
-     *  union      1    2 4   5  3 6 7
+     *  union -----1----2-4---5--3-6-7-->
      *  }}}
      *  
      *  '''Use case:'''
