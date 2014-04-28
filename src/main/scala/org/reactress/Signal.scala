@@ -5,22 +5,56 @@ package org.reactress
 
 
 
+/** A special type of a reactive value that caches the last emitted event.
+ *
+ *  This last event is called the signal's ''value''.
+ *  It can be read using the `Signal`'s `apply` method.
+ *  
+ *  @tparam T        the type of the events in this signal
+ */
 trait Signal[@spec(Int, Long, Double) +T]
 extends Reactive[T] {
   self =>
 
+  /** Returns the last event produced by `this` signal.
+   *
+   *  @return         the signal's value
+   */
   def apply(): T
 
-  def past2 = scanPast((this(), this())) {
+  /** Creates a new signal that emits tuples of the current
+   *  and the last event emitted by `this` signal.
+   *
+   *  {{{
+   *  time  ---------------------->
+   *  this  1----2------3----4---->
+   *  past2 i,1--1,2----2,3--3,4-->
+   *  }}}
+   *
+   *  @param init     the initial previous value, `i` in the diagram above
+   *  @return         a subscription and a signal of tuples of the current and last event
+   */
+  def past2(init: T) = scanPast((init, this())) {
     (t, x) => (t._2, x)
   }
 
+  /** Maps the signal using the specified mapping function `f`.
+   *
+   *  @tparam S       type of the mapped signal
+   *  @param f        mapping function for the events in `this` signal
+   *  @return         a subscription and a signal with the mapped events
+   */
   override def map[@spec(Int, Long, Double) S](f: T => S): Signal[S] with Reactive.Subscription = {
     val sm = new Signal.Map(self, f)
     sm.subscription = self onReaction sm
     sm
   }
 
+  /** A renewed instance of this signal emitting the same events,
+   *  but having a different set of subscribers.
+   *
+   *  @return         a subscription and a new instance of `this` signal
+   */
   def renewed: Signal[T] with Reactive.Subscription = this.signal(apply())
 
   def changes: Signal[T] with Reactive.Subscription = {

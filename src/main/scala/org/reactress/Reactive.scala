@@ -512,9 +512,9 @@ object Reactive {
      *
      *  {{{
      *  time   --------------------------->
-     *  this       1         2       4
-     *  that     1     2  3             
-     *  sync       1,1       2,2     4,3
+     *  this   ----1---------2-------4---->
+     *  that   --1-----2--3--------------->
+     *  sync   ----1,1-------2,2-----4,3-->
      *  }}}
      *
      *  Pairs of events produced from `this` and `that` are then transformed using
