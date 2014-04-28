@@ -385,7 +385,8 @@ trait Reactive[@spec(Int, Long, Double) +T] {
 
   /* higher-order combinators */
 
-  /** Returns events from the last reactive value that `this` emitted as an event of its own.
+  /** Returns events from the last reactive value that `this` emitted as an event of its own,
+   *  in effect multiplexing the nested reactives.
    *
    *  The resulting reactive only emits events from the reactive value last emitted by `this`,
    *  the preceding reactive values are ignored.
@@ -396,7 +397,18 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    *  Example:
    *
    *  {{{
-   *  val emitter = new Reactive.Emitter
+   *  val currentReactive = new Reactive.Emitter[Reactive[Int]]
+   *  val e1 = new Reactive.Emitter[Int]
+   *  val e2 = new Reactive.Emitter[Int]
+   *  val currentEvent = currentReactive.mux()
+   *  val prints = currentEvent.onEvent(println) 
+   *  
+   *  currentReactive += e1
+   *  e2 += 1 // nothing is printed
+   *  e1 += 2 // 2 is printed
+   *  currentReactive += e2
+   *  e2 += 6 // 6 is printed
+   *  e1 += 7 // nothing is printed
    *  }}}
    *
    *  '''Use case:'''
