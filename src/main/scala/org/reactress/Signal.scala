@@ -123,8 +123,8 @@ extends Reactive[T] {
    *  @tparam S        the type of `that` signal
    *  @tparam R        the type of the resulting signal
    *  @param that      the signal to zip `this` with
-   *  @param f         
-   *
+   *  @param f         the function that maps a tuple of values into an outgoing event
+   *  @return          a subscription and the reactive that emits zipped events
    */
   def zip[@spec(Int, Long, Double) S, @spec(Int, Long, Double) R](that: Signal[S])(f: (T, S) => R): Signal[R] with Reactive.Subscription = {
     val sz = new Signal.Zip(self, that, f)
