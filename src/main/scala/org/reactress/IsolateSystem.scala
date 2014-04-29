@@ -20,6 +20,16 @@ abstract class IsolateSystem {
    */
   def name: String
 
+  /** Creates an isolate in this isolate system using the specified scheduler.
+   *
+   *  @tparam T         the type of the events for the isolate
+   *  @tparam I         the type of the isolate
+   *  @param proto      the prototype for the isolate
+   *  @param scheduler  the scheduler used to scheduler the isolate
+   *  @return           the channel for this isolate
+   */
+  def isolate[T, I <: Isolate[T]](proto: Proto[I])(s: Scheduler): Channel[T]
+
 }
 
 

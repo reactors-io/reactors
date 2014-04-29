@@ -265,6 +265,10 @@ package object reactress {
     }
   }
 
+  object error {
+    def illegalArg(msg: String) = throw new IllegalArgumentException(msg)
+  }
+
 }
 
 
