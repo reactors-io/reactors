@@ -1029,6 +1029,8 @@ object Reactive {
   // TODO Amb
 
   /** The proxy reactive that emits events of its underlying reactive.
+   *
+   *  @tparam T         type of the proxy signal
    */
   trait Proxy[@spec(Int, Long, Double) T]
   extends Reactive[T] {

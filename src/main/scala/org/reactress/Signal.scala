@@ -177,6 +177,15 @@ extends Reactive[T] {
 object Signal {
 
   implicit class SignalOps[@spec(Int, Long, Double) T](val self: Signal[T]) {
+    /** Scans the events in the past of `this` signal starting from the
+     *  current value of `this` signal.
+     *
+     *  {{{
+     *  time        -------------------->
+     *  this        1--2----4-----8----->
+     *  scanPastNow 1--3----7-----15---->
+     *  }}}
+     */
     def scanPastNow(op: (T, T) => T): Signal[T] with Reactive.Subscription = {
       val initial = self()
       val srp = new Signal.ScanPastNow(self, initial, op)
@@ -201,7 +210,7 @@ object Signal {
     }
   }
 
-  class Map[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
+  private[reactress] class Map[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
     (val self: Signal[T], val f: T => S)
   extends Signal.Default[S] with Reactor[T] with Reactive.ProxySubscription {
     private var cached = f(self.apply)
@@ -216,7 +225,7 @@ object Signal {
     var subscription = Reactive.Subscription.empty
   }
 
-  class ScanPastNow[@spec(Int, Long, Double) T]
+  private[reactress] class ScanPastNow[@spec(Int, Long, Double) T]
     (val self: Signal[T], initial: T, op: (T, T) => T)
   extends Signal.Default[T] with Reactor[T] with Reactive.ProxySubscription {
     private var cached = initial
@@ -231,7 +240,7 @@ object Signal {
     var subscription = Reactive.Subscription.empty
   }
 
-  class Changes[@spec(Int, Long, Double) T]
+  private[reactress] class Changes[@spec(Int, Long, Double) T]
     (val self: Signal[T], var cached: T)
   extends Signal.Default[T] with Reactor[T] with Reactive.ProxySubscription {
     def apply() = cached
@@ -247,7 +256,7 @@ object Signal {
     var subscription = Reactive.Subscription.empty
   }
 
-  class DiffPast[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
+  private[reactress] class DiffPast[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
     (val self: Signal[T], var last: T, var cached: S, val op: (T, T) => S)
   extends Signal.Default[S] with Reactor[T] with Reactive.ProxySubscription {
     def apply() = cached
@@ -262,7 +271,7 @@ object Signal {
     var subscription = Reactive.Subscription.empty
   }
 
-  class Zip[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S, @spec(Int, Long, Double) R]
+  private[reactress] class Zip[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S, @spec(Int, Long, Double) R]
     (val self: Signal[T], val that: Signal[S], val f: (T, S) => R)
   extends Signal.Default[R] with Reactive.ProxySubscription {
     zipped =>
@@ -290,15 +299,32 @@ object Signal {
     var subscription = Reactive.Subscription.empty
   }
 
+  /** The default implementation of the signal.
+   *
+   *  Keeps a list of weak references to dependent signals.
+   *
+   *  @tparam T         the type of this signal
+   */
   trait Default[@spec(Int, Long, Double) T] extends Signal[T] with Reactive.Default[T]
 
-  class Constant[@spec(Int, Long, Double) T](private val value: T)
+  private[reactress] class Constant[@spec(Int, Long, Double) T](private val value: T)
   extends Signal[T] with Reactive.Never[T] {
     def apply() = value
   }
 
+  /** A signal that never changes its value.
+   *
+   *  @tparam T         the type of this signal
+   *  @param value      the constant value of this signal
+   *  @return           the resulting constant signal
+   */
   def Constant[@spec(Int, Long, Double) T](value: T) = new Constant(value)
 
+  /** A proxy that emits events from the underlying signal
+   *  and has the same value as the underlying signal.
+   *
+   *  @tparam T         the type of the proxy signal
+   */
   trait Proxy[@spec(Int, Long, Double) T]
   extends Signal[T] {
     def proxy: Signal[T]
@@ -307,12 +333,54 @@ object Signal {
     def onReaction(r: Reactor[T]) = proxy.onReaction(r)
   }
 
+  /** A signal that emits events that are mutable values.
+   *
+   *  An event with underlying mutable value `m` is emitted
+   *  whenever the mutable value was potentially mutated.
+   *  This type of a signal provides a controlled way of
+   *  manipulating mutable values.
+   *
+   *  '''Note:'''
+   *  The underlying mutable value `m` must '''never''' be
+   *  mutated directly by accessing the value of the signal
+   *  and changing the mutable value `m`.
+   *  Instead, the `mutate` operation on `Reactive`s should
+   *  be used to mutate `m`.
+   *
+   *  Example:
+   *
+   *  {{{
+   *  val systemMessages = new Reactive.Emitter[String]
+   *  val log = new Signal.Mutable(new mutable.ArrayBuffer[String])
+   *  val logMutations = systemMessages.mutate(log) { msg =>
+   *    log() += msg
+   *  }
+   *  systemMessages += "New message arrived!" // log() now contains the message
+   *  }}}
+   *
+   *  The `mutate` combinator ensures that the value is never mutated concurrently
+   *  by different threads.
+   *  In fact, as long as there are no feedback loops in the dataflow graph,
+   *  the same thread will never modify the mutable signal at the same time.
+   *  See the `mutate` method on `Reactive`s for more information.
+   *
+   *  @see [[org.reactress.Reactive]]
+   *  @tparam T          the type of the underlying mutable object
+   *  @param m           the mutable object
+   */
   final class Mutable[T <: AnyRef](private val m: T)
   extends Signal.Default[T] with ReactMutable.Subscriptions {
     def apply() = m
     override def onMutated() = reactAll(m)
   }
 
+  /** Creates a mutable signal.
+   *
+   *  @see [[org.reactress.Signal.Mutable]]
+   *
+   *  @tparam T          the type of the underlying mutable object
+   *  @param v           the mutable object
+   */
   def Mutable[T <: AnyRef](v: T) = new Mutable[T](v)
 
   class Aggregate[@spec(Int, Long, Double) T]
