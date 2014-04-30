@@ -14,21 +14,7 @@ trait Scheduler {
   def schedule[@spec(Int, Long, Double) T](newIsolate: =>Isolate[T]): Channel[T]
 
   def handler: Scheduler.Handler
-
-  final def runnableInIsolate(r: Runnable, i: Isolate[_]) = new Runnable {
-    def run() {
-      if (Isolate.selfIsolate.get != null) {
-        throw new IllegalStateException("Cannot execute isolate inside of another isolate.")
-      }
-      try {
-        Isolate.selfIsolate.set(i)
-        r.run()
-      } catch handler
-      finally {
-        Isolate.selfIsolate.set(null)
-      }
-    }
-  }
+  
 }
 
 

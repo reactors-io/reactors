@@ -11,8 +11,10 @@ import scala.reflect.ClassTag
  * 
  *  @tparam I         type of the isolate
  */
-final class Proto[I <: Isolate[_]] private[reactress] (val clazz: Class[I], val params: Seq[Any]) {
+final class Proto[I <: ReactIsolate[_, _]] private[reactress] (val clazz: Class[I], val params: Seq[Any]) {
 
+  /** Instantiates and returns the isolate.
+   */
   def create(): I = util.Reflect.instantiate(clazz, params)
 
 }
@@ -26,7 +28,7 @@ object Proto {
    *  @param params     parameters for instantiating the prototype
    *  @return           a new prototype of an isolate of type `T` with the specified parameters
    */
-  def apply[I <: Isolate[_]: ClassTag](params: Any*) = new Proto[I](implicitly[ClassTag[I]].erasure.asInstanceOf[Class[I]], params)
+  def apply[I <: ReactIsolate[_, _]: ClassTag](params: Any*) = new Proto[I](implicitly[ClassTag[I]].erasure.asInstanceOf[Class[I]], params)
 
 }
 

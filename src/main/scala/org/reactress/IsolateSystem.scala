@@ -28,7 +28,7 @@ abstract class IsolateSystem {
    *  @param scheduler  the scheduler used to scheduler the isolate
    *  @return           the channel for this isolate
    */
-  def isolate[T, I <: Isolate[T]](proto: Proto[I])(s: Scheduler): Channel[T]
+  def isolate[T, I <: ReactIsolate[T, _]](proto: Proto[I])(s: Scheduler): Channel[T]
 
 }
 

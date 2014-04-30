@@ -379,6 +379,26 @@ trait Reactive[@spec(Int, Long, Double) +T] {
     rf
   }
 
+  /** Filters events from `this` reactive and maps them in the same time.
+   *
+   *  The `collect` combinator uses a partial function `pf` to filter events
+   *  from `this` reactive. Events for which the partial function is defined
+   *  are mapped using the partial function, others are discarded.
+   *
+   *  '''Note:'''
+   *  This combinator is defined only for reactives that contain reference events.
+   *  You cannot call it for reactives whose events are primitive values, such as `Int`.
+   *  This is because the `PartialFunction` class is not specialized.
+   *
+   *  @tparam S         the type of the mapped reactive
+   *  @param pf         partial function used to filter and map events
+   *  @param evidence   evidence that `T` is a reference type
+   *  @return           a subscription and a reactive value with the partially mapped events
+   */
+  def collect[S <: AnyRef](pf: PartialFunction[T, S])(implicit evidence: T <:< AnyRef): Reactive[S] with Reactive.Subscription = {
+    new Reactive.Collect[T, S](self, pf)
+  }
+
   /** Returns a new reactive that maps events from `this` reactive using the mapping function `f`.
    *
    *  @tparam S         the type of the mapped events
@@ -859,6 +879,17 @@ object Reactive {
   extends Reactive.Default[T] with Reactor[T] with Reactive.ProxySubscription {
     def react(value: T) {
       if (p(value)) reactAll(value)
+    }
+    def unreact() {
+      unreactAll()
+    }
+    var subscription = Subscription.empty
+  }
+
+  private[reactress] class Collect[T, S <: AnyRef](val self: Reactive[T], val pf: PartialFunction[T, S])
+  extends Reactive.Default[S] with Reactor[T] with Reactive.ProxySubscription {
+    def react(value: T) {
+      if (pf.isDefinedAt(value)) reactAll(pf(value))
     }
     def unreact() {
       unreactAll()

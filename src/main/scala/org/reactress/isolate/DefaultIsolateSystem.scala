@@ -14,7 +14,7 @@ import scala.collection._
 class DefaultIsolateSystem(val name: String) extends IsolateSystem {
   private val isolates = mutable.Map[String, String]()
 
-  def isolate[T, I <: Isolate[T]](proto: Proto[I])(s: Scheduler): Channel[T] = {
+  def isolate[T, I <: ReactIsolate[T, _]](proto: Proto[I])(s: Scheduler): Channel[T] = {
     ???
   }
 
