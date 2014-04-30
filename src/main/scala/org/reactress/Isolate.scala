@@ -4,47 +4,41 @@ package org.reactress
 
 import scala.annotation.tailrec
 import scala.util.DynamicVariable
+import isolate._
 
 
 
 trait Isolate[@spec(Int, Long, Double) T] extends ReactRecord {
   private[reactress] val sysEventsEmitter = new Reactive.Emitter[Isolate.SysEvent]
-  @volatile private[reactress] var eventQueueSpec: EventQueue[T] = _
-  @volatile private[reactress] var channelSpec: Channel[T] = _
+  private[reactress] var frame: IsolateFrame[T] = _
 
   private def illegal() = throw new IllegalStateException("Only schedulers can create isolates.")
 
   /* start workaround for a handful of specialization bugs */
 
   private def init(dummy: Isolate[T]) {
-    eventQueueSpec = Isolate.argEventQueue.value match {
+    frame = Isolate.argFrame.value match {
       case null => illegal()
-      case eq => eq.asInstanceOf[EventQueue[T]]
-    }
-    channelSpec = Isolate.argChannel.value match {
-      case null => illegal()
-      case ch => ch.asInstanceOf[Channel[T]]
+      case eq => eq.asInstanceOf[IsolateFrame[T]]
     }
     Isolate.selfIsolate.set(this)
   }
 
   init(this)
 
-  private[reactress] final def eventQueue = eventQueueSpec
+  private[reactress] final def eventQueue = frame.eventQueue
 
   /* end workaround */
-
-  private[reactress] def propagate() = eventQueue.dequeue()
 
   final def self: this.type = this
 
   final def sysEvents: Reactive[Isolate.SysEvent] = sysEventsEmitter
 
-  final def source: Reactive[T] = eventQueue
+  final def source: Reactive[T] = frame.eventQueue
 
-  final def later: Enqueuer[T] = eventQueue
+  final def later: Enqueuer[T] = frame.eventQueue
 
-  final def channel: Channel[T] = channelSpec
+  final def channel: Channel[T] = frame.channel
 
 }
 
@@ -66,9 +60,7 @@ object Isolate {
     override def initialValue = null
   }
 
-  private[reactress] val argEventQueue = new DynamicVariable[EventQueue[_]](null)
-
-  private[reactress] val argChannel = new DynamicVariable[Channel[_]](null)
+  private[reactress] val argFrame = new DynamicVariable[IsolateFrame[_]](null)
 
   /** Returns the current isolate.
    *

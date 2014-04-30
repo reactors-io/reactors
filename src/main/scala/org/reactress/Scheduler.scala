@@ -11,7 +11,7 @@ import scala.annotation.tailrec
 
 trait Scheduler {
 
-  def schedule[@spec(Int, Long, Double) T: Arrayable](newIsolate: =>Isolate[T]): Channel[T]
+  def schedule[@spec(Int, Long, Double) T](newIsolate: =>Isolate[T]): Channel[T]
 
   def handler: Scheduler.Handler
 
