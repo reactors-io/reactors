@@ -8,9 +8,8 @@ package isolate
 
 trait EventQueue[@spec(Int, Long, Double) T]
 extends Reactive.Default[T] with Enqueuer[T] {
-  def dequeue(): EventQueue[T]
-  def isEmpty: Boolean
   def nonEmpty = !isEmpty
+  def foreach(f: EventObserver[T])(implicit scheduler: Scheduler): Unit
 }
 
 
