@@ -383,7 +383,7 @@ object Signal {
    */
   def Mutable[T <: AnyRef](v: T) = new Mutable[T](v)
 
-  class Aggregate[@spec(Int, Long, Double) T]
+  private[reactress] class Aggregate[@spec(Int, Long, Double) T]
     (private val root: Signal[T] with Reactive.Subscription, private val subscriptions: Seq[Reactive.Subscription])
   extends Signal.Default[T] with Reactive.Subscription {
     def apply() = root()
@@ -392,6 +392,36 @@ object Signal {
     }
   }
 
+  /** A signal that is the aggregation of the values of other `signals`.
+   *
+   *  At any point during execution this signal will contain
+   *  an event obtained by applying `op` on the values of all
+   *  the events in `signals`.
+   *  This signal aggregate is called a static aggregate
+   *  since the `signals` set is specified during aggregate
+   *  creation and cannot be changed afterwards.
+   *
+   *  The signal aggregate creates an aggregation tree data structure,
+   *  so a value update in one of the `signals` requires only O(log n)
+   *  steps to update the value of the aggregate signal.
+   *
+   *  Example:
+   *  {{{
+   *  val emitters = for (0 until 10) yield new Reactive.Emitter[Int]
+   *  val ag = Signal.Aggregate(emitters)(_ + _)
+   *  }}}
+   *
+   *  The aggregation operator needs to be associative,
+   *  but does not need to be commutative.
+   *  For example, string concatenation for signals of strings
+   *  or addition for integer signals is perfectly fine.
+   *  Subtraction for integer signals, for example,
+   *  is not associative and not allowed.
+   *
+   *  @tparam T          type of the aggregate signal
+   *  @param signals     signals for the aggregation
+   *  @param op          the aggregation operator, must be associative
+   */
   def Aggregate[@spec(Int, Long, Double) T](signals: Signal[T]*)(op: (T, T) => T) = {
     require(signals.length > 0)
     val leaves = signals.map(_.renewed)
@@ -407,7 +437,7 @@ object Signal {
     new Aggregate[T](root, leaves)
   }
 
-  class Mux[T, @spec(Int, Long, Double) S]
+  private[reactress] class Mux[T, @spec(Int, Long, Double) S]
     (val self: Signal[T], val evidence: T <:< Signal[S])
   extends Signal.Default[S] with Reactor[T] with Reactive.ProxySubscription {
     muxed =>
