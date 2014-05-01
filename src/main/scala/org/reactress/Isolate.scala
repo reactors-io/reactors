@@ -24,10 +24,10 @@ object Isolate {
     val fallback: Signal[Option[T]]
 
     def initialize() {
-      react <<= source on {
-        fallback() match {
+      react <<= system onCase {
+        case IsolateStarted | IsolateEmptyQueue => fallback() match {
           case Some(v) => later.enqueueIfEmpty(v)
-          case None =>
+          case None => channel.seal()
         }
       }
     }

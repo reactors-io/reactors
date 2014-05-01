@@ -3,6 +3,8 @@ package isolate
 
 
 
+import java.util.concurrent.atomic.AtomicReference
+import scala.annotation.tailrec
 import scala.util.control.NonFatal
 
 
@@ -10,18 +12,19 @@ import scala.util.control.NonFatal
 final class IsolateFrame[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q](
   val name: String,
   val eventQueue: EventQueue[Q],
+  val systemEmitter: Reactive.Emitter[SysEvent],
   val sourceEmitter: Reactive.Emitter[Q],
   val failureEmitter: Reactive.Emitter[Throwable],
   val scheduler: Scheduler,
-  val state: IsolateFrame.State
+  val state: IsolateFrame.State,
+  val isolateState: AtomicReference[IsolateFrame.IsolateState]
 ) extends Reactor[T] with (Q => Unit) {
   @volatile private[reactress] var isolate: ReactIsolate[T, Q] = _
   @volatile private[reactress] var channel: Channel[T] = _
+  @volatile private[reactress] var dequeuer: Dequeuer[Q] = _
+  @volatile private[reactress] var errorHandling: PartialFunction[Throwable, Unit] = _
+  @volatile private[reactress] var terminating = false
   @volatile var schedulerInfo: AnyRef = _
-
-  val errorHandling: PartialFunction[Throwable, Unit] = {
-    case NonFatal(t) => failureEmitter += t
-  }
 
   def apply(event: Q) {
     try sourceEmitter += event
@@ -33,6 +36,8 @@ final class IsolateFrame[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q]
     isolate.later += event
   }
 
+  def isTerminating = terminating
+
   def isOwned: Boolean = state.READ_STATE == 1
 
   final def tryOwn(): Boolean = state.CAS_STATE(0, 1)
@@ -42,11 +47,26 @@ final class IsolateFrame[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q]
   def unreact() {
     // channel and all its reactives have been closed
     // so no new messages will be added to the event queue
+    terminating = true
+    wake()
+  }
+
+  @tailrec def wake(): Unit = if (isolateState.get != IsolateFrame.Terminated) {
+    if (!isOwned) {
+      if (tryOwn()) scheduler.schedule(this, dequeuer)
+      else wake()
+    }
   }
 
   def init(dummy: IsolateFrame[T, Q]) {
     // call the asynchronous foreach on the event queue
-    eventQueue.foreach(this)(scheduler)
+    dequeuer = eventQueue.foreach(this)(scheduler)
+
+    // send to failure emitter
+    errorHandling = {
+      case NonFatal(t) =>
+        failureEmitter += t
+    }
   }
 
   init(this)
@@ -58,15 +78,15 @@ final class IsolateFrame[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q]
       isolateAndRun(dequeuer)
     } finally {
       unOwn()
-      if (eventQueue.nonEmpty) {
-        if (tryOwn()) scheduler.schedule(this, dequeuer)
+      if (dequeuer.nonEmpty || terminating) {
+        wake()
       }
     }
   }
 
   private def isolateAndRun(dequeuer: Dequeuer[Q]) {
     if (ReactIsolate.selfIsolate.get != null) {
-      throw new IllegalStateException("Cannot execute isolate inside of another isolate.")
+      throw new IllegalStateException(s"Cannot execute isolate inside of another isolate: ${ReactIsolate.selfIsolate.get}.")
     }
     try {
       ReactIsolate.selfIsolate.set(isolate)
@@ -78,12 +98,38 @@ final class IsolateFrame[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q]
     }
   }
 
+  @tailrec private def checkCreated() {
+    import IsolateFrame._
+    if (isolateState.get == Created) {
+      if (isolateState.compareAndSet(Created, Running)) systemEmitter += IsolateStarted
+      else checkCreated()
+    }
+  }
+
+  private def checkEmptyQueue() {
+    if (dequeuer.isEmpty) systemEmitter += IsolateEmptyQueue
+  }
+
+  @tailrec private def checkTerminating() {
+    import IsolateFrame._
+    if (terminating && dequeuer.isEmpty && isolateState.get == Running) {
+      if (isolateState.compareAndSet(Running, Terminated)) systemEmitter += IsolateTerminated
+      else checkTerminating()
+    }
+  }
+
   private def runInIsolate(dequeuer: Dequeuer[Q]) {
-    var budget = 50
-    while (dequeuer.nonEmpty && budget > 0) {
-      val event = dequeuer.dequeue()
-      apply(event)
-      budget -= 1
+    try {
+      checkCreated()
+      var budget = 50
+      while (dequeuer.nonEmpty && budget > 0) {
+        val event = dequeuer.dequeue()
+        apply(event)
+        budget -= 1
+      }
+    } finally {
+      try checkEmptyQueue()
+      finally checkTerminating()
     }
   }
 
@@ -103,6 +149,11 @@ object IsolateFrame {
   }
 
   val STATE_OFFSET = util.unsafe.objectFieldOffset(classOf[State].getDeclaredField("state"))
+
+  sealed trait IsolateState
+  case object Created extends IsolateState
+  case object Running extends IsolateState
+  case object Terminated extends IsolateState
 
 }
 

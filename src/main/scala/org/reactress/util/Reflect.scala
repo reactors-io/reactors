@@ -12,10 +12,10 @@ object Reflect {
   def instantiate[T](clazz: Class[T], params: Seq[Any]): T = {
     val ctor = matchingConstructor(clazz, params)
     ctor.setAccessible(true)
-    ctor.newInstance(params.toArray)
+    ctor.newInstance(params.asInstanceOf[Seq[AnyRef]]: _*)
   }
 
-  def matchingConstructor[T](clazz: Class[T], params: Seq[Any]): Constructor[T] = {
+  def matchingConstructor[T](clazz: Class[T], params: Seq[Any]): Constructor[T] = try {
     if (params.isEmpty) clazz.getDeclaredConstructor()
     else {
       def matches(c: Constructor[_]): Boolean = {
@@ -40,6 +40,8 @@ object Reflect {
       else if (cs.length > 1) error.illegalArg(s"Multiple matches for $clazz and $params")
       else cs.head.asInstanceOf[Constructor[T]]
     }
+  } catch {
+    case e: Exception => throw new IllegalArgumentException(s"Could not find constructor for $clazz.", e)
   }
 
   private val boxedMapping = Map[Class[_], Class[_]](

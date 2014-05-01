@@ -77,11 +77,11 @@ object Scheduler {
       val monitor = new util.Monitor
 
       @tailrec final def loop(f: IsolateFrame[_, Q]) {
-        monitor.synchronized {
-          while (frame.eventQueue.isEmpty) monitor.wait()
-        }
         frame.run(dequeuer)
-        loop(f)
+        monitor.synchronized {
+          while (frame.eventQueue.isEmpty && !frame.isTerminating) monitor.wait()
+        }
+        if (frame.isolateState != IsolateFrame.Terminated) loop(f)
       }
 
       def awake() {

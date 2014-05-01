@@ -11,10 +11,6 @@ import isolate._
 trait ReactIsolate[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q] extends ReactRecord {
   private[reactress] var frame: IsolateFrame[T, Q] = _
 
-  type ChannelType = T
-
-  type EventQueueType = Q
-
   private def illegal() = throw new IllegalStateException("Only schedulers can create isolates.")
 
   /* start workaround for a handful of specialization bugs */
@@ -32,6 +28,8 @@ trait ReactIsolate[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q] exten
   /* end workaround */
 
   final def self: this.type = this
+
+  final def system: Reactive[SysEvent] = frame.systemEmitter
 
   final def source: Reactive[Q] = frame.sourceEmitter
 

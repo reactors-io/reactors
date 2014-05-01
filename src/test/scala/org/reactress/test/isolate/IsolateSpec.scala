@@ -10,12 +10,59 @@ import org.scalatest.matchers.ShouldMatchers
 
 
 
-trait Logging {
+object Logging {
   def log(msg: String) = println(s"${Thread.currentThread.getName}: $msg")
 }
 
 
-trait IsolateSpec extends FlatSpec with ShouldMatchers with Logging {
+object Isolates {
+  import Logging._
+
+  class OneIso(sv: SyncVar[String]) extends Isolate[String] {
+    react <<= source.onEvent { v =>
+      log(s"got event '$v'")
+      sv.put(v)
+    }
+  }
+
+  class ManyIso(many: Int, sv: SyncVar[List[Int]]) extends Isolate[Int] {
+    val history = source.scanPast(List[Int]()) {
+      (acc, x) => x :: acc
+    }
+    react <<= history.onEvent {
+      x => if (x.size == many) sv.put(x)
+    }
+  }
+
+  class SelfIso(sv: SyncVar[Boolean]) extends Isolate[Int] {
+    react <<= source.onEvent { _ =>
+      log(s"${ReactIsolate.self} vs ${this}}")
+      sv.put(ReactIsolate.self[SelfIso] == this)
+    }
+  }
+
+  class TestLooper(sv: SyncVar[Int]) extends Isolate.Looper[Int] {
+    val fallback = ReactCell(Option(1))
+
+    react <<= system onCase {
+      case IsolateEmptyQueue => log(s"empty queue!")
+    }
+
+    react <<= source.scanPast(0)(_ + _) onEvent { e =>
+      log(s"scanned to $e")
+      if (e >= 3) {
+        sv.put(e)
+        fallback := None
+      }
+    }
+  }
+
+}
+
+
+trait IsolateSpec extends FlatSpec with ShouldMatchers {
+  import Logging._
+  import Isolates._
 
   val isoSystem: IsolateSystem
 
@@ -24,15 +71,8 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers with Logging {
   "A synced isolate" should "react to an event" in {
     val sv = new SyncVar[String]
 
-    class OneIso extends Isolate[String] {
-      react <<= source.onEvent { v =>
-        log(s"got event '$v'")
-        sv.put(v)
-      }
-    }
-
     val emitter = new Reactive.Emitter[String]
-    val c = isoSystem.isolate(Proto[OneIso]).attach(emitter).seal()
+    val c = isoSystem.isolate(Proto(classOf[OneIso], sv)).attach(emitter).seal()
     emitter += "test event"
     emitter.close()
 
@@ -43,17 +83,8 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers with Logging {
     val many = 50
     val sv = new SyncVar[List[Int]]
 
-    class ManyIso extends Isolate[Int] {
-      val history = source.scanPast(List[Int]()) {
-        (acc, x) => x :: acc
-      }
-      react <<= history.onEvent {
-        x => if (x.size == many) sv.put(x)
-      }
-    }
-
     val emitter = new Reactive.Emitter[Int]
-    val c = isoSystem.isolate(Proto[ManyIso]).attach(emitter).seal()
+    val c = isoSystem.isolate(Proto(classOf[ManyIso], many, sv)).attach(emitter).seal()
     for (i <- 0 until 50) emitter += i
     emitter.close()
 
@@ -66,14 +97,7 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers with Logging {
 
     val emitter = new Reactive.Emitter[Int]
 
-    class SelfIso extends Isolate[Int] {
-      react <<= source.onEvent { _ =>
-        log(s"${ReactIsolate.self} vs ${this}}")
-        sv.put(ReactIsolate.self[SelfIso] == this)
-      }
-    }
-
-    val c = isoSystem.isolate(Proto[SelfIso]).attach(emitter).seal()
+    val c = isoSystem.isolate(Proto(classOf[SelfIso], sv)).attach(emitter).seal()
 
     emitter += 7
     emitter.close()
@@ -84,33 +108,23 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers with Logging {
 }
 
 
-trait LooperIsolateSpec extends FlatSpec with ShouldMatchers with Logging {
+trait LooperIsolateSpec extends FlatSpec with ShouldMatchers {
+  import Logging._
+  import Isolates._
 
   val isoSystem: IsolateSystem
 
   implicit val scheduler: Scheduler
 
-  "A LooperIsolate" should "do 3 loops" in {
-    val sv = new SyncVar[Int]
+  // "A LooperIsolate" should "do 3 loops" in {
+  //   val sv = new SyncVar[Int]
 
-    println("looper -----------")
+  //   println("looper -----------")
 
-    class TestLooper extends Isolate.Looper[Int] {
-      val fallback = ReactCell(Option(1))
+  //   isoSystem.isolate(Proto(classOf[TestLooper], sv))
 
-      react <<= source.scanPast(0)(_ + _) onEvent { e =>
-        log(s"scanned to $e")
-        if (e >= 3) {
-          sv.put(e)
-          fallback := None
-        }
-      }
-    }
-
-    isoSystem.isolate(Proto[TestLooper])
-
-    sv.get should equal (3)
-  }
+  //   sv.get should equal (3)
+  // }
 }
 
 
