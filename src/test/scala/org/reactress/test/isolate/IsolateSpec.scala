@@ -32,7 +32,7 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers with Logging {
     }
 
     val emitter = new Reactive.Emitter[String]
-    val c = isoSystem.isolate[String, String, OneIso](Proto[OneIso]).attach(emitter).seal()
+    val c = isoSystem.isolate(Proto[OneIso]).attach(emitter).seal()
     emitter += "test event"
     emitter.close()
 
@@ -53,7 +53,7 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers with Logging {
     }
 
     val emitter = new Reactive.Emitter[Int]
-    val c = isoSystem.isolate[Int, Int, ManyIso](Proto[ManyIso]).attach(emitter).seal()
+    val c = isoSystem.isolate(Proto[ManyIso]).attach(emitter).seal()
     for (i <- 0 until 50) emitter += i
     emitter.close()
 
@@ -73,7 +73,7 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers with Logging {
       }
     }
 
-    val c = isoSystem.isolate[Int, Int, SelfIso](Proto[SelfIso]).attach(emitter).seal()
+    val c = isoSystem.isolate(Proto[SelfIso]).attach(emitter).seal()
 
     emitter += 7
     emitter.close()
@@ -107,7 +107,7 @@ trait LooperIsolateSpec extends FlatSpec with ShouldMatchers with Logging {
       }
     }
 
-    isoSystem.isolate[Int, Int, TestLooper](Proto[TestLooper])
+    isoSystem.isolate(Proto[TestLooper])
 
     sv.get should equal (3)
   }

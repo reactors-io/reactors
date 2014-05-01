@@ -26,7 +26,7 @@ class DefaultIsolateSystem(val name: String) extends IsolateSystem {
     else name
   }
 
-  def isolate[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q: Arrayable, I <: ReactIsolate[T, Q]](proto: Proto[I], name: String = null)(implicit scheduler: Scheduler): Channel[T] = {
+  def isolate[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q: Arrayable](proto: Proto[ReactIsolate[T, Q]], name: String = null)(implicit scheduler: Scheduler): Channel[T] = {
     val (frame, channel) = monitor.synchronized {
       val eventQueue = new EventQueue.SingleSubscriberSyncedUnrolledRing[Q](new util.Monitor)
       val uname = if (name == null) uniqueName() else ensureUnique(name)
