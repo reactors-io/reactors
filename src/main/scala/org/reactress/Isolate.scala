@@ -18,4 +18,21 @@ trait Isolate[@spec(Int, Long, Double) T] extends ReactIsolate[T, T] {
 
 
 object Isolate {
+
+  trait Looper[@spec(Int, Long, Double) T]
+  extends Isolate[T] {
+    val fallback: Signal[Option[T]]
+
+    def initialize() {
+      react <<= source on {
+        fallback() match {
+          case Some(v) => later.enqueueIfEmpty(v)
+          case None =>
+        }
+      }
+    }
+
+    initialize()
+  }
+
 }

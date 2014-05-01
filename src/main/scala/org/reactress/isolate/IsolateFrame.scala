@@ -40,7 +40,8 @@ final class IsolateFrame[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q]
   final def unOwn(): Unit = state.WRITE_STATE(0)
 
   def unreact() {
-    // TODO channel has been closed, so no new messages will be added to the event queue
+    // channel and all its reactives have been closed
+    // so no new messages will be added to the event queue
   }
 
   def init(dummy: IsolateFrame[T, Q]) {
@@ -70,8 +71,9 @@ final class IsolateFrame[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q]
     try {
       ReactIsolate.selfIsolate.set(isolate)
       runInIsolate(dequeuer)
-    } catch scheduler.handler
-    finally {
+    } catch {
+      scheduler.handler
+    } finally {
       ReactIsolate.selfIsolate.set(null)
     }
   }

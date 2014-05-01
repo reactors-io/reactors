@@ -53,10 +53,8 @@ object EventQueue {
       ring.dequeue()
     }
 
-    def dequeueEnqueueIfEmpty(v: Q): Q = monitor.synchronized {
-      val r = ring.dequeue()
+    def enqueueIfEmpty(v: Q) = monitor.synchronized {
       if (ring.isEmpty) ring.enqueue(v)
-      r
     }
   }
 
@@ -65,7 +63,6 @@ object EventQueue {
   extends Dequeuer[Q] {
     def dequeue() = q.dequeue()
     def isEmpty = q.isEmpty
-    def dequeueEnqueueIfEmpty(v: Q) = q.dequeueEnqueueIfEmpty(v)
   }
 
 }

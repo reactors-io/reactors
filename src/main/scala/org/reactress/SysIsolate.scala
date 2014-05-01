@@ -28,7 +28,6 @@ object SysIsolate {
 
   sealed trait Event
   case object Start extends Event
-  case object EmptyQueue extends Event
   case object Terminate extends Event
 
   trait Looper[T <: AnyRef]
@@ -36,17 +35,14 @@ object SysIsolate {
     val fallback: Signal[Option[T]]
 
     def initialize() {
-      val feedback = new Reactive.Emitter[T]
-      channel.attach(feedback)
-      react <<= sysEvents onCase {
-        case SysIsolate.Start | SysIsolate.EmptyQueue =>
-          if (fallback().nonEmpty) feedback += fallback().get
-          else {
-            feedback.close()
-            channel.seal()
-          }
+      react <<= source on {
+        fallback() match {
+          case Some(v) => later.enqueueIfEmpty(v)
+          case None =>
+        }
       }
     }
+
     initialize()
   }
 
