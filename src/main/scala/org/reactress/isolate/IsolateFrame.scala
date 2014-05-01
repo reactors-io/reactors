@@ -18,7 +18,7 @@ final class IsolateFrame[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q]
   val scheduler: Scheduler,
   val state: IsolateFrame.State,
   val isolateState: AtomicReference[IsolateFrame.IsolateState]
-) extends Reactor[T] with (Q => Unit) {
+) extends Reactor[T] {
   @volatile private[reactress] var isolate: ReactIsolate[T, Q] = _
   @volatile private[reactress] var channel: Channel[T] = _
   @volatile private[reactress] var dequeuer: Dequeuer[Q] = _
@@ -26,7 +26,7 @@ final class IsolateFrame[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q]
   @volatile private[reactress] var terminating = false
   @volatile var schedulerInfo: AnyRef = _
 
-  def apply(event: Q) {
+  private def propagate(event: Q) {
     try sourceEmitter += event
     catch errorHandling
     finally {}
@@ -124,7 +124,7 @@ final class IsolateFrame[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q]
       var budget = 50
       while (dequeuer.nonEmpty && budget > 0) {
         val event = dequeuer.dequeue()
-        apply(event)
+        propagate(event)
         budget -= 1
       }
     } finally {

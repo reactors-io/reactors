@@ -62,8 +62,7 @@ object Scheduler {
     }
   }
 
-  abstract class Dedicated
-  extends Scheduler {
+  abstract class Dedicated extends Scheduler {
     def newWorker[@spec(Int, Long, Double) Q](frame: IsolateFrame[_, Q], d: Dequeuer[Q]): Dedicated.Worker[Q]
 
     def schedule[@spec(Int, Long, Double) Q](frame: IsolateFrame[_, Q], d: Dequeuer[Q]): Unit = {
