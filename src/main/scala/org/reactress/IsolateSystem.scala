@@ -44,6 +44,8 @@ abstract class IsolateSystem {
  */
 object IsolateSystem {
 
+  def default(name: String) = new isolate.DefaultIsolateSystem(name)
+
 }
 
 

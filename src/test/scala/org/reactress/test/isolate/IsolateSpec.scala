@@ -17,6 +17,8 @@ trait Logging {
 
 trait IsolateSpec extends FlatSpec with ShouldMatchers with Logging {
 
+  val isoSystem: IsolateSystem
+
   implicit val scheduler: Scheduler
 
   "A synced isolate" should "react to an event" in {
@@ -30,7 +32,7 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers with Logging {
     }
 
     val emitter = new Reactive.Emitter[String]
-    val c = scheduler.schedule(new OneIso).attach(emitter).seal()
+    val c = isoSystem.isolate[String, String, OneIso](Proto[OneIso]).attach(emitter).seal()
     emitter += "test event"
     emitter.close()
 
@@ -51,7 +53,7 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers with Logging {
     }
 
     val emitter = new Reactive.Emitter[Int]
-    val c = scheduler.schedule(new ManyIso).attach(emitter).seal()
+    val c = isoSystem.isolate[Int, Int, ManyIso](Proto[ManyIso]).attach(emitter).seal()
     for (i <- 0 until 50) emitter += i
     emitter.close()
 
@@ -66,12 +68,12 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers with Logging {
 
     class SelfIso extends Isolate[Int] {
       react <<= source.onEvent { _ =>
-        log(s"${Isolate.self} vs ${this}}")
-        sv.put(Isolate.self == this)
+        log(s"${ReactIsolate.self} vs ${this}}")
+        sv.put(ReactIsolate.self[SelfIso] == this)
       }
     }
 
-    val c = scheduler.schedule(new SelfIso).attach(emitter).seal()
+    val c = isoSystem.isolate[Int, Int, SelfIso](Proto[SelfIso]).attach(emitter).seal()
 
     emitter += 7
     emitter.close()
@@ -83,6 +85,9 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers with Logging {
 
 
 trait LooperIsolateSpec extends FlatSpec with ShouldMatchers with Logging {
+
+  val isoSystem: IsolateSystem
+
   implicit val scheduler: Scheduler
 
   "A LooperIsolate" should "do 3 loops" in {
@@ -102,7 +107,7 @@ trait LooperIsolateSpec extends FlatSpec with ShouldMatchers with Logging {
       }
     }
 
-    scheduler.schedule(new TestLooper)
+    isoSystem.isolate[Int, Int, TestLooper](Proto[TestLooper])
 
     sv.get should equal (3)
   }
@@ -111,6 +116,8 @@ trait LooperIsolateSpec extends FlatSpec with ShouldMatchers with Logging {
 
 class ExecutorSyncedIsolateSpec extends IsolateSpec with LooperIsolateSpec {
 
+  val isoSystem = IsolateSystem.default("TestSystem")
+
   implicit val scheduler = Scheduler.default
 
 }
@@ -118,12 +125,16 @@ class ExecutorSyncedIsolateSpec extends IsolateSpec with LooperIsolateSpec {
 
 class NewThreadSyncedIsolateSpec extends IsolateSpec with LooperIsolateSpec {
 
+  val isoSystem = IsolateSystem.default("TestSystem")
+
   implicit val scheduler = Scheduler.newThread
 
 }
 
 
 class PiggybackSyncedIsolateSpec extends LooperIsolateSpec {
+
+  val isoSystem = IsolateSystem.default("TestSystem")
 
   implicit val scheduler = Scheduler.piggyback
 
