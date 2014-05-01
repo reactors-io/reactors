@@ -116,15 +116,15 @@ trait LooperIsolateSpec extends FlatSpec with ShouldMatchers {
 
   implicit val scheduler: Scheduler
 
-  // "A LooperIsolate" should "do 3 loops" in {
-  //   val sv = new SyncVar[Int]
+  "A LooperIsolate" should "do 3 loops" in {
+    val sv = new SyncVar[Int]
 
-  //   println("looper -----------")
+    println("looper -----------")
 
-  //   isoSystem.isolate(Proto(classOf[TestLooper], sv))
+    isoSystem.isolate(Proto(classOf[TestLooper], sv))
 
-  //   sv.get should equal (3)
-  // }
+    sv.get should equal (3)
+  }
 }
 
 

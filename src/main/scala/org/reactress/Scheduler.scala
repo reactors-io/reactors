@@ -81,7 +81,7 @@ object Scheduler {
         monitor.synchronized {
           while (frame.eventQueue.isEmpty && !frame.isTerminating) monitor.wait()
         }
-        if (frame.isolateState != IsolateFrame.Terminated) loop(f)
+        if (frame.isolateState.get != IsolateFrame.Terminated) loop(f)
       }
 
       def awake() {
