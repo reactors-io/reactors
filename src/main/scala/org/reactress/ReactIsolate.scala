@@ -27,8 +27,6 @@ trait ReactIsolate[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q] exten
 
   /* end workaround */
 
-  final def self: this.type = this
-
   final def system: Reactive[SysEvent] = frame.systemEmitter
 
   final def source: Reactive[Q] = frame.sourceEmitter
@@ -63,7 +61,7 @@ object ReactIsolate {
    *  The caller must specify the type of the current isolate
    *  if the type of the isolate is required.
    *
-   *  @tparam T    the type parameter of the current isolate
+   *  @tparam I      the type of the current isolate
    */
   def self[I <: ReactIsolate[_, _]]: I = {
     val i = selfIsolate.get
