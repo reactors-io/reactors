@@ -14,18 +14,20 @@ trait Channel[@spec(Int, Long, Double) T] {
 
 object Channel {
 
-  class Synced[@spec(Int, Long, Double) T](val reactor: Reactor[T], val monitor: AnyRef)
+  class Synced[@spec(Int, Long, Double) T](val reactor: Reactor[T], val monitor: util.Monitor)
   extends Channel[T] {
     private var sealedChannel = false
     private val reactives = mutable.Map[Reactive[T], Reactive.Subscription]()
     def attach(r: Reactive[T]) = monitor.synchronized {
-      if (!reactives.contains(r)) reactives(r) = r.onReaction(new Reactor[T] {
-        def react(event: T) = reactor.react(event)
-        def unreact() {
-          monitor.synchronized { reactives.remove(r) }
-          checkTerminated()
-        }
-      })
+      if (!sealedChannel) {
+        if (!reactives.contains(r)) reactives(r) = r.onReaction(new Reactor[T] {
+          def react(event: T) = reactor.react(event)
+          def unreact() {
+            monitor.synchronized { reactives.remove(r) }
+            checkTerminated()
+          }
+        })
+      }
       this
     }
     def seal(): Channel[T] = {

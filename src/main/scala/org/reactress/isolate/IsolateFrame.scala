@@ -8,6 +8,7 @@ import scala.util.control.NonFatal
 
 
 final class IsolateFrame[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q](
+  val name: String,
   val eventQueue: EventQueue[Q],
   val sourceEmitter: Reactive.Emitter[Q],
   val failureEmitter: Reactive.Emitter[Throwable],
@@ -16,6 +17,7 @@ final class IsolateFrame[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q]
 ) extends Reactor[T] with (Q => Unit) {
   @volatile private[reactress] var isolate: ReactIsolate[T, Q] = _
   @volatile private[reactress] var channel: Channel[T] = _
+  @volatile var schedulerInfo: AnyRef = _
 
   val errorHandling: PartialFunction[Throwable, Unit] = {
     case NonFatal(t) => failureEmitter += t
@@ -48,34 +50,38 @@ final class IsolateFrame[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q]
 
   init(this)
 
-  def run() {
+  /* running the frame */
+
+  def run(dequeuer: Dequeuer[Q]) {
     try {
-      isolateAndRun()
+      isolateAndRun(dequeuer)
     } finally {
       unOwn()
       if (eventQueue.nonEmpty) {
-        if (tryOwn()) scheduler.schedule(this)
+        if (tryOwn()) scheduler.schedule(this, dequeuer)
       }
     }
   }
 
-  private def isolateAndRun() {
+  private def isolateAndRun(dequeuer: Dequeuer[Q]) {
     if (ReactIsolate.selfIsolate.get != null) {
       throw new IllegalStateException("Cannot execute isolate inside of another isolate.")
     }
     try {
       ReactIsolate.selfIsolate.set(isolate)
-      runInIsolate()
+      runInIsolate(dequeuer)
     } catch scheduler.handler
     finally {
       ReactIsolate.selfIsolate.set(null)
     }
   }
 
-  private def runInIsolate() {
-    while (eventQueue.nonEmpty) {
-      val event = eventQueue.dequeue()
+  private def runInIsolate(dequeuer: Dequeuer[Q]) {
+    var budget = 50
+    while (dequeuer.nonEmpty && budget > 0) {
+      val event = dequeuer.dequeue()
       apply(event)
+      budget -= 1
     }
   }
 

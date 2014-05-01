@@ -11,7 +11,6 @@ import scala.collection._
 trait EventQueue[@spec(Int, Long, Double) Q]
 extends Enqueuer[Q] {
   def foreach(f: IsolateFrame[_, Q])(implicit scheduler: Scheduler): Unit
-  def dequeue(): Q
   def isEmpty: Boolean
   def nonEmpty = !isEmpty
 }
@@ -19,34 +18,33 @@ extends Enqueuer[Q] {
 
 object EventQueue {
 
-  class SyncedUnrolledRing[@spec(Int, Long, Double) Q: Arrayable](val monitor: AnyRef)
+  class SingleSubscriberSyncedUnrolledRing[@spec(Int, Long, Double) Q: Arrayable](val monitor: util.Monitor)
   extends EventQueue[Q] {
     private[reactress] val ring = new util.UnrolledRing[Q]
 
-    private[reactress] var frames = List[IsolateFrame[_, Q]]()
+    private[reactress] var listener: (Dequeuer[Q], IsolateFrame[_, Q]) = _
 
     def +=(elem: Q) = {
-      val fs = monitor.synchronized {
+      val l = monitor.synchronized {
         ring.enqueue(elem)
-        frames
+        listener
       }
-      wakeAll(fs)
+      wakeAll(l)
     }
 
-    @tailrec private def wakeAll(frames: List[IsolateFrame[_, Q]]): Unit = frames match {
-      case frame :: more =>
-        @tailrec def wake(frame: IsolateFrame[_, Q]): Unit = if (!frame.isOwned) {
-          if (frame.tryOwn()) frame.scheduler.schedule(frame)
-          else wake(frame)
-        }
-        wake(frame)
-        wakeAll(more)
-      case Nil =>
-        // done
+    private def wakeAll(lis: (Dequeuer[Q], IsolateFrame[_, Q])): Unit = {
+      val deq = lis._1
+      val frame = lis._2
+      @tailrec def wake(): Unit = if (!frame.isOwned) {
+        if (frame.tryOwn()) frame.scheduler.schedule(frame, deq)
+        else wake()
+      }
+      wake()
     }
 
     def foreach(f: IsolateFrame[_, Q])(implicit scheduler: Scheduler) = monitor.synchronized {
-      frames ::= f
+      val dequeuer = new SingleSubscriberSyncedUnrolledRingDequeuer(this)
+      listener = (dequeuer, f)
     }
 
     def isEmpty = monitor.synchronized { ring.isEmpty }
@@ -54,6 +52,20 @@ object EventQueue {
     def dequeue(): Q = monitor.synchronized {
       ring.dequeue()
     }
+
+    def dequeueEnqueueIfEmpty(v: Q): Q = monitor.synchronized {
+      val r = ring.dequeue()
+      if (ring.isEmpty) ring.enqueue(v)
+      r
+    }
+  }
+
+  class SingleSubscriberSyncedUnrolledRingDequeuer[@spec(Int, Long, Double) Q]
+    (q: SingleSubscriberSyncedUnrolledRing[Q])
+  extends Dequeuer[Q] {
+    def dequeue() = q.dequeue()
+    def isEmpty = q.isEmpty
+    def dequeueEnqueueIfEmpty(v: Q) = q.dequeueEnqueueIfEmpty(v)
   }
 
 }
