@@ -76,11 +76,11 @@ final class IsolateFrame[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q]
 
   def run(dummy: Dequeuer[Q]) {
     try {
-      isolateAndRun(dequeuer)
+      if (isolateState.get != IsolateFrame.Terminated) isolateAndRun(dequeuer)
     } finally {
       unOwn()
       if (dequeuer.nonEmpty || terminating) {
-        wake()
+        if (isolateState.get != IsolateFrame.Terminated) wake()
       }
     }
   }
