@@ -29,7 +29,8 @@ trait Scheduler {
   /** Schedules an isolate frame for execution.
    *  Clients never call this method directly.
    *
-   *  This method uses the isolate frame that was previously assigned
+   *  This method uses the isolate frame to flush messages from its event queue
+   *  and propagate events through the isolate.
    *
    *  @tparam Q         the type of the isolate event queue
    *  @param frame      the isolate frame to schedule
@@ -122,8 +123,8 @@ object Scheduler {
 
   /** A `Scheduler` that reuses the target Java `Executor`.
    *
-   *  @param executor       the `Executor` used to schedule isolate tasks
-   *  @param handler        the default error handler for fatal errors not passed to isolates
+   *  @param executor       The `Executor` used to schedule isolate tasks.
+   *  @param handler        The default error handler for fatal errors not passed to isolates.
    */
   class Executed(val executor: java.util.concurrent.Executor, val handler: Scheduler.Handler = Scheduler.defaultHandler)
   extends Scheduler {
@@ -182,8 +183,8 @@ object Scheduler {
      *  The new thread does not stop until the isolate terminates.
      *  The thread is optionally a daemon thread.
      *
-     *  @param isDaemon          is the new thread a daemon
-     *  @param handler           the error handler for fatal errors not passed to isolates
+     *  @param isDaemon          Is the new thread a daemon.
+     *  @param handler           The error handler for fatal errors not passed to isolates.
      */
     class NewThread(val isDaemon: Boolean, val handler: Scheduler.Handler = Scheduler.defaultHandler)
     extends Dedicated {
@@ -195,8 +196,12 @@ object Scheduler {
       }
     }
 
-    /** Executes the isolate on the thread isolate was created on by invoking
-     *  the isolate system's `isolate` method.
+    /** Executes the isolate on the thread that called the isolate system's `isolate` method
+     *  to create the isolate.
+     *
+     *  While isolates are generally sent off to some other thread or computer for execution
+     *  after the isolate has been created, this scheduler executes the isolate on the
+     *  current thread.
      *
      *  The current thread is permanently blocked until the isolate terminates.
      *  Using this scheduler from an existing isolate is illegal and throws an exception.
@@ -204,7 +209,7 @@ object Scheduler {
      *  into an isolate, i.e. to step from the normal multithreaded world into
      *  the isolate universe.
      *
-     *  @param handler           the error handler for the fatal errors not passed to isolates
+     *  @param handler           The error handler for the fatal errors not passed to isolates.
      */
     class Piggyback(val handler: Scheduler.Handler = Scheduler.defaultHandler) extends Dedicated {
       def newWorker[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q](frame: IsolateFrame[T, Q]) = {
