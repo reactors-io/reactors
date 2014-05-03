@@ -32,7 +32,7 @@ object EventQueue {
       wakeAll(l)
     }
 
-    private def wakeAll(frame: IsolateFrame[T, Q]): Unit = {
+    private def wakeAll(frame: IsolateFrame[_, Q]): Unit = {
       frame.wake()
     }
 
