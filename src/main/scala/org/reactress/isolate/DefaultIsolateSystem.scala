@@ -42,6 +42,7 @@ class DefaultIsolateSystem(val name: String) extends IsolateSystem {
       val uname = if (name == null) uniqueName() else ensureUnique(name)
       val frame = new IsolateFrame[T, Q](
         uname,
+        DefaultIsolateSystem.this,
         eventQueue,
         new Reactive.Emitter[SysEvent],
         new Reactive.Emitter[Q],

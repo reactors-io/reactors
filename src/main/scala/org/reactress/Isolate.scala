@@ -22,7 +22,7 @@ object Isolate {
     val fallback: Signal[Option[T]]
 
     def initialize() {
-      react <<= system onCase {
+      react <<= sysEvents onCase {
         case IsolateStarted | IsolateEmptyQueue => fallback() match {
           case Some(v) => later.enqueueIfEmpty(v)
           case None => channel.seal()

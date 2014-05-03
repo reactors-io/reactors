@@ -27,7 +27,9 @@ trait ReactIsolate[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q] exten
 
   /* end workaround */
 
-  final def system: Reactive[SysEvent] = frame.systemEmitter
+  final def system: IsolateSystem = frame.isolateSystem
+
+  final def sysEvents: Reactive[SysEvent] = frame.systemEmitter
 
   final def source: Reactive[Q] = frame.sourceEmitter
 

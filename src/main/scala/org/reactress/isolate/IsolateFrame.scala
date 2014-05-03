@@ -11,6 +11,7 @@ import scala.util.control.NonFatal
 
 final class IsolateFrame[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q](
   val name: String,
+  val isolateSystem: IsolateSystem,
   val eventQueue: EventQueue[Q],
   val systemEmitter: Reactive.Emitter[SysEvent],
   val sourceEmitter: Reactive.Emitter[Q],

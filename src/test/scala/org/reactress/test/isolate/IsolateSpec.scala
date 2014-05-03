@@ -44,7 +44,7 @@ object Isolates {
   class TestLooper(sv: SyncVar[Int]) extends Isolate.Looper[Int] {
     val fallback = ReactCell(Option(1))
 
-    react <<= system onCase {
+    react <<= sysEvents onCase {
       case IsolateEmptyQueue => log(s"empty queue!")
     }
 
