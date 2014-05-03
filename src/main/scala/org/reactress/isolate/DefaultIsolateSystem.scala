@@ -60,8 +60,8 @@ class DefaultIsolateSystem(val name: String) extends IsolateSystem {
       isolates(uname) = frame
       (frame, channel)
     }
-    frame.wake()
     scheduler.initiate(frame)
+    frame.wake()
     channel
   }
 

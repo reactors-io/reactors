@@ -54,7 +54,7 @@ final class IsolateFrame[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q]
 
   @tailrec def wake(): Unit = if (isolateState.get != IsolateFrame.Terminated) {
     if (!isOwned) {
-      if (tryOwn()) scheduler.schedule(this, dequeuer)
+      if (tryOwn()) scheduler.schedule(this)
       else wake()
     }
   }
@@ -74,7 +74,7 @@ final class IsolateFrame[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q]
 
   /* running the frame */
 
-  def run(dequeuer: Dequeuer[Q]) {
+  def run(dummy: Dequeuer[Q]) {
     try {
       isolateAndRun(dequeuer)
     } finally {
@@ -85,7 +85,7 @@ final class IsolateFrame[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q]
     }
   }
 
-  private def isolateAndRun(dequeuer: Dequeuer[Q]) {
+  private def isolateAndRun(dummy: Dequeuer[Q]) {
     if (ReactIsolate.selfIsolate.get != null) {
       throw new IllegalStateException(s"Cannot execute isolate inside of another isolate: ${ReactIsolate.selfIsolate.get}.")
     }
@@ -119,7 +119,7 @@ final class IsolateFrame[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q]
     }
   }
 
-  private def runInIsolate(dequeuer: Dequeuer[Q]) {
+  private def runInIsolate(dummy: Dequeuer[Q]) {
     try {
       checkCreated()
       var budget = 50
