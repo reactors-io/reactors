@@ -18,11 +18,11 @@ class ReactFileSystem(val uri: URI) extends Isolate[ReactFileSystem.Command] {
   private val watcher = fs.newWatchService
   private val subscriptions = concurrent.TrieMap[WatchKey, SubscriptionInfo]()
   private val directories = mutable.Map[ReactPath, WatchKey]()
-  private val poller = new ReactFileSystem.Poller(watcher, subscriptions)
+  private val poller = new ReactFileSystem.Poller(this, watcher, subscriptions)
 
   react <<= source onCase {
     case ReactFileSystem.Watch(dir, channel) =>
-      val key = dir.path.register(watcher, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY)
+      val key = dir.nioPath.register(watcher, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY)
       val emitter = new Reactive.Emitter[Event]
       channel.attach(emitter)
       directories(dir) = key
@@ -47,8 +47,11 @@ class ReactFileSystem(val uri: URI) extends Isolate[ReactFileSystem.Command] {
 
 object ReactFileSystem {
 
-  class Poller(val watcher: WatchService, val subscriptions: concurrent.Map[WatchKey, SubscriptionInfo])
-  extends Thread {
+  class Poller(
+    val fileSystem: ReactFileSystem,
+    val watcher: WatchService,
+    val subscriptions: concurrent.Map[WatchKey, SubscriptionInfo]
+  ) extends Thread {
     setName(s"ReactiveFileSystem-WatchThread-${util.freshId[Poller]}")
     setDaemon(true)
 
@@ -61,7 +64,7 @@ object ReactFileSystem {
             for (rawe <- key.pollEvents.asScala) {
               val event = rawe.asInstanceOf[WatchEvent[Path]]
               val kind = event.kind
-              val path = ReactPath(dir.path.resolve(event.context))
+              val path = new ReactPath(dir.nioPath.resolve(event.context), fileSystem.channel)
               kind match {
                 case ENTRY_CREATE => emitter += Created(path)
                 case ENTRY_MODIFY => emitter += Modified(path)

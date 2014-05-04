@@ -8,11 +8,27 @@ import scala.collection._
 
 trait Channel[@spec(Int, Long, Double) T] {
   def attach(r: Reactive[T]): Channel[T]
+
   def seal(): Channel[T]
+
+  def compose[@spec(Int, Long, Double) S](f: S => T) = new Channel.Composed(this, f)
 }
 
 
 object Channel {
+
+  class Composed[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
+    (val self: Channel[T], val f: S => T)
+  extends Channel[S] {
+    def attach(r: Reactive[S]): Channel[S] = {
+      self.attach(r.map(f))
+      this
+    }
+    def seal(): Channel[S] = {
+      self.seal()
+      this
+    }
+  }
 
   class Synced[@spec(Int, Long, Double) T](val reactor: Reactor[T], val monitor: util.Monitor)
   extends Channel[T] {
