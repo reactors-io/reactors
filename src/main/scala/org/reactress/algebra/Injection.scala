@@ -43,7 +43,7 @@ trait Injection[T, S] extends (T => S) {
 }
 
 
-object Inverse {
+object Injection {
 
   def apply[T, S](f: T => S, i: PartialFunction[S, T]) = new Injection[T, S] {
     def apply(t: T): S = f(t)
