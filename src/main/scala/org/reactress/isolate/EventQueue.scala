@@ -42,7 +42,9 @@ object EventQueue {
       dequeuer
     }
 
-    def isEmpty = monitor.synchronized { ring.isEmpty }
+    def isEmpty = monitor.synchronized {
+      ring.isEmpty
+    }
 
     def dequeue(): Q = monitor.synchronized {
       ring.dequeue()
