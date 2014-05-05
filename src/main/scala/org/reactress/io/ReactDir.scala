@@ -29,8 +29,8 @@ object ReactDir {
   def apply[T <: AnyRef](path: ReactPath, isolate: Isolate[T], i: Injection[ReactFileSystem.Event, T]): ReactDir = {
     val commands = new Reactive.Emitter[ReactFileSystem.Command]
     val fileSystem = path.fileSystem
-    val eventChannel = isolate.channel.compose(i)
-    val events = isolate.source.collect(i.inverse)
+    val eventChannel = isolate.channel.compose(i.function)
+    val events = isolate.source.collect(i.inverse.function)
 
     fileSystem.attach(commands)
     commands += ReactFileSystem.Watch(path, eventChannel)
