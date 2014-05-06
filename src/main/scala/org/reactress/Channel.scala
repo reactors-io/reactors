@@ -82,6 +82,14 @@ object Channel {
     }
   }
 
+  /** A synchronized channel.
+   *
+   *  Basic channel implementation for use within a single machine.
+   *
+   *  @tparam T        type of the channel events
+   *  @param reactor   the reactor notified of this channel's events
+   *  @param monitor   private monitor object used for synchronization
+   */
   class Synced[@spec(Int, Long, Double) T](val reactor: Reactor[T], val monitor: util.Monitor)
   extends Channel[T] {
     private var sealedChannel = false
