@@ -74,6 +74,10 @@ trait Injection[T, S] {
 object Injection {
 
   /** An inversion of an injection.
+   *
+   *  @tparam T     the source type `T`
+   *  @tparam S     the target type `S`
+   *  @param i      the injection being inverted
    */
   case class Inverted[T, S](val i: Injection[S, T]) extends Injection[T, S] {
     def isDefinedAt(t: T) = i.isDefinedInverse(t)
