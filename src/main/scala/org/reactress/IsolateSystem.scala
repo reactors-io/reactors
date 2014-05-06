@@ -14,7 +14,7 @@ import scala.util.DynamicVariable
  */
 abstract class IsolateSystem {
 
-  /** Name of this isolate system.
+  /** Name of this isolate system instance.
    *
    *  @return          the name of the isolate system
    */
