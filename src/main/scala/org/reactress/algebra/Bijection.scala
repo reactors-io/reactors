@@ -72,6 +72,12 @@ object Bijection {
     def invert(s: S): T = i(s)
   }
 
+  /** The inversion of a bijection.
+   *
+   *  @tparam T       the source type `T`
+   *  @tparam S       the target type `S`
+   *  @param b        the bijection being inverted.
+   */
   case class Inverted[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](b: Bijection[T, S])
   extends Bijection[S, T] {
     def apply(s: S) = b.invert(s)
