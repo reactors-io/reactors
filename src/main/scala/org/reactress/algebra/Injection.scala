@@ -69,8 +69,12 @@ trait Injection[T, S] {
 }
 
 
+/** Contains factory methods for injection instances.
+ */
 object Injection {
 
+  /** An inversion of an injection.
+   */
   case class Inverted[T, S](val i: Injection[S, T]) extends Injection[T, S] {
     def isDefinedAt(t: T) = i.isDefinedInverse(t)
     def apply(t: T): S = i.invert(t)
@@ -78,7 +82,15 @@ object Injection {
     def invert(s: S): T = i(s)
   }
 
-  def partial[T, S](f: PartialFunction[T, S], i: PartialFunction[S, T]) = new Injection[T, S] {
+  /** Creates an injection instance using two partial functions.
+   *
+   *  @tparam T     the source type
+   *  @tparam S     the target type of the injection
+   *  @param f      the partial function from `T` to `S`
+   *  @param i      the partial function for the inverse
+   *  @return       a new injection instance
+   */
+  def apply[T, S](f: PartialFunction[T, S], i: PartialFunction[S, T]) = new Injection[T, S] {
     def isDefinedAt(t: T) = f.isDefinedAt(t)
     def apply(t: T): S = f(t)
     def isDefinedInverse(s: S) = i.isDefinedAt(s)
