@@ -9,25 +9,25 @@ import scala.util.control.NonFatal
 
 
 
-final class IsolateFrame[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q](
+final class IsolateFrame[@spec(Int, Long, Double) T](
   val name: String,
   val isolateSystem: IsolateSystem,
-  val eventQueue: EventQueue[Q],
+  val eventQueue: EventQueue[T],
   val systemEmitter: Reactive.Emitter[SysEvent],
-  val sourceEmitter: Reactive.Emitter[Q],
+  val sourceEmitter: Reactive.Emitter[T],
   val failureEmitter: Reactive.Emitter[Throwable],
   val scheduler: Scheduler,
   val state: IsolateFrame.State,
   val isolateState: AtomicReference[IsolateFrame.IsolateState]
 ) extends Reactor[T] {
-  @volatile private[reactress] var isolate: ReactIsolate[T, Q] = _
+  @volatile private[reactress] var isolate: Isolate[T] = _
   @volatile private[reactress] var channel: Channel[T] = _
-  @volatile private[reactress] var dequeuer: Dequeuer[Q] = _
+  @volatile private[reactress] var dequeuer: Dequeuer[T] = _
   @volatile private[reactress] var errorHandling: PartialFunction[Throwable, Unit] = _
   @volatile private[reactress] var terminating = false
   @volatile var schedulerInfo: AnyRef = _
 
-  private def propagate(event: Q) {
+  private def propagate(event: T) {
     try sourceEmitter += event
     catch errorHandling
     finally {}
@@ -59,7 +59,7 @@ final class IsolateFrame[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q]
     }
   }
 
-  def init(dummy: IsolateFrame[T, Q]) {
+  def init(dummy: IsolateFrame[T]) {
     // call the asynchronous foreach on the event queue
     dequeuer = eventQueue.foreach(this)(scheduler)
 
@@ -74,7 +74,7 @@ final class IsolateFrame[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q]
 
   /* running the frame */
 
-  def run(dummy: Dequeuer[Q]) {
+  def run(dummy: Dequeuer[T]) {
     try {
       if (isolateState.get != IsolateFrame.Terminated) isolateAndRun(dequeuer)
     } finally {
@@ -85,17 +85,17 @@ final class IsolateFrame[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q]
     }
   }
 
-  private def isolateAndRun(dummy: Dequeuer[Q]) {
-    if (ReactIsolate.selfIsolate.get != null) {
-      throw new IllegalStateException(s"Cannot execute isolate inside of another isolate: ${ReactIsolate.selfIsolate.get}.")
+  private def isolateAndRun(dummy: Dequeuer[T]) {
+    if (Isolate.selfIsolate.get != null) {
+      throw new IllegalStateException(s"Cannot execute isolate inside of another isolate: ${Isolate.selfIsolate.get}.")
     }
     try {
-      ReactIsolate.selfIsolate.set(isolate)
+      Isolate.selfIsolate.set(isolate)
       runInIsolate(dequeuer)
     } catch {
       scheduler.handler
     } finally {
-      ReactIsolate.selfIsolate.set(null)
+      Isolate.selfIsolate.set(null)
     }
   }
 
@@ -119,7 +119,7 @@ final class IsolateFrame[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q]
     }
   }
 
-  private def runInIsolate(dummy: Dequeuer[Q]) {
+  private def runInIsolate(dummy: Dequeuer[T]) {
     try {
       checkCreated()
       var budget = 50
