@@ -13,6 +13,8 @@ package org.reactress
  *  This allows tracking multiple event queue subscribers.
  *  In essence, a `Dequeuer` is an iterator that is internally used by the
  *  queue implementation to drop elements that are no longer used.
+ *
+ *  A dequeuer is used internally by isolate schedulers.
  *  
  *  @tparam T        the type of events stored in the queue this dequeuer belongs to
  */

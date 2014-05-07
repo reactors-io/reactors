@@ -34,7 +34,7 @@ final class IsolateFrame[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q]
   }
 
   def react(event: T) {
-    isolate.later += event
+    isolate.later enqueue event
   }
 
   def isTerminating = terminating

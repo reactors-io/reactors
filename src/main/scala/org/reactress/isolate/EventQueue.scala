@@ -24,7 +24,7 @@ object EventQueue {
 
     private[reactress] var listener: IsolateFrame[_, Q] = _
 
-    def +=(elem: Q) = {
+    def enqueue(elem: Q) = {
       val l = monitor.synchronized {
         ring.enqueue(elem)
         listener
