@@ -8,6 +8,12 @@ import isolate._
 
 
 
+/** An isolated, independent event propagation context.
+ *
+ *  An `Isolate[T]` object accepts events of type `T` on its input channel.
+ *  
+ *  @tparam T        the type of the events this isolate produces
+ */
 trait Isolate[@spec(Int, Long, Double) T] extends ReactRecord {
   private[reactress] var frame: IsolateFrame[T] = _
 
