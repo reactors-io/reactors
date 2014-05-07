@@ -67,6 +67,8 @@ trait Channel[@spec(Int, Long, Double) T] {
 }
 
 
+/** Channel implementations and creation methods.
+ */
 object Channel {
 
   private[reactress] class Composed[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
