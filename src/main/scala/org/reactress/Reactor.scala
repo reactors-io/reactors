@@ -25,7 +25,3 @@ trait Reactor[@spec(Int, Long, Double) -T] {
   def unreact(): Unit
 }
 
-
-object Reactor {
-
-}
