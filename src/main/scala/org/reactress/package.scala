@@ -119,6 +119,12 @@ package object reactress {
     v + 1
   }
 
+  /** An implicit value that permits invoking operations that
+   *  can buffer events unboundedly.
+   * 
+   *  Users that are sure their events will not be buffered forever
+   *  should import `Permission.canBuffer`.
+   */
   @implicitNotFound("This operation can buffer events, and may consume an arbitrary amount of memory. " +
     "Import the value `Permission.canBuffer` to allow buffering operations.")
   sealed trait CanBeBuffered
