@@ -129,8 +129,13 @@ package object reactress {
     "Import the value `Permission.canBuffer` to allow buffering operations.")
   sealed trait CanBeBuffered
 
+  /** Explicitly importing this object permits calling various methods.
+   */
   object Permission {
-    implicit def canBuffer = new CanBeBuffered {}
+    /** Importing this value permits calling reactive combinators
+     *  that can potentially unboundedly buffer events.
+     */
+    implicit val canBuffer = new CanBeBuffered {}
   }
 
   abstract class Arrayable[@spec(Int, Long) T] {
