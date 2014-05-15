@@ -138,10 +138,30 @@ package object reactress {
     implicit val canBuffer = new CanBeBuffered {}
   }
 
-  abstract class Arrayable[@spec(Int, Long) T] {
+  /** A typeclass that describes how to instantiate an array for the given type `T`.
+   *  
+   *  This is a class tag on steroids.
+   *  It is used in reactive collections that have to do a lot of array allocations.
+   * 
+   *  @tparam T       type for which we want to instantiate an array
+   */
+  abstract class Arrayable[@spec(Int, Long, Double) T] {
+    /** Class tag for type `T`.
+     */
     val classTag: ClassTag[T]
+    /** Returns the `nil` value for the type -- a value never
+     *  used by user applications.
+     * 
+     *  For reference types this is usually `null`,
+     *  but for integers this will usually be `Int.MinValue`
+     *  and not `0`.
+     */
     val nil: T
+    /** Creates a new array of type `T` initialized with `nil`.
+     */
     def newArray(sz: Int): Array[T]
+    /** Creates a new array of type `T` initialized with the default JVM value for that type.
+     */
     def newRawArray(sz: Int): Array[T]
   }
 
