@@ -165,6 +165,9 @@ package object reactress {
     def newRawArray(sz: Int): Array[T]
   }
 
+  /** Contains `Arrayable` typeclasses which have a low priority
+   *  and are selected only if there is no `Arrayable` for a more specific type.
+   */
   trait LowPriorityArrayableImplicits {
     implicit def any[T: ClassTag]: Arrayable[T] = new Arrayable[T] {
       val classTag = implicitly[ClassTag[T]]
@@ -174,6 +177,8 @@ package object reactress {
     }
   }
 
+  /** Contains default `Arrayable` typeclasses.
+   */
   object Arrayable extends LowPriorityArrayableImplicits {
   
     implicit def ref[T >: Null <: AnyRef: ClassTag]: Arrayable[T] = new Arrayable[T] {
