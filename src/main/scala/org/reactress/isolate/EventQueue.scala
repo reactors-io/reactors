@@ -8,6 +8,12 @@ import scala.collection._
 
 
 
+/** Defines event queue.
+ * 
+ *  Event queues are entities that buffer events sent to an isolate.
+ *  
+ *  @tparam Q      type of events in this event queue
+ */
 trait EventQueue[@spec(Int, Long, Double) Q]
 extends Enqueuer[Q] {
   def foreach(f: IsolateFrame[Q])(implicit scheduler: Scheduler): Dequeuer[Q]
