@@ -27,7 +27,7 @@ object ReactressBuild extends Build {
 
   val reactressSettings = Defaults.defaultSettings ++ publishCreds ++ Seq (
     name := "reactress",
-    version := "0.3-SNAPSHOT",
+    version := "0.4-SNAPSHOT",
     organization := "com.storm-enroute",
     scalaVersion := "2.10.2",
     libraryDependencies ++= Seq(
