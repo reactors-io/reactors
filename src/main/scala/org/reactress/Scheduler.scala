@@ -35,7 +35,7 @@ trait Scheduler {
    *  @tparam Q         the type of the isolate event queue
    *  @param frame      the isolate frame to schedule
    */
-  def schedule[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q](frame: IsolateFrame[T, Q]): Unit
+  def schedule[@spec(Int, Long, Double) T](frame: IsolateFrame[T]): Unit
 
   /** Initiates the isolate frame.
    *  Clients never call this method directly.
@@ -48,7 +48,7 @@ trait Scheduler {
    *  @tparam Q         the type of the isolate event queue
    *  @param frame      the isolate frame to initiate
    */
-  def initiate[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q](frame: IsolateFrame[T, Q]): Unit
+  def initiate[@spec(Int, Long, Double) T](frame: IsolateFrame[T]): Unit
 
   /** The handler for the fatal errors that are not sent to
    *  the `failures` stream of the isolate.
@@ -128,13 +128,13 @@ object Scheduler {
    */
   class Executed(val executor: java.util.concurrent.Executor, val handler: Scheduler.Handler = Scheduler.defaultHandler)
   extends Scheduler {
-    def initiate[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q](frame: IsolateFrame[T, Q]): Unit = {
+    def initiate[@spec(Int, Long, Double) T](frame: IsolateFrame[T]): Unit = {
       frame.schedulerInfo = new Runnable {
         def run() = frame.run(frame.dequeuer)
       }
     }
 
-    def schedule[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q](frame: IsolateFrame[T, Q]): Unit = {
+    def schedule[@spec(Int, Long, Double) T](frame: IsolateFrame[T]): Unit = {
       executor.execute(frame.schedulerInfo.asInstanceOf[Runnable])
     }
   }
@@ -142,13 +142,13 @@ object Scheduler {
   /** An abstract scheduler that always dedicates a thread to an isolate.
    */
   abstract class Dedicated extends Scheduler {
-    def newWorker[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q](frame: IsolateFrame[T, Q]): Dedicated.Worker[T, Q]
+    def newWorker[@spec(Int, Long, Double) T](frame: IsolateFrame[T]): Dedicated.Worker[T]
 
-    def schedule[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q](frame: IsolateFrame[T, Q]): Unit = {
-      frame.schedulerInfo.asInstanceOf[Dedicated.Worker[T, Q]].awake()
+    def schedule[@spec(Int, Long, Double) T](frame: IsolateFrame[T]): Unit = {
+      frame.schedulerInfo.asInstanceOf[Dedicated.Worker[T]].awake()
     }
 
-    def initiate[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q](frame: IsolateFrame[T, Q]): Unit = {
+    def initiate[@spec(Int, Long, Double) T](frame: IsolateFrame[T]): Unit = {
       frame.schedulerInfo = newWorker(frame)
     }
   }
@@ -156,10 +156,10 @@ object Scheduler {
   /** Contains utility classes and implementations of the dedicated scheduler.
    */
   object Dedicated {
-    private[reactress] class Worker[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q](val frame: IsolateFrame[T, Q]) {
+    private[reactress] class Worker[@spec(Int, Long, Double) T](val frame: IsolateFrame[T]) {
       val monitor = new util.Monitor
 
-      @tailrec final def loop(f: IsolateFrame[T, Q]) {
+      @tailrec final def loop(f: IsolateFrame[T]) {
         frame.run(frame.dequeuer)
         monitor.synchronized {
           while (frame.eventQueue.isEmpty && !frame.isTerminating) monitor.wait()
@@ -174,7 +174,7 @@ object Scheduler {
       }
     }
 
-    private[reactress] class WorkerThread[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q](val worker: Worker[T, Q]) extends Thread {
+    private[reactress] class WorkerThread[@spec(Int, Long, Double) T](val worker: Worker[T]) extends Thread {
       override def run() = worker.loop(worker.frame)
     }
 
@@ -188,7 +188,7 @@ object Scheduler {
      */
     class NewThread(val isDaemon: Boolean, val handler: Scheduler.Handler = Scheduler.defaultHandler)
     extends Dedicated {
-      def newWorker[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q](frame: IsolateFrame[T, Q]) = {
+      def newWorker[@spec(Int, Long, Double) T](frame: IsolateFrame[T]) = {
         val w = new Worker(frame)
         val t = new WorkerThread(w)
         t.start()
@@ -212,16 +212,16 @@ object Scheduler {
      *  @param handler           The error handler for the fatal errors not passed to isolates.
      */
     class Piggyback(val handler: Scheduler.Handler = Scheduler.defaultHandler) extends Dedicated {
-      def newWorker[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q](frame: IsolateFrame[T, Q]) = {
+      def newWorker[@spec(Int, Long, Double) T](frame: IsolateFrame[T]) = {
         val w = new Worker(frame)
         frame.schedulerInfo = w
         w
       }
 
-      override def initiate[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q](frame: IsolateFrame[T, Q]) {
+      override def initiate[@spec(Int, Long, Double) T](frame: IsolateFrame[T]) {
         // ride, piggy, ride, like you never rode before!
         super.initiate(frame)
-        frame.schedulerInfo.asInstanceOf[Worker[T, Q]].loop(frame)
+        frame.schedulerInfo.asInstanceOf[Worker[T]].loop(frame)
       }
     }
   }
