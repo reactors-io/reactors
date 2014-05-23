@@ -1,8 +1,8 @@
 <img src='reactress-title-96.png'></img>
 
-[Reactress](www.storm-enroute.com/reactress) is a concurrent reactive programming framework.
+[Reactress](http://www.storm-enroute.com/reactress) is a concurrent reactive programming framework.
 
-Detailed documentation available [here](www.storm-enroute.com/reactress/learn).
+Detailed documentation available [here](http://www.storm-enroute.com/reactress/learn).
 
 
 [![Build Status](https://travis-ci.org/storm-enroute/reactress.svg?branch=master)](https://travis-ci.org/storm-enroute/reactress)
