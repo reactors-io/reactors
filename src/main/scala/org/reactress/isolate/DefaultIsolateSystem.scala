@@ -13,7 +13,7 @@ import scala.collection._
  *  @param name      the name of this isolate system
  */
 class DefaultIsolateSystem(val name: String) extends IsolateSystem {
-  private val isolates = mutable.Map[String, IsolateFrame[_, _]]()
+  private val isolates = mutable.Map[String, IsolateFrame[_]]()
   private var uniqueNameCount = 0L
   private val monitor = new util.Monitor
 
@@ -27,31 +27,31 @@ class DefaultIsolateSystem(val name: String) extends IsolateSystem {
     else name
   }
 
-  private def createAndResetIsolate[T, Q](proto: Proto[ReactIsolate[T, Q]]): ReactIsolate[T, Q] = {
-    val oldi = ReactIsolate.selfIsolate.get
+  private def createAndResetIsolate[T](proto: Proto[Isolate[T]]): Isolate[T] = {
+    val oldi = Isolate.selfIsolate.get
     try {
       proto.create()
     } finally {
-      ReactIsolate.selfIsolate.set(null)
+      Isolate.selfIsolate.set(null)
     }
   }
 
-  def isolate[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q: Arrayable](proto: Proto[ReactIsolate[T, Q]], name: String = null)(implicit scheduler: Scheduler): Channel[T] = {
+  def isolate[@spec(Int, Long, Double) T: Arrayable](proto: Proto[Isolate[T]], name: String = null)(implicit scheduler: Scheduler): Channel[T] = {
     val (frame, channel) = monitor.synchronized {
-      val eventQueue = new EventQueue.SingleSubscriberSyncedUnrolledRing[Q](new util.Monitor)
+      val eventQueue = new EventQueue.SingleSubscriberSyncedUnrolledRing[T](new util.Monitor)
       val uname = if (name == null) uniqueName() else ensureUnique(name)
-      val frame = new IsolateFrame[T, Q](
+      val frame = new IsolateFrame[T](
         uname,
         DefaultIsolateSystem.this,
         eventQueue,
         new Reactive.Emitter[SysEvent],
-        new Reactive.Emitter[Q],
+        new Reactive.Emitter[T],
         new Reactive.Emitter[Throwable],
         scheduler,
         new IsolateFrame.State,
         new AtomicReference(IsolateFrame.Created)
       )
-      val isolate = ReactIsolate.argFrame.withValue(frame) {
+      val isolate = Isolate.argFrame.withValue(frame) {
         createAndResetIsolate(proto)
       }
       frame.isolate = isolate

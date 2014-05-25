@@ -36,8 +36,8 @@ object Isolates {
 
   class SelfIso(sv: SyncVar[Boolean]) extends Isolate[Int] {
     react <<= source.onEvent { _ =>
-      log(s"${ReactIsolate.self} vs ${this}}")
-      sv.put(ReactIsolate.self[SelfIso] == this)
+      log(s"${Isolate.self} vs ${this}}")
+      sv.put(Isolate.self[SelfIso] == this)
     }
   }
 

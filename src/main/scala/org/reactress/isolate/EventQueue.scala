@@ -8,9 +8,15 @@ import scala.collection._
 
 
 
+/** Defines event queue.
+ * 
+ *  Event queues are entities that buffer events sent to an isolate.
+ *  
+ *  @tparam Q      type of events in this event queue
+ */
 trait EventQueue[@spec(Int, Long, Double) Q]
 extends Enqueuer[Q] {
-  def foreach[@spec(Int, Long, Double) T](f: IsolateFrame[T, Q])(implicit scheduler: Scheduler): Dequeuer[Q]
+  def foreach(f: IsolateFrame[Q])(implicit scheduler: Scheduler): Dequeuer[Q]
   def isEmpty: Boolean
   def nonEmpty = !isEmpty
 }
@@ -22,9 +28,9 @@ object EventQueue {
   extends EventQueue[Q] {
     private[reactress] val ring = new util.UnrolledRing[Q]
 
-    private[reactress] var listener: IsolateFrame[_, Q] = _
+    private[reactress] var listener: IsolateFrame[Q] = _
 
-    def +=(elem: Q) = {
+    def enqueue(elem: Q) = {
       val l = monitor.synchronized {
         ring.enqueue(elem)
         listener
@@ -32,11 +38,11 @@ object EventQueue {
       wakeAll(l)
     }
 
-    private def wakeAll(frame: IsolateFrame[_, Q]): Unit = {
+    private def wakeAll(frame: IsolateFrame[Q]): Unit = {
       frame.wake()
     }
 
-    def foreach[@spec(Int, Long, Double) T](f: IsolateFrame[T, Q])(implicit scheduler: Scheduler) = monitor.synchronized {
+    def foreach(f: IsolateFrame[Q])(implicit scheduler: Scheduler) = monitor.synchronized {
       val dequeuer = new SingleSubscriberSyncedUnrolledRingDequeuer(this)
       listener = f
       dequeuer

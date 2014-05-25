@@ -34,7 +34,7 @@ abstract class IsolateSystem {
    *  @param scheduler  the scheduler used to scheduler the isolate
    *  @return           the channel for this isolate
    */
-  def isolate[@spec(Int, Long, Double) T, @spec(Int, Long, Double) Q: Arrayable](proto: Proto[ReactIsolate[T, Q]], name: String = null)(implicit scheduler: Scheduler): Channel[T]
+  def isolate[@spec(Int, Long, Double) T: Arrayable](proto: Proto[Isolate[T]], name: String = null)(implicit scheduler: Scheduler): Channel[T]
 
   /** Generates a unique isolate name.
    *
