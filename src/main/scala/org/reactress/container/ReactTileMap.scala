@@ -20,6 +20,7 @@ class ReactTileMap[@spec(Int, Long, Double) T: ClassTag](
   private var previous: Ref[T] = null
   private var sz = 0
   private[reactress] var hiddenRoot: Node[T] = null
+  private[reactress] var valueContainer: EmitContainer[T] = null
   private[reactress] var insertsEmitter: Reactive.Emitter[(Int, Int, T)] = null
   private[reactress] var removesEmitter: Reactive.Emitter[(Int, Int, T)] = null
   private[reactress] var updatesEmitter: Reactive.Emitter[XY] = null
@@ -46,6 +47,9 @@ class ReactTileMap[@spec(Int, Long, Double) T: ClassTag](
     pow2size = nextPow2(dim)
     previous = new Ref[T]
     hiddenRoot = new Node.Leaf(d)
+    valueContainer = new EmitContainer[T](f => foreachNonDefault(0, 0, dim, dim)(new Applier[T] {
+      def apply(x: Int, y: Int, elem: T) = f(elem)
+    }), () => size)
     insertsEmitter = new Reactive.Emitter[(Int, Int, T)]
     removesEmitter = new Reactive.Emitter[(Int, Int, T)]
     updatesEmitter = new Reactive.Emitter[XY]
@@ -70,6 +74,8 @@ class ReactTileMap[@spec(Int, Long, Double) T: ClassTag](
 
   def container = this
   
+  def values: ReactContainer[T] = valueContainer
+
   def updates: Reactive[XY] = {
     checkRoot(dflt)
     updatesEmitter
@@ -122,6 +128,8 @@ class ReactTileMap[@spec(Int, Long, Double) T: ClassTag](
     checkRoot(dflt)
     root.read(array, width, height, fromx, fromy, untilx, untily, 0, 0, pow2size)
   }
+
+  def update(xy: XY, elem: T): Unit = this(xy.x, xy.y) = elem
 
   def update(x: Int, y: Int, elem: T): Unit = {
     require(contains(x, y))
@@ -242,17 +250,17 @@ object ReactTileMap {
   case class Update(x: Int, y: Int) extends Event
   case object Clear extends Event
 
-  trait Default[@spec(Int, Long, Double) S] {
+  trait DefaultValue[@spec(Int, Long, Double) S] {
     def apply(): S
   }
 
-  def Default[@spec(Int, Long, Double) S](v: S) = new Default[S] {
+  def DefaultValue[@spec(Int, Long, Double) S](v: S) = new DefaultValue[S] {
     def apply() = v
   }
 
   def apply[@spec(Int, Long, Double) T: ClassTag](size: Int, default: T) = new ReactTileMap[T](size, default)
 
-  implicit def factory[@spec(Int, Long, Double) S](implicit d: Default[S], ct: ClassTag[S]) = new ReactBuilder.Factory[(Int, Int, S), ReactTileMap[S]] {
+  implicit def factory[@spec(Int, Long, Double) S](implicit d: DefaultValue[S], ct: ClassTag[S]) = new ReactBuilder.Factory[(Int, Int, S), ReactTileMap[S]] {
     def apply() = new ReactTileMap[S](1, d())
   }
 

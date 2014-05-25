@@ -14,12 +14,16 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
   private var table: Array[ReactMap.Entry[K, V]] = null
   private var elems = 0
   private var entries = 0
+  private[reactress] var keyContainer: EmitContainer[K] = null
+  private[reactress] var valueContainer: EmitContainer[V] = null
   private[reactress] var insertsEmitter: Reactive.Emitter[(K, V)] = null
   private[reactress] var removesEmitter: Reactive.Emitter[(K, V)] = null
   private[reactress] var clearsEmitter: Reactive.Emitter[Unit] = null
 
   protected def init(k: K) {
     table = new Array(ReactMap.initSize)
+    keyContainer = new EmitContainer[K](f => foreach((k, v) => f(k)), () => size)
+    valueContainer = new EmitContainer[V](f => foreach((k, v) => f(v)), () => size)
     insertsEmitter = new Reactive.Emitter[(K, V)]
     removesEmitter = new Reactive.Emitter[(K, V)]
     clearsEmitter = new Reactive.Emitter[Unit]
@@ -27,6 +31,8 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
 
   init(null.asInstanceOf[K])
 
+  def keys: ReactContainer[K] = keyContainer
+  def values: ReactContainer[V] = valueContainer
   def inserts: Reactive[(K, V)] = insertsEmitter
   def removes: Reactive[(K, V)] = removesEmitter
   def clears: Reactive[Unit] = clearsEmitter
@@ -124,8 +130,18 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
     }
 
     if (previousValue == null) elems += 1
-    else if (removesEmitter.hasSubscriptions) removesEmitter += (k, previousValue)
-    if (insertsEmitter.hasSubscriptions) insertsEmitter += (k, v)
+    else {
+      keyContainer.removes += k
+      valueContainer.removes += previousValue
+      if (removesEmitter.hasSubscriptions) removesEmitter += (k, previousValue)
+    }
+    
+    {
+      keyContainer.inserts += k
+      valueContainer.inserts += v
+      if (insertsEmitter.hasSubscriptions) insertsEmitter += (k, v)
+    }
+    
     entry.propagate()
 
     previousValue
@@ -150,7 +166,11 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
         entries -= 1
       }
 
-      if (removesEmitter.hasSubscriptions) removesEmitter += (k, previousValue)
+      {
+        keyContainer.removes += k
+        valueContainer.removes += previousValue
+        if (removesEmitter.hasSubscriptions) removesEmitter += (k, previousValue)
+      }
       entry.propagate()
 
       previousValue

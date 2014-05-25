@@ -81,6 +81,8 @@ object ReactContainer {
 
     def abelianFold(implicit m: Abelian[T], a: Arrayable[T]): Signal[T] with Reactive.Subscription = new Aggregate(container, AbelianCatamorph[T])
 
+    def mutate(m: ReactMutable)(insert: T => Unit)(remove: T => Unit): Reactive.Subscription = new Mutate(container, insert, remove)
+
     /* transformers */
   
     def to[That <: ReactContainer[T]](implicit factory: ReactBuilder.Factory[T, That]): That = {
@@ -141,6 +143,14 @@ object ReactContainer {
     val subscription = Reactive.CompositeSubscription(
       self.inserts on { value += 1; reactAll(value) },
       self.removes on { value -= 1; reactAll(value) }
+    )
+  }
+
+  class Mutate[@spec(Int, Long, Double) T](self: ReactContainer[T], insert: T => Unit, remove: T => Unit)
+  extends Reactive.ProxySubscription {
+    val subscription = Reactive.CompositeSubscription(
+      self.inserts.mutate(self)(insert),
+      self.removes.mutate(self)(remove)
     )
   }
 
