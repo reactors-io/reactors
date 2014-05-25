@@ -289,6 +289,19 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     buffer should equal (Seq(1, 11, 111, 1111, 2, 22, 3, 33, 4))
   }
 
+  it should "collect accurately" in {
+    val e = new Reactive.Emitter[String]
+    val evens = e collect {
+      case x if x.toInt % 2 == 0 => x
+    }
+    val observed = mutable.Buffer[String]()
+    val emitSub = evens.onEvent(observed += _)
+
+    for (i <- 0 until 100) e += i.toString
+
+    observed should equal ((0 until 100 by 2).map(_.toString))
+  }
+
   "A passive reactive" should "emit events multiple times" in {
     val passive = Reactive.passive[Int] { r =>
       r.react(1)

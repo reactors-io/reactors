@@ -396,7 +396,9 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    *  @return           a subscription and a reactive value with the partially mapped events
    */
   def collect[S <: AnyRef](pf: PartialFunction[T, S])(implicit evidence: T <:< AnyRef): Reactive[S] with Reactive.Subscription = {
-    new Reactive.Collect[T, S](self, pf)
+    val cf = new Reactive.Collect[T, S](self, pf)
+    cf.subscription = self onReaction cf
+    cf
   }
 
   /** Returns a new reactive that maps events from `this` reactive using the mapping function `f`.
