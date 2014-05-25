@@ -138,16 +138,17 @@ class ReactTileMap[@spec(Int, Long, Double) T: ClassTag](
     val old = root
     root = root.update(x, y, pow2size, implicitly[ClassTag[T]], default, elem, compress, previous)
     
-    val prevDefault = previous.elem == dflt
+    val prevelem = previous.elem
+    val prevDefault = prevelem == dflt
     val currDefault = elem == dflt
 
     if (prevDefault && !currDefault) sz += 1
     else if (!prevDefault && currDefault) sz -= 1
 
     if (!prevDefault) {
-      valueContainer.removes += previous.elem
+      valueContainer.removes += prevelem
       if (removesEmitter.hasSubscriptions) {
-        removesEmitter += (x, y, previous.elem)
+        removesEmitter += (x, y, prevelem)
       }
     }
 
