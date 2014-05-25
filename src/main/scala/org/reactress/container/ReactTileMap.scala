@@ -140,18 +140,23 @@ class ReactTileMap[@spec(Int, Long, Double) T: ClassTag](
     
     val prevDefault = previous.elem == dflt
     val currDefault = elem == dflt
+
+    if (prevDefault && !currDefault) sz += 1
+    else if (!prevDefault && currDefault) sz -= 1
+
     if (!prevDefault) {
+      valueContainer.removes += previous.elem
       if (removesEmitter.hasSubscriptions) {
-        removesEmitter += (x, y, elem)
+        removesEmitter += (x, y, previous.elem)
       }
     }
+
     if (!currDefault) {
+      valueContainer.inserts += elem
       if (insertsEmitter.hasSubscriptions) {
         insertsEmitter += (x, y, elem)
       }
     }
-    if (prevDefault && !currDefault) sz += 1
-    else if (!prevDefault && currDefault) sz -= 1
     updatesEmitter += XY(x, y)
   }
 
@@ -180,7 +185,10 @@ class ReactTileMap[@spec(Int, Long, Double) T: ClassTag](
 
     if (removesEmitter.hasSubscriptions) {
       oldroot.foreachNonDefault(0, 0, dim, dim, 0, 0, dim, dflt)(new Applier[T] {
-        def apply(x: Int, y: Int, elem: T) = removesEmitter += (x, y, elem)
+        def apply(x: Int, y: Int, elem: T) = {
+          valueContainer.removes += elem
+          removesEmitter += (x, y, elem)
+        }
       })
     }
   }

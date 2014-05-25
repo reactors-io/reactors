@@ -253,7 +253,12 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
         entry.value = null
         if (!entry.hasSubscriptions) table(pos) = table(pos).remove(entry)
         entry.propagate()
-        if (previousValue != null) elems -= 1
+        if (previousValue != null) {
+          elems -= 1
+          keyContainer.removes += entry.key
+          valueContainer.removes += previousValue
+          removesEmitter += (entry.key, previousValue)
+        }
 
         entry = nextEntry
       }

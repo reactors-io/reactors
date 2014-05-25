@@ -6,6 +6,7 @@ package test.container
 import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers
 import java.util.NoSuchElementException
+import scala.collection._
 
 
 
@@ -138,6 +139,28 @@ class ReactMapSpec extends FlatSpec with ShouldMatchers {
 
     for (i <- 0 until size) table(i) = "foobar"
     for (i <- 0 until many) signsOfLife(i) should equal (false)
+  }
+
+  it should "contain the correct set of keys" in {
+    val size = 256
+    val table = new ReactMap[Int, String]
+    val observed = mutable.Set[Int]()
+    val keys = table.keys
+    keys.inserts.onEvent(observed += _)
+    for (i <- 0 until size) table(i) = i.toString
+
+    observed should equal ((0 until size).toSet)
+  }
+
+  it should "contain the correct set of values" in {
+    val size = 256
+    val table = new ReactMap[Int, String]
+    val observed = mutable.Set[Int]()
+    val keys = table.keys
+    val insertSub = keys.inserts.onEvent(observed += _)
+    for (i <- 0 until size) table(i) = i.toString
+
+    observed should equal ((0 until size).toSet)
   }
 
 }

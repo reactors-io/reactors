@@ -5,6 +5,7 @@ package test.container
 
 import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers
+import scala.collection._
 
 
 
@@ -72,6 +73,23 @@ class ReactTileMapSpec extends FlatSpec with ShouldMatchers {
     }
 
     tilemap(0, 0) = "OK"
+  }
+
+  it should "contain the correct set of values" in {
+    val size = 256
+    val tilemap = new ReactTileMap[String](size, null)
+    val observed = mutable.Set[String]()
+    val insertSub = tilemap.values.inserts.onEvent(observed += _)
+    val removeSub = tilemap.values.removes.onEvent(observed -= _)
+
+    for (x <- 0 until 200 by 20; y <- 0 until 200 by 10) tilemap(x, y) = s"($x, $y)"
+    val produced = for (x <- 0 until 200 by 20; y <- 0 until 200 by 10) yield s"($x, $y)"
+
+    observed should equal (produced.toSet)
+
+    tilemap(0, 0) = null
+
+    observed should equal (produced.toSet - s"(0, 0)")
   }
 
 }
