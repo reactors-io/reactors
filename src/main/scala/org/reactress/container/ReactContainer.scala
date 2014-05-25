@@ -105,6 +105,9 @@ object ReactContainer {
     def filter(p: T => Boolean): ReactContainer.Lifted[T] =
       (new ReactContainer.Filter[T](container, p)).react
   
+    def collect[S <: AnyRef](pf: PartialFunction[T, S])(implicit e: T <:< AnyRef): ReactContainer.Lifted[S] =
+      (new ReactContainer.Collect(container, pf)).react
+
     def union(that: ReactContainer.Lifted[T])(implicit count: Union.Count[T], a: Arrayable[T], b: CanBeBuffered): ReactContainer.Lifted[T] =
       (new ReactContainer.Union[T](this.container, that.container, count)).react
 
@@ -168,6 +171,14 @@ object ReactContainer {
     val removes = self.removes.filter(p)
     def size = self.count(p)
     def foreach(f: T => Unit) = self.foreach(x => if (p(x)) f(x))
+  }
+
+  class Collect[T, S <: AnyRef](self: ReactContainer[T], pf: PartialFunction[T, S])(implicit e: T <:< AnyRef)
+  extends ReactContainer.Default[S] {
+    val inserts = self.inserts.collect(pf)
+    val removes = self.removes.collect(pf)
+    def size = self.count(pf.isDefinedAt)
+    def foreach(f: S => Unit) = self.foreach(x => if (pf.isDefinedAt(x)) f(pf(x)))
   }
 
   class Union[@spec(Int, Long, Double) T]
