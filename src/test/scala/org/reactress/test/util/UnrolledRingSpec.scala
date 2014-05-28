@@ -1,9 +1,9 @@
-package org.reactress
+package scala.reactive
 package test.util
 
 
 
-import org.reactress.util.UnrolledRing
+import scala.reactive.util.UnrolledRing
 import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers
 

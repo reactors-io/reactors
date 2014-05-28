@@ -1,4 +1,4 @@
-package org.reactress
+package scala.reactive
 package test.isolate
 
 

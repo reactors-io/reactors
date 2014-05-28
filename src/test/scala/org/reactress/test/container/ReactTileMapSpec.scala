@@ -1,4 +1,4 @@
-package org.reactress
+package scala.reactive
 package test.container
 
 
@@ -64,7 +64,7 @@ class ReactTileMapSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "detect modifications" in {
-    import org.reactress._
+    import scala.reactive._
     val size = 32
     val tilemap = new ReactTileMap[String](size, null)
     val m = tilemap.updates
