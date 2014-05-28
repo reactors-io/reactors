@@ -5,6 +5,7 @@ package test.container
 
 import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers
+import scala.collection._
 
 
 
@@ -14,7 +15,7 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
 
   def map() {
     val numbers = new ReactSet[Long]
-    val mapped = numbers.react.map(-_).to[ReactSet[Long]]
+    val mapped = numbers.map(-_).react.to[ReactSet[Long]]
     
     sys.runtime.gc()
 
@@ -31,7 +32,7 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
 
   it should "be mapped into a different container" in {
     val numbers = new ReactSet[Int]
-    val mapped = numbers.react.map(2 * _).to[ReactSet[Int]]
+    val mapped = numbers.map(2 * _).react.to[ReactSet[Int]]
 
     mapped.size should equal (0)
 
@@ -43,7 +44,7 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
 
   it should "filter" in {
     val numbers = new ReactSet[Int]
-    val filtered = numbers.react.filter(_ % 2 == 0).to[ReactSet[Int]]
+    val filtered = numbers.filter(_ % 2 == 0).react.to[ReactSet[Int]]
 
     filtered.size should equal (0)
 
@@ -55,7 +56,7 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
     import Permission.canBuffer
     val xs = new ReactSet[Int]
     val ys = new ReactSet[Int]
-    val both = (xs.react union ys.react).to[ReactSet[Int]]
+    val both = (xs union ys).react.to[ReactSet[Int]]
     def check(nums: Int*) {
       for (n <- nums) both(n) should equal (true)
     }
@@ -86,7 +87,7 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
     import Permission.canBuffer
     val xs = new ReactSet[String]
     val ys = new ReactSet[String]
-    val both = (xs.react union ys.react).to[ReactSet[String]]
+    val both = (xs union ys).react.to[ReactSet[String]]
     def check(nums: String*) {
       for (n <- nums) both(n) should equal (true)
     }
@@ -217,6 +218,20 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
     allodd() should equal (true)
     numbers -= 17
     allodd() should equal (true)
+  }
+
+  it should "accurately collect" in {
+    val size = 512
+    val table = new ReactMap[Int, String]
+    val oks = table.collect({
+      case (k, "ok") => (k, "ok")
+    })
+    val observed = mutable.Buffer[String]()
+    val insertSub = oks.inserts.onEvent(kv => observed += kv._2)
+    for (i <- 0 until size) table(i) = if (i % 2 == 0) "ok" else "notok"
+
+    observed.size should equal (size / 2)
+    for (v <- observed) v should equal ("ok")
   }
 
 }

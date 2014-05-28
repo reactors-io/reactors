@@ -141,20 +141,6 @@ class ReactMapSpec extends FlatSpec with ShouldMatchers {
     for (i <- 0 until many) signsOfLife(i) should equal (false)
   }
 
-  it should "accurately collect" in {
-    val size = 512
-    val table = new ReactMap[Int, String]
-    val oks = table.react.collect({
-      case (k, "ok") => (k, "ok")
-    })
-    val observed = mutable.Buffer[String]()
-    val insertSub = oks.container.inserts.onEvent(kv => observed += kv._2)
-    for (i <- 0 until size) table(i) = if (i % 2 == 0) "ok" else "notok"
-
-    observed.size should equal (size / 2)
-    for (v <- observed) v should equal ("ok")
-  }
-
   it should "contain the correct set of keys" in {
     val size = 256
     val table = new ReactMap[Int, String]

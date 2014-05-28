@@ -76,9 +76,9 @@ package object algebra {
       val operator = (x: Seq[T], y: Seq[T]) => x ++ y
     }
   
-    implicit def setUnion[T] = new Monoid[Set[T]] {
-      val zero = Set[T]()
-      val operator = (x: Set[T], y: Set[T]) => x union y
+    implicit def setUnion[T] = new Monoid[collection.Set[T]] {
+      val zero = collection.Set[T]()
+      val operator = (x: collection.Set[T], y: collection.Set[T]) => x union y
     }
 
   }

@@ -29,11 +29,23 @@ trait ReactContainer[@spec(Int, Long, Double) T] extends ReactMutable.Subscripti
 
   def exists(p: T => Boolean): Boolean = count(p) > 0
 
-  def aggregate(m: Monoid[T]): T = {
+  def fold(m: Monoid[T]): T = {
     var agg = m.zero
     for (v <- this) agg = m.operator(agg, v)
     agg
   }
+
+  def map[@spec(Int, Long, Double) S](f: T => S): ReactContainer[S] =
+    new ReactContainer.Map(this, f)
+
+  def filter(p: T => Boolean): ReactContainer[T] =
+    new ReactContainer.Filter(this, p)
+
+  def collect[S <: AnyRef](pf: PartialFunction[T, S])(implicit e: T <:< AnyRef): ReactContainer[S] =
+    new ReactContainer.Collect(this, pf)
+
+  def union(that: ReactContainer[T])(implicit count: ReactContainer.Union.Count[T], a: Arrayable[T], b: CanBeBuffered): ReactContainer[T] =
+    new ReactContainer.Union(this, that, count)
 
 }
 
@@ -77,9 +89,9 @@ object ReactContainer {
     
     def monoidFold(implicit m: Monoid[T]): Signal[T] with Reactive.Subscription = new Aggregate(container, MonoidCatamorph[T])
 
-    def commuteFold(implicit m: Commutoid[T]): Signal[T] with Reactive.Subscription = new Aggregate(container, CommuteCatamorph[T])
+    def commuteFold(implicit c: Commutoid[T]): Signal[T] with Reactive.Subscription = new Aggregate(container, CommuteCatamorph[T])
 
-    def abelianFold(implicit m: Abelian[T], a: Arrayable[T]): Signal[T] with Reactive.Subscription = new Aggregate(container, AbelianCatamorph[T])
+    def abelianFold(implicit ab: Abelian[T], a: Arrayable[T]): Signal[T] with Reactive.Subscription = new Aggregate(container, AbelianCatamorph[T])
 
     def mutate(m: ReactMutable)(insert: T => Unit)(remove: T => Unit): Reactive.Subscription = new Mutate(container, insert, remove)
 
@@ -98,18 +110,6 @@ object ReactContainer {
   
       result
     }
-  
-    def map[@spec(Int, Long, Double) S](f: T => S): ReactContainer.Lifted[S] =
-      (new ReactContainer.Map[T, S](container, f)).react
-  
-    def filter(p: T => Boolean): ReactContainer.Lifted[T] =
-      (new ReactContainer.Filter[T](container, p)).react
-  
-    def collect[S <: AnyRef](pf: PartialFunction[T, S])(implicit e: T <:< AnyRef): ReactContainer.Lifted[S] =
-      (new ReactContainer.Collect(container, pf)).react
-
-    def union(that: ReactContainer.Lifted[T])(implicit count: Union.Count[T], a: Arrayable[T], b: CanBeBuffered): ReactContainer.Lifted[T] =
-      (new ReactContainer.Union[T](this.container, that.container, count)).react
 
   }
 
