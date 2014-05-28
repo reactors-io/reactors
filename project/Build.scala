@@ -5,7 +5,7 @@ import java.io.File
 
 
 
-object ReactressBuild extends Build {
+object ReactiveCollectionsBuild extends Build {
 
 
   val publishUser = "SONATYPE_USER"
@@ -25,8 +25,8 @@ object ReactressBuild extends Build {
       publish <<= streams.map(_.log.info("Publishing to Sonatype is disabled since the \"" + publishUser + "\" and/or \"" + publishPass + "\" environment variables are not set."))
   })
 
-  val reactressSettings = Defaults.defaultSettings ++ publishCreds ++ Seq (
-    name := "reactress",
+  val reactiveCollectionsSettings = Defaults.defaultSettings ++ publishCreds ++ Seq (
+    name := "reactive-collections",
     version := "0.4",
     organization := "com.storm-enroute",
     scalaVersion := "2.10.2",
@@ -64,8 +64,8 @@ object ReactressBuild extends Build {
         </license>
       </licenses>
       <scm>
-        <url>git@github.com:storm-enroute/reactress.git</url>
-        <connection>scm:git:git@github.com:storm-enroute/reactress.git</connection>
+        <url>git@github.com:storm-enroute/reactive-collections.git</url>
+        <connection>scm:git:git@github.com:storm-enroute/reactive-collections.git</connection>
       </scm>
       <developers>
         <developer>
@@ -76,10 +76,10 @@ object ReactressBuild extends Build {
       </developers>
   )
 
-  lazy val reactress = Project(
-    "reactress",
+  lazy val reactiveCollections = Project(
+    "reactive-collections",
     file("."),
-    settings = reactressSettings
+    settings = reactiveCollectionsSettings
   )
 
 }
