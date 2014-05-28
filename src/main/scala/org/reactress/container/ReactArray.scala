@@ -15,7 +15,6 @@ extends ReactContainer[T] with ReactBuilder[T, ReactArray[T]] {
 
   val inserts = new Reactive.Emitter[T]
   val removes = new Reactive.Emitter[T]
-  val clears = new Reactive.Emitter[Unit]
 
   val react = new ReactArray.Lifted(this)
 
@@ -54,7 +53,6 @@ extends ReactContainer[T] with ReactBuilder[T, ReactArray[T]] {
   def clear() {
     array = implicitly[Arrayable[T]].newArray(8)
     len = 0
-    clears += ()
   }
 
   def container = this

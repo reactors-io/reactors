@@ -24,7 +24,6 @@ class ReactTileMap[@spec(Int, Long, Double) T: ClassTag](
   private[reactress] var insertsEmitter: Reactive.Emitter[(Int, Int, T)] = null
   private[reactress] var removesEmitter: Reactive.Emitter[(Int, Int, T)] = null
   private[reactress] var updatesEmitter: Reactive.Emitter[XY] = null
-  private[reactress] var clearsEmitter: Reactive.Emitter[Unit] = null
   private[reactress] var dimensionsEmitter: Reactive.Emitter[Int] = null
   private[reactress] def quadRoot = root
 
@@ -53,7 +52,6 @@ class ReactTileMap[@spec(Int, Long, Double) T: ClassTag](
     insertsEmitter = new Reactive.Emitter[(Int, Int, T)]
     removesEmitter = new Reactive.Emitter[(Int, Int, T)]
     updatesEmitter = new Reactive.Emitter[XY]
-    clearsEmitter = new Reactive.Emitter[Unit]
     dimensionsEmitter = new Reactive.Emitter[Int]
   }
 
@@ -79,11 +77,6 @@ class ReactTileMap[@spec(Int, Long, Double) T: ClassTag](
   def updates: Reactive[XY] = {
     checkRoot(dflt)
     updatesEmitter
-  }
-
-  def clears: Reactive[Unit] = {
-    checkRoot(dflt)
-    clearsEmitter
   }
 
   def dimensions: Reactive[Int] = {
@@ -182,7 +175,6 @@ class ReactTileMap[@spec(Int, Long, Double) T: ClassTag](
 
     val oldroot = root
     root = new Node.Leaf(dflt)
-    clearsEmitter += ()
 
     if (removesEmitter.hasSubscriptions) {
       oldroot.foreachNonDefault(0, 0, dim, dim, 0, 0, dim, dflt)(new Applier[T] {

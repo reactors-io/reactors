@@ -18,7 +18,6 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
   private[reactress] var valueContainer: EmitContainer[V] = null
   private[reactress] var insertsEmitter: Reactive.Emitter[(K, V)] = null
   private[reactress] var removesEmitter: Reactive.Emitter[(K, V)] = null
-  private[reactress] var clearsEmitter: Reactive.Emitter[Unit] = null
 
   protected def init(k: K) {
     table = new Array(ReactMap.initSize)
@@ -26,7 +25,6 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
     valueContainer = new EmitContainer[V](f => foreach((k, v) => f(v)), () => size)
     insertsEmitter = new Reactive.Emitter[(K, V)]
     removesEmitter = new Reactive.Emitter[(K, V)]
-    clearsEmitter = new Reactive.Emitter[Unit]
   }
 
   init(null.asInstanceOf[K])
@@ -35,7 +33,6 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
   def values: ReactContainer[V] = valueContainer
   def inserts: Reactive[(K, V)] = insertsEmitter
   def removes: Reactive[(K, V)] = removesEmitter
-  def clears: Reactive[Unit] = clearsEmitter
 
   def builder: ReactBuilder[(K, V), ReactMap[K, V]] = this
 
@@ -257,7 +254,7 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
           elems -= 1
           keyContainer.removes += entry.key
           valueContainer.removes += previousValue
-          removesEmitter += (entry.key, previousValue)
+          if (removesEmitter.hasSubscriptions) removesEmitter += (entry.key, previousValue)
         }
 
         entry = nextEntry
@@ -268,8 +265,6 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
     if (elems != 0) {
       throw new IllegalStateException("Size not zero after clear: " + elems)
     }
-
-    clearsEmitter += ()
   }
 
   def size: Int = elems

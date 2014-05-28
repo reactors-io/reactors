@@ -16,21 +16,18 @@ class ReactTable[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
   private var sz = 0
   private[reactress] var insertsEmitter: Reactive.Emitter[(K, V)] = null
   private[reactress] var removesEmitter: Reactive.Emitter[(K, V)] = null
-  private[reactress] var clearsEmitter: Reactive.Emitter[Unit] = null
 
   protected def init(ek: Arrayable[K], ev: Arrayable[V]) {
     keytable = emptyKey.newArray(ReactTable.initSize)
     valtable = emptyVal.newArray(ReactTable.initSize)
     insertsEmitter = new Reactive.Emitter[(K, V)]
     removesEmitter = new Reactive.Emitter[(K, V)]
-    clearsEmitter = new Reactive.Emitter[Unit]
   }
 
   init(emptyKey, emptyVal)
 
   def inserts: Reactive[(K, V)] = insertsEmitter
   def removes: Reactive[(K, V)] = removesEmitter
-  def clears: Reactive[Unit] = clearsEmitter
 
   def builder: ReactBuilder[(K, V), ReactTable[K, V]] = this
 
@@ -212,12 +209,11 @@ class ReactTable[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
         keytable(pos) = emptyKey.nil
         valtable(pos) = emptyVal.nil
         sz -= 1
+        if (removesEmitter.hasSubscriptions) removesEmitter += ((k, v))
       }
 
       pos += 1
     }
-
-    clearsEmitter += ()
   }
 
   def size: Int = sz

@@ -8,7 +8,7 @@ import scala.reflect.ClassTag
 
 
 class ReactSet[@spec(Int, Long, Double) T](
-  implicit val emptyElem: Arrayable[T]
+  implicit val arrayable: Arrayable[T]
 ) extends ReactContainer[T] with ReactBuilder[T, ReactSet[T]] {
   self =>
 
@@ -16,20 +16,17 @@ class ReactSet[@spec(Int, Long, Double) T](
   private var sz = 0
   private[reactress] var insertsEmitter: Reactive.Emitter[T] = null
   private[reactress] var removesEmitter: Reactive.Emitter[T] = null
-  private[reactress] var clearsEmitter: Reactive.Emitter[Unit] = null
 
   protected def init(ee: Arrayable[T]) {
-    table = emptyElem.newArray(ReactSet.initSize)
+    table = arrayable.newArray(ReactSet.initSize)
     insertsEmitter = new Reactive.Emitter[T]
     removesEmitter = new Reactive.Emitter[T]
-    clearsEmitter = new Reactive.Emitter[Unit]
   }
 
-  init(emptyElem)
+  init(arrayable)
 
   def inserts: Reactive[T] = insertsEmitter
   def removes: Reactive[T] = removesEmitter
-  def clears: Reactive[Unit] = clearsEmitter
 
   def builder: ReactBuilder[T, ReactSet[T]] = this
 
@@ -49,7 +46,7 @@ class ReactSet[@spec(Int, Long, Double) T](
     var i = 0
     while (i < table.length) {
       val k = table(i)
-      if (k != emptyElem.nil) {
+      if (k != arrayable.nil) {
         f(k)
       }
       i += 1
@@ -58,7 +55,7 @@ class ReactSet[@spec(Int, Long, Double) T](
 
   private def lookup(k: T): Boolean = {
     var pos = index(k)
-    val nil = emptyElem.nil
+    val nil = arrayable.nil
     var curr = table(pos)
 
     while (curr != nil && curr != k) {
@@ -74,7 +71,7 @@ class ReactSet[@spec(Int, Long, Double) T](
     checkResize()
 
     var pos = index(k)
-    val nil = emptyElem.nil
+    val nil = arrayable.nil
     var curr = table(pos)
     assert(k != nil)
 
@@ -94,7 +91,7 @@ class ReactSet[@spec(Int, Long, Double) T](
 
   private def delete(k: T): Boolean = {
     var pos = index(k)
-    val nil = emptyElem.nil
+    val nil = arrayable.nil
     var curr = table(pos)
 
     while (curr != nil && curr != k) {
@@ -115,7 +112,7 @@ class ReactSet[@spec(Int, Long, Double) T](
         h1 = (h1 + 1) % table.length
       }
 
-      table(h0) = emptyElem.nil
+      table(h0) = arrayable.nil
       sz -= 1
       removesEmitter += k
 
@@ -127,11 +124,11 @@ class ReactSet[@spec(Int, Long, Double) T](
     if (sz * 1000 / ReactSet.loadFactor > table.length) {
       val otable = table
       val ncapacity = table.length * 2
-      table = emptyElem.newArray(ncapacity)
+      table = arrayable.newArray(ncapacity)
       sz = 0
 
       var pos = 0
-      val nil = emptyElem.nil
+      val nil = arrayable.nil
       while (pos < otable.length) {
         val curr = otable(pos)
         if (curr != nil) {
@@ -164,17 +161,17 @@ class ReactSet[@spec(Int, Long, Double) T](
 
   def clear() {
     var pos = 0
-    val nil = emptyElem.nil
+    val nil = arrayable.nil
     while (pos < table.length) {
-      if (table(pos) != nil) {
-        table(pos) = emptyElem.nil
+      val elem = table(pos)
+      if (elem != nil) {
+        table(pos) = arrayable.nil
         sz -= 1
+        removesEmitter += elem
       }
 
       pos += 1
     }
-
-    clearsEmitter += ()
   }
 
   def size: Int = sz
