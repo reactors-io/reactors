@@ -47,6 +47,12 @@ trait ReactContainer[@spec(Int, Long, Double) T] extends ReactMutable.Subscripti
   def union(that: ReactContainer[T])(implicit count: ReactContainer.Union.Count[T], a: Arrayable[T], b: CanBeBuffered): ReactContainer[T] =
     new ReactContainer.Union(this, that, count)
 
+  def to[That <: ReactContainer[T]](implicit factory: ReactBuilder.Factory[T, That]): That = {
+    val builder = factory()
+    for (x <- this) builder += x
+    builder.container
+  }
+
 }
 
 

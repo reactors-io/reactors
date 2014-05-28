@@ -234,4 +234,14 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
     for (v <- observed) v should equal ("ok")
   }
 
+  it should "be eagerly evaluated" in {
+    val size = 512
+    val set = new ReactSet[Int]
+    for (i <- 0 until size) set += i
+    val mapped = set.map(_ + 1).to[ReactSet[Int]]
+
+    mapped.size should equal (size)
+    for (x <- mapped) set(x / 2) should equal (true)
+  }
+
 }
