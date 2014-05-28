@@ -5,7 +5,7 @@
 Detailed documentation available [here](http://www.storm-enroute.com/reactive-collections/learn).
 
 
-[![Build Status](https://travis-ci.org/storm-enroute/reactress.svg?branch=master)](https://travis-ci.org/storm-enroute/reactive-collections)
+[![Build Status](https://travis-ci.org/storm-enroute/reactive-collections.svg?branch=master)](https://travis-ci.org/storm-enroute/reactive-collections)
 
 [![Build Status](https://ci.storm-enroute.com:8080/buildStatus/icon?job=public-reactive-collections)](https://ci.storm-enroute.com:8080/job/public-reactive-collections/)
 
