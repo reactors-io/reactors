@@ -30,9 +30,10 @@ object ReactiveCollectionsBuild extends Build {
     version := "0.5-SNAPSHOT",
     organization := "com.storm-enroute",
     scalaVersion := "2.10.2",
+    crossScalaVersions := Seq("2.10.2", "2.11.0"),
     libraryDependencies ++= Seq(
       "org.scalatest" % "scalatest_2.10" % "1.9.1" % "test",
-      "com.github.axel22" %% "scalameter" % "0.4" % "test",
+      "com.github.axel22" %% "scalameter" % "0.5-M2" % "test",
       "com.netflix.rxjava" % "rxjava-scala" % "0.15.0" % "test"
     ),
     testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
