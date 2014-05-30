@@ -2,7 +2,8 @@
 
 [Reactive Collections](http://reactive-collections.com) is a concurrent reactive programming framework for Scala.
 
-Detailed documentation available [here](http://reactive-collections.com/learn).
+- [documentation](http://reactive-collections.com/learn/)
+- [download page](http://reactive-collections.com/download/)
 
 
 [![Build Status](https://travis-ci.org/storm-enroute/reactive-collections.svg?branch=master)](https://travis-ci.org/storm-enroute/reactive-collections)
