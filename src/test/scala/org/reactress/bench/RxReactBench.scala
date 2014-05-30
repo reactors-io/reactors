@@ -5,7 +5,6 @@ package bench
 
 import org.scalameter.api._
 import rx.lang.scala._
-import scala.react._
 
 
 
@@ -46,72 +45,8 @@ class RxReactBench extends PerformanceTest.Regression {
       }
     }
 
-    using(sumSizes) curve("ScalaReact") in { sz =>
-      import RxReactBench.domain._
-      val app = new ReactiveApp {
-        override def main() {
-          val source = EventSource[Int]
-          val sum = source.scan(0)(_ + _).hold(0)
-
-          var i = 0
-          while (i < sz) {
-            source << i
-            i += 1
-          }
-          //println(sum.getValue) // this doesn't even produce the right value
-        }
-      }
-      app.main(new Array(0))
-    }
   }
 
 }
 
 
-object RxReactBench {
-
-  import java.util.ArrayDeque
-  
-  object domain extends Domain {
-    var engine = new TestEngine
-    val scheduler = new ManualScheduler
-  
-    private val postTurnTodos = new ArrayDeque[() => Unit]
-    def schedulePostTurn(op: => Unit) = postTurnTodos add (() => op)
-  
-    private def reset() {
-      turnQueue.clear()
-      postTurnTodos.clear()
-      engine = new TestEngine
-    }
-  
-    // add some test hooks to the standard engine
-    class TestEngine extends Engine {
-      override def runTurn() = super.runTurn()
-      override def propagate() = {
-        super.propagate()
-        level = Int.MaxValue
-        while (!postTurnTodos.isEmpty)
-          postTurnTodos.poll().apply()
-      }
-      override def uncaughtException(e: Throwable) = {
-        e.printStackTrace()
-        postTurnTodos.clear()
-        throw e
-      }
-    }
-  
-    private val turnQueue = new ArrayDeque[() => Unit]
-  
-    // First run the given op, and then a turn.
-    def turn(op: => Unit) {
-      turnQueue add (() => op)
-    }
-  
-    // run at the very end of current turn
-    def postTurn(op: => Unit) = domain.schedulePostTurn(op)
-  
-    override def toString = "BenchDomain"
-  }
-
-}

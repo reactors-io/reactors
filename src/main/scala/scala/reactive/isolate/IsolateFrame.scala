@@ -59,15 +59,18 @@ final class IsolateFrame[@spec(Int, Long, Double) T](
     }
   }
 
+  private def initErrorHandler() {
+    errorHandling = {
+      case NonFatal(t) => failureEmitter += t
+    }
+  }
+
   def init(dummy: IsolateFrame[T]) {
     // call the asynchronous foreach on the event queue
     dequeuer = eventQueue.foreach(this)(scheduler)
 
     // send to failure emitter
-    errorHandling = {
-      case NonFatal(t) =>
-        failureEmitter += t
-    }
+    initErrorHandler()
   }
 
   init(this)
