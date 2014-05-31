@@ -1,5 +1,5 @@
 package scala.reactive
-package algebra
+package calc
 
 
 

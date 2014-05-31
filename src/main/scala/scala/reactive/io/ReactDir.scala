@@ -4,7 +4,7 @@ package io
 
 
 import java.nio.file.Path
-import algebra.Injection
+import calc.Injection
 
 
 

@@ -91,19 +91,19 @@ package object reactive {
 
   val SignalCatamorph = container.SignalCatamorph
 
-  /* algebra */
+  /* calculations */
 
-  type Monoid[T] = algebra.Monoid[T]
+  type Monoid[T] = calc.Monoid[T]
 
-  val Monoid = algebra.Monoid
+  val Monoid = calc.Monoid
 
-  type Commutoid[T] = algebra.Commutoid[T]
+  type Commutoid[T] = calc.Commutoid[T]
 
-  val Commutoid = algebra.Commutoid
+  val Commutoid = calc.Commutoid
 
-  type Abelian[T] = algebra.Abelian[T]
+  type Abelian[T] = calc.Abelian[T]
 
-  val Abelian = algebra.Abelian
+  val Abelian = calc.Abelian
 
   trait Foreach[@spec(Int, Long, Double) T] {
     def foreach[@spec(Int, Long, Double) U](f: T => U): Unit
