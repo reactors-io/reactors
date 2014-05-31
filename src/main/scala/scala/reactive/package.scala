@@ -91,6 +91,12 @@ package object reactive {
 
   val SignalCatamorph = container.SignalCatamorph
 
+  /* random */
+
+  type ReactRandom = calc.ReactRandom
+
+  val ReactRandom = calc.ReactRandom
+
   /* calculations */
 
   type Monoid[T] = calc.Monoid[T]
