@@ -122,7 +122,7 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "aggregate using a typeclass" in {
-    import algebra.structure.setUnion
+    import calc.structure.setUnion
     val numbers = new ReactSet[Set[Int]]
     val union = numbers.react.monoidFold
 
