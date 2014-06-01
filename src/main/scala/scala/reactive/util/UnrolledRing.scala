@@ -12,11 +12,13 @@ class UnrolledRing[@specialized(Int, Long, Double) T](implicit val arrayable: Ar
 
   private[reactive] var start: Node[T] = _
   private[reactive] var end: Node[T] = _
+  private[reactive] var size: Int = _
 
   private[reactive] def init(a: Arrayable[T]) {
     start = new Node(arrayable.newRawArray(INITIAL_NODE_LENGTH), 0, 0)
     start.next = start
     end = start
+    size = 0
   }
 
   init(arrayable)
@@ -44,11 +46,31 @@ class UnrolledRing[@specialized(Int, Long, Double) T](implicit val arrayable: Ar
 
   def enqueue(elem: T) {
     end.enqueue(this, elem)
+    size += 1
   }
 
   def dequeue(): T = {
     advance()
-    start.dequeue(this)
+    val elem = start.dequeue(this)
+    size -= 1
+    elem
+  }
+
+  def remove(elem: T): Boolean = {
+    ???
+  }
+
+  def foreach(f: T => Unit) {
+    @tailrec def foreach(n: Node[T]) {
+      val array = n.array
+      var i = n.start
+      while (i < n.until) {
+        f(array(i))
+        i += 1
+      }
+      if (n != end) foreach(n.next)
+    }
+    foreach(start)
   }
 
   def debugString = {

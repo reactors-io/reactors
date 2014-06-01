@@ -62,4 +62,18 @@ class UnrolledRingSpec extends FlatSpec with ShouldMatchers {
     buffer should equal (elems)
   }
 
+  it should "traverse the elements using foreach" in {
+    import scala.collection._
+    val ring = new UnrolledRing[Int]
+    val queue = mutable.Queue[Int]()
+    for (i <- 0 until 200) {
+      ring.enqueue(i)
+      queue.enqueue(i)
+      val buffer = mutable.ArrayBuffer[Int]()
+      ring.foreach(x => buffer += x)
+      buffer should equal (queue)
+      ring.size should equal (queue.size)
+    }
+  }
+
 }
