@@ -76,4 +76,31 @@ class UnrolledRingSpec extends FlatSpec with ShouldMatchers {
     }
   }
 
+  it should "remove elements" in {
+    import scala.collection._
+    val size = 200
+    val ring = new UnrolledRing[Int]
+    val set = mutable.Set[Int]()
+    for (i <- 0 until size) {
+      ring.enqueue(i)
+      set += i
+    }
+    for (i <- 0 until size by 10) {
+      ring.remove(i) should equal (true)
+      set -= i
+    }
+
+    val buffer = mutable.Set[Int]()
+    for (x <- ring) buffer += x
+    buffer should equal (set)
+
+    for (i <- 0 until size) {
+      val removed = ring.remove(i)
+      removed should equal (set(i))
+    }
+
+    ring.size should equal (0)
+    ring.isEmpty should equal (true)
+  }
+
 }

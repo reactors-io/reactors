@@ -57,7 +57,9 @@ class UnrolledRing[@specialized(Int, Long, Double) T](implicit val arrayable: Ar
   }
 
   def remove(elem: T): Boolean = {
-    ???
+    val removed = UnrolledRing.remove(this, null, start, elem)
+    if (removed) size -= 1
+    removed
   }
 
   def foreach(f: T => Unit) {
@@ -142,6 +144,48 @@ object UnrolledRing {
       start += 1
       elem
     }
+  }
+
+  @tailrec final def remove[@spec(Int, Long, Double) T](ring: UnrolledRing[T], prev: Node[T], curr: Node[T], elem: T): Boolean = {
+    var position = -1
+
+    //println(s"removing $elem in ${curr.array.mkString(", ")}::: ${curr.start}, ${curr.until}")
+    var i = curr.start
+    while (i < curr.until) {
+      if (curr.array(i) == elem) {
+        position = i
+        i = curr.until
+      } else i += 1
+    }
+
+    //println(s"position: $position")
+    if (position != -1) {
+      var j = position + 1
+      while (j < curr.until) {
+        curr.array(j - 1) = curr.array(j)
+        j += 1
+      }
+      curr.until -= 1
+      curr.array(curr.until) = null.asInstanceOf[T]
+
+      // check if the node is completely empty
+      if (curr.start == curr.until) {
+        if (curr.next ne curr) {
+          // there are at least 2 nodes
+          if (prev == null) {
+            // remove start node
+            ring.end.next = curr.next
+            ring.start = curr.next
+          } else {
+            prev.next = curr.next
+            if (curr == ring.end) ring.end = prev
+          }
+        }
+      }
+
+      true
+    } else if (curr == ring.end) false
+    else remove(ring, curr, curr.next, elem)
   }
 
 }

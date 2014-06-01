@@ -29,11 +29,15 @@ extends ReactQueue[T] with ReactBuilder[T, ReactUnrolledQueue[T]] {
 
   def +=(elem: T) = {
     enqueue(elem)
+    insertsEmitter += elem
     true
   }
 
   def -=(elem: T) = {
-    ring.remove(elem)
+    if (ring.remove(elem)) {
+      removesEmitter += elem
+      true
+    } else false
   }
 
   def container = this
