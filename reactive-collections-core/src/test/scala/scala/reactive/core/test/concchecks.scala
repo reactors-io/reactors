@@ -1,4 +1,5 @@
 package scala.reactive.core
+package test
 
 
 
@@ -54,7 +55,7 @@ object ConcChecks extends Properties("Conc") with ConcSnippets {
   }
 
   property("left shake") = forAll(trees(10)) { tree =>
-    val shaken = ConcOps.shakeLeft(tree)
+    val shaken = ConcUtils.shakeLeft(tree)
     all(
       s"invariants: $shaken" |: checkInvs(shaken),
       s"leaning left: $shaken" |: (shaken.level <= 1 || shaken.level < tree.level || shaken.left.level >= shaken.right.level)
@@ -62,7 +63,7 @@ object ConcChecks extends Properties("Conc") with ConcSnippets {
   }
 
   property("right shake") = forAll(trees(10)) { tree =>
-    val shaken = ConcOps.shakeRight(tree)
+    val shaken = ConcUtils.shakeRight(tree)
     all(
       s"invariants: $shaken" |: checkInvs(shaken),
       s"leaning right: $shaken" |: (shaken.level <= 1 || shaken.level < tree.level || shaken.left.level <= shaken.right.level)
@@ -129,23 +130,23 @@ object ConcChecks extends Properties("Conc") with ConcSnippets {
   property("head correctness") = forAll(queues(5)) { conq =>
     val buffer = mutable.Buffer[Int]()
     for (x <- conq) buffer += x
-    buffer.head == ConcOps.head(conq).asInstanceOf[Single[Int]].x
+    buffer.head == ConcUtils.head(conq).asInstanceOf[Single[Int]].x
   }
 
   property("last correctness") = forAll(queues(5)) { conq =>
     val buffer = mutable.Buffer[Int]()
     for (x <- conq) buffer += x
-    s"${ConcOps.queueString(conq)}\n: ${buffer.last} vs ${ConcOps.last(conq)}" |: buffer.last == ConcOps.last(conq).asInstanceOf[Single[Int]].x
+    s"${ConcUtils.queueString(conq)}\n: ${buffer.last} vs ${ConcUtils.last(conq)}" |: buffer.last == ConcUtils.last(conq).asInstanceOf[Single[Int]].x
   }
 
   property("conqueue pushHeadTop") = forAll(queues(9)) { conq =>
-    val pushed = ConcOps.pushHeadTop(conq, new Single(-1))
-    //println(ConcOps.queueString(conq))
+    val pushed = ConcUtils.pushHeadTop(conq, new Single(-1))
+    //println(ConcUtils.queueString(conq))
     //println("after:")
-    //println(ConcOps.queueString(pushed))
+    //println(ConcUtils.queueString(pushed))
     //println("--------------")
     all(
-      s"Head is the value just pushed." |: ConcOps.head(pushed).asInstanceOf[Single[Int]].x == -1,
+      s"Head is the value just pushed." |: ConcUtils.head(pushed).asInstanceOf[Single[Int]].x == -1,
       s"Invariants are met." |: checkConqueueInvs(pushed, 0),
       s"Correctly prepended." |: toSeq(pushed) == (-1 +: toSeq(conq))
     )
@@ -155,13 +156,13 @@ object ConcChecks extends Properties("Conc") with ConcSnippets {
     var pushed = conq
     for (i <- 0 until n) {
       var units = 0
-      pushed = ConcOps.pushHeadTop(pushed, new Single(-i), () => units += 1)
+      pushed = ConcUtils.pushHeadTop(pushed, new Single(-i), () => units += 1)
       //println("Work done: " + units)
     }
     //println("n = " + n)
-    //println(ConcOps.queueString(conq))
+    //println(ConcUtils.queueString(conq))
     //println("after:")
-    //println(ConcOps.queueString(pushed))
+    //println(ConcUtils.queueString(pushed))
     //println("--------------")
     all(
       s"Invariants are met." |: checkConqueueInvs(pushed, 0),
@@ -170,13 +171,13 @@ object ConcChecks extends Properties("Conc") with ConcSnippets {
   }
 
   property("conqueue pushLastTop") = forAll(queues(9)) { conq =>
-    val pushed = ConcOps.pushLastTop(conq, new Single(-1))
-    //println(ConcOps.queueString(conq))
+    val pushed = ConcUtils.pushLastTop(conq, new Single(-1))
+    //println(ConcUtils.queueString(conq))
     //println("after:")
-    //println(ConcOps.queueString(pushed))
+    //println(ConcUtils.queueString(pushed))
     //println("--------------")
     all(
-      s"Last is the value just pushed." |: ConcOps.last(pushed).asInstanceOf[Single[Int]].x == -1,
+      s"Last is the value just pushed." |: ConcUtils.last(pushed).asInstanceOf[Single[Int]].x == -1,
       s"Invariants are met." |: checkConqueueInvs(pushed, 0),
       s"Correctly appended." |: toSeq(pushed) == (toSeq(conq) :+ -1)
     )
@@ -186,13 +187,13 @@ object ConcChecks extends Properties("Conc") with ConcSnippets {
     var pushed = conq
     for (i <- 0 until n) {
       var units = 0
-      pushed = ConcOps.pushLastTop(pushed, new Single(-i), () => units += 1)
+      pushed = ConcUtils.pushLastTop(pushed, new Single(-i), () => units += 1)
       //println("Work done: " + units)
     }
     //println("n = " + n)
-    //println(ConcOps.queueString(conq))
+    //println(ConcUtils.queueString(conq))
     //println("after:")
-    //println(ConcOps.queueString(pushed))
+    //println(ConcUtils.queueString(pushed))
     //println("--------------")
     all(
       s"Invariants are met." |: checkConqueueInvs(pushed, 0),
@@ -204,7 +205,7 @@ object ConcChecks extends Properties("Conc") with ConcSnippets {
     var pushed: Conqueue[Int] = lazyq
     val workHistory = for (i <- 0 until n) yield {
       var units = 0
-      pushed = ConcOps.pushHeadTop(pushed, new Single(-i), () => units += 1)
+      pushed = ConcUtils.pushHeadTop(pushed, new Single(-i), () => units += 1)
       units
     }
     val mostWork = workHistory.max
@@ -219,7 +220,7 @@ object ConcChecks extends Properties("Conc") with ConcSnippets {
     var pushed: Conqueue[Int] = lazyq
     val workHistory = for (i <- 0 until n) yield {
       var units = 0
-      pushed = ConcOps.pushLastTop(pushed, new Single(-i), () => units += 1)
+      pushed = ConcUtils.pushLastTop(pushed, new Single(-i), () => units += 1)
       units
     }
     val mostWork = workHistory.max
@@ -237,10 +238,10 @@ object ConcChecks extends Properties("Conc") with ConcSnippets {
     val workHistory = for (i <- 0 until n) yield {
       var units = 0
       if (random.nextBoolean()) {
-        pushed = ConcOps.pushHeadTop(pushed, new Single(-i), () => units += 1)
+        pushed = ConcUtils.pushHeadTop(pushed, new Single(-i), () => units += 1)
         buffer = -i +: buffer
       } else {
-        pushed = ConcOps.pushLastTop(pushed, new Single(-i), () => units += 1)
+        pushed = ConcUtils.pushLastTop(pushed, new Single(-i), () => units += 1)
         buffer = buffer :+ -i
       }
       units
@@ -259,13 +260,13 @@ object ConcChecks extends Properties("Conc") with ConcSnippets {
     val buffer = mutable.Buffer[Int]()
     while (list.nonEmpty) {
       list = list.tail
-      //println(ConcOps.queueString(popped))
+      //println(ConcUtils.queueString(popped))
       //println("-------------------------")
-      buffer += ConcOps.head(popped).asInstanceOf[Single[Int]].x
-      popped = ConcOps.popHeadTop(popped)
+      buffer += ConcUtils.head(popped).asInstanceOf[Single[Int]].x
+      popped = ConcUtils.popHeadTop(popped)
       checkConqueueInvs(popped, 0)
     }
-    //println(ConcOps.queueString(popped))
+    //println(ConcUtils.queueString(popped))
     all(
       s"Invariants are met." |: checkConqueueInvs(popped, 0),
       s"Correctly popped." |: toSeq(conq) == buffer,
@@ -281,8 +282,8 @@ object ConcChecks extends Properties("Conc") with ConcSnippets {
     while (list.nonEmpty) {
       var units = 0
       list = list.tail
-      buffer += ConcOps.head(popped).asInstanceOf[Single[Int]].x
-      popped = ConcOps.popHeadTop(popped, () => units += 1)
+      buffer += ConcUtils.head(popped).asInstanceOf[Single[Int]].x
+      popped = ConcUtils.popHeadTop(popped, () => units += 1)
       workHistory += units
     }
     val mostWork = workHistory.max
@@ -300,13 +301,13 @@ object ConcChecks extends Properties("Conc") with ConcSnippets {
     val buffer = mutable.Buffer[Int]()
     while (list.nonEmpty) {
       list = list.tail
-      //println(ConcOps.queueString(popped))
+      //println(ConcUtils.queueString(popped))
       //println("-------------------------")
-      buffer += ConcOps.last(popped).asInstanceOf[Single[Int]].x
-      popped = ConcOps.popLastTop(popped)
+      buffer += ConcUtils.last(popped).asInstanceOf[Single[Int]].x
+      popped = ConcUtils.popLastTop(popped)
       checkConqueueInvs(popped, 0)
     }
-    //println(ConcOps.queueString(popped))
+    //println(ConcUtils.queueString(popped))
     all(
       s"Invariants are met." |: checkConqueueInvs(popped, 0),
       s"Correctly popped." |: toSeq(conq).reverse == buffer,
@@ -322,8 +323,8 @@ object ConcChecks extends Properties("Conc") with ConcSnippets {
     while (list.nonEmpty) {
       var units = 0
       list = list.tail
-      buffer += ConcOps.last(popped).asInstanceOf[Single[Int]].x
-      popped = ConcOps.popLastTop(popped, () => units += 1)
+      buffer += ConcUtils.last(popped).asInstanceOf[Single[Int]].x
+      popped = ConcUtils.popLastTop(popped, () => units += 1)
       workHistory += units
     }
     val mostWork = workHistory.max
@@ -347,13 +348,13 @@ object ConcChecks extends Properties("Conc") with ConcSnippets {
       }
       random.nextInt(ops) match {
         case 0 =>
-          modified = ConcOps.pushHeadTop(modified, new Single(i), () => units += 1)
+          modified = ConcUtils.pushHeadTop(modified, new Single(i), () => units += 1)
         case 1 =>
-          modified = ConcOps.pushLastTop(modified, new Single(i), () => units += 1)
+          modified = ConcUtils.pushLastTop(modified, new Single(i), () => units += 1)
         case 2 =>
-          modified = ConcOps.popHeadTop(modified, () => units += 1)
+          modified = ConcUtils.popHeadTop(modified, () => units += 1)
         case 3 =>
-          modified = ConcOps.popLastTop(modified, () => units += 1)
+          modified = ConcUtils.popLastTop(modified, () => units += 1)
       }
       workHistory += units
     }
@@ -373,13 +374,13 @@ object ConcChecks extends Properties("Conc") with ConcSnippets {
       }
       random.nextInt(ops) match {
         case 0 =>
-          modified = ConcOps.pushHeadTop(modified, new Single(i))
+          modified = ConcUtils.pushHeadTop(modified, new Single(i))
         case 1 =>
-          modified = ConcOps.pushLastTop(modified, new Single(i))
+          modified = ConcUtils.pushLastTop(modified, new Single(i))
         case 2 =>
-          modified = ConcOps.popHeadTop(modified)
+          modified = ConcUtils.popHeadTop(modified)
         case 3 =>
-          modified = ConcOps.popLastTop(modified)
+          modified = ConcUtils.popLastTop(modified)
       }
     }
     val flushed = toSeq(modified)
@@ -388,36 +389,36 @@ object ConcChecks extends Properties("Conc") with ConcSnippets {
     all(
       s"Invariants are met." |: checkInvs(normalized),
       s"Same sequence after normalization: $normalizedFlushed vs $flushed\n" +
-      s"; conq:\n${ConcOps.queueString(conq, (num: Num[Int]) => num.toString)}\n" +
-      s"; lwings: ${toSeq(ConcOps.normalizeLeftWingsAndTip(modified, Conc.Empty))}\n" +
-      s"; rwings: ${toSeq(ConcOps.normalizeRightWings(modified, Conc.Empty))}\n" +
+      s"; conq:\n${ConcUtils.queueString(conq, (num: Num[Int]) => num.toString)}\n" +
+      s"; lwings: ${toSeq(ConcUtils.normalizeLeftWingsAndTip(modified, Conc.Empty))}\n" +
+      s"; rwings: ${toSeq(ConcUtils.normalizeRightWings(modified, Conc.Empty))}\n" +
       s"; length: ${normalizedFlushed.length} vs ${flushed.length}" |: normalizedFlushed == flushed
     )
   }
 
-  val numFormatter = ConcOps.contentsFormatter[Int] _
+  val numFormatter = ConcUtils.contentsFormatter[Int] _
 
   property("conqueue normalized toConqueue") = forAll(queues(12)) { conq =>
     var conq2string: String = null
     var simplestring: String = null
-    val log = ConcOps.bufferedLog(ConcOps.printLog)
+    val log = ConcUtils.bufferedLog(ConcUtils.printLog)
     try {
       val normalized = conq.normalized
-      val conq2 = ConcOps.toConqueue(normalized, log)
+      val conq2 = ConcUtils.toConqueue(normalized, log)
       val conqseq = toSeq(conq)
       val conq2seq = toSeq(conq2)
-      simplestring = ConcOps.queueString(conq2, ConcOps.levelFormatter[Int] _)
-      conq2string = ConcOps.queueString(conq2, numFormatter)
-      //println(ConcOps.queueString(conq2))
+      simplestring = ConcUtils.queueString(conq2, ConcUtils.levelFormatter[Int] _)
+      conq2string = ConcUtils.queueString(conq2, numFormatter)
+      //println(ConcUtils.queueString(conq2))
       //println("------------------")
       all(
         s"Conqueue invariants met:\n$simplestring" |: checkConqueueInvs(conq2, 0),
         s"Normalization was correct." |: conqseq == toSeq(normalized),
         s"log: ${log.buffer.mkString("\n")}\n" +
         s"Represents the same sequence:\n$conqseq\n---- vs ----\n$conq2seq\n" +
-        s"Original conqueues:\n${ConcOps.queueString(conq, numFormatter)}\n" +
+        s"Original conqueues:\n${ConcUtils.queueString(conq, numFormatter)}\n" +
         s"---- vs ----\n" +
-        s"${ConcOps.queueString(conq2, numFormatter)}\n" +
+        s"${ConcUtils.queueString(conq2, numFormatter)}\n" +
         s"; length: ${conqseq.length} vs ${conq2seq.length}" |: conqseq == conq2seq
       )
     } catch {
@@ -444,7 +445,7 @@ object ConcChecks extends Properties("Conc") with ConcSnippets {
     val appended = s1 ++ s2
     val concatenated = c1 <|> c2
     val labelString = {
-      s"${ConcOps.queueString(c1)}\n---- concat with ----\n${ConcOps.queueString(c2)}\n$s1\n---- ++ ----\n$s2\n==========\n${toSeq(concatenated)}\n---- vs ----\n$appended\n" +
+      s"${ConcUtils.queueString(c1)}\n---- concat with ----\n${ConcUtils.queueString(c2)}\n$s1\n---- ++ ----\n$s2\n==========\n${toSeq(concatenated)}\n---- vs ----\n$appended\n" +
       s"\n------\n" +
       s"c1.normalized = ${toSeq(c1.normalized)}\n" +
       s"c2.normalized = ${toSeq(c2.normalized)}\n"

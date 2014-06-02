@@ -21,7 +21,7 @@ class ConcBuffer[@specialized(Byte, Char, Int, Long, Float, Double) T: ClassTag]
   }
 
   private def pack() {
-    conc = ConcOps.appendTop(conc, new Conc.Chunk(chunk, lastSize, k))
+    conc = ConcUtils.appendTop(conc, new Conc.Chunk(chunk, lastSize, k))
   }
 
   private def expand() {

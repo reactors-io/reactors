@@ -58,7 +58,7 @@ object ConcRope {
   case class Append[+T](left: Conc[T], right: Conc[T]) extends ConcRope[T] {
     val level = 1 + math.max(left.level, right.level)
     val size = left.size + right.size
-    override def normalized = ConcOps.wrap(this, Conc.Empty)
+    override def normalized = ConcUtils.wrap(this, Conc.Empty)
   }
   
 }
@@ -100,7 +100,7 @@ object Conqueue {
     def right = new <>(rear, rwing)
     lazy val level: Int = 1 + math.max(lwing.level, math.max(rear.level, rwing.level))
     lazy val size: Int = lwing.size + rear.size + rwing.size
-    override def normalized = ConcOps.normalizeLeftWingsAndTip(this, Conc.Empty) <> ConcOps.normalizeRightWings(this, Conc.Empty)
+    override def normalized = ConcUtils.normalizeLeftWingsAndTip(this, Conc.Empty) <> ConcUtils.normalizeRightWings(this, Conc.Empty)
   }
 
   object Spine {
@@ -184,7 +184,7 @@ object Conqueue {
 }
 
 
-object ConcOps {
+object ConcUtils {
 
   import Conc._
   import ConcRope._
@@ -1225,7 +1225,7 @@ object ConcOps {
   }
 
   private def unwrap[T](xs: <>[T], log: Log = noLog): Conqueue[T] = {
-    def zip(rank: Int, lstack: List[Num[T]], rstack: List[Num[T]]): Conqueue[T] = (lstack, rstack) match {
+    def zip(rank: Int, lstack: List[Num[T]], rstack: List[Num[T]]): Conqueue[T] = ((lstack, rstack): @unchecked) match {
       case (lwing :: Nil, Nil) =>
         assert(lwing.leftmost.level == rank)
         Tip(lwing)

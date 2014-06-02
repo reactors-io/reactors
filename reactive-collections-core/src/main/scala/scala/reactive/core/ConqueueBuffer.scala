@@ -26,7 +26,7 @@ class ConqueueBuffer[@specialized(Byte, Char, Int, Long, Float, Double) T: Class
   def size = conqueue.size
 
   def isEmpty = {
-    leftIndex == leftStart && ConcOps.isEmptyConqueue(conqueue) && rightIndex == rightStart
+    leftIndex == leftStart && ConcUtils.isEmptyConqueue(conqueue) && rightIndex == rightStart
   }
 
   def nonEmpty = !isEmpty
@@ -41,8 +41,8 @@ class ConqueueBuffer[@specialized(Byte, Char, Int, Long, Float, Double) T: Class
 
   private def pullLeft() {
     if (conqueue.nonEmpty) {
-      val head = ConcOps.head(conqueue)
-      conqueue = ConcOps.popHeadTop(conqueue)
+      val head = ConcUtils.head(conqueue)
+      conqueue = ConcUtils.popHeadTop(conqueue)
       (head: @unchecked) match {
         case head: Chunk[T] =>
           leftChunk = head.array
@@ -75,8 +75,8 @@ class ConqueueBuffer[@specialized(Byte, Char, Int, Long, Float, Double) T: Class
 
   private def pullRight() = {
     if (conqueue.nonEmpty) {
-      val last = ConcOps.last(conqueue)
-      conqueue = ConcOps.popLastTop(conqueue)
+      val last = ConcUtils.last(conqueue)
+      conqueue = ConcUtils.popLastTop(conqueue)
       (last: @unchecked) match {
         case last: Chunk[T] =>
           rightChunk = last.array
@@ -111,9 +111,9 @@ class ConqueueBuffer[@specialized(Byte, Char, Int, Long, Float, Double) T: Class
     val sz = leftStart - leftIndex
     val chunk = {
       if (leftIndex == -1) leftChunk
-      else ConcOps.copiedArray(leftChunk, leftIndex + 1, sz)
+      else ConcUtils.copiedArray(leftChunk, leftIndex + 1, sz)
     }
-    conqueue = ConcOps.pushHeadTop(conqueue, new Chunk(chunk, sz, k))
+    conqueue = ConcUtils.pushHeadTop(conqueue, new Chunk(chunk, sz, k))
   }
 
   private def expandLeft() {
@@ -127,9 +127,9 @@ class ConqueueBuffer[@specialized(Byte, Char, Int, Long, Float, Double) T: Class
     val sz = rightIndex - rightStart
     val chunk = {
       if (rightStart == 0) rightChunk
-      else ConcOps.copiedArray(rightChunk, rightStart, sz)
+      else ConcUtils.copiedArray(rightChunk, rightStart, sz)
     }
-    conqueue = ConcOps.pushLastTop(conqueue, new Chunk(chunk, sz, k))
+    conqueue = ConcUtils.pushLastTop(conqueue, new Chunk(chunk, sz, k))
   }
 
   private def expandRight() {
@@ -203,7 +203,7 @@ class ConqueueBuffer[@specialized(Byte, Char, Int, Long, Float, Double) T: Class
     println(s"leftChunk:  ${leftChunk.mkString(", ")}")
     println(s"rightStart/rightIndex: $rightStart/$rightIndex")
     println(s"rightChunk: ${rightChunk.mkString(", ")}")
-    println(s"mid: ${ConcOps.toSeq(conqueue).mkString(", ")}")
+    println(s"mid: ${ConcUtils.toSeq(conqueue).mkString(", ")}")
   }
 
 }
