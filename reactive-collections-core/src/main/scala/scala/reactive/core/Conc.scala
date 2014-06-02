@@ -400,7 +400,11 @@ object ConcUtils {
     na
   }
 
-  def update[@specialized(Byte, Char, Int, Long, Float, Double) T: ClassTag](xs: Conc[T], i: Int, y: T): Conc[T] = (xs.normalized: @unchecked) match {
+  def asConqueue[T](xs: Conc[T]) = xs.asInstanceOf[Conqueue[T]]
+
+  def asNum[T](xs: Conc[T]) = xs.asInstanceOf[Num[T]]
+
+  def update[@specialized(Byte, Char, Int, Long, Float, Double) T: ClassTag](xs: Conc[T], i: Int, y: T): Conc[T] = (xs: @unchecked) match {
     case left <> right if i < left.size =>
       new <>(update(left, i, y), right)
     case left <> right =>
@@ -410,12 +414,37 @@ object ConcUtils {
       new Single(y)
     case c: Chunk[T] =>
       new Chunk(updatedArray(c.array, i, y, c.size), c.size, c.k)
-    case Append(left, _) if i < left.size =>
-      update(left, i, y)
+    case Append(left, right) if i < left.size =>
+      new Append(update(left, i, y), right)
     case Append(left, right) =>
-      update(right, i - left.size, y)
+      new Append(left, update(right, i - left.size, y))
+    case st: Spine[T] =>
+      if (i < st.lwing.size) {
+        val nlwing = asNum(update(st.lwing, i, y))
+        Spine.withSameTail(st, nlwing, st.rwing)
+      } else {
+        val lwingrearsize = st.lwing.size + st.rear.size
+        if (i >= lwingrearsize) {
+          val nrwing = asNum(update(st.rwing, i - lwingrearsize, y))
+          new Spine(st.lwing, nrwing, st.rear)
+        } else {
+          val nrear = asConqueue(update(st.rear, i - st.lwing.size, y))
+          new Spine(st.lwing, st.rwing, nrear)
+        }
+      }
+    case Tip(n) =>
+      Tip(asNum(update(n, i, y)))
+    case One(_1) =>
+      One(update(_1, i, y))
+    case Two(_1, _2) =>
+      if (i < _1.size) Two(update(_1, i, y), _2)
+      else Two(_1, update(_2, i - _1.size, y))
+    case Three(_1, _2, _3) =>
+      if (i < _1.size) Three(update(_1, i, y), _2, _3)
+      else if (i < _1.size + _2.size) Three(_1, update(_2, i - _1.size, y), _3)
+      else Three(_1, _2, update(_3, i - _1.size - _2.size, y))
     case _ =>
-      invalid("undefined for conqueues.")
+      invalid("All cases should have been covered: " + xs + ", " + xs.getClass)
   }
 
   def concatConqueueTop[T](xs: Conqueue[T], ys: Conqueue[T]): Conqueue[T] = {

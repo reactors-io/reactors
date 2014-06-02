@@ -3,6 +3,7 @@ package scala.reactive.core
 
 
 import scala.collection._
+import scala.reflect.ClassTag
 import Conc._
 import ConcRope._
 import Conqueue._
@@ -16,6 +17,18 @@ trait ConcSnippets {
     for (x <- elems) {
       xs <>= new Single(x)
     }
+    xs
+  }
+
+  def concRope[T: ClassTag](elems: Seq[T]): Conc[T] = {
+    var xs: Conc[T] = Empty
+    for (x <- elems) xs = xs rappend x
+    xs
+  }
+
+  def conqueue[T: ClassTag](elems: Seq[T]): Conqueue[T] = {
+    var xs: Conqueue[T] = Conqueue.Tip(Zero)
+    for (x <- elems) xs = xs :+ x
     xs
   }
 
@@ -97,6 +110,26 @@ trait ConcSnippets {
 
   def testUpdate(n: Int) = {
     var xs: Conc[Int] = concList(0 until n)
+
+    for (i <- 0 until n) xs = xs.update(i, -i)
+
+    val checks = for (i <- 0 until n) yield -i == xs(i)
+
+    checks.forall(_ == true)
+  }
+
+  def testRopeUpdate(n: Int) = {
+    var xs: Conc[Int] = concRope(0 until n)
+
+    for (i <- 0 until n) xs = xs.update(i, -i)
+
+    val checks = for (i <- 0 until n) yield -i == xs(i)
+
+    checks.forall(_ == true)
+  }
+
+  def testConqueueUpdate(n: Int) = {
+    var xs: Conc[Int] = conqueue(0 until n)
 
     for (i <- 0 until n) xs = xs.update(i, -i)
 

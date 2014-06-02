@@ -12,11 +12,49 @@ package object core {
 
   def unsupported(msg: String) = throw new UnsupportedOperationException(msg)
 
-  implicit class ConcOps[T](val self: Conc[T]) extends AnyVal {
+  implicit class ConcByteOps(val self: Conc[Byte]) extends AnyVal {
     def apply(i: Int) = {
       require(i >= 0 && i < self.size)
       ConcUtils.apply(self, i)
     }
+  }
+
+  implicit class ConcCharOps(val self: Conc[Char]) extends AnyVal {
+    def apply(i: Int) = {
+      require(i >= 0 && i < self.size)
+      ConcUtils.apply(self, i)
+    }
+  }
+
+  implicit class ConcIntOps(val self: Conc[Int]) extends AnyVal {
+    def apply(i: Int) = {
+      require(i >= 0 && i < self.size)
+      ConcUtils.apply(self, i)
+    }
+  }
+
+  implicit class ConcLongOps(val self: Conc[Long]) extends AnyVal {
+    def apply(i: Int) = {
+      require(i >= 0 && i < self.size)
+      ConcUtils.apply(self, i)
+    }
+  }
+
+  implicit class ConcFloatOps(val self: Conc[Float]) extends AnyVal {
+    def apply(i: Int) = {
+      require(i >= 0 && i < self.size)
+      ConcUtils.apply(self, i)
+    }
+  }
+
+  implicit class ConcDoubleOps(val self: Conc[Double]) extends AnyVal {
+    def apply(i: Int) = {
+      require(i >= 0 && i < self.size)
+      ConcUtils.apply(self, i)
+    }
+  }
+
+  implicit class ConcOps[T](val self: Conc[T]) extends AnyVal {
     def foreach[U](f: T => U) = ConcUtils.foreach(self, f)
     def <>(that: Conc[T]) = ConcUtils.concatTop(self.normalized, that.normalized)
   }
@@ -31,9 +69,11 @@ package object core {
       ConcUtils.insert(self, i, y)
     }
     def rappend(y: T) = ConcUtils.appendTop(self, new Conc.Single(y))
+    //def split(n: Int): (Conc[T], Conc[T]) = ConcUtils.split(self, n)
+    def toConqueue: Conqueue[T] = ConcUtils.toConqueue(self)
   }
 
-  implicit class ConqueueApi[T: ClassTag](@specialized(Byte, Char, Int, Long, Float, Double) val self: Conqueue[T]) {
+  implicit class ConqueueOps[T: ClassTag](@specialized(Byte, Char, Int, Long, Float, Double) val self: Conqueue[T]) {
     import Conc._
     import Conqueue._
     def head: T = (ConcUtils.head(self): @unchecked) match {

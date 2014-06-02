@@ -42,8 +42,12 @@ object ConcChecks extends Properties("Conc") with ConcSnippets {
     testApply
   }
 
-  property("update correctness") = forAll(choose(1, 500)) {
-    testUpdate
+  property("update correctness") = forAll(choose(1, 1024)) { n =>
+    testUpdate(n)
+    testRopeUpdate(n)
+    testConqueueUpdate(1)
+    testConqueueUpdate(2)
+    testConqueueUpdate(n)
   }
 
   property("insert correctness") = forAll(choose(0, 500), choose(0, 20), choose(0, 500)) {
