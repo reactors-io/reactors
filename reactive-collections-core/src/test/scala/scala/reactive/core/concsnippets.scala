@@ -26,6 +26,12 @@ trait ConcSnippets {
     xs
   }
 
+  def concChunkRope[T: ClassTag](elems: Seq[T], k: Int): Conc[T] = {
+    val xs = new ConcBuffer[T](k)
+    for (x <- elems) xs += x
+    xs.extractConc()
+  }
+
   def conqueue[T: ClassTag](elems: Seq[T]): Conqueue[T] = {
     var xs: Conqueue[T] = Conqueue.Tip(Zero)
     for (x <- elems) xs = xs :+ x
@@ -174,6 +180,17 @@ trait ConcSnippets {
     for (i <- 0 until appends) xs = xs rappend i
 
     checkInvs(xs) && checkInvs(xs.normalized)
+  }
+
+  def testSplit(xs: Conc[Int], at: Int) = {
+    val size = xs.size
+    val (left, right) = xs.split(at)
+
+    val equal = (toSeq(left) ++ toSeq(right)) == (0 until size)
+
+    checkInvs(left) &&
+    checkInvs(right) &&
+    equal
   }
 
 }

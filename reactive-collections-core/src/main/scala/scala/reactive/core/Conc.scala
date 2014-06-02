@@ -6,6 +6,7 @@ import scala.annotation.unchecked
 import scala.annotation.tailrec
 import scala.annotation.switch
 import scala.reflect.ClassTag
+import scala.runtime.ObjectRef
 
 
 
@@ -368,6 +369,10 @@ object ConcUtils {
       apply(left, i)
     case left <> right =>
       apply(right, i - left.size)
+    case st: Spine[T] =>
+      if (i < st.lwing.size) apply(st.lwing, i)
+      else if (i < st.lwing.size + st.rear.size) apply(st.rear, i - st.lwing.size)
+      else apply(st.rwing, i - st.lwing.size - st.rear.size)
     case s: Single[T] => s.x
     case c: Chunk[T] => c.array(i)
     case Append(left, _) if i < left.size =>
@@ -387,10 +392,6 @@ object ConcUtils {
       apply(num, i)
     case Lazy(_, conq, _) =>
       apply(conq, i)
-    case st: Spine[T] =>
-      if (i < st.lwing.size) apply(st.lwing, i)
-      else if (i < st.lwing.size + st.rear.size) apply(st.rear, i - st.lwing.size)
-      else apply(st.rwing, i - st.lwing.size - st.rear.size)
   }
 
   private def updatedArray[@specialized(Byte, Char, Int, Long, Float, Double) T: ClassTag](a: Array[T], i: Int, y: T, sz: Int): Array[T] = {
@@ -1345,6 +1346,48 @@ object ConcUtils {
 
     val (lwings, rwings) = unwrap(Nil, Nil, Tip(One(new Single(xs))))
     zip(0, lwings, rwings)
+  }
+
+  def split[@specialized(Byte, Char, Int, Long, Float, Double) T: ClassTag](xs: Conc[T], n: Int, rref: ObjectRef[Conc[T]]): Conc[T] = (xs.normalized: @unchecked) match {
+    case left <> right =>
+      if (n < left.size) {
+        val ll = split(left, n, rref)
+        val lr = rref.elem
+        rref.elem = lr <> right
+        ll
+      } else if (n > left.size) {
+        val rl = split(right, n - left.size, rref)
+        val rr = rref.elem
+        rref.elem = rr
+        left <> rl
+      } else {
+        rref.elem = right
+        left
+      }
+    case s: Single[T] =>
+      if (n == 0) {
+        rref.elem = s
+        Empty
+      } else {
+        rref.elem = Empty
+        s
+      }
+    case c: Chunk[T] =>
+      def subchunk(from: Int, sz: Int) = {
+        if (sz == 0) Empty
+        else new Chunk(copiedArray(c.array, from, sz), sz, c.k)
+      }
+      val lelems = n
+      val relems = c.size - n
+      val ltree = subchunk(0, n)
+      val rtree = subchunk(n, c.size - n)
+      rref.elem = rtree
+      ltree
+    case Empty =>
+      rref.elem = Empty
+      Empty
+    case _ =>
+      invalid("All cases should have been covered: " + xs + ", " + xs.getClass)
   }
 
   def isEmptyConqueue[T](conqueue: Conqueue[T]): Boolean = conqueue match {

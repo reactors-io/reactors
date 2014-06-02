@@ -3,6 +3,7 @@ package scala.reactive
 
 
 import scala.reflect.ClassTag
+import scala.runtime.ObjectRef
 
 
 
@@ -57,6 +58,7 @@ package object core {
   implicit class ConcOps[T](val self: Conc[T]) extends AnyVal {
     def foreach[U](f: T => U) = ConcUtils.foreach(self, f)
     def <>(that: Conc[T]) = ConcUtils.concatTop(self.normalized, that.normalized)
+    def toConqueue: Conqueue[T] = ConcUtils.toConqueue(self)
   }
 
   implicit class ConcModificationOps[@specialized(Byte, Char, Int, Long, Float, Double) T: ClassTag](val self: Conc[T]) {
@@ -68,9 +70,13 @@ package object core {
       require(i >= 0 && i <= self.size)
       ConcUtils.insert(self, i, y)
     }
+    def split(n: Int): (Conc[T], Conc[T]) = {
+      require(n >= 0 && n <= self.size)
+      val right = new ObjectRef[Conc[T]](null)
+      val left = ConcUtils.split(self, n, right)
+      (left, right.elem)
+    }
     def rappend(y: T) = ConcUtils.appendTop(self, new Conc.Single(y))
-    //def split(n: Int): (Conc[T], Conc[T]) = ConcUtils.split(self, n)
-    def toConqueue: Conqueue[T] = ConcUtils.toConqueue(self)
   }
 
   implicit class ConqueueOps[T: ClassTag](@specialized(Byte, Char, Int, Long, Float, Double) val self: Conqueue[T]) {

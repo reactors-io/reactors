@@ -30,19 +30,19 @@ object ConcChecks extends Properties("Conc") with ConcSnippets {
     tree <- genTree(level)
   } yield tree
 
-  property("<> correctness") = forAll(choose(0, 500), choose(0, 500)) {
+  property("<> correctness") = forAll(choose(0, 1024), choose(0, 1024)) {
     testConcatCorrectness
   }
 
-  property("<> balance") = forAll(choose(0, 500), choose(0, 500)) {
+  property("<> balance") = forAll(choose(0, 1024), choose(0, 1024)) {
     testConcatBalance
   }
 
-  property("apply correctness") = forAll(choose(1, 500)) {
+  property("apply correctness") = forAll(choose(1, 1024)) {
     testApply
   }
 
-  property("update correctness") = forAll(choose(1, 1024)) { n =>
+  property("update correctness") = forAll(choose(1, 2048)) { n =>
     testUpdate(n)
     testRopeUpdate(n)
     testConqueueUpdate(1)
@@ -50,8 +50,16 @@ object ConcChecks extends Properties("Conc") with ConcSnippets {
     testConqueueUpdate(n)
   }
 
-  property("insert correctness") = forAll(choose(0, 500), choose(0, 20), choose(0, 500)) {
+  property("insert correctness") = forAll(choose(0, 1024), choose(0, 20), choose(0, 1024)) {
     testInsert
+  }
+
+  property("split correctness") = forAll(for {
+    sz <- choose(0, 4096)
+    at <- choose(0, sz)
+  } yield (sz, at)) { case (sz, at) =>
+    testSplit(concList(0 until sz), at)
+    testSplit(concChunkRope(0 until sz, 32), at)
   }
 
   property("generated trees") = forAll(trees(10)) { tree =>
