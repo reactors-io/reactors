@@ -1362,6 +1362,14 @@ object Reactive {
     }
   }
 
+  /** Uses the specified function `f` to produce an event when the `emit` method is called.
+   */
+  class SideEffectEmitter[@spec(Int, Long, Double) T](f: () => T) extends Reactive.Default[T] {
+    private var closed = false
+    final def emit() = if (!closed) reactAll(f())
+    final def close() = closed = true
+  }
+
   /** Creates a new reactive that invokes the function `f` on any `Reactor` that subscribes to it.
    *
    *  Passive reactives usually emit separate event streams to each reactor

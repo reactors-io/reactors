@@ -103,8 +103,6 @@ package object reactive {
 
   type ReactRandom = calc.ReactRandom
 
-  val ReactRandom = calc.ReactRandom
-
   /* calculations */
 
   type Monoid[T] = calc.Monoid[T]
