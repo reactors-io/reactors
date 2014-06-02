@@ -51,9 +51,17 @@ package object reactive {
 
   val ReactBuilder = container.ReactBuilder
 
+  type ReactArray[T] = container.ReactArray[T]
+
   val ReactArray = container.ReactArray
 
-  type ReactArray[T] = container.ReactArray[T]
+  type ReactQueue[T] = container.ReactQueue[T]
+
+  val ReactQueue = container.ReactQueue
+
+  type ReactUnrolledQueue[T] = container.ReactUnrolledQueue[T]
+
+  val ReactUnrolledQueue = container.ReactUnrolledQueue
 
   type ReactSet[T] = container.ReactSet[T]
 

@@ -56,11 +56,13 @@ extends ReactQueue[T] with ReactBuilder[T, ReactUnrolledQueue[T]] {
   def enqueue(elem: T) {
     ring.enqueue(elem)
     insertsEmitter += elem
+    if (size == 1) headEmitter += ring.head
   }
 
   def dequeue(): T = {
     val elem = ring.dequeue()
     removesEmitter += elem
+    if (size > 0) headEmitter += ring.head
     elem
   }
 
