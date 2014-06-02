@@ -23,7 +23,8 @@ object ReactQueue {
 
   def apply[@spec(Int, Long, Double) T: Arrayable]() = new ReactUnrolledQueue[T]
 
-  class Lifted[@spec(Int, Long, Double) T](val container: ReactQueue[T]) extends ReactContainer.Lifted[T] {
+  trait Lifted[@spec(Int, Long, Double) T] extends ReactContainer.Lifted[T] {
+    val container: ReactQueue[T]
     def head: Reactive[T]
   }
 
