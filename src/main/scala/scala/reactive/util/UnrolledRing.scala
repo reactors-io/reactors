@@ -56,10 +56,10 @@ class UnrolledRing[@specialized(Int, Long, Double) T](implicit val arrayable: Ar
     elem
   }
 
-  def remove(elem: T): Boolean = {
-    val removed = UnrolledRing.remove(this, null, start, elem)
-    if (removed) size -= 1
-    removed
+  def remove(elem: T): Int = {
+    val at = UnrolledRing.remove(this, null, start, elem, 0)
+    if (at != -1) size -= 1
+    at
   }
 
   def foreach(f: T => Unit) {
@@ -146,7 +146,7 @@ object UnrolledRing {
     }
   }
 
-  @tailrec final def remove[@spec(Int, Long, Double) T](ring: UnrolledRing[T], prev: Node[T], curr: Node[T], elem: T): Boolean = {
+  @tailrec final def remove[@spec(Int, Long, Double) T](ring: UnrolledRing[T], prev: Node[T], curr: Node[T], elem: T, at: Int): Int = {
     var position = -1
 
     //println(s"removing $elem in ${curr.array.mkString(", ")}::: ${curr.start}, ${curr.until}")
@@ -183,9 +183,9 @@ object UnrolledRing {
         }
       }
 
-      true
-    } else if (curr == ring.end) false
-    else remove(ring, curr, curr.next, elem)
+      at + position
+    } else if (curr == ring.end) -1
+    else remove(ring, curr, curr.next, elem, at + curr.until - curr.start)
   }
 
 }

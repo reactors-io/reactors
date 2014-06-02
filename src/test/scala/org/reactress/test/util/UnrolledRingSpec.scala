@@ -86,21 +86,32 @@ class UnrolledRingSpec extends FlatSpec with ShouldMatchers {
       set += i
     }
     for (i <- 0 until size by 10) {
-      ring.remove(i) should equal (true)
+      ring.remove(i) should equal (i - i / 10)
       set -= i
     }
 
-    val buffer = mutable.Set[Int]()
-    for (x <- ring) buffer += x
-    buffer should equal (set)
+    val checkSet = mutable.Set[Int]()
+    for (x <- ring) checkSet += x
+    checkSet should equal (set)
 
     for (i <- 0 until size) {
-      val removed = ring.remove(i)
-      removed should equal (set(i))
+      val at = ring.remove(i)
+      (at != -1) should equal (set(i))
     }
 
     ring.size should equal (0)
     ring.isEmpty should equal (true)
+
+    val smallsize = 2
+    for (i <- 0 until 2) ring.enqueue(i)
+    for (i <- 0 until 2) ring.remove(i) should equal (0)
+
+    ring.size should equal (0)
+
+    for (i <- 0 until size) ring.enqueue(i)
+    for (i <- (size - 1) to 0 by -1) ring.remove(i) should equal(i)
+
+    ring.size should equal (0)
   }
 
 }
