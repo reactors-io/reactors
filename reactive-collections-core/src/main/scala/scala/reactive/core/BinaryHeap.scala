@@ -12,7 +12,10 @@ class BinaryHeap[@specialized(Int, Long, Double) T](val initialSize: Int = 16)(i
 
   private def init(dummy: BinaryHeap[T]) {
     array = arrayable.newRawArray(initialSize)
+    sz = 0
   }
+
+  init(this)
 
   private def fixUp(from: Int) {
     var pos = from
@@ -53,7 +56,7 @@ class BinaryHeap[@specialized(Int, Long, Double) T](val initialSize: Int = 16)(i
     if (sz == array.length - 1) grow(this)
     array(sz + 1) = elem
     sz += 1
-    fixUp(sz + 1)
+    fixUp(sz)
   }
 
   def dequeue(): T = {
@@ -79,8 +82,8 @@ class BinaryHeap[@specialized(Int, Long, Double) T](val initialSize: Int = 16)(i
   def nonEmpty = !isEmpty
 
   def foreach(f: T => Unit): Unit = {
-    var i = 0
-    while (i < sz) {
+    var i = 1
+    while (i <= sz) {
       f(array(i))
       i += 1
     }
@@ -90,6 +93,8 @@ class BinaryHeap[@specialized(Int, Long, Double) T](val initialSize: Int = 16)(i
     array = arrayable.newArray(initialSize)
     sz = 0
   }
+
+  private[core] def debugString = s"Heap(sz: $sz, array: ${array.mkString(", ")})"
 
 }
 

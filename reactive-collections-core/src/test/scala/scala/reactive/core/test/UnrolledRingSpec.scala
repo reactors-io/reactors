@@ -36,6 +36,7 @@ class UnrolledRingSpec extends FlatSpec with ShouldMatchers {
       ring.enqueue(x.toString)
       ring.isEmpty should equal (false)
     }
+    ring.size should equal(1024)
     for (x <- 0 until 1024) {
       ring.isEmpty should equal (false)
       ring.dequeue() should equal (x.toString)
