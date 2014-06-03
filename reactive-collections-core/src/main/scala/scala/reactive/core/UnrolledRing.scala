@@ -1,5 +1,5 @@
 package scala.reactive
-package util
+package core
 
 
 
@@ -146,7 +146,7 @@ object UnrolledRing {
     }
   }
 
-  @tailrec final def remove[@spec(Int, Long, Double) T](ring: UnrolledRing[T], prev: Node[T], curr: Node[T], elem: T, at: Int): Int = {
+  @tailrec final def remove[@specialized(Int, Long, Double) T](ring: UnrolledRing[T], prev: Node[T], curr: Node[T], elem: T, at: Int): Int = {
     var position = -1
 
     //println(s"removing $elem in ${curr.array.mkString(", ")}::: ${curr.start}, ${curr.until}")

@@ -26,7 +26,7 @@ object EventQueue {
 
   class SingleSubscriberSyncedUnrolledRing[@spec(Int, Long, Double) Q: Arrayable](val monitor: util.Monitor)
   extends EventQueue[Q] {
-    private[reactive] val ring = new util.UnrolledRing[Q]
+    private[reactive] val ring = new core.UnrolledRing[Q]
 
     private[reactive] var listener: IsolateFrame[Q] = _
 

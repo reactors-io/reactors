@@ -5,7 +5,7 @@ package container
 
 import scala.collection._
 import scala.annotation.implicitNotFound
-import util.UnrolledRing
+import core.UnrolledRing
 
 
 

@@ -152,7 +152,7 @@ package object core {
     def nonEmpty = !isEmpty
     def <|>(that: Conqueue[T]) = ConcUtils.concatConqueueTop(self, that)
   }
-
+  
 }
 
 
