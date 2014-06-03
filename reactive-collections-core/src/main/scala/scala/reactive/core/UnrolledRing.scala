@@ -29,6 +29,10 @@ class UnrolledRing[@specialized(Int, Long, Double) T](implicit val arrayable: Ar
     }
   }
 
+  def clear() {
+    init(arrayable)
+  }
+
   def nonEmpty: Boolean = {
     if (start.nonEmpty) true
     else {
