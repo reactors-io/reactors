@@ -28,8 +28,4 @@ object ReactQueue {
     def head: Reactive[T]
   }
 
-  implicit def factory[@spec(Int, Long, Double) T: Arrayable] = new ReactBuilder.Factory[T, ReactQueue[T]] {
-    def apply() = ReactUnrolledQueue[T]
-  }
-
 }

@@ -10,7 +10,7 @@ import core.UnrolledRing
 
 
 class ReactUnrolledQueue[@spec(Int, Long, Double) T](implicit val arrayable: Arrayable[T])
-extends ReactQueue[T] with ReactBuilder[T, ReactUnrolledQueue[T]] {
+extends ReactQueue[T] {
   private var ring: UnrolledRing[T] = _
   private var insertsEmitter: Reactive.Emitter[T] = _
   private var removesEmitter: Reactive.Emitter[T] = _
@@ -28,22 +28,6 @@ extends ReactQueue[T] with ReactBuilder[T, ReactUnrolledQueue[T]] {
   def inserts: Reactive[T] = insertsEmitter
 
   def removes: Reactive[T] = removesEmitter
-
-  def +=(elem: T) = {
-    enqueue(elem)
-    insertsEmitter += elem
-    true
-  }
-
-  def -=(elem: T) = {
-    val prevhead = ring.head
-    val at = ring.remove(elem)
-    if (at != -1) {
-      removesEmitter += elem
-      if (at == 0) headEmitter += prevhead
-      true
-    } else false
-  }
 
   def container = this
 
@@ -77,10 +61,6 @@ object ReactUnrolledQueue {
 
   class Lifted[@spec(Int, Long, Double) T](val container: ReactUnrolledQueue[T]) extends ReactContainer.Lifted[T] {
     def head: Reactive[T] = container.headEmitter
-  }
-
-  implicit def factory[@spec(Int, Long, Double) T: Arrayable] = new ReactBuilder.Factory[T, ReactUnrolledQueue[T]] {
-    def apply() = ReactUnrolledQueue[T]
   }
 
 }

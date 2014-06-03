@@ -17,9 +17,8 @@ class BinaryHeap[@specialized(Int, Long, Double) T](val initialSize: Int = 16)(i
 
   init(this)
 
-  private def fixUp(from: Int) {
+  private def fixUp(arr: Array[T], from: Int) {
     var pos = from
-    val arr = array
     while (pos > 1 && order.gt(arr(pos / 2), arr(pos))) {
       val tmp = arr(pos)
       arr(pos) = arr(pos / 2)
@@ -28,7 +27,7 @@ class BinaryHeap[@specialized(Int, Long, Double) T](val initialSize: Int = 16)(i
     }
   }
 
-  private def fixDown(from: Int, to: Int) {
+  private def fixDown(arr: Array[T], from: Int, to: Int) {
     var pos = from
     val arr = array
     while (2 * pos <= to) {
@@ -52,11 +51,11 @@ class BinaryHeap[@specialized(Int, Long, Double) T](val initialSize: Int = 16)(i
     array = narray
   }
 
-  def enqueue(elem: T): Unit = {
+  def enqueue(elem: T) = {
     if (sz == array.length - 1) grow(this)
     array(sz + 1) = elem
     sz += 1
-    fixUp(sz)
+    fixUp(array, sz)
   }
 
   def dequeue(): T = {
@@ -65,7 +64,7 @@ class BinaryHeap[@specialized(Int, Long, Double) T](val initialSize: Int = 16)(i
       array(1) = array(sz)
       array(sz) = arrayable.nil
       sz -= 1
-      fixDown(1, sz)
+      fixDown(array, 1, sz)
       elem
     } else throw new NoSuchElementException("empty")
   }

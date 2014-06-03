@@ -63,6 +63,14 @@ package object reactive {
 
   val ReactUnrolledQueue = container.ReactUnrolledQueue
 
+  type ReactPriorityQueue[T] = container.ReactPriorityQueue[T]
+
+  val ReactPriorityQueue = container.ReactPriorityQueue
+
+  type ReactBinaryHeap[T] = container.ReactBinaryHeap[T]
+
+  val ReactBinaryHeap = container.ReactBinaryHeap
+
   type ReactSet[T] = container.ReactSet[T]
 
   val ReactSet = container.ReactSet
