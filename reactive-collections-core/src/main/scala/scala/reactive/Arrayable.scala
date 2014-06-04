@@ -13,7 +13,7 @@ import scala.reflect.ClassTag
  * 
  *  @tparam T       type for which we want to instantiate an array
  */
-abstract class Arrayable[@specialized(Int, Long, Double) T] {
+abstract class Arrayable[@specialized(Byte, Short, Int, Float, Long, Double) T] {
   /** Class tag for type `T`.
    */
   val classTag: ClassTag[T]
@@ -72,17 +72,39 @@ object Arrayable extends LowPriorityArrayableImplicits {
     def newRawArray(sz: Int) = new Array[Double](sz)
   }
 
+  implicit val float: Arrayable[Float] = new Arrayable[Float] {
+    val classTag = implicitly[ClassTag[Float]]
+    val nil = Float.NaN
+    def newArray(sz: Int) = Array.fill[Float](sz)(nil)
+    def newRawArray(sz: Int) = new Array[Float](sz)
+  }
+
   implicit val int: Arrayable[Int] = new Arrayable[Int] {
     val classTag = implicitly[ClassTag[Int]]
     val nil = Int.MinValue
     def newArray(sz: Int) = Array.fill[Int](sz)(nil)
     def newRawArray(sz: Int) = new Array[Int](sz)
   }
+
   val nonZeroInt: Arrayable[Int] = new Arrayable[Int] {
     val classTag = implicitly[ClassTag[Int]]
     val nil = 0
     def newArray(sz: Int) = newRawArray(sz)
     def newRawArray(sz: Int) = new Array[Int](sz)
+  }
+
+  implicit val short: Arrayable[Short] = new Arrayable[Short] {
+    val classTag = implicitly[ClassTag[Short]]
+    val nil = Short.MinValue
+    def newArray(sz: Int) = Array.fill[Short](sz)(nil)
+    def newRawArray(sz: Int) = new Array[Short](sz)
+  }
+
+  implicit val byte: Arrayable[Byte] = new Arrayable[Byte] {
+    val classTag = implicitly[ClassTag[Byte]]
+    val nil = Byte.MinValue
+    def newArray(sz: Int) = Array.fill[Byte](sz)(nil)
+    def newRawArray(sz: Int) = new Array[Byte](sz)
   }
 
 }

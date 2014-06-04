@@ -5,7 +5,7 @@ package scala.reactive
 
 
 
-trait Order[@specialized(Int, Long, Double) T] {
+trait Order[@specialized(Short, Int, Long, Float, Double) T] {
 
   def compare(x: T, y: T): Int
 
@@ -24,6 +24,13 @@ trait Order[@specialized(Int, Long, Double) T] {
 
 object Order {
 
+  implicit object ShortOrder extends Order[Short] {
+    def compare(x: Short, y: Short) =
+      if (x < y) -1
+      else if (x == y) 0
+      else 1
+  }
+
   implicit object IntOrder extends Order[Int] {
     def compare(x: Int, y: Int) =
       if (x < y) -1
@@ -33,6 +40,13 @@ object Order {
 
   implicit object LongOrder extends Order[Long] {
     def compare(x: Long, y: Long) =
+      if (x < y) -1
+      else if (x == y) 0
+      else 1
+  }
+
+  implicit object FloatOrder extends Order[Float] {
+    def compare(x: Float, y: Float) =
       if (x < y) -1
       else if (x == y) 0
       else 1

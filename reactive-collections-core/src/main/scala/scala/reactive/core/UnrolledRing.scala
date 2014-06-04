@@ -7,7 +7,7 @@ import scala.annotation.tailrec
 
 
 
-class UnrolledRing[@specialized(Int, Long, Double) T](implicit val arrayable: Arrayable[T]) {
+class UnrolledRing[@specialized(Byte, Short, Int, Float, Long, Double) T](implicit val arrayable: Arrayable[T]) {
   import UnrolledRing._
 
   private[reactive] var start: Node[T] = _
@@ -100,7 +100,7 @@ object UnrolledRing {
   val INITIAL_NODE_LENGTH = 8
   val MAXIMUM_NODE_LENGTH = 128
 
-  class Node[@specialized(Int, Long, Double) T](val array: Array[T], var start: Int, var until: Int) {
+  class Node[@specialized(Byte, Short, Int, Float, Long, Double) T](val array: Array[T], var start: Int, var until: Int) {
     var next: Node[T] = null
 
     final def isEmpty = start == until
@@ -150,7 +150,7 @@ object UnrolledRing {
     }
   }
 
-  @tailrec final def remove[@specialized(Int, Long, Double) T](ring: UnrolledRing[T], prev: Node[T], curr: Node[T], elem: T, at: Int): Int = {
+  @tailrec final def remove[@specialized(Byte, Short, Int, Float, Long, Double) T](ring: UnrolledRing[T], prev: Node[T], curr: Node[T], elem: T, at: Int): Int = {
     var position = -1
 
     //println(s"removing $elem in ${curr.array.mkString(", ")}::: ${curr.start}, ${curr.until}")
