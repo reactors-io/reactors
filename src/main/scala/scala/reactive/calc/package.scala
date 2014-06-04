@@ -83,6 +83,10 @@ package object calc {
 
   }
 
+  /* constants */
+
+  val Pif: Float = math.Pi.toFloat
+
   /* functions */
 
   final def min(a: Double, b: Double) = if (a < b) a else b
