@@ -9,7 +9,7 @@ import scala.annotation.implicitNotFound
 
 
 class ReactArray[@spec(Int, Long, Double) T: Arrayable]
-extends ReactContainer[T] with ReactBuilder[T, ReactArray[T]] {
+extends ReactContainer[T] {
   private var array = implicitly[Arrayable[T]].newArray(8)
   private var len = 0
 
@@ -30,10 +30,6 @@ extends ReactContainer[T] with ReactBuilder[T, ReactArray[T]] {
     inserts += value
 
     true
-  }
-
-  def -=(value: T) = {
-    throw new Exception("Elements cannot be removed from a reactive array.")
   }
 
   def apply(idx: Int) = array(idx)
@@ -69,9 +65,5 @@ object ReactArray {
   val initSize = 16
 
   val loadFactor = 450
-
-  implicit def factory[@spec(Int, Long, Double) T: Arrayable] = new ReactBuilder.Factory[T, ReactArray[T]] {
-    def apply() = ReactArray[T]
-  }
 
 }
