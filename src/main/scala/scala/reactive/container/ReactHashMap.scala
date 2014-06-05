@@ -8,10 +8,10 @@ import scala.reflect.ClassTag
 
 
 
-class ReactMap[@spec(Int, Long, Double) K, V >: Null <: AnyRef]
-  (implicit val can: ReactMap.Can[K, V])
-extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
-  private var table: Array[ReactMap.Entry[K, V]] = null
+class ReactHashMap[@spec(Int, Long, Double) K, V >: Null <: AnyRef]
+  (implicit val can: ReactHashMap.Can[K, V])
+extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactHashMap[K, V]] {
+  private var table: Array[ReactHashMap.Entry[K, V]] = null
   private var elems = 0
   private var entries = 0
   private[reactive] var keyContainer: EmitContainer[K] = null
@@ -20,7 +20,7 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
   private[reactive] var removesEmitter: Reactive.Emitter[(K, V)] = null
 
   protected def init(k: K) {
-    table = new Array(ReactMap.initSize)
+    table = new Array(ReactHashMap.initSize)
     keyContainer = new EmitContainer[K](f => foreach((k, v) => f(k)), () => size)
     valueContainer = new EmitContainer[V](f => foreach((k, v) => f(v)), () => size)
     insertsEmitter = new Reactive.Emitter[(K, V)]
@@ -34,7 +34,7 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
   def inserts: Reactive[(K, V)] = insertsEmitter
   def removes: Reactive[(K, V)] = removesEmitter
 
-  def builder: ReactBuilder[(K, V), ReactMap[K, V]] = this
+  def builder: ReactBuilder[(K, V), ReactHashMap[K, V]] = this
 
   def +=(kv: (K, V)) = {
     insert(kv._1, kv._2)
@@ -47,7 +47,7 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
 
   def container = this
 
-  val react = new ReactMap.Lifted[K, V](this)
+  val react = new ReactHashMap.Lifted[K, V](this)
 
   def foreach(f: (K, V) => Unit) {
     var i = 0
@@ -67,7 +67,7 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
     }
   }
 
-  private def lookup(k: K): ReactMap.Entry[K, V] = {
+  private def lookup(k: K): ReactHashMap.Entry[K, V] = {
     val pos = index(k)
     var entry = table(pos)
 
@@ -79,7 +79,7 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
     else entry
   }
 
-  private[reactive] def ensure(k: K): ReactMap.Entry[K, V] = {
+  private[reactive] def ensure(k: K): ReactHashMap.Entry[K, V] = {
     val pos = index(k)
     var entry = table(pos)
     checkResize()
@@ -96,7 +96,7 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
     } else entry
   }
 
-  private[reactive] def clean(entry: ReactMap.Entry[K, V]) {
+  private[reactive] def clean(entry: ReactHashMap.Entry[K, V]) {
     if (entry.value == null) {
       val pos = index(entry.key)
       table(pos) = table(pos).remove(entry)
@@ -175,7 +175,7 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
   }
 
   private def checkResize() {
-    if (entries * 1000 / ReactMap.loadFactor > table.length) {
+    if (entries * 1000 / ReactHashMap.loadFactor > table.length) {
       val otable = table
       val ncapacity = table.length * 2
       table = new Array(ncapacity)
@@ -272,17 +272,17 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactMap[K, V]] {
   override def toString = {
     val elems = mutable.Buffer[(K, V)]()
     for (kv <- this) elems += kv
-    s"ReactMap($size, ${elems.mkString(", ")})"
+    s"ReactHashMap($size, ${elems.mkString(", ")})"
   }
 
 }
 
 
-object ReactMap {
+object ReactHashMap {
 
   trait Entry[@spec(Int, Long, Double) K, V >: Null <: AnyRef]
   extends Signal.Default[V] {
-    def outer: ReactMap[K, V]
+    def outer: ReactHashMap[K, V]
     def key: K
     def value: V
     def value_=(v: V): Unit
@@ -299,11 +299,11 @@ object ReactMap {
   }
 
   trait Can[@spec(Int, Long, Double) K, V >: Null <: AnyRef] {
-    def newEntry(key: K, outer: ReactMap[K, V]): ReactMap.Entry[K, V]
+    def newEntry(key: K, outer: ReactHashMap[K, V]): ReactHashMap.Entry[K, V]
   }
 
   implicit def canAnyRef[K, V >: Null <: AnyRef] = new Can[K, V] {
-    def newEntry(k: K, o: ReactMap[K, V]) = new ReactMap.Entry[K, V] {
+    def newEntry(k: K, o: ReactHashMap[K, V]) = new ReactHashMap.Entry[K, V] {
       def outer = o
       def key = k
       var value: V = _
@@ -312,7 +312,7 @@ object ReactMap {
   }
 
   implicit def canInt[V >: Null <: AnyRef] = new Can[Int, V] {
-    def newEntry(k: Int, o: ReactMap[Int, V]) = new ReactMap.Entry[Int, V] {
+    def newEntry(k: Int, o: ReactHashMap[Int, V]) = new ReactHashMap.Entry[Int, V] {
       def outer = o
       def key = k
       var value: V = _
@@ -321,7 +321,7 @@ object ReactMap {
   }
 
   implicit def canLong[V >: Null <: AnyRef] = new Can[Long, V] {
-    def newEntry(k: Long, o: ReactMap[Long, V]) = new ReactMap.Entry[Long, V] {
+    def newEntry(k: Long, o: ReactHashMap[Long, V]) = new ReactHashMap.Entry[Long, V] {
       def outer = o
       def key = k
       var value: V = _
@@ -330,7 +330,7 @@ object ReactMap {
   }
 
   implicit def canDouble[V >: Null <: AnyRef] = new Can[Double, V] {
-    def newEntry(k: Double, o: ReactMap[Double, V]) = new ReactMap.Entry[Double, V] {
+    def newEntry(k: Double, o: ReactHashMap[Double, V]) = new ReactHashMap.Entry[Double, V] {
       def outer = o
       def key = k
       var value: V = _
@@ -338,9 +338,9 @@ object ReactMap {
     }
   }
 
-  def apply[@spec(Int, Long, Double) K, V >: Null <: AnyRef](implicit can: Can[K, V]) = new ReactMap[K, V]()(can)
+  def apply[@spec(Int, Long, Double) K, V >: Null <: AnyRef](implicit can: Can[K, V]) = new ReactHashMap[K, V]()(can)
 
-  class Lifted[@spec(Int, Long, Double) K, V >: Null <: AnyRef](val container: ReactMap[K, V])
+  class Lifted[@spec(Int, Long, Double) K, V >: Null <: AnyRef](val container: ReactHashMap[K, V])
   extends ReactContainer.Lifted[(K, V)] {
     def apply(k: K): Signal[V] = {
       container.ensure(k).signal(container.applyOrNil(k))
@@ -351,8 +351,8 @@ object ReactMap {
 
   val loadFactor = 750
 
-  implicit def factory[@spec(Int, Long, Double) K, V >: Null <: AnyRef] = new ReactBuilder.Factory[(K, V), ReactMap[K, V]] {
-    def apply() = ReactMap[K, V]
+  implicit def factory[@spec(Int, Long, Double) K, V >: Null <: AnyRef] = new ReactBuilder.Factory[(K, V), ReactHashMap[K, V]] {
+    def apply() = ReactHashMap[K, V]
   }
 
 }

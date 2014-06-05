@@ -79,9 +79,9 @@ package object reactive {
 
   val ReactTable = container.ReactTable
 
-  type ReactMap[K, V >: Null <: AnyRef] = container.ReactMap[K, V]
+  type ReactHashMap[K, V >: Null <: AnyRef] = container.ReactHashMap[K, V]
 
-  val ReactMap = container.ReactMap
+  val ReactHashMap = container.ReactHashMap
 
   type ReactCatamorph[T, S] = container.ReactCatamorph[T, S]
 

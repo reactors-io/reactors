@@ -21,8 +21,8 @@ class HashTableMemoryBench extends PerformanceTest.Regression {
     exec.benchRuns -> 30,
     exec.independentSamples -> 1
   ) in {
-    using(hashTableSizes) curve("ReactMap") in { sz =>
-      val m = ReactMap[Int, String]
+    using(hashTableSizes) curve("ReactHashMap") in { sz =>
+      val m = ReactHashMap[Int, String]
       for (i <- 0 until sz) m(i) = "value"
       m
     }

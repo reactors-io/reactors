@@ -222,7 +222,7 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
 
   it should "accurately collect" in {
     val size = 512
-    val table = new ReactMap[Int, String]
+    val table = new ReactHashMap[Int, String]
     val oks = table.collect({
       case (k, "ok") => (k, "ok")
     })

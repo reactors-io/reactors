@@ -10,10 +10,10 @@ import scala.collection._
 
 
 
-class ReactMapSpec extends FlatSpec with ShouldMatchers {
+class ReactHashMapSpec extends FlatSpec with ShouldMatchers {
 
-  "A ReactMap" should "be empty" in {
-    val table = new ReactMap[Long, String]
+  "A ReactHashMap" should "be empty" in {
+    val table = new ReactHashMap[Long, String]
 
     table.size should equal (0)
     table.get(0L) should equal (None)
@@ -22,7 +22,7 @@ class ReactMapSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "contain a single element" in {
-    val table = new ReactMap[Long, String]
+    val table = new ReactHashMap[Long, String]
     table(2L) = 2L.toString
 
     table.size should equal (1)
@@ -34,7 +34,7 @@ class ReactMapSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "contain two elements" in {
-    val table = new ReactMap[Long, String]
+    val table = new ReactHashMap[Long, String]
     table.update(3L, 3L.toString)
     table.update(4L, 4L.toString)
 
@@ -49,7 +49,7 @@ class ReactMapSpec extends FlatSpec with ShouldMatchers {
   }
 
   def containSeveralElements() {
-    val table = new ReactMap[String, String]
+    val table = new ReactHashMap[String, String]
     table.update("a", "1")
     table.update("b", "2")
     table.update("c", "3")
@@ -73,7 +73,7 @@ class ReactMapSpec extends FlatSpec with ShouldMatchers {
 
   def containManyElements() {
     val many = 1024
-    val table = new ReactMap[Long, String]
+    val table = new ReactHashMap[Long, String]
     for (i <- 0 until many) table(i) = i.toString
 
     table.size should equal (many)
@@ -88,7 +88,7 @@ class ReactMapSpec extends FlatSpec with ShouldMatchers {
 
   it should "subscribe to a specific key" in {
     val many = 512
-    val table = new ReactMap[Int, String]
+    val table = new ReactHashMap[Int, String]
     for (i <- 0 until many) table(i) = i.toString
     val specificKey = table.react(128)
 
@@ -99,7 +99,7 @@ class ReactMapSpec extends FlatSpec with ShouldMatchers {
   it should "subscribe to many keys" in {
     val size = 1024
     val many = 512
-    val table = new ReactMap[Int, String]
+    val table = new ReactHashMap[Int, String]
     for (i <- 0 until many) table(i) = i.toString
     val signals = for (i <- 0 until many) yield table.react(i)
     for (i <- 0 until size) table(i) = s"value$i"
@@ -115,7 +115,7 @@ class ReactMapSpec extends FlatSpec with ShouldMatchers {
   def testSubscribeNonexisting() {
     val size = 256
     val many = 128
-    val table = new ReactMap[Int, String]
+    val table = new ReactHashMap[Int, String]
     val signsOfLife = Array.fill(many)(false)
     val subs = for (i <- 0 until many) yield {
       val values = table.react(i)
@@ -131,7 +131,7 @@ class ReactMapSpec extends FlatSpec with ShouldMatchers {
   it should "accurately GC key subscriptions no longer used" in {
     val size = 256
     val many = 128
-    val table = new ReactMap[Int, String]
+    val table = new ReactHashMap[Int, String]
     val signsOfLife = Array.fill(many)(false)
     for (i <- 0 until many) yield table.react(i)
 
@@ -143,7 +143,7 @@ class ReactMapSpec extends FlatSpec with ShouldMatchers {
 
   it should "contain the correct set of keys" in {
     val size = 256
-    val table = new ReactMap[Int, String]
+    val table = new ReactHashMap[Int, String]
     val observed = mutable.Set[Int]()
     val keys = table.keys
     keys.inserts.onEvent(observed += _)
@@ -154,7 +154,7 @@ class ReactMapSpec extends FlatSpec with ShouldMatchers {
 
   it should "contain the correct set of values" in {
     val size = 256
-    val table = new ReactMap[Int, String]
+    val table = new ReactHashMap[Int, String]
     val observed = mutable.Set[Int]()
     val keys = table.keys
     val insertSub = keys.inserts.onEvent(observed += _)
