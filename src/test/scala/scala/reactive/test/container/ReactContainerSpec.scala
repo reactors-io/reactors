@@ -14,8 +14,8 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
   "A ReactContainer" should "map" in { map() }
 
   def map() {
-    val numbers = new ReactSet[Long]
-    val mapped = numbers.map(-_).react.to[ReactSet[Long]]
+    val numbers = new ReactHashSet[Long]
+    val mapped = numbers.map(-_).react.to[ReactHashSet[Long]]
     
     sys.runtime.gc()
 
@@ -31,8 +31,8 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "be mapped into a different container" in {
-    val numbers = new ReactSet[Int]
-    val mapped = numbers.map(2 * _).react.to[ReactSet[Int]]
+    val numbers = new ReactHashSet[Int]
+    val mapped = numbers.map(2 * _).react.to[ReactHashSet[Int]]
 
     mapped.size should equal (0)
 
@@ -43,8 +43,8 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "filter" in {
-    val numbers = new ReactSet[Int]
-    val filtered = numbers.filter(_ % 2 == 0).react.to[ReactSet[Int]]
+    val numbers = new ReactHashSet[Int]
+    val filtered = numbers.filter(_ % 2 == 0).react.to[ReactHashSet[Int]]
 
     filtered.size should equal (0)
 
@@ -54,9 +54,9 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
 
   def testUnionPrimitives() {
     import Permission.canBuffer
-    val xs = new ReactSet[Int]
-    val ys = new ReactSet[Int]
-    val both = (xs union ys).react.to[ReactSet[Int]]
+    val xs = new ReactHashSet[Int]
+    val ys = new ReactHashSet[Int]
+    val both = (xs union ys).react.to[ReactHashSet[Int]]
     def check(nums: Int*) {
       for (n <- nums) both(n) should equal (true)
     }
@@ -85,9 +85,9 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
 
   it should "union references" in {
     import Permission.canBuffer
-    val xs = new ReactSet[String]
-    val ys = new ReactSet[String]
-    val both = (xs union ys).react.to[ReactSet[String]]
+    val xs = new ReactHashSet[String]
+    val ys = new ReactHashSet[String]
+    val both = (xs union ys).react.to[ReactHashSet[String]]
     def check(nums: String*) {
       for (n <- nums) both(n) should equal (true)
     }
@@ -109,7 +109,7 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "aggregate" in {
-    val numbers = new ReactSet[Int]
+    val numbers = new ReactHashSet[Int]
     numbers += 1
     val sum = numbers.react.commuteFold(Commutoid(0)(_ + _))
 
@@ -123,7 +123,7 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
 
   it should "aggregate using a typeclass" in {
     import calc.structure.setUnion
-    val numbers = new ReactSet[Set[Int]]
+    val numbers = new ReactHashSet[Set[Int]]
     val union = numbers.react.monoidFold
 
     union() should equal (Set())
@@ -135,7 +135,7 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "update the size" in {
-    val numbers = ReactSet[Int]
+    val numbers = ReactHashSet[Int]
     numbers += 0
     val size = numbers.react.size
 
@@ -158,7 +158,7 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
 
   it should "foreach the elements" in {
     import scala.collection._
-    val numbers = ReactSet[Int]
+    val numbers = ReactHashSet[Int]
     val buffer = mutable.Buffer[Int]()
     val _ = for (x <- numbers.react) buffer += x
 
@@ -177,7 +177,7 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "count the elements" in {
-    val numbers = ReactSet[Int]
+    val numbers = ReactHashSet[Int]
     numbers += 0
     val even = numbers.react.count(_ % 2 == 0)
 
@@ -195,7 +195,7 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "forall the elements" in {
-    val numbers = ReactSet[Int]
+    val numbers = ReactHashSet[Int]
     numbers += 11
     val allodd = numbers.react.forall(_ % 2 == 1)
 
@@ -236,9 +236,9 @@ class ReactContainerSpec extends FlatSpec with ShouldMatchers {
 
   it should "be eagerly evaluated" in {
     val size = 512
-    val set = new ReactSet[Int]
+    val set = new ReactHashSet[Int]
     for (i <- 0 until size) set += i
-    val mapped = set.map(_ + 1).to[ReactSet[Int]]
+    val mapped = set.map(_ + 1).to[ReactHashSet[Int]]
 
     mapped.size should equal (size)
     for (x <- mapped) set(x / 2) should equal (true)

@@ -7,9 +7,9 @@ import scala.reflect.ClassTag
 
 
 
-class ReactSet[@spec(Int, Long, Double) T](
+class ReactHashSet[@spec(Int, Long, Double) T](
   implicit val arrayable: Arrayable[T]
-) extends ReactContainer[T] with ReactBuilder[T, ReactSet[T]] {
+) extends ReactContainer[T] with ReactBuilder[T, ReactHashSet[T]] {
   self =>
 
   private var table: Array[T] = null
@@ -18,7 +18,7 @@ class ReactSet[@spec(Int, Long, Double) T](
   private[reactive] var removesEmitter: Reactive.Emitter[T] = null
 
   protected def init(ee: Arrayable[T]) {
-    table = arrayable.newArray(ReactSet.initSize)
+    table = arrayable.newArray(ReactHashSet.initSize)
     insertsEmitter = new Reactive.Emitter[T]
     removesEmitter = new Reactive.Emitter[T]
   }
@@ -28,7 +28,7 @@ class ReactSet[@spec(Int, Long, Double) T](
   def inserts: Reactive[T] = insertsEmitter
   def removes: Reactive[T] = removesEmitter
 
-  def builder: ReactBuilder[T, ReactSet[T]] = this
+  def builder: ReactBuilder[T, ReactHashSet[T]] = this
 
   def +=(elem: T) = {
     self add elem
@@ -40,7 +40,7 @@ class ReactSet[@spec(Int, Long, Double) T](
 
   def container = self
 
-  val react = new ReactSet.Lifted[T](this)
+  val react = new ReactHashSet.Lifted[T](this)
 
   def foreach(f: T => Unit) {
     var i = 0
@@ -121,7 +121,7 @@ class ReactSet[@spec(Int, Long, Double) T](
   }
 
   private def checkResize() {
-    if (sz * 1000 / ReactSet.loadFactor > table.length) {
+    if (sz * 1000 / ReactHashSet.loadFactor > table.length) {
       val otable = table
       val ncapacity = table.length * 2
       table = arrayable.newArray(ncapacity)
@@ -179,18 +179,18 @@ class ReactSet[@spec(Int, Long, Double) T](
 }
 
 
-object ReactSet {
+object ReactHashSet {
 
-  def apply[@spec(Int, Long, Double) T: Arrayable]() = new ReactSet[T]
+  def apply[@spec(Int, Long, Double) T: Arrayable]() = new ReactHashSet[T]
 
-  class Lifted[@spec(Int, Long, Double) T](val container: ReactSet[T]) extends ReactContainer.Lifted[T]
+  class Lifted[@spec(Int, Long, Double) T](val container: ReactHashSet[T]) extends ReactContainer.Lifted[T]
 
   val initSize = 16
 
   val loadFactor = 450
 
-  implicit def factory[@spec(Int, Long, Double) T: Arrayable] = new ReactBuilder.Factory[T, ReactSet[T]] {
-    def apply() = ReactSet[T]
+  implicit def factory[@spec(Int, Long, Double) T: Arrayable] = new ReactBuilder.Factory[T, ReactHashSet[T]] {
+    def apply() = ReactHashSet[T]
   }
 
 }

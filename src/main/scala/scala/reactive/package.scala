@@ -71,9 +71,9 @@ package object reactive {
 
   val ReactBinaryHeap = container.ReactBinaryHeap
 
-  type ReactSet[T] = container.ReactSet[T]
+  type ReactHashSet[T] = container.ReactHashSet[T]
 
-  val ReactSet = container.ReactSet
+  val ReactHashSet = container.ReactHashSet
 
   type ReactTable[K, V] = container.ReactTable[K, V]
 

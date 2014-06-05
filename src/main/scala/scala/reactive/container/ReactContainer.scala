@@ -200,7 +200,7 @@ object ReactContainer {
       if (count.dec(x)) removes += x
     }
     def computeUnion = {
-      val s = ReactSet[T]
+      val s = ReactHashSet[T]
       for (v <- self) s += v
       for (v <- that) s += v
       s
