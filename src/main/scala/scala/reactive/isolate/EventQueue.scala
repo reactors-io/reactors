@@ -17,6 +17,7 @@ import scala.collection._
 trait EventQueue[@spec(Int, Long, Double) Q]
 extends Enqueuer[Q] {
   def foreach(f: IsolateFrame[Q])(implicit scheduler: Scheduler): Dequeuer[Q]
+  def size: Int
   def isEmpty: Boolean
   def nonEmpty = !isEmpty
 }
@@ -46,6 +47,10 @@ object EventQueue {
       val dequeuer = new SingleSubscriberSyncedUnrolledRingDequeuer(this)
       listener = f
       dequeuer
+    }
+
+    def size = monitor.synchronized {
+      ring.size
     }
 
     def isEmpty = monitor.synchronized {

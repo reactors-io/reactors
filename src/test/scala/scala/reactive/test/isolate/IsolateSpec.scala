@@ -159,7 +159,7 @@ class TimerSyncedIsolateSpec extends LooperIsolateSpec {
 
   val isoSystem = IsolateSystem.default("TestSystem")
 
-  implicit val scheduler = new Scheduler.Timer(1000)
+  implicit val scheduler = new Scheduler.Timer(400)
 
 }
 

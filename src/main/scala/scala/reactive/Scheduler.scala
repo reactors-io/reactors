@@ -237,25 +237,48 @@ object Scheduler {
    */
   class Timer(private val period: Long, val isDaemon: Boolean = true, val handler: Scheduler.Handler = Scheduler.defaultHandler)
   extends Scheduler {
-    private val timer = new java.util.Timer(s"TimerScheduler-{util.freshId[Timer]}", isDaemon)
+    private var timer: java.util.Timer = null
+    private val frames = mutable.Set[IsolateFrame[_]]()
 
-    def stop() = timer.cancel()
+    def shutdown() = if (timer != null) timer.cancel()
 
     def schedule(frame: IsolateFrame[_]) {}
 
     def initiate(frame: IsolateFrame[_]) {
-      frame.allowedBudget = Long.MaxValue
+      addFrame(frame)
+
       timer.schedule(new java.util.TimerTask {
         timerTask =>
         def run() {
           try {
             def notTerm = frame.isolateState.get != IsolateFrame.Terminated
+
+            frame.allowedBudget = frame.eventQueue.size
             if (notTerm) frame.run()
-            else timerTask.cancel()
+            else {
+              timerTask.cancel()
+              removeFrame(frame)
+            }
+
             frame.tryOwn()
           } catch handler
         }
       }, period, period)
+    }
+
+    private def addFrame(frame: IsolateFrame[_]) = frames.synchronized {
+      frames += frame
+      if (frames.size == 1) {
+        timer = new java.util.Timer(s"TimerScheduler-${util.freshId[Timer]}", isDaemon)
+      }
+    }
+
+    private def removeFrame(frame: IsolateFrame[_]) = frames.synchronized {
+      frames -= frame
+      if (frames.size == 0) {
+        timer.cancel()
+        timer = null
+      }
     }
 
   }
