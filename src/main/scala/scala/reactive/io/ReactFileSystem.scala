@@ -17,12 +17,12 @@ class ReactFileSystem(val uri: URI) extends Isolate[ReactFileSystem.Command] {
   private val fs = FileSystems.getFileSystem(uri)
   private val watcher = fs.newWatchService
   private val subscriptions = concurrent.TrieMap[WatchKey, SubscriptionInfo]()
-  private val directories = mutable.Map[ReactPath, WatchKey]()
+  private val directories = mutable.Map[Path, WatchKey]()
   private val poller = new ReactFileSystem.Poller(this, watcher, subscriptions)
 
   react <<= source onCase {
     case ReactFileSystem.Watch(dir, channel) =>
-      val key = dir.nioPath.register(watcher, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY)
+      val key = dir.register(watcher, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY)
       val emitter = new Reactive.Emitter[Event]
       channel.attach(emitter)
       directories(dir) = key
@@ -64,7 +64,7 @@ object ReactFileSystem {
             for (rawe <- key.pollEvents.asScala) {
               val event = rawe.asInstanceOf[WatchEvent[Path]]
               val kind = event.kind
-              val path = new ReactPath(dir.nioPath.resolve(event.context), fileSystem.channel)
+              val path = dir.resolve(event.context)
               kind match {
                 case ENTRY_CREATE => emitter += Created(path)
                 case ENTRY_MODIFY => emitter += Modified(path)
@@ -80,15 +80,15 @@ object ReactFileSystem {
     }
   }
 
-  private[reactive] case class SubscriptionInfo(dir: ReactPath, emitter: Reactive.Emitter[Event], channel: Channel[Event])
+  private[reactive] case class SubscriptionInfo(dir: Path, emitter: Reactive.Emitter[Event], channel: Channel[Event])
 
   sealed trait Command
-  case class Watch(dir: ReactPath, channel: Channel[Event]) extends Command
-  case class Unwatch(dir: ReactPath) extends Command
+  case class Watch(dir: Path, channel: Channel[Event]) extends Command
+  case class Unwatch(dir: Path) extends Command
 
   sealed trait Event
-  case class Created(path: ReactPath) extends Event
-  case class Modified(path: ReactPath) extends Event
-  case class Deleted(path: ReactPath) extends Event
+  case class Created(path: Path) extends Event
+  case class Modified(path: Path) extends Event
+  case class Deleted(path: Path) extends Event
 
 }

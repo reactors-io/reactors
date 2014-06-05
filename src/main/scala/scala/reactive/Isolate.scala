@@ -101,27 +101,6 @@ trait Isolate[@spec(Int, Long, Double) T] extends ReactRecord {
 
 object Isolate {
 
-  trait Looper[@spec(Int, Long, Double) T]
-  extends Isolate[T] {
-    val fallback: Signal[Option[T]]
-
-    def initialize() {
-      react <<= sysEvents onCase {
-        case IsolateStarted | IsolateEmptyQueue => fallback() match {
-          case Some(v) => later.enqueueIfEmpty(v)
-          case None => channel.seal()
-        }
-      }
-    }
-
-    initialize()
-  }
-
-  sealed trait State
-  case object Created extends State
-  case object Running extends State
-  case object Terminated extends State
-
   private[reactive] val selfIsolate = new ThreadLocal[Isolate[_]] {
     override def initialValue = null
   }
@@ -143,5 +122,9 @@ object Isolate {
     if (i == null) throw new IllegalStateException(s"${Thread.currentThread.getName} not executing in an isolate.")
     i.asInstanceOf[I]
   }
+
+  /** Returns the current isolate that produces events of type `T`.
+   */
+  def of[@specialized(Int, Long, Double) T]: Isolate[T] = Isolate.self[Isolate[T]]
 
 }

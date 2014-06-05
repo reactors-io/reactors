@@ -41,7 +41,7 @@ object Isolates {
     }
   }
 
-  class TestLooper(sv: SyncVar[Int]) extends Isolate.Looper[Int] {
+  class TestLooper(sv: SyncVar[Int]) extends isolate.Looper[Int] {
     val fallback = ReactCell(Option(1))
 
     react <<= sysEvents onCase {

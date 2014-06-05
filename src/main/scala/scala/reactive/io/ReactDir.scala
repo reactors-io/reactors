@@ -9,7 +9,7 @@ import calc.Injection
 
 
 class ReactDir private[reactive] (
-  val path: ReactPath,
+  val path: Path,
   val commands: Reactive.Emitter[ReactFileSystem.Command],
   val events: Reactive[ReactFileSystem.Event]
 ) extends ReactRecord {
@@ -26,11 +26,10 @@ class ReactDir private[reactive] (
 
 object ReactDir {
 
-  def apply[T <: AnyRef](path: ReactPath, isolate: Isolate[T], i: Injection[ReactFileSystem.Event, T]): ReactDir = {
+  def inject[T <: AnyRef](path: Path, selfIsolate: Isolate[T], i: Injection[ReactFileSystem.Event, T], fileSystem: Channel[ReactFileSystem.Command]): ReactDir = {
     val commands = new Reactive.Emitter[ReactFileSystem.Command]
-    val fileSystem = path.fileSystem
-    val eventChannel = isolate.channel.compose(i.function)
-    val events = isolate.source.collect(i.inverse.function)
+    val eventChannel = selfIsolate.channel.compose(i.function)
+    val events = selfIsolate.source.collect(i.inverse.function)
 
     fileSystem.attach(commands)
     commands += ReactFileSystem.Watch(path, eventChannel)
