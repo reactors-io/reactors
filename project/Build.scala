@@ -7,7 +7,6 @@ import java.io.File
 
 object ReactiveCollectionsBuild extends Build {
 
-
   val publishUser = "SONATYPE_USER"
   
   val publishPass = "SONATYPE_PASS"
