@@ -32,10 +32,9 @@ trait Scheduler {
    *  This method uses the isolate frame to flush messages from its event queue
    *  and propagate events through the isolate.
    *
-   *  @tparam Q         the type of the isolate event queue
    *  @param frame      the isolate frame to schedule
    */
-  def schedule[@spec(Int, Long, Double) T](frame: IsolateFrame[T]): Unit
+  def schedule(frame: IsolateFrame[_]): Unit
 
   /** Initiates the isolate frame.
    *  Clients never call this method directly.
@@ -45,10 +44,9 @@ trait Scheduler {
    *  For example, a `Scheduler` based on a Java `Executor` would typically
    *  store a `Runnable` object here and later use it from the `schedule` method.
    *
-   *  @tparam Q         the type of the isolate event queue
    *  @param frame      the isolate frame to initiate
    */
-  def initiate[@spec(Int, Long, Double) T](frame: IsolateFrame[T]): Unit
+  def initiate(frame: IsolateFrame[_]): Unit
 
   /** The handler for the fatal errors that are not sent to
    *  the `failures` stream of the isolate.
@@ -128,13 +126,13 @@ object Scheduler {
    */
   class Executed(val executor: java.util.concurrent.Executor, val handler: Scheduler.Handler = Scheduler.defaultHandler)
   extends Scheduler {
-    def initiate[@spec(Int, Long, Double) T](frame: IsolateFrame[T]): Unit = {
+    def initiate(frame: IsolateFrame[_]): Unit = {
       frame.schedulerInfo = new Runnable {
-        def run() = frame.run(frame.dequeuer)
+        def run() = frame.run()
       }
     }
 
-    def schedule[@spec(Int, Long, Double) T](frame: IsolateFrame[T]): Unit = {
+    def schedule(frame: IsolateFrame[_]): Unit = {
       executor.execute(frame.schedulerInfo.asInstanceOf[Runnable])
     }
   }
@@ -142,13 +140,13 @@ object Scheduler {
   /** An abstract scheduler that always dedicates a thread to an isolate.
    */
   abstract class Dedicated extends Scheduler {
-    def newWorker[@spec(Int, Long, Double) T](frame: IsolateFrame[T]): Dedicated.Worker[T]
+    def newWorker(frame: IsolateFrame[_]): Dedicated.Worker
 
-    def schedule[@spec(Int, Long, Double) T](frame: IsolateFrame[T]): Unit = {
-      frame.schedulerInfo.asInstanceOf[Dedicated.Worker[T]].awake()
+    def schedule(frame: IsolateFrame[_]): Unit = {
+      frame.schedulerInfo.asInstanceOf[Dedicated.Worker].awake()
     }
 
-    def initiate[@spec(Int, Long, Double) T](frame: IsolateFrame[T]): Unit = {
+    def initiate(frame: IsolateFrame[_]): Unit = {
       frame.schedulerInfo = newWorker(frame)
     }
   }
@@ -156,14 +154,16 @@ object Scheduler {
   /** Contains utility classes and implementations of the dedicated scheduler.
    */
   object Dedicated {
-    private[reactive] class Worker[@spec(Int, Long, Double) T](val frame: IsolateFrame[T]) {
+    private[reactive] class Worker(val frame: IsolateFrame[_], val handler: Scheduler.Handler) {
       val monitor = new util.Monitor
 
-      @tailrec final def loop(f: IsolateFrame[T]) {
-        frame.run(frame.dequeuer)
-        monitor.synchronized {
-          while (frame.eventQueue.isEmpty && !frame.isTerminating) monitor.wait()
-        }
+      @tailrec final def loop(f: IsolateFrame[_]): Unit = {
+        try {
+          frame.run()
+          monitor.synchronized {
+            while (frame.eventQueue.isEmpty && !frame.isTerminating) monitor.wait()
+          }
+        } catch handler
         if (frame.isolateState.get != IsolateFrame.Terminated) loop(f)
       }
 
@@ -174,7 +174,7 @@ object Scheduler {
       }
     }
 
-    private[reactive] class WorkerThread[@spec(Int, Long, Double) T](val worker: Worker[T]) extends Thread {
+    private[reactive] class WorkerThread(val worker: Worker) extends Thread {
       override def run() = worker.loop(worker.frame)
     }
 
@@ -188,8 +188,8 @@ object Scheduler {
      */
     class NewThread(val isDaemon: Boolean, val handler: Scheduler.Handler = Scheduler.defaultHandler)
     extends Dedicated {
-      def newWorker[@spec(Int, Long, Double) T](frame: IsolateFrame[T]) = {
-        val w = new Worker(frame)
+      def newWorker(frame: IsolateFrame[_]) = {
+        val w = new Worker(frame, handler)
         val t = new WorkerThread(w)
         t.start()
         w
@@ -212,18 +212,52 @@ object Scheduler {
      *  @param handler           The error handler for the fatal errors not passed to isolates.
      */
     class Piggyback(val handler: Scheduler.Handler = Scheduler.defaultHandler) extends Dedicated {
-      def newWorker[@spec(Int, Long, Double) T](frame: IsolateFrame[T]) = {
-        val w = new Worker(frame)
+      def newWorker(frame: IsolateFrame[_]) = {
+        val w = new Worker(frame, handler)
         frame.schedulerInfo = w
         w
       }
 
-      override def initiate[@spec(Int, Long, Double) T](frame: IsolateFrame[T]) {
+      override def initiate(frame: IsolateFrame[_]) {
         // ride, piggy, ride, like you never rode before!
         super.initiate(frame)
-        frame.schedulerInfo.asInstanceOf[Worker[T]].loop(frame)
+        frame.schedulerInfo.asInstanceOf[Worker].loop(frame)
       }
     }
+
+  }
+
+  /** Executes the isolate on the timer thread.
+   *
+   *  The isolate is run every `period` milliseconds.
+   *  This is regardless of the number of events in this isolate's event queue.
+   *
+   *  @param period       Period between executing the isolate.
+   *  @param isDaemon     Is the timer thread a daemon thread.
+   */
+  class Timer(private val period: Long, val isDaemon: Boolean = true, val handler: Scheduler.Handler = Scheduler.defaultHandler)
+  extends Scheduler {
+    private val timer = new java.util.Timer(s"TimerScheduler-{util.freshId[Timer]}", isDaemon)
+
+    def stop() = timer.cancel()
+
+    def schedule(frame: IsolateFrame[_]) {}
+
+    def initiate(frame: IsolateFrame[_]) {
+      frame.allowedBudget = Long.MaxValue
+      timer.schedule(new java.util.TimerTask {
+        timerTask =>
+        def run() {
+          try {
+            def notTerm = frame.isolateState.get != IsolateFrame.Terminated
+            if (notTerm) frame.run()
+            else timerTask.cancel()
+            frame.tryOwn()
+          } catch handler
+        }
+      }, period, period)
+    }
+
   }
 
 }

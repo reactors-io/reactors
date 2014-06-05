@@ -155,6 +155,15 @@ class PiggybackSyncedIsolateSpec extends LooperIsolateSpec {
 }
 
 
+class TimerSyncedIsolateSpec extends LooperIsolateSpec {
+
+  val isoSystem = IsolateSystem.default("TestSystem")
+
+  implicit val scheduler = new Scheduler.Timer(1000)
+
+}
+
+
 
 
 

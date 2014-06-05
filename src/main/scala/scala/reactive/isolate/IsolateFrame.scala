@@ -26,6 +26,8 @@ final class IsolateFrame[@spec(Int, Long, Double) T](
   @volatile private[reactive] var errorHandling: PartialFunction[Throwable, Unit] = _
   @volatile private[reactive] var terminating = false
   @volatile var schedulerInfo: AnyRef = _
+  @volatile var allowedBudget: Long = _
+  @volatile var interruptRequested: Boolean = _
 
   private def propagate(event: T) {
     try sourceEmitter += event
@@ -71,13 +73,21 @@ final class IsolateFrame[@spec(Int, Long, Double) T](
 
     // send to failure emitter
     initErrorHandler()
+
+    // set allowed event budget to a default value
+    allowedBudget = 50
+    interruptRequested = false
   }
 
   init(this)
 
   /* running the frame */
+  
+  def run() {
+    run(this.dequeuer)
+  }
 
-  def run(dummy: Dequeuer[T]) {
+  private def run(dummy: Dequeuer[T]) {
     try {
       if (isolateState.get != IsolateFrame.Terminated) isolateAndRun(dequeuer)
     } finally {
@@ -125,11 +135,11 @@ final class IsolateFrame[@spec(Int, Long, Double) T](
   private def runInIsolate(dummy: Dequeuer[T]) {
     try {
       checkCreated()
-      var budget = 50
-      while (dequeuer.nonEmpty && budget > 0) {
+      var budget = 0L
+      while (dequeuer.nonEmpty && budget < allowedBudget && !interruptRequested) {
         val event = dequeuer.dequeue()
         propagate(event)
-        budget -= 1
+        budget += 1
       }
     } finally {
       try checkEmptyQueue()
@@ -142,6 +152,8 @@ final class IsolateFrame[@spec(Int, Long, Double) T](
 
 object IsolateFrame {
 
+  /** Ownership state of the isolate frame - 0 is not owned, 1 is owned.
+   */
   final class State {
     @volatile private[reactive] var state: Int = 0
 
