@@ -89,6 +89,14 @@ package object calc {
 
   /* functions */
 
+  @inline def manhattan(p: XY, q: XY) = math.abs(p.x - q.x) + math.abs(p.y - q.y)
+
+  @inline def euclid(p: XY, q: XY) = {
+    val xd = p.x - q.x
+    val yd = p.y - q.y
+    math.sqrt(xd * xd + yd * yd)
+  }
+
   final def min(a: Double, b: Double) = if (a < b) a else b
 
   final def max(a: Double, b: Double) = if (a > b) a else b
