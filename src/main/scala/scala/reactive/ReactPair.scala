@@ -9,8 +9,8 @@ import scala.reflect.ClassTag
 trait ReactPair[@spec(Int, Long, Double) P, Q <: AnyRef] {
   self =>
 
-  private[reactive] var _1: P = _
-  private[reactive] var _2: Q = _
+  private[reactive] var p: P = _
+  private[reactive] var q: Q = _
   private[reactive] var asSignal: ReactPair.Signal[P, Q] = _
   private[reactive] var subscription: Reactive.Subscription = Reactive.Subscription.empty
   private[reactive] val changes = new Reactive.Emitter[Unit]
@@ -21,9 +21,13 @@ trait ReactPair[@spec(Int, Long, Double) P, Q <: AnyRef] {
 
   init(this)
 
-  private[reactive] def set1(v: P) = _1 = v
+  private[reactive] def _1: P = p
 
-  private[reactive] def set2(v: Q) = _2 = v
+  private[reactive] def _1_=(v: P) = p = v
+
+  private[reactive] def _2: Q = q
+
+  private[reactive] def _2_=(v: Q) = q = v
 
   def filter1(p: P => Boolean): ReactPair[P, Q] = {
     val r = new ReactPair.Default[P, Q]
@@ -81,8 +85,7 @@ trait ReactPair[@spec(Int, Long, Double) P, Q <: AnyRef] {
     val r = new ReactPair.Default[P, S]
     r.subscription = changes.onAnyReaction { _ =>
       if (pf.isDefinedAt(_2)) {
-        r set1 _1
-        r._1 = _1 // specialization fun! :)
+        r._1 = _1
         r._2 = pf(_2)
         r.changes += ()
       }
@@ -95,7 +98,7 @@ trait ReactPair[@spec(Int, Long, Double) P, Q <: AnyRef] {
   def valmap2[@spec(Int, Long, Double) R <: AnyVal, @spec(Int, Long, Double) S <: AnyVal](f: calc.ValFun[Q, S])(implicit e: P =:= R): ReactValPair[R, S] = {
     val r = new ReactValPair.Default[R, S]
     r.subscription = changes.onAnyReaction { _ =>
-      r set1 e(_1)
+      r._1 = e(_1)
       r._2 = f(_2)
       r.changes += ()
     } {

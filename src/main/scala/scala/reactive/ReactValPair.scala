@@ -9,8 +9,8 @@ import scala.reflect.ClassTag
 trait ReactValPair[@spec(Int, Long, Double) P, @spec(Int, Long, Double) Q] {
   self =>
 
-  private[reactive] var _1: P = _
-  private[reactive] var _2: Q = _
+  private[reactive] var p: P = _
+  private[reactive] var q: Q = _
   private[reactive] var asSignal: ReactValPair.Signal[P, Q] = _
   private[reactive] var subscription: Reactive.Subscription = Reactive.Subscription.empty
   private[reactive] val changes = new Reactive.Emitter[Unit]
@@ -21,9 +21,13 @@ trait ReactValPair[@spec(Int, Long, Double) P, @spec(Int, Long, Double) Q] {
 
   init(this)
 
-  private[reactive] def set1(v: P) = _1 = v
-  
-  private[reactive] def set2(v: Q) = _2 = v
+  private[reactive] def _1: P = p
+
+  private[reactive] def _1_=(v: P) = p = v
+
+  private[reactive] def _2: Q = q
+
+  private[reactive] def _2_=(v: Q) = q = v
 
   def filter1(p: P => Boolean): ReactValPair[P, Q] = {
     val r = new ReactValPair.Default[P, Q]
