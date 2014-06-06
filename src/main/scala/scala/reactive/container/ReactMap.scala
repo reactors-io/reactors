@@ -12,6 +12,8 @@ trait ReactMap[@spec(Int, Long, Double) K, V <: AnyRef] extends ReactContainer[(
 
   def apply(k: K): V
 
+  def entries: PairContainer[K, V]
+
   def react: ReactMap.Lifted[K, V]
 
 }
@@ -20,6 +22,14 @@ trait ReactMap[@spec(Int, Long, Double) K, V <: AnyRef] extends ReactContainer[(
 object ReactMap {
 
   def apply[@spec(Int, Long, Double) K, V >: Null <: AnyRef](implicit can: ReactHashMap.Can[K, V]) = new ReactHashMap[K, V]
+
+  implicit def factory[@spec(Int, Long, Double) K, V >: Null <: AnyRef] = new ReactBuilder.Factory[(K, V), ReactMap[K, V]] {
+    def apply() = ReactHashMap[K, V]
+  }
+
+  implicit def pairFactory[@spec(Int, Long, Double) K, V >: Null <: AnyRef] = new PairBuilder.Factory[K, V, ReactMap[K, V]] {
+    def apply() = ReactHashMap[K, V]
+  }
 
   trait Lifted[@spec(Int, Long, Double) K, V <: AnyRef] extends ReactContainer.Lifted[(K, V)] {
     val container: ReactMap[K, V]

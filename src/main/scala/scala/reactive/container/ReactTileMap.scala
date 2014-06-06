@@ -20,7 +20,7 @@ class ReactTileMap[@spec(Int, Long, Double) T: ClassTag](
   private var previous: Ref[T] = null
   private var sz = 0
   private[reactive] var hiddenRoot: Node[T] = null
-  private[reactive] var valueContainer: EmitContainer[T] = null
+  private[reactive] var valueContainer: ReactContainer.Emitter[T] = null
   private[reactive] var insertsEmitter: Reactive.Emitter[(Int, Int, T)] = null
   private[reactive] var removesEmitter: Reactive.Emitter[(Int, Int, T)] = null
   private[reactive] var updatesEmitter: Reactive.Emitter[XY] = null
@@ -46,7 +46,7 @@ class ReactTileMap[@spec(Int, Long, Double) T: ClassTag](
     pow2size = nextPow2(dim)
     previous = new Ref[T]
     hiddenRoot = new Node.Leaf(d)
-    valueContainer = new EmitContainer[T](f => foreachNonDefault(0, 0, dim, dim)(new Applier[T] {
+    valueContainer = new ReactContainer.Emitter[T](f => foreachNonDefault(0, 0, dim, dim)(new Applier[T] {
       def apply(x: Int, y: Int, elem: T) = f(elem)
     }), () => size)
     insertsEmitter = new Reactive.Emitter[(Int, Int, T)]

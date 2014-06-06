@@ -10,7 +10,7 @@ import scala.reflect.ClassTag
 class ReactHashValMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
   implicit val emptyKey: Arrayable[K],
   implicit val emptyVal: Arrayable[V]
-) extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactHashValMap[K, V]] {
+) extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactHashValMap[K, V]] with ValPairBuilder[K, V, ReactHashValMap[K, V]] {
   private var keytable: Array[K] = null
   private var valtable: Array[V] = null
   private var sz = 0
@@ -32,12 +32,20 @@ class ReactHashValMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
   def builder: ReactBuilder[(K, V), ReactHashValMap[K, V]] = this
 
   def +=(kv: (K, V)) = {
-    insert(kv._1, kv._2)
-    true
+    insertPair(kv._1, kv._2)
   }
 
   def -=(kv: (K, V)) = {
-    remove(kv._1)
+    removePair(kv._1, kv._2)
+  }
+
+  def insertPair(k: K, v: V) = {
+    insert(k, v)
+    true
+  }
+
+  def removePair(k: K, v: V) = {
+    delete(k, v) != emptyVal.nil
   }
 
   def container = this
@@ -101,7 +109,7 @@ class ReactHashValMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
     previousValue
   }
 
-  private def delete(k: K): V = {
+  private def delete(k: K, expectedValue: V = emptyVal.nil): V = {
     var pos = index(k)
     val nil = emptyKey.nil
     var curr = keytable(pos)
@@ -112,7 +120,7 @@ class ReactHashValMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
     }
 
     if (curr == nil) emptyVal.nil
-    else {
+    else if (expectedValue == emptyVal.nil || expectedValue == curr) {
       val previousValue = valtable(pos)
 
       var h0 = pos
@@ -133,7 +141,7 @@ class ReactHashValMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
       if (removesEmitter.hasSubscriptions) removesEmitter += (k, previousValue)
 
       previousValue
-    }
+    } else emptyVal.nil
   }
 
   private def checkResize() {
@@ -225,13 +233,17 @@ object ReactHashValMap {
 
   def apply[@spec(Int, Long, Double) K: Arrayable, V: Arrayable] = new ReactHashValMap[K, V]
 
-  class Lifted[@spec(Int, Long, Double) K, V](val container: ReactHashValMap[K, V]) extends ReactContainer.Lifted[(K, V)]
+  class Lifted[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](val container: ReactHashValMap[K, V]) extends ReactContainer.Lifted[(K, V)]
 
   val initSize = 16
 
   val loadFactor = 400
 
-  implicit def factory[@spec(Int, Long, Double) K: Arrayable, V: Arrayable] = new ReactBuilder.Factory[(K, V), ReactHashValMap[K, V]] {
+  implicit def factory[@spec(Int, Long, Double) K: Arrayable, @spec(Int, Long, Double) V: Arrayable] = new ReactBuilder.Factory[(K, V), ReactHashValMap[K, V]] {
+    def apply() = ReactHashValMap[K, V]
+  }
+
+  implicit def valPairFactory[@spec(Int, Long, Double) K: Arrayable, @spec(Int, Long, Double) V: Arrayable] = new ValPairBuilder.Factory[K, V, ReactHashValMap[K, V]] {
     def apply() = ReactHashValMap[K, V]
   }
 }
