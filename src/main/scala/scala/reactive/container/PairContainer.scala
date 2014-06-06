@@ -47,14 +47,17 @@ object PairContainer {
       val builder = factory()
       val result = builder.container
   
-      container.inserts.mutate(builder) {
+      result.subscriptions += container.inserts.mutate(builder) {
         pair => builder.insertPair(pair._1, pair._2)
       }
-      container.removes.mutate(builder) {
+      result.subscriptions += container.removes.mutate(builder) {
         pair => builder.removePair(pair._1, pair._2)
       }
   
       result
+    }
+    def mutate(m: ReactMutable)(insert: ReactPair.Signal[P, Q] => Unit)(remove: ReactPair.Signal[P, Q] => Unit): Reactive.Subscription = {
+      new Mutate(container, m, insert, remove)
     }
   }
 
@@ -76,31 +79,40 @@ object PairContainer {
   }
 
   class Filter1[@spec(Int, Long, Double) P, Q <: AnyRef]
-    (val container: PairContainer[P, Q], p: P => Boolean)
+    (val container: PairContainer[P, Q], val p: P => Boolean)
   extends PairContainer[P, Q] {
     val inserts = container.inserts.filter1(p)
     val removes = container.removes.filter1(p)
   }
 
   class Filter2[@spec(Int, Long, Double) P, Q <: AnyRef]
-    (val container: PairContainer[P, Q], p: Q => Boolean)
+    (val container: PairContainer[P, Q], val p: Q => Boolean)
   extends PairContainer[P, Q] {
     val inserts = container.inserts.filter2(p)
     val removes = container.removes.filter2(p)
   }
 
   class Collect2[@spec(Int, Long, Double) P, Q <: AnyRef, S <: AnyRef]
-    (val container: PairContainer[P, Q], pf: PartialFunction[Q, S])
+    (val container: PairContainer[P, Q], val pf: PartialFunction[Q, S])
   extends PairContainer[P, S] {
     val inserts = container.inserts.collect2(pf)
     val removes = container.removes.collect2(pf)
   }
 
   class Valmap2[@spec(Int, Long, Double) P, Q <: AnyRef, @spec(Int, Long, Double) R <: AnyVal, @spec(Int, Long, Double) S <: AnyVal]
-    (val container: PairContainer[P, Q], f: ValFun[Q, S])(implicit e: P =:= R)
+    (val container: PairContainer[P, Q], val f: ValFun[Q, S])(implicit e: P =:= R)
   extends ValPairContainer[R, S] {
     val inserts = container.inserts.valmap2(f)
     val removes = container.removes.valmap2(f)
+  }
+
+  class Mutate[@spec(Int, Long, Double) P, Q <: AnyRef, M <: ReactMutable]
+    (val container: PairContainer[P, Q], val m: M, val ins: ReactPair.Signal[P, Q] => Unit, val rem: ReactPair.Signal[P, Q] => Unit)
+  extends Reactive.ProxySubscription {
+    val subscription = Reactive.CompositeSubscription(
+      container.inserts.mutate(m)(ins),
+      container.removes.mutate(m)(rem)
+    )
   }
 
 }

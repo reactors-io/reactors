@@ -25,6 +25,7 @@ extends ReactMap[K, V] with ReactBuilder[(K, V), ReactHashMap[K, V]] with PairBu
     table = new Array(ReactHashMap.initSize)
     keysContainer = new ReactContainer.Emitter[K](f => foreachKey(f), () => size)
     valuesContainer = new ReactContainer.Emitter[V](f => foreachValue(f), () => size)
+    entriesContainer = new PairContainer.Emitter[K, V]()
     insertsEmitter = new Reactive.Emitter[(K, V)]
     removesEmitter = new Reactive.Emitter[(K, V)]
   }
@@ -80,6 +81,10 @@ extends ReactMap[K, V] with ReactBuilder[(K, V), ReactHashMap[K, V]] with PairBu
     e => if (e.value != null) f(e.value)
   }
 
+  def foreachPair(f: (K, V) => Unit) = foreachEntry {
+    e => if (e.value != null) f(e.key, e.value)
+  }
+
   def foreach(f: ((K, V)) => Unit) = foreachEntry {
     e => if (e.value != null) f((e.key, e.value))
   }
@@ -120,6 +125,13 @@ extends ReactMap[K, V] with ReactBuilder[(K, V), ReactHashMap[K, V]] with PairBu
     }
   }
 
+  private def emitRemoves(k: K, previousValue: V) {
+    keysContainer.removes += k
+    valuesContainer.removes += previousValue
+    entriesContainer.removes.emit(k, previousValue)
+    if (removesEmitter.hasSubscriptions) removesEmitter += (k, previousValue)
+  }
+
   private def insert(k: K, v: V): V = {
     assert(v != null)
     checkResize()
@@ -144,15 +156,12 @@ extends ReactMap[K, V] with ReactBuilder[(K, V), ReactHashMap[K, V]] with PairBu
     }
 
     if (previousValue == null) elemCount += 1
-    else {
-      keysContainer.removes += k
-      valuesContainer.removes += previousValue
-      if (removesEmitter.hasSubscriptions) removesEmitter += (k, previousValue)
-    }
+    else emitRemoves(k, previousValue)
     
     {
       keysContainer.inserts += k
       valuesContainer.inserts += v
+      entriesContainer.inserts.emit(k, v)
       if (insertsEmitter.hasSubscriptions) insertsEmitter += (k, v)
     }
     
@@ -182,11 +191,7 @@ extends ReactMap[K, V] with ReactBuilder[(K, V), ReactHashMap[K, V]] with PairBu
           entryCount -= 1
         }
 
-        {
-          keysContainer.removes += k
-          valuesContainer.removes += previousValue
-          if (removesEmitter.hasSubscriptions) removesEmitter += (k, previousValue)
-        }
+        emitRemoves(k, previousValue)
         entry.propagate()
 
         previousValue
@@ -272,9 +277,7 @@ extends ReactMap[K, V] with ReactBuilder[(K, V), ReactHashMap[K, V]] with PairBu
         entry.propagate()
         if (previousValue != null) {
           elemCount -= 1
-          keysContainer.removes += entry.key
-          valuesContainer.removes += previousValue
-          if (removesEmitter.hasSubscriptions) removesEmitter += (entry.key, previousValue)
+          emitRemoves(entry.key, previousValue)
         }
 
         entry = nextEntry

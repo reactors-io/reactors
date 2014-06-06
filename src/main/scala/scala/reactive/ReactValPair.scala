@@ -21,6 +21,10 @@ trait ReactValPair[@spec(Int, Long, Double) P, @spec(Int, Long, Double) Q] {
 
   init(this)
 
+  private[reactive] def set1(v: P) = _1 = v
+  
+  private[reactive] def set2(v: Q) = _2 = v
+
   def filter1(p: P => Boolean): ReactValPair[P, Q] = {
     val r = new ReactValPair.Default[P, Q]
     r.subscription = changes.onAnyReaction { _ =>

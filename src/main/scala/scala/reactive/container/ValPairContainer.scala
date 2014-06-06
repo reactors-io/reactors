@@ -43,14 +43,17 @@ object ValPairContainer {
       val builder = factory()
       val result = builder.container
   
-      container.inserts.mutate(builder) {
+      result.subscriptions += container.inserts.mutate(builder) {
         pair => builder.insertPair(pair._1, pair._2)
       }
-      container.removes.mutate(builder) {
+      result.subscriptions += container.removes.mutate(builder) {
         pair => builder.removePair(pair._1, pair._2)
       }
   
       result
+    }
+    def mutate(m: ReactMutable)(insert: ReactValPair.Signal[P, Q] => Unit)(remove: ReactValPair.Signal[P, Q] => Unit): Reactive.Subscription = {
+      new Mutate(container, m, insert, remove)
     }
   }
 
@@ -90,6 +93,15 @@ object ValPairContainer {
   extends ValPairContainer[Q, P] {
     val inserts = container.inserts.swap
     val removes = container.removes.swap
+  }
+
+  class Mutate[@spec(Int, Long, Double) P, @spec(Int, Long, Double) Q, M <: ReactMutable]
+    (val container: ValPairContainer[P, Q], val m: M, val ins: ReactValPair.Signal[P, Q] => Unit, val rem: ReactValPair.Signal[P, Q] => Unit)
+  extends Reactive.ProxySubscription {
+    val subscription = Reactive.CompositeSubscription(
+      container.inserts.mutate(m)(ins),
+      container.removes.mutate(m)(rem)
+    )
   }
 
 }

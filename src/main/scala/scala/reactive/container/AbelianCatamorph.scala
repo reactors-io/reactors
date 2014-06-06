@@ -67,7 +67,7 @@ extends ReactCatamorph[T, S] with ReactBuilder[S, AbelianCatamorph[T, S]] {
 
   def size = elements.size
 
-  def foreach(f: S => Unit) = elements.foreach((k, v) => f(k))
+  def foreach(f: S => Unit) = elements.foreachPair((k, v) => f(k))
 }
 
 

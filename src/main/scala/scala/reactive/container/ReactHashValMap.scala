@@ -52,7 +52,7 @@ class ReactHashValMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
 
   val react = new ReactHashValMap.Lifted[K, V](this)
 
-  def foreach(f: (K, V) => Unit) {
+  def foreachPair(f: (K, V) => Unit) {
     var i = 0
     while (i < keytable.length) {
       val k = keytable(i)
@@ -65,7 +65,7 @@ class ReactHashValMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
   }
 
   def foreach(f: ((K, V)) => Unit) {
-    foreach { (k, v) =>
+    foreachPair { (k, v) =>
       f((k, v))
     }
   }

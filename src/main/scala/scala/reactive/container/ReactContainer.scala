@@ -107,10 +107,10 @@ object ReactContainer {
       val builder = factory()
       val result = builder.container
   
-      container.inserts.mutate(builder) {
+      result.subscriptions += container.inserts.mutate(builder) {
         builder += _
       }
-      container.removes.mutate(builder) {
+      result.subscriptions += container.removes.mutate(builder) {
         builder -= _
       }
   

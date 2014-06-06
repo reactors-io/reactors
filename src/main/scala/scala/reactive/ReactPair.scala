@@ -21,6 +21,10 @@ trait ReactPair[@spec(Int, Long, Double) P, Q <: AnyRef] {
 
   init(this)
 
+  private[reactive] def set1(v: P) = _1 = v
+
+  private[reactive] def set2(v: Q) = _2 = v
+
   def filter1(p: P => Boolean): ReactPair[P, Q] = {
     val r = new ReactPair.Default[P, Q]
     r.subscription = changes.onAnyReaction { _ =>
@@ -77,6 +81,8 @@ trait ReactPair[@spec(Int, Long, Double) P, Q <: AnyRef] {
     val r = new ReactPair.Default[P, S]
     r.subscription = changes.onAnyReaction { _ =>
       if (pf.isDefinedAt(_2)) {
+        r set1 _1
+        r._1 = _1 // specialization fun! :)
         r._2 = pf(_2)
         r.changes += ()
       }
@@ -89,8 +95,9 @@ trait ReactPair[@spec(Int, Long, Double) P, Q <: AnyRef] {
   def valmap2[@spec(Int, Long, Double) R <: AnyVal, @spec(Int, Long, Double) S <: AnyVal](f: calc.ValFun[Q, S])(implicit e: P =:= R): ReactValPair[R, S] = {
     val r = new ReactValPair.Default[R, S]
     r.subscription = changes.onAnyReaction { _ =>
-      r._1 = e(_1)
+      r set1 e(_1)
       r._2 = f(_2)
+      r.changes += ()
     } {
       r.changes.close()
     }
