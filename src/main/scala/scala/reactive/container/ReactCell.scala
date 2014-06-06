@@ -25,4 +25,5 @@ extends Signal.Default[T] with ReactMutable {
 object ReactCell {
 
   def apply[@spec(Int, Long, Double) T](x: T) = new ReactCell[T](x)
+  
 }

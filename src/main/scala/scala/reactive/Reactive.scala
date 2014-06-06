@@ -103,6 +103,17 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    */
   def onReaction(reactor: Reactor[T]): Reactive.Subscription
 
+  /** A shorthand for `onReaction` -- the specified functions are invoked whenever there is an event or an unreaction.
+   *
+   *  @param reactFunc   called when this reactive produces an event
+   *  @param unreactFunc called when this reactive unreacts
+   *  @return            a subscription for unsubscribing from reactions
+   */
+  def onAnyReaction(reactFunc: T => Unit)(unreactFunc: =>Unit): Reactive.Subscription = onReaction(new Reactor[T] {
+    def react(event: T) = reactFunc(event)
+    def unreact() = unreactFunc
+  })
+
   /** A shorthand for `onReaction` -- the specified function is invoked whenever there is an event.
    *
    *  @param reactor     the callback for events
