@@ -31,7 +31,7 @@ trait ReactPair[@spec(Int, Long, Double) P, Q <: AnyRef] {
 
   def filter1(p: P => Boolean): ReactPair[P, Q] = {
     val r = new ReactPair.Default[P, Q]
-    r.subscription = changes.onAnyReaction { _ =>
+    r.subscription = changes.onReactUnreact { _ =>
       if (p(_1)) {
         r._1 = _1
         r._2 = _2
@@ -45,7 +45,7 @@ trait ReactPair[@spec(Int, Long, Double) P, Q <: AnyRef] {
 
   def filter2(p: Q => Boolean): ReactPair[P, Q] = {
     val r = new ReactPair.Default[P, Q]
-    r.subscription = changes.onAnyReaction { _ =>
+    r.subscription = changes.onReactUnreact { _ =>
       if (p(_2)) {
         r._1 = _1
         r._2 = _2
@@ -59,7 +59,7 @@ trait ReactPair[@spec(Int, Long, Double) P, Q <: AnyRef] {
 
   def map1[@spec(Int, Long, Double) R](f: P => R): ReactPair[R, Q] = {
     val r = new ReactPair.Default[R, Q]
-    r.subscription = changes.onAnyReaction { _ =>
+    r.subscription = changes.onReactUnreact { _ =>
       r._1 = f(_1)
       r._2 = _2
       r.changes += ()
@@ -71,7 +71,7 @@ trait ReactPair[@spec(Int, Long, Double) P, Q <: AnyRef] {
 
   def map2[S <: AnyRef](f: Q => S): ReactPair[P, S] = {
     val r = new ReactPair.Default[P, S]
-    r.subscription = changes.onAnyReaction { _ =>
+    r.subscription = changes.onReactUnreact { _ =>
       r._1 = _1
       r._2 = f(_2)
       r.changes += ()
@@ -83,7 +83,7 @@ trait ReactPair[@spec(Int, Long, Double) P, Q <: AnyRef] {
 
   def collect2[S <: AnyRef](pf: PartialFunction[Q, S]): ReactPair[P, S] = {
     val r = new ReactPair.Default[P, S]
-    r.subscription = changes.onAnyReaction { _ =>
+    r.subscription = changes.onReactUnreact { _ =>
       if (pf.isDefinedAt(_2)) {
         r._1 = _1
         r._2 = pf(_2)
@@ -97,7 +97,7 @@ trait ReactPair[@spec(Int, Long, Double) P, Q <: AnyRef] {
 
   def valmap2[@spec(Int, Long, Double) R <: AnyVal, @spec(Int, Long, Double) S <: AnyVal](f: calc.ValFun[Q, S])(implicit e: P =:= R): ReactValPair[R, S] = {
     val r = new ReactValPair.Default[R, S]
-    r.subscription = changes.onAnyReaction { _ =>
+    r.subscription = changes.onReactUnreact { _ =>
       r._1 = e(_1)
       r._2 = f(_2)
       r.changes += ()
@@ -138,6 +138,9 @@ object ReactPair {
       _1 = p
       _2 = q
       changes += ()
+    }
+    def close() {
+      changes.close()
     }
   }
   

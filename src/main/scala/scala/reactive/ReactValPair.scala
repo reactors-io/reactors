@@ -31,7 +31,7 @@ trait ReactValPair[@spec(Int, Long, Double) P, @spec(Int, Long, Double) Q] {
 
   def filter1(p: P => Boolean): ReactValPair[P, Q] = {
     val r = new ReactValPair.Default[P, Q]
-    r.subscription = changes.onAnyReaction { _ =>
+    r.subscription = changes.onReactUnreact { _ =>
       if (p(_1)) {
         r._1 = _1
         r._2 = _2
@@ -45,7 +45,7 @@ trait ReactValPair[@spec(Int, Long, Double) P, @spec(Int, Long, Double) Q] {
 
   def filter2(p: Q => Boolean): ReactValPair[P, Q] = {
     val r = new ReactValPair.Default[P, Q]
-    r.subscription = changes.onAnyReaction { _ =>
+    r.subscription = changes.onReactUnreact { _ =>
       if (p(_2)) {
         r._1 = _1
         r._2 = _2
@@ -59,7 +59,7 @@ trait ReactValPair[@spec(Int, Long, Double) P, @spec(Int, Long, Double) Q] {
 
   def map1[@spec(Int, Long, Double) R](f: P => R): ReactValPair[R, Q] = {
     val r = new ReactValPair.Default[R, Q]
-    r.subscription = changes.onAnyReaction { _ =>
+    r.subscription = changes.onReactUnreact { _ =>
       r._1 = f(_1)
       r._2 = _2
       r.changes += ()
@@ -71,7 +71,7 @@ trait ReactValPair[@spec(Int, Long, Double) P, @spec(Int, Long, Double) Q] {
 
   def map2[@spec(Int, Long, Double) S](f: Q => S): ReactValPair[P, S] = {
     val r = new ReactValPair.Default[P, S]
-    r.subscription = changes.onAnyReaction { _ =>
+    r.subscription = changes.onReactUnreact { _ =>
       r._1 = _1
       r._2 = f(_2)
       r.changes += ()
@@ -83,7 +83,7 @@ trait ReactValPair[@spec(Int, Long, Double) P, @spec(Int, Long, Double) Q] {
 
   def swap: ReactValPair[Q, P] = {
     val r = new ReactValPair.Default[Q, P]
-    r.subscription = changes.onAnyReaction { _ =>
+    r.subscription = changes.onReactUnreact { _ =>
       r._1 = _2
       r._2 = _1
       r.changes += ()
@@ -97,6 +97,12 @@ trait ReactValPair[@spec(Int, Long, Double) P, @spec(Int, Long, Double) Q] {
     changes on {
       mutation(asSignal)
       mutable.onMutated()
+    }
+  }
+
+  def merge[@spec(Int, Long, Double) R <: AnyVal](f: (P, Q) => R): Reactive[R] with Reactive.Subscription = {
+    changes map { _ =>
+      f(_1, _2)
     }
   }
 
@@ -124,6 +130,9 @@ object ReactValPair {
       _1 = p
       _2 = q
       changes += ()
+    }
+    def close() {
+      changes.close()
     }
   }
 

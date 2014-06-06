@@ -31,7 +31,7 @@ package object reactive {
     final def invalid = (Int.MinValue.toLong << 32) | ((Int.MinValue >>> 1).toLong << 1)
   }
 
-  type ValFun[P <: AnyRef, Q <: AnyVal] = calc.ValFun[P, Q]
+  type ValFun[P, Q <: AnyVal] = calc.ValFun[P, Q]
 
   type SubscriptionSet = container.SubscriptionSet
 
