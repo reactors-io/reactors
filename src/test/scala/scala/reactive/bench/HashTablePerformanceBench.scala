@@ -16,7 +16,7 @@ class HashTablePerformanceBench extends PerformanceTest.Regression {
   val reactTables = for {
     sz <- hashTableSizes
   } yield {
-    val m = ReactTable[Int, Int]
+    val m = ReactHashValMap[Int, Int]
     for (i <- 1 until sz) m(i) = 0
     m
   }
@@ -52,16 +52,16 @@ class HashTablePerformanceBench extends PerformanceTest.Regression {
       }
     }
 
-    measure method "ReactTable" in {
-      using(hashTableSizes) curve("ReactTable") in { sz =>
-        val m = ReactTable[Int, Int]
+    measure method "ReactHashValMap" in {
+      using(hashTableSizes) curve("ReactHashValMap") in { sz =>
+        val m = ReactHashValMap[Int, Int]
         for (i <- 1 until sz) m(i) = i
         m
       }
     }
 
-    measure method "ReactTable-stable" in {
-      using(reactTables) curve("ReactTable") in { m =>
+    measure method "ReactHashValMap-stable" in {
+      using(reactTables) curve("ReactHashValMap") in { m =>
         val sz = m.size
         for (i <- 1 until sz) m(i) = i
       }

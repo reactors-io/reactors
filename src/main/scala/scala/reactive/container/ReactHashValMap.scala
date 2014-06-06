@@ -7,10 +7,10 @@ import scala.reflect.ClassTag
 
 
 
-class ReactTable[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
+class ReactHashValMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
   implicit val emptyKey: Arrayable[K],
   implicit val emptyVal: Arrayable[V]
-) extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactTable[K, V]] {
+) extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactHashValMap[K, V]] {
   private var keytable: Array[K] = null
   private var valtable: Array[V] = null
   private var sz = 0
@@ -18,8 +18,8 @@ class ReactTable[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
   private[reactive] var removesEmitter: Reactive.Emitter[(K, V)] = null
 
   protected def init(ek: Arrayable[K], ev: Arrayable[V]) {
-    keytable = emptyKey.newArray(ReactTable.initSize)
-    valtable = emptyVal.newArray(ReactTable.initSize)
+    keytable = emptyKey.newArray(ReactHashValMap.initSize)
+    valtable = emptyVal.newArray(ReactHashValMap.initSize)
     insertsEmitter = new Reactive.Emitter[(K, V)]
     removesEmitter = new Reactive.Emitter[(K, V)]
   }
@@ -29,7 +29,7 @@ class ReactTable[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
   def inserts: Reactive[(K, V)] = insertsEmitter
   def removes: Reactive[(K, V)] = removesEmitter
 
-  def builder: ReactBuilder[(K, V), ReactTable[K, V]] = this
+  def builder: ReactBuilder[(K, V), ReactHashValMap[K, V]] = this
 
   def +=(kv: (K, V)) = {
     insert(kv._1, kv._2)
@@ -42,7 +42,7 @@ class ReactTable[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
 
   def container = this
 
-  val react = new ReactTable.Lifted[K, V](this)
+  val react = new ReactHashValMap.Lifted[K, V](this)
 
   def foreach(f: (K, V) => Unit) {
     var i = 0
@@ -137,7 +137,7 @@ class ReactTable[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
   }
 
   private def checkResize() {
-    if (sz * 1000 / ReactTable.loadFactor > keytable.length) {
+    if (sz * 1000 / ReactHashValMap.loadFactor > keytable.length) {
       val okeytable = keytable
       val ovaltable = valtable
       val ncapacity = keytable.length * 2
@@ -221,18 +221,18 @@ class ReactTable[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
 }
 
 
-object ReactTable {
+object ReactHashValMap {
 
-  def apply[@spec(Int, Long, Double) K: Arrayable, V: Arrayable] = new ReactTable[K, V]
+  def apply[@spec(Int, Long, Double) K: Arrayable, V: Arrayable] = new ReactHashValMap[K, V]
 
-  class Lifted[@spec(Int, Long, Double) K, V](val container: ReactTable[K, V]) extends ReactContainer.Lifted[(K, V)]
+  class Lifted[@spec(Int, Long, Double) K, V](val container: ReactHashValMap[K, V]) extends ReactContainer.Lifted[(K, V)]
 
   val initSize = 16
 
   val loadFactor = 400
 
-  implicit def factory[@spec(Int, Long, Double) K: Arrayable, V: Arrayable] = new ReactBuilder.Factory[(K, V), ReactTable[K, V]] {
-    def apply() = ReactTable[K, V]
+  implicit def factory[@spec(Int, Long, Double) K: Arrayable, V: Arrayable] = new ReactBuilder.Factory[(K, V), ReactHashValMap[K, V]] {
+    def apply() = ReactHashValMap[K, V]
   }
 }
 

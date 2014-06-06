@@ -216,7 +216,7 @@ object ReactContainer {
     }
 
     class PrimitiveCount[@spec(Int, Long, Double) T](implicit val at: Arrayable[T]) extends Count[T] {
-      val table = ReactTable[T, Int](at, Arrayable.nonZeroInt)
+      val table = ReactHashValMap[T, Int](at, Arrayable.nonZeroInt)
       def inc(x: T) = {
         val curr = table.applyOrNil(x)
         table(x) = curr + 1
@@ -253,7 +253,7 @@ object ReactContainer {
     }
 
     class RefCount[T](implicit val at: Arrayable[T]) extends Count[T] {
-      val table = ReactTable[T, Numeral]
+      val table = ReactHashValMap[T, Numeral]
       def inc(x: T) = {
         val curr = table.applyOrElse(x, Zero)
         table(x) = curr.inc
