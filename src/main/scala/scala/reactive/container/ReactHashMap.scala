@@ -10,61 +10,83 @@ import scala.reflect.ClassTag
 
 class ReactHashMap[@spec(Int, Long, Double) K, V >: Null <: AnyRef]
   (implicit val can: ReactHashMap.Can[K, V])
-extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactHashMap[K, V]] {
+extends ReactMap[K, V] with ReactBuilder[(K, V), ReactHashMap[K, V]] with PairBuilder[K, V, ReactHashMap[K, V]] {
   private var table: Array[ReactHashMap.Entry[K, V]] = null
-  private var elems = 0
-  private var entries = 0
-  private[reactive] var keyContainer: EmitContainer[K] = null
-  private[reactive] var valueContainer: EmitContainer[V] = null
+  private var elemCount = 0
+  private var entryCount = 0
+  private[reactive] var keysContainer: ReactContainer.Emitter[K] = null
+  private[reactive] var valuesContainer: ReactContainer.Emitter[V] = null
+  private[reactive] var entriesContainer: PairContainer.Emitter[K, V] = null
   private[reactive] var insertsEmitter: Reactive.Emitter[(K, V)] = null
   private[reactive] var removesEmitter: Reactive.Emitter[(K, V)] = null
 
+
   protected def init(k: K) {
     table = new Array(ReactHashMap.initSize)
-    keyContainer = new EmitContainer[K](f => foreach((k, v) => f(k)), () => size)
-    valueContainer = new EmitContainer[V](f => foreach((k, v) => f(v)), () => size)
+    keysContainer = new ReactContainer.Emitter[K](f => foreachKey(f), () => size)
+    valuesContainer = new ReactContainer.Emitter[V](f => foreachValue(f), () => size)
+    entriesContainer = new PairContainer.Emitter[K, V]()
     insertsEmitter = new Reactive.Emitter[(K, V)]
     removesEmitter = new Reactive.Emitter[(K, V)]
   }
 
   init(null.asInstanceOf[K])
 
-  def keys: ReactContainer[K] = keyContainer
-  def values: ReactContainer[V] = valueContainer
+  def keys: ReactContainer[K] = keysContainer
+  def values: ReactContainer[V] = valuesContainer
   def inserts: Reactive[(K, V)] = insertsEmitter
   def removes: Reactive[(K, V)] = removesEmitter
+  def entries: PairContainer[K, V] = entriesContainer
 
   def builder: ReactBuilder[(K, V), ReactHashMap[K, V]] = this
 
   def +=(kv: (K, V)) = {
-    insert(kv._1, kv._2)
-    true
+    insertPair(kv._1, kv._2)
   }
 
   def -=(kv: (K, V)) = {
-    remove(kv._1)
+    removePair(kv._1, kv._2)
+  }
+
+  def insertPair(k: K, v: V) = {
+    insert(k, v)
+    true
+  }
+
+  def removePair(k: K, v: V) = {
+    delete(k, v) != null
   }
 
   def container = this
 
   val react = new ReactHashMap.Lifted[K, V](this)
 
-  def foreach(f: (K, V) => Unit) {
+  def foreachEntry(f: ReactHashMap.Entry[K, V] => Unit) {
     var i = 0
     while (i < table.length) {
       var entry = table(i)
       while (entry ne null) {
-        f(entry.key, entry.value)
+        f(entry)
         entry = entry.next
       }
       i += 1
     }
   }
 
-  def foreach(f: ((K, V)) => Unit) {
-    foreach { (k, v) =>
-      f((k, v))
-    }
+  def foreachKey(f: K => Unit) = foreachEntry {
+    e => if (e.value != null) f(e.key)
+  }
+
+  def foreachValue(f: V => Unit) = foreachEntry {
+    e => if (e.value != null) f(e.value)
+  }
+
+  def foreachPair(f: (K, V) => Unit) = foreachEntry {
+    e => if (e.value != null) f(e.key, e.value)
+  }
+
+  def foreach(f: ((K, V)) => Unit) = foreachEntry {
+    e => if (e.value != null) f((e.key, e.value))
   }
 
   private def lookup(k: K): ReactHashMap.Entry[K, V] = {
@@ -103,6 +125,13 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactHashMap[K, V]] {
     }
   }
 
+  private def emitRemoves(k: K, previousValue: V) {
+    keysContainer.removes += k
+    valuesContainer.removes += previousValue
+    entriesContainer.removes.emit(k, previousValue)
+    if (removesEmitter.hasSubscriptions) removesEmitter += (k, previousValue)
+  }
+
   private def insert(k: K, v: V): V = {
     assert(v != null)
     checkResize()
@@ -120,22 +149,19 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactHashMap[K, V]] {
       entry.value = v
       entry.next = table(pos)
       table(pos) = entry
-      entries += 1
+      entryCount += 1
     } else {
       previousValue = entry.value
       entry.value = v
     }
 
-    if (previousValue == null) elems += 1
-    else {
-      keyContainer.removes += k
-      valueContainer.removes += previousValue
-      if (removesEmitter.hasSubscriptions) removesEmitter += (k, previousValue)
-    }
+    if (previousValue == null) elemCount += 1
+    else emitRemoves(k, previousValue)
     
     {
-      keyContainer.inserts += k
-      valueContainer.inserts += v
+      keysContainer.inserts += k
+      valuesContainer.inserts += v
+      entriesContainer.inserts.emit(k, v)
       if (insertsEmitter.hasSubscriptions) insertsEmitter += (k, v)
     }
     
@@ -144,7 +170,7 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactHashMap[K, V]] {
     previousValue
   }
 
-  private def delete(k: K): V = {
+  private def delete(k: K, expectedValue: V = null): V = {
     val pos = index(k)
     var entry = table(pos)
 
@@ -155,32 +181,31 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactHashMap[K, V]] {
     if (entry == null) null
     else {
       val previousValue = entry.value
-      entry.value = null
 
-      elems -= 1
-      if (!entry.hasSubscriptions) {
-        table(pos) = table(pos).remove(entry)
-        entries -= 1
-      }
+      if (expectedValue == null || expectedValue == previousValue) {
+        entry.value = null
 
-      {
-        keyContainer.removes += k
-        valueContainer.removes += previousValue
-        if (removesEmitter.hasSubscriptions) removesEmitter += (k, previousValue)
-      }
-      entry.propagate()
+        elemCount -= 1
+        if (!entry.hasSubscriptions) {
+          table(pos) = table(pos).remove(entry)
+          entryCount -= 1
+        }
 
-      previousValue
+        emitRemoves(k, previousValue)
+        entry.propagate()
+
+        previousValue
+      } else null
     }
   }
 
   private def checkResize() {
-    if (entries * 1000 / ReactHashMap.loadFactor > table.length) {
+    if (entryCount * 1000 / ReactHashMap.loadFactor > table.length) {
       val otable = table
       val ncapacity = table.length * 2
       table = new Array(ncapacity)
-      elems = 0
-      entries = 0
+      elemCount = 0
+      entryCount = 0
 
       var opos = 0
       while (opos < otable.length) {
@@ -190,8 +215,8 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactHashMap[K, V]] {
           val pos = index(entry.key)
           entry.next = table(pos)
           table(pos) = entry
-          entries += 1
-          if (entry.value != null) elems += 1
+          entryCount += 1
+          if (entry.value != null) elemCount += 1
           entry = nextEntry
         }
         opos += 1
@@ -251,10 +276,8 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactHashMap[K, V]] {
         if (!entry.hasSubscriptions) table(pos) = table(pos).remove(entry)
         entry.propagate()
         if (previousValue != null) {
-          elems -= 1
-          keyContainer.removes += entry.key
-          valueContainer.removes += previousValue
-          if (removesEmitter.hasSubscriptions) removesEmitter += (entry.key, previousValue)
+          elemCount -= 1
+          emitRemoves(entry.key, previousValue)
         }
 
         entry = nextEntry
@@ -262,17 +285,17 @@ extends ReactContainer[(K, V)] with ReactBuilder[(K, V), ReactHashMap[K, V]] {
 
       pos += 1
     }
-    if (elems != 0) {
-      throw new IllegalStateException("Size not zero after clear: " + elems)
+    if (elemCount != 0) {
+      throw new IllegalStateException("Size not zero after clear: " + elemCount)
     }
   }
 
-  def size: Int = elems
+  def size: Int = elemCount
   
   override def toString = {
-    val elems = mutable.Buffer[(K, V)]()
-    for (kv <- this) elems += kv
-    s"ReactHashMap($size, ${elems.mkString(", ")})"
+    val elemCount = mutable.Buffer[(K, V)]()
+    for (kv <- this) elemCount += kv
+    s"ReactHashMap($size, ${elemCount.mkString(", ")})"
   }
 
 }
@@ -341,7 +364,7 @@ object ReactHashMap {
   def apply[@spec(Int, Long, Double) K, V >: Null <: AnyRef](implicit can: Can[K, V]) = new ReactHashMap[K, V]()(can)
 
   class Lifted[@spec(Int, Long, Double) K, V >: Null <: AnyRef](val container: ReactHashMap[K, V])
-  extends ReactContainer.Lifted[(K, V)] {
+  extends ReactMap.Lifted[K, V] {
     def apply(k: K): Signal[V] = {
       container.ensure(k).signal(container.applyOrNil(k))
     }
@@ -352,6 +375,10 @@ object ReactHashMap {
   val loadFactor = 750
 
   implicit def factory[@spec(Int, Long, Double) K, V >: Null <: AnyRef] = new ReactBuilder.Factory[(K, V), ReactHashMap[K, V]] {
+    def apply() = ReactHashMap[K, V]
+  }
+
+  implicit def pairFactory[@spec(Int, Long, Double) K, V >: Null <: AnyRef] = new PairBuilder.Factory[K, V, ReactHashMap[K, V]] {
     def apply() = ReactHashMap[K, V]
   }
 

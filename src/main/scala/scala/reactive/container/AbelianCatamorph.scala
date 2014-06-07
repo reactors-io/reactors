@@ -13,7 +13,7 @@ class AbelianCatamorph[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
 extends ReactCatamorph[T, S] with ReactBuilder[S, AbelianCatamorph[T, S]] {
   import AbelianCatamorph._
 
-  private[reactive] var elements: ReactTable[S, T] = null
+  private[reactive] var elements: ReactHashValMap[S, T] = null
   private var insertsEmitter: Reactive.Emitter[S] = null
   private var removesEmitter: Reactive.Emitter[S] = null
   private var value: ReactCell[T] = null
@@ -23,7 +23,7 @@ extends ReactCatamorph[T, S] with ReactBuilder[S, AbelianCatamorph[T, S]] {
   def removes: Reactive[S] = removesEmitter
 
   def init(z: T) {
-    elements = ReactTable[S, T]
+    elements = ReactHashValMap[S, T]
     insertsEmitter = new Reactive.Emitter[S]
     removesEmitter = new Reactive.Emitter[S]
     value = ReactCell[T](zero)
@@ -67,7 +67,7 @@ extends ReactCatamorph[T, S] with ReactBuilder[S, AbelianCatamorph[T, S]] {
 
   def size = elements.size
 
-  def foreach(f: S => Unit) = elements.foreach((k, v) => f(k))
+  def foreach(f: S => Unit) = elements.foreachPair((k, v) => f(k))
 }
 
 

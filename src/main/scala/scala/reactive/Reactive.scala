@@ -103,6 +103,17 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    */
   def onReaction(reactor: Reactor[T]): Reactive.Subscription
 
+  /** A shorthand for `onReaction` -- the specified functions are invoked whenever there is an event or an unreaction.
+   *
+   *  @param reactFunc   called when this reactive produces an event
+   *  @param unreactFunc called when this reactive unreacts
+   *  @return            a subscription for unsubscribing from reactions
+   */
+  def onReactUnreact(reactFunc: T => Unit)(unreactFunc: =>Unit): Reactive.Subscription = onReaction(new Reactor[T] {
+    def react(event: T) = reactFunc(event)
+    def unreact() = unreactFunc
+  })
+
   /** A shorthand for `onReaction` -- the specified function is invoked whenever there is an event.
    *
    *  @param reactor     the callback for events
@@ -411,6 +422,87 @@ trait Reactive[@spec(Int, Long, Double) +T] {
     val rm = new Reactive.Map[T, S](self, f)
     rm.subscription = self onReaction rm
     rm
+  }
+
+  /** Splits the primitive value events from this reactive into a reactive value pair.
+   *
+   *  Events in this reactive must be primitive values.
+   *
+   *  @tparam P         the type of the first value in the reactive pair
+   *  @tparam Q         the type of the second value in the reactive pair
+   *  @param pf         mapping function from events in this reactive to the first part of the pair
+   *  @param qf         mapping function from events in this reactive to the second part of the pair
+   *  @param e          evidence that events in this reactive are values
+   *  @return           reactive value pair
+   */
+  def valsplit[@spec(Int, Long, Double) P <: AnyVal, @spec(Int, Long, Double) Q <: AnyVal](pf: T => P)(qf: T => Q)(implicit e: T <:< AnyVal): ReactValPair[P, Q] = {
+    val e = new ReactValPair.Emitter[P, Q]
+    e.subscription = this.onReaction(new Reactor[T] {
+      def react(x: T) = e.emit(pf(x), qf(x))
+      def unreact() = e.close()
+    })
+    e
+  }
+
+  /** Splits the object events from this reactive into a reactive value pair.
+   *
+   *  Events in this reactive must be objects.
+   *
+   *  @tparam P         the type of the first value in the reactive pair
+   *  @tparam Q         the type of the second value in the reactive pair
+   *  @param pf         mapping function from events in this reactive to the first part of the pair
+   *  @param qf         mapping function from events in this reactive to the second part of the pair
+   *  @param ev         evidence that events in this reactive are values
+   *  @return           reactive value pair
+   */
+  def valsplit[@spec(Int, Long, Double) P <: AnyVal, @spec(Int, Long, Double) Q <: AnyVal](pf: ValFun[T, P])(qf: ValFun[T, Q])(implicit ev: T <:< AnyRef): ReactValPair[P, Q] = {
+    val e = new ReactValPair.Emitter[P, Q]
+    e.subscription = this.onReaction(new Reactor[T] {
+      def react(x: T) = e.emit(pf(x), qf(x))
+      def unreact() = e.close()
+    })
+    e
+  }
+
+  /** Splits the events from this reactive into a reactive pair.
+   *
+   *  '''Note:'''
+   *  This reactive needs to contain object events.
+   *
+   *  @tparam P         the type of the first value in the reactive pair
+   *  @tparam Q         the type of the second value in the reactive pair
+   *  @param pf         mapping function from events in this reactive to the first part of the pair
+   *  @param qf         mapping function from events in this reactive to the second part of the pair
+   *  @return           reactive pair
+   */
+  def split[@spec(Int, Long, Double) P <: AnyVal, Q <: AnyRef](pf: ValFun[T, P])(qf: T => Q)(implicit ev: T <:< AnyRef): ReactPair[P, Q] = {
+    val e = new ReactPair.Emitter[P, Q]
+    e.subscription = this.onReaction(new Reactor[T] {
+      def react(x: T) = e.emit(pf(x), qf(x))
+      def unreact() = e.close()
+    })
+    e
+  }
+
+  /** Splits the events from this reactive into a reactive pair.
+   *
+   *  '''Note:'''
+   *  This reactive needs to contain object events.
+   *
+   *  @tparam P         the type of the first value in the reactive pair
+   *  @tparam Q         the type of the second value in the reactive pair
+   *  @param pf         mapping function from events in this reactive to the first part of the pair
+   *  @param qf         mapping function from events in this reactive to the second part of the pair
+   *  @param e          evidence that events in this reactive are values
+   *  @return           reactive pair
+   */
+  def split[P <: AnyRef, Q <: AnyRef](pf: T => P)(qf: T => Q)(implicit ev: T <:< AnyRef): ReactPair[P, Q] = {
+    val e = new ReactPair.Emitter[P, Q]
+    e.subscription = this.onReaction(new Reactor[T] {
+      def react(x: T) = e.emit(pf(x), qf(x))
+      def unreact() = e.close()
+    })
+    e
   }
 
   /* higher-order combinators */

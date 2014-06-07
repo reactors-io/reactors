@@ -163,6 +163,38 @@ class ReactHashMapSpec extends FlatSpec with ShouldMatchers {
     observed should equal ((0 until size).toSet)
   }
 
+  it should "have a valid entries container" in {
+    val size = 256
+    val table = new ReactHashMap[Int, String]
+    val threeDigits = table.entries.collect2({
+      case s if s.length > 2 => s
+    }).react.to[ReactHashMap[Int, String]]
+    for (i <- 0 until size) table(i) = i.toString
+
+    val check = mutable.Buffer[Int]()
+    for ((k, v) <- threeDigits) check += k
+
+    check.sorted should equal (100 until size)
+  }
+
+  it should "have its entries inverted and mapped into a value map" in {
+    val size = 256
+    val big = 1000
+    val table = new ReactHashMap[Int, math.BigInt]
+    val bigIntToInt = new ValFun[math.BigInt, Int] { def apply(x: BigInt) = x.toInt }
+    val lessThanBig = table.entries.collect2({
+      case b if b < big => b
+    }).valmap2(bigIntToInt).swap.react.to[ReactHashValMap[Int, Int]]
+    
+    for (i <- 0 until size) table(-i) = math.BigInt(i)
+    table(-big) = math.BigInt(big)
+
+    val check = mutable.Buffer[(Int, Int)]()
+    for ((k, v) <- lessThanBig) check += ((k, v))
+
+    check.sorted should equal ((0 until size).map(i => (i, -i)))
+  }
+
 }
 
 

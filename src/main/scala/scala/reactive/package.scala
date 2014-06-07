@@ -31,6 +31,8 @@ package object reactive {
     final def invalid = (Int.MinValue.toLong << 32) | ((Int.MinValue >>> 1).toLong << 1)
   }
 
+  type ValFun[P, Q <: AnyVal] = calc.ValFun[P, Q]
+
   type SubscriptionSet = container.SubscriptionSet
 
   val SubscriptionSet = container.SubscriptionSet
@@ -75,9 +77,9 @@ package object reactive {
 
   val ReactHashSet = container.ReactHashSet
 
-  type ReactTable[K, V] = container.ReactTable[K, V]
+  type ReactHashValMap[K, V] = container.ReactHashValMap[K, V]
 
-  val ReactTable = container.ReactTable
+  val ReactHashValMap = container.ReactHashValMap
 
   type ReactHashMap[K, V >: Null <: AnyRef] = container.ReactHashMap[K, V]
 

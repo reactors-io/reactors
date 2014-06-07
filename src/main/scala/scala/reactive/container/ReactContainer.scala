@@ -107,10 +107,10 @@ object ReactContainer {
       val builder = factory()
       val result = builder.container
   
-      container.inserts.mutate(builder) {
+      result.subscriptions += container.inserts.mutate(builder) {
         builder += _
       }
-      container.removes.mutate(builder) {
+      result.subscriptions += container.removes.mutate(builder) {
         builder -= _
       }
   
@@ -216,7 +216,7 @@ object ReactContainer {
     }
 
     class PrimitiveCount[@spec(Int, Long, Double) T](implicit val at: Arrayable[T]) extends Count[T] {
-      val table = ReactTable[T, Int](at, Arrayable.nonZeroInt)
+      val table = ReactHashValMap[T, Int](at, Arrayable.nonZeroInt)
       def inc(x: T) = {
         val curr = table.applyOrNil(x)
         table(x) = curr + 1
@@ -253,7 +253,7 @@ object ReactContainer {
     }
 
     class RefCount[T](implicit val at: Arrayable[T]) extends Count[T] {
-      val table = ReactTable[T, Numeral]
+      val table = ReactHashValMap[T, Numeral]
       def inc(x: T) = {
         val curr = table.applyOrElse(x, Zero)
         table(x) = curr.inc
@@ -301,6 +301,33 @@ object ReactContainer {
     }
 
     init(container)
+  }
+
+  /* default containers */
+
+  class Emitter[@spec(Int, Long, Double) T]
+    (private val foreachF: (T => Unit) => Unit, private val sizeF: () => Int)
+  extends ReactContainer[T] {
+    private[reactive] var insertsEmitter: Reactive.Emitter[T] = null
+    private[reactive] var removesEmitter: Reactive.Emitter[T] = null
+
+    private def init(dummy: ReactContainer.Emitter[T]) {
+      insertsEmitter = new Reactive.Emitter[T]
+      removesEmitter = new Reactive.Emitter[T]
+    }
+
+    init(this)
+
+    def inserts = insertsEmitter
+
+    def removes = removesEmitter
+
+    def foreach(f: T => Unit) = foreachF(f)
+
+    def size = sizeF()
+
+    def react = new ReactContainer.Lifted.Default(this)
+
   }
 
 }
