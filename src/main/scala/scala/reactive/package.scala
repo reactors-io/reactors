@@ -16,9 +16,6 @@ package object reactive {
   implicit class XYExtensions(val v: XY) extends AnyVal {
     final def x = XY.xOf(v)
     final def y = XY.yOf(v)
-    final def +(that: XY) = XY(x + that.x, y + that.y)
-    final def -(that: XY) = XY(x - that.x, y - that.y)
-    final def *(v: Int) = XY(x * v, y * v)
 
     override def toString = "XY(%d, %d)".format(x, y)
   }
@@ -29,6 +26,9 @@ package object reactive {
     final def apply(x: Int, y: Int): XY = value(x, y)
     final def value(x: Int, y: Int): Long = (y.toLong << 32) | (x.toLong & 0xffffffffL)
     final def invalid = (Int.MinValue.toLong << 32) | ((Int.MinValue >>> 1).toLong << 1)
+    final def add(thiz: XY, that: XY) = XY(thiz.x + that.x, thiz.y + that.y)
+    final def diff(thiz: XY, that: XY) = XY(thiz.x - that.x, thiz.y - that.y)
+    final def mult(thiz: XY, v: Int) = XY(thiz.x * v, thiz.y * v)
   }
 
   type ValFun[P, Q <: AnyVal] = calc.ValFun[P, Q]
