@@ -12,12 +12,23 @@ class ConqueueBuffer[@specialized(Byte, Char, Int, Long, Float, Double) T: Class
 
   require(k > 0)
 
-  private var leftChunk = new Array[T](k)
-  private var leftIndex = k - 1
-  private var leftStart = k - 1
-  private var rightChunk = new Array[T](k)
-  private var rightIndex = 0
-  private var rightStart = 0
+  private var leftChunk: Array[T] = _
+  private var leftIndex: Int = k - 1
+  private var leftStart: Int = k - 1
+  private var rightChunk: Array[T] = _
+  private var rightIndex: Int = 0
+  private var rightStart: Int = 0
+
+  private def init(dummy: ConqueueBuffer[T]) {
+    leftChunk = new Array[T](k)
+    leftIndex = k - 1
+    leftStart = k - 1
+    rightChunk = new Array[T](k)
+    rightIndex = 0
+    rightStart = 0
+  }
+
+  init(this)
 
   def this(k: Int) = this(k, true, Conqueue.Lazy(Nil, Conqueue.empty, Nil))
 
@@ -187,6 +198,10 @@ class ConqueueBuffer[@specialized(Byte, Char, Int, Long, Float, Double) T: Class
     var result = conqueue
     conqueue = if (isLazy) Lazy(Nil, Conqueue.empty, Nil) else Conqueue.empty
     result
+  }
+
+  def clear() {
+    init(this)
   }
 
   override def toString = {
