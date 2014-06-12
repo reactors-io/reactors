@@ -377,6 +377,24 @@ trait Reactive[@spec(Int, Long, Double) +T] {
     ru
   }
 
+  /** Creates a reactive that forwards an event from this reactive only once.
+   *
+   *  The resulting reactive emits only a single event produced by `this` reactive after `once` is called, and then unreacts.
+   *
+   *  {{{
+   *  time ----------------->
+   *  this --1-----2----3--->
+   *  once      ---2|
+   *  }}}
+   *
+   *  @return           a subscription and a reactive with the first event from `this`
+   */
+  def once: Reactive[T] with Reactive.Subscription = {
+    val ro = new Reactive.Once(self)
+    ro.subscription = self onReaction ro
+    ro
+  }
+
   /** Filters events from `this` reactive value using a specified predicate `p`.
    *
    *  Only events from `this` for which `p` returns `true` are emitted on the resulting reactive.
@@ -998,6 +1016,24 @@ object Reactive {
     }
     def unreact() {
       unreactAll()
+    }
+    var subscription = Subscription.empty
+  }
+
+  private[reactive] class Once[@spec(Int, Long, Double) T](val self: Reactive[T])
+  extends Reactive.Default[T] with Reactor[T] with Reactive.ProxySubscription {
+    private var forwarded = false
+    def react(value: T) {
+      if (!forwarded) {
+        reactAll(value)
+        unreact()
+      }
+    }
+    def unreact() {
+      if (!forwarded) {
+        forwarded = true
+        unreactAll()
+      }
     }
     var subscription = Subscription.empty
   }

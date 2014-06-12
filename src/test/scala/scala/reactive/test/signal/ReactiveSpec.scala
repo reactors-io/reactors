@@ -43,6 +43,19 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     e += 1
   }
 
+  it should "emit once" in {
+    val e = new Reactive.Emitter[Int]
+    val s = e.once
+    val check = mutable.Buffer[Int]()
+    val adds = s.onEvent(check += _)
+
+    e += 1
+    e += 2
+    e += 3
+
+    assert(check == Seq(1))
+  }
+
   it should "be traversed with foreach" in {
     val e = new Reactive.Emitter[Int]
     val buffer = mutable.Buffer[Int]()
