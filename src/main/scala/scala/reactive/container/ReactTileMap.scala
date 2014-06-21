@@ -46,7 +46,7 @@ class ReactTileMap[@spec(Int, Long, Double) T: ClassTag](
     pow2size = nextPow2(dim)
     previous = new Ref[T]
     hiddenRoot = new Node.Leaf(d)
-    valueContainer = new ReactContainer.Emitter[T](f => foreachNonDefault(0, 0, dim, dim)(new Applier[T] {
+    valueContainer = new ReactContainer.Emitter[T](f => foreachNonDefaultTile(0, 0, dim, dim)(new Applier[T] {
       def apply(x: Int, y: Int, elem: T) = f(elem)
     }), () => size)
     insertsEmitter = new Reactive.Emitter[(Int, Int, T)]
@@ -160,13 +160,19 @@ class ReactTileMap[@spec(Int, Long, Double) T: ClassTag](
   
   def foreachLeaf[U](f: T => U): Unit = root.foreachLeaf(f)
 
-  def foreachNonDefault[U](fromx: Int, fromy: Int, untilx: Int, untily: Int)(t: Applier[T]): Unit = {
+  def foreachNonDefaultTile[U](fromx: Int, fromy: Int, untilx: Int, untily: Int)(t: Applier[T]): Unit = {
     checkRoot(dflt)
     def clamp(v: Int) = if (v < 0) 0 else if (v >= dim) dim - 1 else v
-    root.foreachNonDefault[U](clamp(fromx), clamp(fromy), clamp(untilx), clamp(untily), 0, 0, pow2size, dflt)(t)
+    root.foreachTile[U](clamp(fromx), clamp(fromy), clamp(untilx), clamp(untily), 0, 0, pow2size, dflt, true)(t)
   }
 
-  def foreach(f: ((Int, Int, T)) => Unit) = foreachNonDefault(0, 0, dim, dim)(new Applier[T] {
+  def foreachTile[U](fromx: Int, fromy: Int, untilx: Int, untily: Int)(t: Applier[T]): Unit = {
+    checkRoot(dflt)
+    def clamp(v: Int) = if (v < 0) 0 else if (v >= dim) dim - 1 else v
+    root.foreachTile[U](clamp(fromx), clamp(fromy), clamp(untilx), clamp(untily), 0, 0, pow2size, dflt, false)(t)
+  }
+
+  def foreach(f: ((Int, Int, T)) => Unit) = foreachNonDefaultTile(0, 0, dim, dim)(new Applier[T] {
     def apply(x: Int, y: Int, elem: T) = f((x, y, elem))
   })
 
@@ -177,7 +183,7 @@ class ReactTileMap[@spec(Int, Long, Double) T: ClassTag](
     root = new Node.Leaf(dflt)
 
     if (removesEmitter.hasSubscriptions) {
-      oldroot.foreachNonDefault(0, 0, dim, dim, 0, 0, dim, dflt)(new Applier[T] {
+      oldroot.foreachTile(0, 0, dim, dim, 0, 0, dim, dflt, true)(new Applier[T] {
         def apply(x: Int, y: Int, elem: T) = {
           valueContainer.removes += elem
           removesEmitter += (x, y, elem)
@@ -278,7 +284,7 @@ object ReactTileMap {
     def read(array: Array[T], width: Int, height: Int, fromx: Int, fromy: Int, untilx: Int, untily: Int, offsetx: Int, offsety: Int, dim: Int): Unit
     def update(x: Int, y: Int, dim: Int, tag: ClassTag[T], d: T, elem: T, compress: Boolean, previous: Ref[T]): Node[T]
     def foreachLeaf[U](f: T => U): Unit
-    def foreachNonDefault[U](fromx: Int, fromy: Int, untilx: Int, untily: Int, offsetx: Int, offsety: Int, dim: Int, dflt: T)(f: Applier[T]): Unit
+    def foreachTile[U](fromx: Int, fromy: Int, untilx: Int, untily: Int, offsetx: Int, offsety: Int, dim: Int, dflt: T, nonDefault: Boolean)(f: Applier[T]): Unit
     def leaf(x: Int, y: Int, dim: Int): Node[T]
     def isLeaf: Boolean = false
     def asLeaf: Node.Leaf[T] = ???
@@ -318,8 +324,8 @@ object ReactTileMap {
       def foreachLeaf[U](f: T => U) {
         f(element)
       }
-      def foreachNonDefault[U](fromx: Int, fromy: Int, untilx: Int, untily: Int, offsetx: Int, offsety: Int, dim: Int, dflt: T)(f: Applier[T]) {
-        if (element != dflt) {
+      def foreachTile[U](fromx: Int, fromy: Int, untilx: Int, untily: Int, offsetx: Int, offsety: Int, dim: Int, dflt: T, nonDefault: Boolean)(f: Applier[T]) {
+        if (!nonDefault || (element != dflt)) {
           var x = offsetx
           while (x < offsetx + dim) {
             var y = offsety
@@ -395,16 +401,16 @@ object ReactTileMap {
         sw.foreachLeaf(f)
         se.foreachLeaf(f)
       }
-      def foreachNonDefault[U](fromx: Int, fromy: Int, untilx: Int, untily: Int, offsetx: Int, offsety: Int, dim: Int, dflt: T)(f: Applier[T]) {
+      def foreachTile[U](fromx: Int, fromy: Int, untilx: Int, untily: Int, offsetx: Int, offsety: Int, dim: Int, dflt: T, nonDefault: Boolean)(f: Applier[T]) {
         val xmid = offsetx + dim / 2
         val ymid = offsety + dim / 2
         if (fromx < xmid) {
-          if (fromy < ymid) sw.foreachNonDefault(fromx, fromy, untilx, untily, offsetx, offsety, dim / 2, dflt)(f)
-          if (untily > ymid) nw.foreachNonDefault(fromx, fromy, untilx, untily, offsetx, ymid, dim / 2, dflt)(f)
+          if (fromy < ymid) sw.foreachTile(fromx, fromy, untilx, untily, offsetx, offsety, dim / 2, dflt, nonDefault)(f)
+          if (untily > ymid) nw.foreachTile(fromx, fromy, untilx, untily, offsetx, ymid, dim / 2, dflt, nonDefault)(f)
         }
         if (untilx > xmid) {
-          if (fromy < ymid) se.foreachNonDefault(fromx, fromy, untilx, untily, xmid, offsety, dim / 2, dflt)(f)
-          if (untily > ymid) ne.foreachNonDefault(fromx, fromy, untilx, untily, xmid, ymid, dim / 2, dflt)(f)
+          if (fromy < ymid) se.foreachTile(fromx, fromy, untilx, untily, xmid, offsety, dim / 2, dflt, nonDefault)(f)
+          if (untily > ymid) ne.foreachTile(fromx, fromy, untilx, untily, xmid, ymid, dim / 2, dflt, nonDefault)(f)
         }
       }
       def leaf(x: Int, y: Int, dim: Int): Node[T] = {
@@ -472,7 +478,7 @@ object ReactTileMap {
           x += 1
         }
       }
-      def foreachNonDefault[U](fromx: Int, fromy: Int, untilx: Int, untily: Int, offsetx: Int, offsety: Int, dim: Int, dflt: T)(f: Applier[T]) {
+      def foreachTile[U](fromx: Int, fromy: Int, untilx: Int, untily: Int, offsetx: Int, offsety: Int, dim: Int, dflt: T, nonDefault: Boolean)(f: Applier[T]) {
         val xlimit = math.min(offsetx + dim, untilx)
         val ylimit = math.min(offsety + dim, untily)
         var y = math.max(offsety, fromy)
@@ -480,7 +486,7 @@ object ReactTileMap {
           var x = math.max(offsetx, fromx)
           while (x < xlimit) {
             val element = array((y - offsety) * matrixSize + (x - offsetx))
-            if (element != dflt) f(x, y, element)
+            if (!nonDefault || (element != dflt)) f(x, y, element)
             x += 1
           }
           y += 1
