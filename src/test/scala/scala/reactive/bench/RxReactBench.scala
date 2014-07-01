@@ -8,9 +8,7 @@ import rx.lang.scala._
 
 
 
-class RxReactBench extends PerformanceTest.Regression {
-
-  def persistor = Persistor.None
+class RxReactBench extends PerformanceTest.OfflineReport {
 
   val sumSizes = Gen.range("size")(100000, 500000, 100000)
   val aggregateSizes = Gen.range("size")(10, 100, 10)
@@ -22,7 +20,7 @@ class RxReactBench extends PerformanceTest.Regression {
     exec.benchRuns -> 30,
     exec.independentSamples -> 1
   ) in {
-    using(sumSizes) curve("Reactress") in { sz =>
+    using(sumSizes) curve("Reactive Collections") in { sz =>
       val e = new Reactive.Emitter[Int]
       val sum = e.scanPast(0)(_ + _)
 
@@ -35,7 +33,7 @@ class RxReactBench extends PerformanceTest.Regression {
     }
 
     using(sumSizes) curve("Rx") in { sz =>
-      val s = subjects.PublishSubject[Int](0)
+      val s = subjects.BehaviorSubject[Int](0)
       val sum = s.reduce(_ + _)
 
       var i = 0
