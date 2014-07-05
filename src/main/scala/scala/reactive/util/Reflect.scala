@@ -36,8 +36,8 @@ object Reflect {
         }
       }
       val cs = clazz.getDeclaredConstructors.filter(matches)
-      if (cs.length == 0) error.illegalArg(s"No match for $clazz and $params")
-      else if (cs.length > 1) error.illegalArg(s"Multiple matches for $clazz and $params")
+      if (cs.length == 0) exception.illegalArg(s"No match for $clazz and $params")
+      else if (cs.length > 1) exception.illegalArg(s"Multiple matches for $clazz and $params")
       else cs.head.asInstanceOf[Constructor[T]]
     }
   } catch {

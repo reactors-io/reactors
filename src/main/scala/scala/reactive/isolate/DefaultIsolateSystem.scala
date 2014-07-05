@@ -23,7 +23,7 @@ class DefaultIsolateSystem(val name: String) extends IsolateSystem {
   } 
 
   def ensureUnique(name: String): String = {
-    if (isolates contains name) error.illegalArg(s"isolate name '$name' already exists.")
+    if (isolates contains name) exception.illegalArg(s"isolate name '$name' already exists.")
     else name
   }
 
