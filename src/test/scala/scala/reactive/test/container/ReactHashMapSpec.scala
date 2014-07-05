@@ -178,10 +178,11 @@ class ReactHashMapSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "have its entries inverted and mapped into a value map" in {
+    import scala.reactive.calc.RefValFun
     val size = 256
     val big = 1000
     val table = new ReactHashMap[Int, math.BigInt]
-    val bigIntToInt = new ValFun[math.BigInt, Int] { def apply(x: BigInt) = x.toInt }
+    val bigIntToInt = new RefValFun[math.BigInt, Int] { def apply(x: BigInt) = x.toInt }
     val lessThanBig = table.entries.collect2({
       case b if b < big => b
     }).valmap2(bigIntToInt).swap.react.to[ReactHashValMap[Int, Int]]
