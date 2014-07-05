@@ -266,7 +266,7 @@ package object reactive {
 
   /* exceptions */
 
-  object error {
+  object exception {
     def apply(obj: Any) = throw new RuntimeException(obj.toString)
     def illegalArg(msg: String) = throw new IllegalArgumentException(msg)
     def illegalState(obj: Any) = throw new IllegalStateException(obj.toString)
