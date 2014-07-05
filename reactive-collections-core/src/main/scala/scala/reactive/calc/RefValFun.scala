@@ -15,6 +15,6 @@ package calc
  *  @param T      the source primitive type `T`
  *  @param S      the target value type `S`
  */
-trait ValFun[-T, @spec(Int, Long, Double) +S] {
+trait RefValFun[-T, @specialized(Int, Long, Double) +S] {
   def apply(x: T): S
 }

@@ -4,7 +4,8 @@ package scala.reactive
 
 import scala.annotation.tailrec
 import scala.collection._
-import util._
+import scala.reactive.util._
+import scala.reactive.calc.RefValFun
 
 
 
@@ -473,7 +474,7 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    *  @param ev         evidence that events in this reactive are values
    *  @return           reactive value pair
    */
-  def valsplit[@spec(Int, Long, Double) P <: AnyVal, @spec(Int, Long, Double) Q <: AnyVal](pf: ValFun[T, P])(qf: ValFun[T, Q])(implicit ev: T <:< AnyRef): ReactValPair[P, Q] = {
+  def valsplit[@spec(Int, Long, Double) P <: AnyVal, @spec(Int, Long, Double) Q <: AnyVal](pf: RefValFun[T, P])(qf: RefValFun[T, Q])(implicit ev: T <:< AnyRef): ReactValPair[P, Q] = {
     val e = new ReactValPair.Emitter[P, Q]
     e.subscription = this.onReaction(new Reactor[T] {
       def react(x: T) = e.emit(pf(x), qf(x))
@@ -493,7 +494,7 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    *  @param qf         mapping function from events in this reactive to the second part of the pair
    *  @return           reactive pair
    */
-  def split[@spec(Int, Long, Double) P <: AnyVal, Q <: AnyRef](pf: ValFun[T, P])(qf: T => Q)(implicit ev: T <:< AnyRef): ReactPair[P, Q] = {
+  def split[@spec(Int, Long, Double) P <: AnyVal, Q <: AnyRef](pf: RefValFun[T, P])(qf: T => Q)(implicit ev: T <:< AnyRef): ReactPair[P, Q] = {
     val e = new ReactPair.Emitter[P, Q]
     e.subscription = this.onReaction(new Reactor[T] {
       def react(x: T) = e.emit(pf(x), qf(x))
@@ -583,7 +584,9 @@ trait Reactive[@spec(Int, Long, Double) +T] {
  */
 object Reactive {
 
-  implicit class ReactiveOps[@spec(Int, Long, Double) T](val self: Reactive[T]) {
+  implicit def reactive2ops[@spec(Int, Long, Double) T](self: Reactive[T]) = new ReactiveOps(self)
+
+  class ReactiveOps[@spec(Int, Long, Double) T](val self: Reactive[T]) {
     /** Given an initial event `init`, converts this reactive into a `Signal`.
      *
      *  The resulting signal initially contains the event `init`,

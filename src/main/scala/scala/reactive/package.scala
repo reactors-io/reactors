@@ -31,8 +31,6 @@ package object reactive {
     final def mult(thiz: XY, v: Int) = XY(thiz.x * v, thiz.y * v)
   }
 
-  type ValFun[P, Q <: AnyVal] = calc.ValFun[P, Q]
-
   type SubscriptionSet = container.SubscriptionSet
 
   val SubscriptionSet = container.SubscriptionSet
@@ -269,7 +267,9 @@ package object reactive {
   /* exceptions */
 
   object error {
+    def apply(obj: Any) = throw new RuntimeException(obj.toString)
     def illegalArg(msg: String) = throw new IllegalArgumentException(msg)
+    def illegalState(obj: Any) = throw new IllegalStateException(obj.toString)
   }
 
 }
