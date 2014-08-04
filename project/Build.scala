@@ -77,14 +77,14 @@ object ReactiveCollectionsBuild extends Build {
   def dependencies(scalaVersion: String) = CrossVersion.partialVersion(scalaVersion) match {
     case Some((2, major)) if major >= 11 => Seq(
       "org.scalatest" % "scalatest_2.11" % "2.1.7" % "test",
-      "com.storm-enroute" %% "scalameter" % "0.5-SNAPSHOT" % "test",
+      "com.storm-enroute" %% "scalameter" % "0.6" % "test",
       "com.netflix.rxjava" % "rxjava-scala" % "0.19.2" % "test",
       "org.scala-lang" % "scala-reflect" % "2.11.1",
       "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.1"
     )
     case Some((2, 10)) => Seq(
       "org.scalatest" % "scalatest_2.10" % "1.9.1" % "test",
-      "com.storm-enroute" %% "scalameter" % "0.5-SNAPSHOT" % "test",
+      "com.storm-enroute" %% "scalameter" % "0.6" % "test",
       "com.netflix.rxjava" % "rxjava-scala" % "0.19.2" % "test"
     )
     case _ => Nil
@@ -142,14 +142,14 @@ object ReactiveCollectionsBuild extends Build {
     case Some((2, major)) if major >= 11 => Seq(
       "org.scalatest" % "scalatest_2.11" % "2.1.7" % "test",
       "org.scalacheck" %% "scalacheck" % "1.11.3" % "test",
-      "com.github.axel22" %% "scalameter" % "0.5-M2" % "test",
+      "com.storm-enroute" %% "scalameter" % "0.6" % "test",
       "org.scala-lang" % "scala-reflect" % "2.11.1",
       "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.1"
     )
     case Some((2, 10)) => Seq(
       "org.scalatest" % "scalatest_2.10" % "1.9.1" % "test",
       "org.scalacheck" %% "scalacheck" % "1.11.3" % "test",
-      "com.github.axel22" %% "scalameter" % "0.5-M2" % "test"
+      "com.storm-enroute" %% "scalameter" % "0.6" % "test"
     )
     case _ => Nil
   }
