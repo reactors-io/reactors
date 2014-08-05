@@ -7,7 +7,7 @@ import java.io.File
 
 object ReactiveCollectionsBuild extends Build {
 
-  val frameworkVersion = "0.5"
+  val frameworkVersion = "0.6-SNAPSHOT"
 
   val reactiveCollectionsSettings = Defaults.defaultSettings ++ Seq (
     name := "reactive-collections",
