@@ -11,7 +11,7 @@ object ReactiveCollectionsBuild extends Build {
   
   val publishPass = "SONATYPE_PASS"
 
-  val frameworkVersion = "0.5-SNAPSHOT"
+  val frameworkVersion = "0.5"
   
   val userPass = for {
     user <- sys.env.get(publishUser)
