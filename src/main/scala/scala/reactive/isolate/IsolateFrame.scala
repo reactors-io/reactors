@@ -69,7 +69,7 @@ final class IsolateFrame[@spec(Int, Long, Double) T](
 
   def init(dummy: IsolateFrame[T]) {
     // call the asynchronous foreach on the event queue
-    dequeuer = eventQueue.foreach(this)(scheduler)
+    dequeuer = eventQueue.foreach(this)
 
     // send to failure emitter
     initErrorHandler()

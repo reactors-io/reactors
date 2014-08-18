@@ -16,7 +16,7 @@ import scala.collection._
  */
 trait EventQueue[@spec(Int, Long, Double) Q]
 extends Enqueuer[Q] {
-  def foreach(f: IsolateFrame[Q])(implicit scheduler: Scheduler): Dequeuer[Q]
+  def foreach(f: IsolateFrame[Q]): Dequeuer[Q]
   def size: Int
   def isEmpty: Boolean
   def nonEmpty = !isEmpty
@@ -29,7 +29,7 @@ object EventQueue {
   extends EventQueue[Q] {
     private[reactive] val ring = new core.UnrolledRing[Q]
 
-    private[reactive] var listener: IsolateFrame[Q] = _
+    private[reactive] var listener: IsolateFrame[Q] = null
 
     def enqueue(elem: Q) = {
       val l = monitor.synchronized {
@@ -43,9 +43,10 @@ object EventQueue {
       frame.wake()
     }
 
-    def foreach(f: IsolateFrame[Q])(implicit scheduler: Scheduler) = monitor.synchronized {
+    def foreach(f: IsolateFrame[Q]) = monitor.synchronized {
       val dequeuer = new SingleSubscriberSyncedUnrolledRingDequeuer(this)
-      listener = f
+      if (listener != null) sys.error("Event queue supports only a single subscriber.")
+      else listener = f
       dequeuer
     }
 
