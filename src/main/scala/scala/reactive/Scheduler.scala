@@ -78,6 +78,29 @@ object Scheduler {
       t.printStackTrace()
   }
 
+  private val schedulers = mutable.Map[String, Scheduler]()
+
+  /** Retrieves the scheduler registered under the specified name.
+   *  
+   *  @param name        the name of the scheduler
+   *  @return            the scheduler object associated with the name
+   */
+  def retrieve(name: String): Scheduler = {
+    schedulers(name)
+  }
+
+  /** Registers the scheduler under a specific name,
+   *  so that it can be later retrieved using the 
+   *  `retrieve` method.
+   *
+   *  @param name       the name under which to register the scheduler
+   *  @param s          the scheduler object to register
+   */
+  def register(name: String, s: Scheduler) {
+    if (schedulers contains name) sys.error(s"Scheduler $name already registered.")
+    else schedulers(name) = s
+  }
+
   /** Scheduler that shares the global Scala execution context.
    */
   lazy val globalExecutionContext: Scheduler = new Executed(ExecutionContext.Implicits.global)

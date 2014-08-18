@@ -66,13 +66,12 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
 
   val isoSystem: IsolateSystem
 
-  implicit val scheduler: Scheduler
-
   "A synced isolate" should "react to an event" in {
     val sv = new SyncVar[String]
 
     val emitter = new Reactive.Emitter[String]
-    val c = isoSystem.isolate(Proto(classOf[OneIso], sv)).attach(emitter).seal()
+    val proto = Proto(classOf[OneIso], sv)
+    val c = isoSystem.isolate(proto).attach(emitter).seal()
     emitter += "test event"
     emitter.close()
 
@@ -84,7 +83,8 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
     val sv = new SyncVar[List[Int]]
 
     val emitter = new Reactive.Emitter[Int]
-    val c = isoSystem.isolate(Proto(classOf[ManyIso], many, sv)).attach(emitter).seal()
+    val proto = Proto(classOf[ManyIso], many, sv)
+    val c = isoSystem.isolate(proto).attach(emitter).seal()
     for (i <- 0 until 50) emitter += i
     emitter.close()
 
@@ -97,7 +97,8 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
 
     val emitter = new Reactive.Emitter[Int]
 
-    val c = isoSystem.isolate(Proto(classOf[SelfIso], sv)).attach(emitter).seal()
+    val proto = Proto(classOf[SelfIso], sv)
+    val c = isoSystem.isolate(proto).attach(emitter).seal()
 
     emitter += 7
     emitter.close()
@@ -114,14 +115,13 @@ trait LooperIsolateSpec extends FlatSpec with ShouldMatchers {
 
   val isoSystem: IsolateSystem
 
-  implicit val scheduler: Scheduler
-
   "A LooperIsolate" should "do 3 loops" in {
     val sv = new SyncVar[Int]
 
     println("looper -----------")
 
-    isoSystem.isolate(Proto(classOf[TestLooper], sv))
+    val proto = Proto(classOf[TestLooper], sv)
+    isoSystem.isolate(proto)
 
     sv.get should equal (3)
   }
@@ -130,36 +130,32 @@ trait LooperIsolateSpec extends FlatSpec with ShouldMatchers {
 
 class ExecutorSyncedIsolateSpec extends IsolateSpec with LooperIsolateSpec {
 
-  val isoSystem = IsolateSystem.default("TestSystem")
-
-  implicit val scheduler = Scheduler.default
+  val scheduler = Scheduler.default
+  val isoSystem = IsolateSystem.default("TestSystem", scheduler)
 
 }
 
 
 class NewThreadSyncedIsolateSpec extends IsolateSpec with LooperIsolateSpec {
 
-  val isoSystem = IsolateSystem.default("TestSystem")
-
-  implicit val scheduler = Scheduler.newThread
+  val scheduler = Scheduler.newThread
+  val isoSystem = IsolateSystem.default("TestSystem", scheduler)
 
 }
 
 
 class PiggybackSyncedIsolateSpec extends LooperIsolateSpec {
 
-  val isoSystem = IsolateSystem.default("TestSystem")
-
-  implicit val scheduler = Scheduler.piggyback
+  val scheduler = Scheduler.piggyback
+  val isoSystem = IsolateSystem.default("TestSystem", scheduler)
 
 }
 
 
 class TimerSyncedIsolateSpec extends LooperIsolateSpec {
 
-  val isoSystem = IsolateSystem.default("TestSystem")
-
-  implicit val scheduler = new Scheduler.Timer(400)
+  val scheduler = new Scheduler.Timer(400)
+  val isoSystem = IsolateSystem.default("TestSystem", scheduler)
 
 }
 

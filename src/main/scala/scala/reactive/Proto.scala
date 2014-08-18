@@ -11,11 +11,20 @@ import scala.reflect.ClassTag
  * 
  *  @tparam I         type of the isolate
  */
-final class Proto[+I <: Isolate[_]] private[reactive] (val clazz: Class[_], val params: Seq[Any]) {
+final class Proto[+I <: Isolate[_]] private[reactive] (val clazz: Class[_], val params: Seq[Any], val scheduler: String = null) {
 
   /** Instantiates and returns the isolate.
    */
   def create(): I = util.Reflect.instantiate(clazz, params).asInstanceOf[I]
+
+  /** Associates the specified scheduler and returns the new `Proto` object.
+   *
+   *  Note that the scheduler needs to be registered with the `IsolateSystem` object.
+   *  
+   *  @param schedulerName       name of the scheduler
+   *  @return                    a new `Proto` object
+   */
+  def withScheduler(schedulerName: String): Proto[I] = new Proto(clazz, params, schedulerName)
 
 }
 

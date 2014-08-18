@@ -34,13 +34,19 @@ abstract class IsolateSystem {
    *  @param scheduler  the scheduler used to scheduler the isolate
    *  @return           the channel for this isolate
    */
-  def isolate[@spec(Int, Long, Double) T: Arrayable](proto: Proto[Isolate[T]], name: String = null)(implicit scheduler: Scheduler): Channel[T]
+  def isolate[@spec(Int, Long, Double) T: Arrayable](proto: Proto[Isolate[T]], name: String = null): Channel[T]
 
   /** Generates a unique isolate name.
    *
    *  @return           a unique isolate name
    */
   protected def uniqueName(): String
+
+  /** Retrieves the default scheduler for this isolate system.
+   *  
+   *  @return           the default scheduler
+   */
+  def defaultScheduler: Scheduler
 
 }
 
@@ -49,7 +55,13 @@ abstract class IsolateSystem {
  */
 object IsolateSystem {
 
-  def default(name: String) = new isolate.DefaultIsolateSystem(name)
+  /** Retrieves the default isolate system.
+   *  
+   *  @param name       the name for the isolate system instance
+   *  @param scheduler  the default scheduler
+   *  @return           a new isolate system instance
+   */
+  def default(name: String, scheduler: Scheduler = Scheduler.default) = new isolate.DefaultIsolateSystem(name, scheduler)
 
 }
 
