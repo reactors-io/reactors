@@ -201,7 +201,7 @@ object Scheduler {
       override def run() = worker.loop(worker.frame)
     }
 
-    /** Starts a new dedicated thread for each isolate that is started.
+    /** Starts a new dedicated thread for each isolate that is created.
      *
      *  The new thread does not stop until the isolate terminates.
      *  The thread is optionally a daemon thread.
