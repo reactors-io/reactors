@@ -68,7 +68,7 @@ import isolate._
 trait Isolate[@spec(Int, Long, Double) T] extends ReactRecord {
   private[reactive] var frame: IsolateFrame[T] = _
 
-  private def illegal() = throw new IllegalStateException("Only schedulers can create isolates.")
+  private def illegal() = throw new IllegalStateException("Only isolate systems can create isolates.")
 
   /* start workaround for a handful of specialization bugs */
 
