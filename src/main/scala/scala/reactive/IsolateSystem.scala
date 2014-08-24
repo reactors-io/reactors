@@ -42,11 +42,11 @@ abstract class IsolateSystem {
    */
   protected def uniqueName(): String
 
-  /** Retrieves the default scheduler for this isolate system.
+  /** Retrieves the scheduler bundle for this isolate system.
    *  
-   *  @return           the default scheduler
+   *  @return           the scheduler bundle
    */
-  def defaultScheduler: Scheduler
+  def bundle: Scheduler.Bundle
 
 }
 
@@ -61,7 +61,7 @@ object IsolateSystem {
    *  @param scheduler  the default scheduler
    *  @return           a new isolate system instance
    */
-  def default(name: String, scheduler: Scheduler = Scheduler.default) = new isolate.DefaultIsolateSystem(name, scheduler)
+  def default(name: String, bundle: Scheduler.Bundle = Scheduler.defaultBundle) = new isolate.DefaultIsolateSystem(name, bundle)
 
 }
 

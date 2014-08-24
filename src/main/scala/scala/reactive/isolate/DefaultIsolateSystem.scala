@@ -12,7 +12,7 @@ import scala.collection._
  *
  *  @param name      the name of this isolate system
  */
-class DefaultIsolateSystem(val name: String, val defaultScheduler: Scheduler = Scheduler.default)
+class DefaultIsolateSystem(val name: String, val bundle: Scheduler.Bundle = Scheduler.defaultBundle)
 extends IsolateSystem {
   private val isolates = mutable.Map[String, IsolateFrame[_]]()
   private var uniqueNameCount = 0L
@@ -39,8 +39,8 @@ extends IsolateSystem {
 
   def isolate[@spec(Int, Long, Double) T: Arrayable](proto: Proto[Isolate[T]], name: String = null): Channel[T] = {
     val scheduler = proto.scheduler match {
-      case null => defaultScheduler
-      case name => Scheduler.retrieve(name)
+      case null => bundle.defaultScheduler
+      case name => bundle.retrieve(name)
     }
     val (frame, channel) = monitor.synchronized {
       val eventQueue = new EventQueue.SingleSubscriberSyncedUnrolledRing[T](new util.Monitor)

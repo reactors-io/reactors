@@ -131,7 +131,8 @@ trait LooperIsolateSpec extends FlatSpec with ShouldMatchers {
 class ExecutorSyncedIsolateSpec extends IsolateSpec with LooperIsolateSpec {
 
   val scheduler = Scheduler.default
-  val isoSystem = IsolateSystem.default("TestSystem", scheduler)
+  val bundle = Scheduler.Bundle.default(scheduler)
+  val isoSystem = IsolateSystem.default("TestSystem", bundle)
 
 }
 
@@ -139,7 +140,8 @@ class ExecutorSyncedIsolateSpec extends IsolateSpec with LooperIsolateSpec {
 class NewThreadSyncedIsolateSpec extends IsolateSpec with LooperIsolateSpec {
 
   val scheduler = Scheduler.newThread
-  val isoSystem = IsolateSystem.default("TestSystem", scheduler)
+  val bundle = Scheduler.Bundle.default(scheduler)
+  val isoSystem = IsolateSystem.default("TestSystem", bundle)
 
 }
 
@@ -147,7 +149,8 @@ class NewThreadSyncedIsolateSpec extends IsolateSpec with LooperIsolateSpec {
 class PiggybackSyncedIsolateSpec extends LooperIsolateSpec {
 
   val scheduler = Scheduler.piggyback
-  val isoSystem = IsolateSystem.default("TestSystem", scheduler)
+  val bundle = Scheduler.Bundle.default(scheduler)
+  val isoSystem = IsolateSystem.default("TestSystem", bundle)
 
 }
 
@@ -155,7 +158,8 @@ class PiggybackSyncedIsolateSpec extends LooperIsolateSpec {
 class TimerSyncedIsolateSpec extends LooperIsolateSpec {
 
   val scheduler = new Scheduler.Timer(400)
-  val isoSystem = IsolateSystem.default("TestSystem", scheduler)
+  val bundle = Scheduler.Bundle.default(scheduler)
+  val isoSystem = IsolateSystem.default("TestSystem", bundle)
 
 }
 

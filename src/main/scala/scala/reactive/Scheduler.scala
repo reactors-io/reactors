@@ -78,28 +78,53 @@ object Scheduler {
       t.printStackTrace()
   }
 
-  private val schedulers = mutable.Map[String, Scheduler]()
-
-  /** Retrieves the scheduler registered under the specified name.
-   *  
-   *  @param name        the name of the scheduler
-   *  @return            the scheduler object associated with the name
+  /** Contains a set of schedulers registered with each isolate system.
    */
-  def retrieve(name: String): Scheduler = {
-    schedulers(name)
+  class Bundle(val defaultScheduler: Scheduler) {
+    private val schedulers = mutable.Map[String, Scheduler]()
+
+    /** Retrieves the scheduler registered under the specified name.
+     *  
+     *  @param name        the name of the scheduler
+     *  @return            the scheduler object associated with the name
+     */
+    def retrieve(name: String): Scheduler = {
+      schedulers(name)
+    }
+  
+    /** Registers the scheduler under a specific name,
+     *  so that it can be later retrieved using the 
+     *  `retrieve` method.
+     *
+     *  @param name       the name under which to register the scheduler
+     *  @param s          the scheduler object to register
+     */
+    def register(name: String, s: Scheduler) {
+      if (schedulers contains name) sys.error(s"Scheduler $name already registered.")
+      else schedulers(name) = s
+    }
   }
 
-  /** Registers the scheduler under a specific name,
-   *  so that it can be later retrieved using the 
-   *  `retrieve` method.
-   *
-   *  @param name       the name under which to register the scheduler
-   *  @param s          the scheduler object to register
+  /** Scheduler bundle factory methods.
    */
-  def register(name: String, s: Scheduler) {
-    if (schedulers contains name) sys.error(s"Scheduler $name already registered.")
-    else schedulers(name) = s
+  object Bundle {
+    /** A bundle with default schedulers from the `Scheduler` companion object.
+     *  
+     *  @return           the default scheduler bundle
+     */
+    def default(default: Scheduler): Bundle = {
+      val b = new Bundle(default)
+      b.register("scala.reactive.Scheduler.globalExecutionContext", Scheduler.globalExecutionContext)
+      b.register("scala.reactive.Scheduler.default", Scheduler.default)
+      b.register("scala.reactive.Scheduler.newThread", Scheduler.newThread)
+      b.register("scala.reactive.Scheduler.piggyback", Scheduler.piggyback)
+      b
+    }
   }
+
+  /** Default scheduler bundle.
+   */
+  lazy val defaultBundle = Bundle.default(Scheduler.default)
 
   /** Scheduler that shares the global Scala execution context.
    */
@@ -131,16 +156,6 @@ object Scheduler {
    *  @see [[scala.reactive.Scheduler.Dedicated.Piggyback]]
    */
   lazy val piggyback: Scheduler = new Dedicated.Piggyback()
-
-  /** Implicit scheduler objects - importing one of the implicit schedulers
-   *  into a certain scope makes it available for all the newly started isolates.
-   */
-  object Implicits {
-    implicit lazy val globalExecutionContext = Scheduler.globalExecutionContext
-    implicit lazy val default = Scheduler.default
-    implicit lazy val newThread = Scheduler.newThread
-    implicit lazy val piggyback = Scheduler.piggyback
-  }
 
   /** A `Scheduler` that reuses the target Java `Executor`.
    *
