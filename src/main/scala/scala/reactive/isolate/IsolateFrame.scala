@@ -25,9 +25,7 @@ final class IsolateFrame[@spec(Int, Long, Double) T](
   @volatile private[reactive] var dequeuer: Dequeuer[T] = _
   @volatile private[reactive] var errorHandling: PartialFunction[Throwable, Unit] = _
   @volatile private[reactive] var terminating = false
-  @volatile var schedulerInfo: AnyRef = _
-  @volatile var allowedBudget: Long = _
-  @volatile var interruptRequested: Boolean = _
+  @volatile var schedulerInfo: Scheduler.Info = _
 
   private def propagate(event: T) {
     try sourceEmitter += event
@@ -74,9 +72,8 @@ final class IsolateFrame[@spec(Int, Long, Double) T](
     // send to failure emitter
     initErrorHandler()
 
-    // set allowed event budget to a default value
-    allowedBudget = 50
-    interruptRequested = false
+    // set scheduler info object
+    schedulerInfo = scheduler.newInfo(this)
   }
 
   init(this)
@@ -135,13 +132,14 @@ final class IsolateFrame[@spec(Int, Long, Double) T](
   private def runInIsolate(dummy: Dequeuer[T]) {
     try {
       checkCreated()
-      var budget = 0L
-      while (dequeuer.nonEmpty && budget < allowedBudget && !interruptRequested) {
+      schedulerInfo.onBatchStart(this)
+      while (dequeuer.nonEmpty && schedulerInfo.canSchedule) {
         val event = dequeuer.dequeue()
         propagate(event)
-        budget += 1
+        schedulerInfo.onBatchEvent(this)
       }
     } finally {
+      schedulerInfo.onBatchStop(this)
       try checkEmptyQueue()
       finally checkTerminating()
     }

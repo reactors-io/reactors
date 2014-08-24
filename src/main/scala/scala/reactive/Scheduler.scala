@@ -39,11 +39,6 @@ trait Scheduler {
   /** Initiates the isolate frame.
    *  Clients never call this method directly.
    *
-   *  The scheduler can use the `schedulerInfo` field of the isolate frame
-   *  to store its custom configuration objects for this isolate frame.
-   *  For example, a `Scheduler` based on a Java `Executor` would typically
-   *  store a `Runnable` object here and later use it from the `schedule` method.
-   *
    *  @param frame      the isolate frame to initiate
    */
   def initiate(frame: IsolateFrame[_]): Unit
@@ -60,13 +55,73 @@ trait Scheduler {
    *  @see [[scala.util.control.NonFatal]]
    */
   def handler: Scheduler.Handler
-  
+
+  /** Creates an `Info` object for the isolate frame.
+   *
+   *  @param frame       the isolate frame
+   *  @return            creates a fresh scheduler info object
+   */
+  def newInfo(frame: IsolateFrame[_]): Scheduler.Info = new Scheduler.Info.Default
+
 }
 
 
 /** Companion object for creating standard isolate schedulers.
  */
 object Scheduler {
+
+  /** Superclass for the information objects that a scheduler attaches to an isolate frame.
+   */
+  abstract class Info {
+    /** Called when scheduling starts.
+     *  
+     *  @param frame    the isolate frame
+     */
+    def onBatchStart(frame: IsolateFrame[_]): Unit = {
+    }
+
+    /** Checks whether the isolate can process more events.
+     *  
+     *  @return         `true` if more events can be scheduled
+     */
+    def canSchedule: Boolean
+
+    /** Called just before an event gets scheduled.
+     *  
+     *  @param frame    the isolate frame
+     */
+    def onBatchEvent(frame: IsolateFrame[_]): Unit
+
+    /** Called when scheduling stops.
+     *  
+     *  @param frame    the isolate frame
+     */
+    def onBatchStop(frame: IsolateFrame[_]): Unit = {
+    }
+  }
+
+  object Info {
+    /** The default info object implementation.
+     */
+    class Default extends Info {
+      @volatile var allowedBudget: Long = _
+      @volatile var interruptRequested: Boolean = _
+
+      override def onBatchStart(frame: IsolateFrame[_]): Unit = {
+        allowedBudget = 50
+      }
+
+      def canSchedule = allowedBudget > 0
+
+      def onBatchEvent(frame: IsolateFrame[_]): Unit = {
+        allowedBudget -= 1
+      }
+
+      override def onBatchStop(frame: IsolateFrame[_]): Unit = {
+        interruptRequested = false
+      }
+    }
+  }
 
   type Handler = PartialFunction[Throwable, Unit]
 
@@ -165,34 +220,35 @@ object Scheduler {
   class Executed(val executor: java.util.concurrent.Executor, val handler: Scheduler.Handler = Scheduler.defaultHandler)
   extends Scheduler {
     def initiate(frame: IsolateFrame[_]): Unit = {
-      frame.schedulerInfo = new Runnable {
-        def run() = frame.run()
-      }
     }
 
     def schedule(frame: IsolateFrame[_]): Unit = {
       executor.execute(frame.schedulerInfo.asInstanceOf[Runnable])
+    }
+
+    override def newInfo(frame: IsolateFrame[_]): Scheduler.Info = {
+      new Scheduler.Info.Default with Runnable {
+        def run() = frame.run()
+      }
     }
   }
 
   /** An abstract scheduler that always dedicates a thread to an isolate.
    */
   abstract class Dedicated extends Scheduler {
-    def newWorker(frame: IsolateFrame[_]): Dedicated.Worker
-
     def schedule(frame: IsolateFrame[_]): Unit = {
       frame.schedulerInfo.asInstanceOf[Dedicated.Worker].awake()
     }
 
     def initiate(frame: IsolateFrame[_]): Unit = {
-      frame.schedulerInfo = newWorker(frame)
     }
   }
 
   /** Contains utility classes and implementations of the dedicated scheduler.
    */
   object Dedicated {
-    private[reactive] class Worker(val frame: IsolateFrame[_], val handler: Scheduler.Handler) {
+    private[reactive] class Worker(val frame: IsolateFrame[_], val handler: Scheduler.Handler)
+    extends Scheduler.Info.Default {
       val monitor = new util.Monitor
 
       @tailrec final def loop(f: IsolateFrame[_]): Unit = {
@@ -226,7 +282,7 @@ object Scheduler {
      */
     class NewThread(val isDaemon: Boolean, val handler: Scheduler.Handler = Scheduler.defaultHandler)
     extends Dedicated {
-      def newWorker(frame: IsolateFrame[_]) = {
+      override def newInfo(frame: IsolateFrame[_]): Dedicated.Worker = {
         val w = new Worker(frame, handler)
         val t = new WorkerThread(w)
         t.start()
@@ -250,9 +306,8 @@ object Scheduler {
      *  @param handler           The error handler for the fatal errors not passed to isolates.
      */
     class Piggyback(val handler: Scheduler.Handler = Scheduler.defaultHandler) extends Dedicated {
-      def newWorker(frame: IsolateFrame[_]) = {
+      override def newInfo(frame: IsolateFrame[_]): Dedicated.Worker = {
         val w = new Worker(frame, handler)
-        frame.schedulerInfo = w
         w
       }
 
@@ -280,6 +335,12 @@ object Scheduler {
 
     def shutdown() = if (timer != null) timer.cancel()
 
+    override def newInfo(frame: IsolateFrame[_]): Scheduler.Info = new Scheduler.Info.Default {
+      override def onBatchStart(frame: IsolateFrame[_]): Unit = {
+        allowedBudget = frame.eventQueue.size
+      }
+    }
+
     def schedule(frame: IsolateFrame[_]) {}
 
     def initiate(frame: IsolateFrame[_]) {
@@ -291,7 +352,6 @@ object Scheduler {
           try {
             def notTerm = frame.isolateState.get != IsolateFrame.Terminated
 
-            frame.allowedBudget = frame.eventQueue.size
             if (notTerm) frame.run()
             else {
               timerTask.cancel()
