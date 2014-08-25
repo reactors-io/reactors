@@ -17,6 +17,12 @@ import scala.reactive.isolate._
  */
 abstract class IsolateSystem {
 
+  /** Retrieves the scheduler bundle for this isolate system.
+   *  
+   *  @return           the scheduler bundle
+   */
+  def bundle: IsolateSystem.Bundle
+
   /** Name of this isolate system instance.
    *
    *  @return          the name of the isolate system
@@ -30,7 +36,7 @@ abstract class IsolateSystem {
    *  def isolate(proto: Proto[Isolate[T]]): Channel[T]
    *  }}}
    *
-   *  Implementations of this method must initialize the isolate frame,
+   *  Implementations of this method must initialize the isolate frame with the `createFrame` method,
    *  add the isolate to the specific bookkeeping code,
    *  and then call the `wake` method on the isolate frame to start it for the first time.
    *
@@ -53,6 +59,17 @@ abstract class IsolateSystem {
    *  @return           the new channel for the isolate frame
    */
   protected def newChannel[@spec(Int, Long, Double) Q](frame: IsolateFrame[Q]): Channel[Q]
+
+
+  /** Generates a unique isolate name if the `name` argument is `null`,
+   *  and throws an exception if the `name` is already taken.
+   *
+   *  The implementation of this method needs to be thread-safe.
+   *
+   *  @param name       proposed name
+   *  @return           a unique isolate name
+   */
+  protected def uniqueName(name: String): String
 
   /** Creates an isolate from the `Proto` object.
    *
@@ -108,22 +125,6 @@ abstract class IsolateSystem {
     scheduler.initiate(frame)
     frame
   }
-
-  /** Generates a unique isolate name if the `name` argument is `null`,
-   *  and throws an exception if the `name` is already taken.
-   *
-   *  The implementation of this method needs to be thread-safe.
-   *
-   *  @param name       proposed name
-   *  @return           a unique isolate name
-   */
-  protected def uniqueName(name: String): String
-
-  /** Retrieves the scheduler bundle for this isolate system.
-   *  
-   *  @return           the scheduler bundle
-   */
-  def bundle: IsolateSystem.Bundle
 
 }
 
