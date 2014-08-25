@@ -133,54 +133,6 @@ object Scheduler {
       t.printStackTrace()
   }
 
-  /** Contains a set of schedulers registered with each isolate system.
-   */
-  class Bundle(val defaultScheduler: Scheduler) {
-    private val schedulers = mutable.Map[String, Scheduler]()
-
-    /** Retrieves the scheduler registered under the specified name.
-     *  
-     *  @param name        the name of the scheduler
-     *  @return            the scheduler object associated with the name
-     */
-    def retrieve(name: String): Scheduler = {
-      schedulers(name)
-    }
-  
-    /** Registers the scheduler under a specific name,
-     *  so that it can be later retrieved using the 
-     *  `retrieve` method.
-     *
-     *  @param name       the name under which to register the scheduler
-     *  @param s          the scheduler object to register
-     */
-    def register(name: String, s: Scheduler) {
-      if (schedulers contains name) sys.error(s"Scheduler $name already registered.")
-      else schedulers(name) = s
-    }
-  }
-
-  /** Scheduler bundle factory methods.
-   */
-  object Bundle {
-    /** A bundle with default schedulers from the `Scheduler` companion object.
-     *  
-     *  @return           the default scheduler bundle
-     */
-    def default(default: Scheduler): Bundle = {
-      val b = new Bundle(default)
-      b.register("scala.reactive.Scheduler.globalExecutionContext", Scheduler.globalExecutionContext)
-      b.register("scala.reactive.Scheduler.default", Scheduler.default)
-      b.register("scala.reactive.Scheduler.newThread", Scheduler.newThread)
-      b.register("scala.reactive.Scheduler.piggyback", Scheduler.piggyback)
-      b
-    }
-  }
-
-  /** Default scheduler bundle.
-   */
-  lazy val defaultBundle = Bundle.default(Scheduler.default)
-
   /** Scheduler that shares the global Scala execution context.
    */
   lazy val globalExecutionContext: Scheduler = new Executed(ExecutionContext.Implicits.global)

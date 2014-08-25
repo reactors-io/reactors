@@ -1,10 +1,10 @@
 package scala.reactive
-package isolate
 
 
 
 import scala.annotation._
 import scala.collection._
+import scala.reactive.isolate.IsolateFrame
 
 
 
@@ -25,6 +25,10 @@ extends Enqueuer[Q] {
 
 object EventQueue {
 
+  trait Factory {
+    def create[@specialized(Int, Long, Double) Q: Arrayable]: EventQueue[Q]
+  }
+
   class SingleSubscriberSyncedUnrolledRing[@spec(Int, Long, Double) Q: Arrayable](val monitor: util.Monitor)
   extends EventQueue[Q] {
     private[reactive] val ring = new core.UnrolledRing[Q]
@@ -44,7 +48,7 @@ object EventQueue {
     }
 
     def foreach(f: IsolateFrame[Q]) = monitor.synchronized {
-      val dequeuer = new SingleSubscriberSyncedUnrolledRingDequeuer(this)
+      val dequeuer = new SingleSubscriberSyncedUnrolledRing.Dequeuer(this)
       if (listener != null) sys.error("Event queue supports only a single subscriber.")
       else listener = f
       dequeuer
@@ -67,11 +71,40 @@ object EventQueue {
     }
   }
 
-  class SingleSubscriberSyncedUnrolledRingDequeuer[@spec(Int, Long, Double) Q]
-    (q: SingleSubscriberSyncedUnrolledRing[Q])
-  extends Dequeuer[Q] {
-    def dequeue() = q.dequeue()
-    def isEmpty = q.isEmpty
+  object SingleSubscriberSyncedUnrolledRing {
+    class Dequeuer[@spec(Int, Long, Double) Q](q: SingleSubscriberSyncedUnrolledRing[Q])
+    extends scala.reactive.Dequeuer[Q] {
+      def dequeue() = q.dequeue()
+      def isEmpty = q.isEmpty
+    }
+
+    class Factory extends EventQueue.Factory {
+      def create[@specialized(Int, Long, Double) Q: Arrayable] = new SingleSubscriberSyncedUnrolledRing[Q](new util.Monitor)
+    }
+
+    val factory = new Factory
+  }
+
+  class DevNull[@spec(Int, Long, Double) Q: Arrayable]
+  extends EventQueue[Q] {
+    def enqueue(x: Q) {}
+    def enqueueIfEmpty(x: Q) {}
+    def foreach(f: IsolateFrame[Q]) = new DevNull.Dequeuer[Q]
+    def size = 0
+    def isEmpty = true
+  }
+
+  object DevNull {
+    class Dequeuer[Q] extends scala.reactive.Dequeuer[Q] {
+      def dequeue() = sys.error("unsupported")
+      def isEmpty = true
+    }
+
+    class Factory extends EventQueue.Factory {
+      def create[@specialized(Int, Long, Double) Q: Arrayable] = new DevNull[Q]
+    }
+
+    val factory = new Factory
   }
 
 }

@@ -4,6 +4,7 @@ package scala.reactive
 
 import java.util.concurrent.atomic._
 import scala.annotation.tailrec
+import scala.collection._
 import scala.util.DynamicVariable
 import scala.reactive.isolate._
 
@@ -69,9 +70,12 @@ abstract class IsolateSystem {
   protected def createFrame[@spec(Int, Long, Double) T: Arrayable](proto: Proto[Isolate[T]], name: String): IsolateFrame[T] = {
     val scheduler = proto.scheduler match {
       case null => bundle.defaultScheduler
-      case name => bundle.retrieve(name)
+      case name => bundle.scheduler(name)
     }
-    val eventQueue = new EventQueue.SingleSubscriberSyncedUnrolledRing[T](new util.Monitor)
+    val eventQueue = proto.eventQueueFactory match {
+      case null => new EventQueue.SingleSubscriberSyncedUnrolledRing[T](new util.Monitor)
+      case fact => fact.create[T]
+    }
     val uname = uniqueName(name)
     val frame = new IsolateFrame[T](
       uname,
@@ -108,7 +112,7 @@ abstract class IsolateSystem {
    *  
    *  @return           the scheduler bundle
    */
-  def bundle: Scheduler.Bundle
+  def bundle: IsolateSystem.Bundle
 
 }
 
@@ -123,7 +127,55 @@ object IsolateSystem {
    *  @param scheduler  the default scheduler
    *  @return           a new isolate system instance
    */
-  def default(name: String, bundle: Scheduler.Bundle = Scheduler.defaultBundle) = new isolate.DefaultIsolateSystem(name, bundle)
+  def default(name: String, bundle: IsolateSystem.Bundle = IsolateSystem.defaultBundle) = new isolate.DefaultIsolateSystem(name, bundle)
+
+  /** Contains a set of schedulers registered with each isolate system.
+   */
+  class Bundle(val defaultScheduler: Scheduler) {
+    private val schedulers = mutable.Map[String, Scheduler]()
+
+    /** Retrieves the scheduler registered under the specified name.
+     *  
+     *  @param name        the name of the scheduler
+     *  @return            the scheduler object associated with the name
+     */
+    def scheduler(name: String): Scheduler = {
+      schedulers(name)
+    }
+  
+    /** Registers the scheduler under a specific name,
+     *  so that it can be later retrieved using the 
+     *  `scheduler` method.
+     *
+     *  @param name       the name under which to register the scheduler
+     *  @param s          the scheduler object to register
+     */
+    def registerScheduler(name: String, s: Scheduler) {
+      if (schedulers contains name) sys.error(s"Scheduler $name already registered.")
+      else schedulers(name) = s
+    }
+  }
+
+  /** Scheduler bundle factory methods.
+   */
+  object Bundle {
+    /** A bundle with default schedulers from the `Scheduler` companion object.
+     *  
+     *  @return           the default scheduler bundle
+     */
+    def default(default: Scheduler): Bundle = {
+      val b = new Bundle(default)
+      b.registerScheduler("scala.reactive.Scheduler.globalExecutionContext", Scheduler.globalExecutionContext)
+      b.registerScheduler("scala.reactive.Scheduler.default", Scheduler.default)
+      b.registerScheduler("scala.reactive.Scheduler.newThread", Scheduler.newThread)
+      b.registerScheduler("scala.reactive.Scheduler.piggyback", Scheduler.piggyback)
+      b
+    }
+  }
+
+  /** Default scheduler bundle.
+   */
+  lazy val defaultBundle = Bundle.default(Scheduler.default)
 
 }
 

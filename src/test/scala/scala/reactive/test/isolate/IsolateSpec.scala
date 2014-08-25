@@ -57,6 +57,16 @@ object Isolates {
     }
   }
 
+  class CustomIso(sv: SyncVar[Boolean]) extends Isolate[Int] {
+    react <<= source on {
+      sv.put(false)
+    }
+
+    react <<= sysEvents onCase {
+      case IsolateTerminated => if (!sv.isSet) sv.put(true)
+    }
+  }
+
 }
 
 
@@ -106,6 +116,20 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
     sv.get should equal (true)
   }
 
+  it should "set a custom event queue" in {
+    val sv = new SyncVar[Boolean]
+
+    val emitter = new Reactive.Emitter[Int]
+
+    val proto = Proto(classOf[CustomIso], sv).withEventQueue(EventQueue.DevNull.factory)
+    val c = isoSystem.isolate(proto).attach(emitter).seal()
+
+    emitter += 7
+    emitter.close()
+
+    sv.get should equal (true)
+  }
+
 }
 
 
@@ -131,7 +155,7 @@ trait LooperIsolateSpec extends FlatSpec with ShouldMatchers {
 class ExecutorSyncedIsolateSpec extends IsolateSpec with LooperIsolateSpec {
 
   val scheduler = Scheduler.default
-  val bundle = Scheduler.Bundle.default(scheduler)
+  val bundle = IsolateSystem.Bundle.default(scheduler)
   val isoSystem = IsolateSystem.default("TestSystem", bundle)
 
 }
@@ -140,7 +164,7 @@ class ExecutorSyncedIsolateSpec extends IsolateSpec with LooperIsolateSpec {
 class NewThreadSyncedIsolateSpec extends IsolateSpec with LooperIsolateSpec {
 
   val scheduler = Scheduler.newThread
-  val bundle = Scheduler.Bundle.default(scheduler)
+  val bundle = IsolateSystem.Bundle.default(scheduler)
   val isoSystem = IsolateSystem.default("TestSystem", bundle)
 
 }
@@ -149,7 +173,7 @@ class NewThreadSyncedIsolateSpec extends IsolateSpec with LooperIsolateSpec {
 class PiggybackSyncedIsolateSpec extends LooperIsolateSpec {
 
   val scheduler = Scheduler.piggyback
-  val bundle = Scheduler.Bundle.default(scheduler)
+  val bundle = IsolateSystem.Bundle.default(scheduler)
   val isoSystem = IsolateSystem.default("TestSystem", bundle)
 
 }
@@ -158,7 +182,7 @@ class PiggybackSyncedIsolateSpec extends LooperIsolateSpec {
 class TimerSyncedIsolateSpec extends LooperIsolateSpec {
 
   val scheduler = new Scheduler.Timer(400)
-  val bundle = Scheduler.Bundle.default(scheduler)
+  val bundle = IsolateSystem.Bundle.default(scheduler)
   val isoSystem = IsolateSystem.default("TestSystem", bundle)
 
 }

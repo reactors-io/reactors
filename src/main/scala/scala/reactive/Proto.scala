@@ -11,7 +11,9 @@ import scala.reflect.ClassTag
  * 
  *  @tparam I         type of the isolate
  */
-final class Proto[+I <: Isolate[_]] private[reactive] (val clazz: Class[_], val params: Seq[Any], val scheduler: String = null) {
+final class Proto[+I <: Isolate[_]] private[reactive] (
+  val clazz: Class[_], val params: Seq[Any], val scheduler: String = null, val eventQueueFactory: EventQueue.Factory = null
+) {
 
   /** Instantiates and returns the isolate.
    */
@@ -19,12 +21,19 @@ final class Proto[+I <: Isolate[_]] private[reactive] (val clazz: Class[_], val 
 
   /** Associates the specified scheduler and returns the new `Proto` object.
    *
-   *  Note that the scheduler needs to be registered with the `IsolateSystem` object.
+   *  Note that the scheduler name needs to be registered with the `IsolateSystem` object.
    *  
    *  @param schedulerName       name of the scheduler
    *  @return                    a new `Proto` object
    */
-  def withScheduler(schedulerName: String): Proto[I] = new Proto(clazz, params, schedulerName)
+  def withScheduler(schedulerName: String): Proto[I] = new Proto(clazz, params, schedulerName, eventQueueFactory)
+
+  /** Associates the specified event queue type and returns the new `Proto` object.
+   *  
+   *  @param factory             event queue factory, used to instantiate the event queue object
+   *  @return                    a new `Proto` object
+   */
+  def withEventQueue(factory: EventQueue.Factory): Proto[I] = new Proto(clazz, params, scheduler, factory)
 
 }
 

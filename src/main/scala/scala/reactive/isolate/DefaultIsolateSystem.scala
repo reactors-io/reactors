@@ -13,7 +13,7 @@ import scala.collection._
  *  @param name      the name of this isolate system
  *  @param bundle    the scheduler bundle used by the isolate system
  */
-class DefaultIsolateSystem(val name: String, val bundle: Scheduler.Bundle = Scheduler.defaultBundle)
+class DefaultIsolateSystem(val name: String, val bundle: IsolateSystem.Bundle = IsolateSystem.defaultBundle)
 extends IsolateSystem {
   private val isolates = mutable.Map[String, IsolateFrame[_]]()
   private var uniqueNameCount = new AtomicLong(0L)
