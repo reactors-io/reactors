@@ -24,10 +24,12 @@ extends IsolateSystem {
     s"isolate-$uid"
   } else ensureUnique(name)
 
-  def ensureUnique(name: String): String = monitor.synchronized {
+  private def ensureUnique(name: String): String = monitor.synchronized {
     if (isolates contains name) exception.illegalArg(s"isolate name '$name' already exists.")
     else name
   }
+
+  protected def newChannel[@spec(Int, Long, Double) Q](frame: IsolateFrame[Q]) = new Channel.Synced(frame, new util.Monitor)
 
   def isolate[@spec(Int, Long, Double) T: Arrayable](proto: Proto[Isolate[T]], name: String = null): Channel[T] = {
     val frame = createFrame(proto, name)

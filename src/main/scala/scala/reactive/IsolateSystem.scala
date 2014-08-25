@@ -43,6 +43,17 @@ abstract class IsolateSystem {
    */
   def isolate[@spec(Int, Long, Double) T: Arrayable](proto: Proto[Isolate[T]], name: String = null): Channel[T]
 
+  /** Creates a new channel for the specified isolate frame.
+   *
+   *  '''Note:'''
+   *  The `channel` field of the isolate frame is not set at the time this method is called.
+   *  
+   *  @tparam Q         the type of the events for the isolate
+   *  @param frame      the isolate frame for the channel
+   *  @return           the new channel for the isolate frame
+   */
+  protected def newChannel[@spec(Int, Long, Double) Q](frame: IsolateFrame[Q]): Channel[Q]
+
   /** Creates an isolate from the `Proto` object.
    *
    *  Starts by memoizing the old isolate object,
@@ -88,12 +99,12 @@ abstract class IsolateSystem {
       new IsolateFrame.State,
       new AtomicReference(IsolateFrame.Created)
     )
+    val channel = newChannel(frame)
+    frame.channel = channel
     val isolate = Isolate.argFrame.withValue(frame) {
       createAndResetIsolate(proto)
     }
     frame.isolate = isolate
-    val channel = new Channel.Synced(frame, new util.Monitor)
-    frame.channel = channel
     scheduler.initiate(frame)
     frame
   }
