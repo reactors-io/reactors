@@ -84,16 +84,28 @@ trait Isolate[@spec(Int, Long, Double) T] extends ReactRecord {
 
   /* end workaround */
 
+  /** The isolate system of this isolate.
+   */
   final def system: IsolateSystem = frame.isolateSystem
 
+  /** The system event stream.
+   */
   final def sysEvents: Reactive[SysEvent] = frame.systemEmitter
 
+  /** The default event stream of this isolate.
+   */
   final def source: Reactive[T] = frame.sourceEmitter
 
+  /** The failures event stream.
+   */
   final def failures: Reactive[Throwable] = frame.failureEmitter
 
+  /** The default channel of this isolate.
+   */
   final def channel: Channel[T] = frame.channel
 
+  /** The `Enqueuer` interface to the default event queue.
+   */
   def later: Enqueuer[T] = frame.eventQueue
 
 }
