@@ -124,8 +124,10 @@ final class IsolateFrame[@spec(Int, Long, Double) T](
   @tailrec private def checkTerminating() {
     import IsolateFrame._
     if (terminating && dequeuer.isEmpty && isolateState.get == Running) {
-      if (isolateState.compareAndSet(Running, Terminated)) systemEmitter += IsolateTerminated
-      else checkTerminating()
+      if (isolateState.compareAndSet(Running, Terminated)) {
+        for (es <- isolate.eventSources) es.close()
+        systemEmitter += IsolateTerminated
+      } else checkTerminating()
     }
   }
 

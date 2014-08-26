@@ -621,6 +621,15 @@ object Reactive {
       case _ => throw new UnsupportedOperationException("This is not a signal.")
     }
 
+    /** Pipes the events from this reactive to the specified channel.
+     *  
+     *  The call `r.pipe(c)` is equivalent to the following:
+     *  {{{
+     *  c.attach(r)
+     *  }}}
+     */
+    def pipe(c: Channel[T]): Unit = c.attach(self)
+
     /** Creates a union of `this` and `that` reactive.
      *  
      *  The resulting reactive value emits events from both `this` and `that` reactive.
@@ -1461,7 +1470,7 @@ object Reactive {
    *  @tparam       the type of events that this emitter can emit
    */
   class Emitter[@spec(Int, Long, Double) T]
-  extends Reactive[T] with Default[T] {
+  extends Reactive[T] with Default[T] with EventSource {
     private var live = true
     def +=(value: T) {
       if (live) reactAll(value)
@@ -1482,7 +1491,7 @@ object Reactive {
    *  @tparam T     the type of events in the bind emitter
    */
   class BindEmitter[@spec(Int, Long, Double) T]
-  extends Reactive[T] with Default[T] with ReactMutable.Subscriptions {
+  extends Reactive[T] with Default[T] with EventSource with ReactMutable.Subscriptions {
     private var live = true
     def +=(value: T) {
       if (live) reactAll(value)
@@ -1495,10 +1504,53 @@ object Reactive {
 
   /** Uses the specified function `f` to produce an event when the `emit` method is called.
    */
-  class SideEffectEmitter[@spec(Int, Long, Double) T](f: () => T) extends Reactive.Default[T] {
+  class SideEffectEmitter[@spec(Int, Long, Double) T](f: () => T)
+  extends Reactive.Default[T] with EventSource {
     private var closed = false
     final def emit() = if (!closed) reactAll(f())
-    final def close() = closed = true
+    final def close() = {
+      closed = true
+      unreactAll()
+    }
+  }
+
+  /** Passive reactive creates events specifically for subscribers that subscribe to it.
+   *  
+   *  @tparam T      the type of the events in the reactive
+   *  @param f       the function used to produce events for the reactor
+   */
+  class Passive[@spec(Int, Long, Double) T](f: Reactor[T] => Subscription)
+  extends Reactive[T] with EventSource {
+    private[reactive] val reactors = mutable.Set[Reactor[T]]()
+    private[reactive] var closed = false
+    def hasSubscriptions = false
+    def onReaction(r: Reactor[T]) = if (!closed) {
+      val pr = new Passive.Reactor(this, r)
+      reactors += pr
+      f(pr)
+    } else Subscription.empty
+    def close(): Unit = if (!closed) {
+      closed = true
+      for (r <- reactors) r.unreact()
+    }
+  }
+
+  /** Companion with special reactor implementations.
+   */
+  object Passive {
+    /** A wrapper reactor that forwards events only if the passive reactive is not closed.
+     */
+    class Reactor[@spec(Int, Long, Double) T]
+      (val self: Passive[T], val r: scala.reactive.Reactor[T])
+    extends scala.reactive.Reactor[T] {
+      private var closed = false
+      def react(value: T) = if (!self.closed) r.react(value)
+      def unreact() = if (!closed) {
+        closed = true
+        self.reactors -= this
+        r.unreact()
+      }
+    }
   }
 
   /** Creates a new reactive that invokes the function `f` on any `Reactor` that subscribes to it.
@@ -1543,12 +1595,7 @@ object Reactive {
    *  @return           the passive reactive defined by `f`
    */
   def passive[@spec(Int, Long, Double) T](f: Reactor[T] => Subscription): Reactive[T] = {
-    new Reactive[T] {
-      def hasSubscriptions = false
-      def reactAll(value: T) {}
-      def unreactAll() {}
-      def onReaction(r: Reactor[T]) = f(r)
-    }
+    new Passive[T](f)
   }
 
   /** Defines a new passive reactive that emits a single event

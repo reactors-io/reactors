@@ -23,8 +23,12 @@ extends Enqueuer[Q] {
 }
 
 
+/** Event queue factory methods and standard implementations.
+ */
 object EventQueue {
 
+  /** Object that creates event queues holding events of a desired type.
+   */
   trait Factory {
     def create[@specialized(Int, Long, Double) Q: Arrayable]: EventQueue[Q]
   }

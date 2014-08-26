@@ -3,6 +3,7 @@ package scala.reactive
 
 
 import scala.annotation.tailrec
+import scala.collection._
 import scala.util.DynamicVariable
 import isolate._
 
@@ -67,6 +68,7 @@ import isolate._
  */
 trait Isolate[@spec(Int, Long, Double) T] extends ReactRecord {
   private[reactive] var frame: IsolateFrame[T] = _
+  private[reactive] var eventSources: mutable.Buffer[EventSource] = _
 
   private def illegal() = throw new IllegalStateException("Only isolate systems can create isolates.")
 
@@ -77,6 +79,9 @@ trait Isolate[@spec(Int, Long, Double) T] extends ReactRecord {
       case null => illegal()
       case eq => eq.asInstanceOf[IsolateFrame[T]]
     }
+
+    eventSources = mutable.ArrayBuffer[EventSource]()
+
     Isolate.selfIsolate.set(this)
   }
 
@@ -128,12 +133,23 @@ object Isolate {
    *  if the type of the isolate is required.
    *
    *  @tparam I      the type of the current isolate
+   *  @return        the current isolate
    */
   def self[I <: Isolate[_]]: I = {
     val i = selfIsolate.get
     if (i == null) throw new IllegalStateException(s"${Thread.currentThread.getName} not executing in an isolate.")
     i.asInstanceOf[I]
   }
+
+  /** Returns the current isolate, or `null`.
+   *
+   *  The caller must specify the type of the current isolate
+   *  if the type of the isolate is required.
+   *
+   *  @tparam I      the type of the current isolate
+   *  @return        the current isolate, or `null`
+   */
+  def selfOrNull[I <: Isolate[_]]: I = selfIsolate.get.asInstanceOf[I]
 
   /** Returns the current isolate that produces events of type `T`.
    */

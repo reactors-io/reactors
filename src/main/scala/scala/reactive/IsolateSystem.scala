@@ -60,7 +60,6 @@ abstract class IsolateSystem {
    */
   protected def newChannel[@spec(Int, Long, Double) Q](frame: IsolateFrame[Q]): Channel[Q]
 
-
   /** Generates a unique isolate name if the `name` argument is `null`,
    *  and throws an exception if the `name` is already taken.
    *
