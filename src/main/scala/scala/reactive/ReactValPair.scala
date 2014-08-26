@@ -29,6 +29,8 @@ trait ReactValPair[@spec(Int, Long, Double) P, @spec(Int, Long, Double) Q] {
 
   private[reactive] def _2_=(v: Q) = q = v
 
+  def onUnreact(reactor: =>Unit): Reactive.Subscription = changes.onUnreact(reactor)
+
   def filter1(p: P => Boolean): ReactValPair[P, Q] = {
     val r = new ReactValPair.Default[P, Q]
     r.subscription = changes.onReactUnreact { _ =>
@@ -125,7 +127,7 @@ trait ReactValPair[@spec(Int, Long, Double) P, @spec(Int, Long, Double) Q] {
 
 object ReactValPair {
 
-  class Emitter[@spec(Int, Long, Double) P, @spec(Int, Long, Double) Q] extends ReactValPair[P, Q] {
+  class Emitter[@spec(Int, Long, Double) P, @spec(Int, Long, Double) Q] extends ReactValPair[P, Q] with EventSource {
     def emit(p: P, q: Q) {
       _1 = p
       _2 = q

@@ -68,7 +68,7 @@ import isolate._
  */
 trait Isolate[@spec(Int, Long, Double) T] extends ReactRecord {
   private[reactive] var frame: IsolateFrame[T] = _
-  private[reactive] var eventSources: mutable.Buffer[EventSource] = _
+  private[reactive] var eventSources: mutable.Set[EventSource] = _
 
   private def illegal() = throw new IllegalStateException("Only isolate systems can create isolates.")
 
@@ -80,7 +80,7 @@ trait Isolate[@spec(Int, Long, Double) T] extends ReactRecord {
       case eq => eq.asInstanceOf[IsolateFrame[T]]
     }
 
-    eventSources = mutable.ArrayBuffer[EventSource]()
+    eventSources = mutable.Set[EventSource]()
 
     Isolate.selfIsolate.set(this)
   }

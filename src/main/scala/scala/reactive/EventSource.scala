@@ -13,13 +13,26 @@ package scala.reactive
  */
 trait EventSource {
   
-  Isolate.selfOrNull[Isolate[_]] match {
-    case null =>
-    case iso  => iso.eventSources += this
+  private var sub: Reactive.Subscription = _
+
+  private def initEventSource() {
+    sub = Isolate.selfOrNull[Isolate[_]] match {
+      case null =>
+        Reactive.Subscription.empty
+      case iso  =>
+        iso.eventSources += this
+        onUnreact { iso.eventSources -= this }
+    }
   }
+
+  initEventSource()
 
   /** Closes the event source, disallowing it from emitting any further events.
    */
   def close(): Unit
+
+  /** Invoked when the event source is closed.
+   */
+  def onUnreact(reactor: =>Unit): Reactive.Subscription
 
 }
