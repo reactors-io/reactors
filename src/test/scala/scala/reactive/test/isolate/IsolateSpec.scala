@@ -67,6 +67,14 @@ object Isolates {
     }
   }
 
+  class AutoClosingIso(sv: SyncVar[Boolean]) extends Isolate[Int] {
+    val emitter = new Reactive.Emitter[Int]
+
+    react <<= emitter onUnreact {
+      sv.put(true)
+    }
+  }
+
 }
 
 
@@ -126,6 +134,15 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
 
     emitter += 7
     emitter.close()
+
+    sv.get should equal (true)
+  }
+
+  it should "close its reactives when it terminates" in {
+    val sv = new SyncVar[Boolean]
+
+    val proto = Proto(classOf[AutoClosingIso], sv)
+    val c = isoSystem.isolate(proto).seal()
 
     sv.get should equal (true)
   }
