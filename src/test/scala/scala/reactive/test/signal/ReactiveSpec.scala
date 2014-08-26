@@ -315,44 +315,4 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     observed should equal ((0 until 100 by 2).map(_.toString))
   }
 
-  "A passive reactive" should "emit events multiple times" in {
-    val passive = Reactive.passive[Int] { r =>
-      r.react(1)
-      r.react(2)
-      r.unreact()
-      Reactive.Subscription.empty
-    }
-
-    var elems = mutable.ArrayBuffer[Int]()
-    var unreacts = 0
-    val reactor = new Reactor[Int] {
-      def react(x: Int) = elems += x
-      def unreact() = unreacts += 1
-    }
-
-    passive.onReaction(reactor)
-    passive.onReaction(reactor)
-
-    elems should equal (Seq(1, 2, 1, 2))
-    unreacts should equal (2)
-  }
-
-  it should "traverse all the elements" in {
-    val passive = Reactive.items(Array(5, 10, 15, 20))
-    var sum = 0
-
-    passive.onEvent { case x => sum += x }
-
-    sum should equal (50)
-  }
-
-  it should "traverse the single element" in {
-    val passive = Reactive.single(7)
-    var sum = 0
-
-    passive.onEvent { case x => sum += x }
-
-    sum should equal (7)
-  }
-
 }
