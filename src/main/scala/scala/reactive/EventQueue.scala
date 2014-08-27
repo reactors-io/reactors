@@ -16,9 +16,38 @@ import scala.reactive.isolate.IsolateFrame
  */
 trait EventQueue[@spec(Int, Long, Double) Q]
 extends Enqueuer[Q] {
+
+  /** Register the frame as a listener to events in the event queue.
+   *  
+   *  Will call this frame's `wake` method when events arrive.
+   *
+   *  @param f     isolate frame to notify of events
+   *  @return      the dequeuer object used to dequeue events
+   */
   def foreach(f: IsolateFrame[Q]): Dequeuer[Q]
+
+  /** The size of the event queue.
+   *
+   *  Should at least be quiescently consistent.
+   *  
+   *  @return      the size of the event queue, or an approximation if there are concurrent updates
+   */
   def size: Int
+
+  /** Checks whether the event queue is empty.
+   *
+   *  This method is linearizable.
+   *  
+   *  @return      `true` if the event queue is empty
+   */
   def isEmpty: Boolean
+
+  /** Checks whether the event queue is non-empty.
+   *
+   *  This method is linearizable.
+   *  
+   *  @return      `true` if the event queue is non-empty
+   */
   def nonEmpty = !isEmpty
 }
 
@@ -48,7 +77,7 @@ object EventQueue {
     }
 
     private def wakeAll(frame: IsolateFrame[Q]): Unit = {
-      frame.wake()
+      if (frame != null) frame.wake()
     }
 
     def foreach(f: IsolateFrame[Q]) = monitor.synchronized {
