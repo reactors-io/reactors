@@ -13,15 +13,17 @@ final class IsolateFrame(
   val name: String,
   val isolateSystem: IsolateSystem,
   val scheduler: Scheduler,
-  val eventQueueFactory: EventQueue.Factory
+  val eventQueueFactory: EventQueue.Factory,
+  val multiplexer: Multiplexer,
+  val newSourceConnector: IsolateFrame => Connector[_]
 ) extends (() => Unit) {
   val state = new IsolateFrame.State
   val isolateState = new AtomicReference[IsolateFrame.IsolateState](IsolateFrame.Created)
-  val connectors = new ConnectorSet
   val errorHandling: PartialFunction[Throwable, Unit] = {
     case NonFatal(t) => isolate.failureEmitter += t
   }
   val schedulerInfo: Scheduler.Info = scheduler.newInfo(this)
+  val isolateSourceConnector: Connector[_] = newSourceConnector(this)
   @volatile private[reactive] var isolate: Isolate[_] = _
 
   def isTerminated = isolateState.get == IsolateFrame.Terminated
@@ -41,6 +43,8 @@ final class IsolateFrame(
     }
   }
 
+  def sourceConnector[T]: Connector[T] = isolateSourceConnector.asInstanceOf[Connector[T]]
+
   /* running the frame */
   
   def run() {
@@ -48,7 +52,7 @@ final class IsolateFrame(
       if (isolateState.get != IsolateFrame.Terminated) isolateAndRun()
     } finally {
       unOwn()
-      if (!connectors.areEmpty) {
+      if (!multiplexer.areEmpty) {
         if (isolateState.get != IsolateFrame.Terminated) wake()
       }
     }
@@ -77,12 +81,12 @@ final class IsolateFrame(
   }
 
   private def checkEmptyQueue() {
-    if (connectors.areEmpty) isolate.systemEmitter += IsolateEmptyQueue
+    if (multiplexer.areEmpty) isolate.systemEmitter += IsolateEmptyQueue
   }
 
   @tailrec private def checkTerminating() {
     import IsolateFrame._
-    if (connectors.areUnreacted && connectors.areEmpty && isolateState.get == Running) {
+    if (multiplexer.isTerminated && isolateState.get == Running) {
       if (isolateState.compareAndSet(Running, Terminated)) {
         try for (es <- isolate.eventSources) es.close()
         finally isolate.systemEmitter += IsolateTerminated
@@ -94,7 +98,7 @@ final class IsolateFrame(
     try {
       checkCreated()
       schedulerInfo.onBatchStart(this)
-      while (!connectors.areEmpty && schedulerInfo.canSchedule) {
+      while (!multiplexer.areEmpty && schedulerInfo.canSchedule) {
         schedulerInfo.dequeueEvent(this)
         schedulerInfo.onBatchEvent(this)
       }

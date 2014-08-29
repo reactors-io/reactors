@@ -32,20 +32,34 @@ class Connector[@spec(Int, Long, Double) T](
 
   init(this)
 
+  /** The event stream associated with this connector.
+   *
+   *  @return            the event stream
+   */
   def events: Reactive[T] = dequeuer.events
 
+  /** The channel associated with this connector.
+   *
+   *  @return            the channel
+   */
   def channel: Channel[T] = chan
 
 }
 
 
 object Connector {
+  /** Reactor implementation which forwards the events to the connector's event queue,
+   *  and notifies the multiplexer.
+   */
   class Reactor[@spec(Int, Long, Double) T](
     val connector: Connector[T]
   ) extends scala.reactive.Reactor[T] {
-    def react(event: T) = connector.queue enqueue event
+    def react(event: T) = {
+      connector.queue enqueue event
+      connector.frame.multiplexer.reacted(connector)
+    }
     def unreact() = {
-      connector.frame.connectors.markUnreacted(connector)
+      connector.frame.multiplexer.unreacted(connector)
       connector.frame.apply()
     }
   }

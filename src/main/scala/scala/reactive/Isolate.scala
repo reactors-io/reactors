@@ -69,7 +69,6 @@ import isolate._
 trait Isolate[@spec(Int, Long, Double) T] extends ReactRecord {
   @volatile private[reactive] var frame: IsolateFrame = _
   @volatile private[reactive] var eventSources: mutable.Set[EventSource] = _
-  @volatile private[reactive] var sourceConnector: Connector[T] = _
   @volatile private[reactive] var systemEmitter: Reactive.Emitter[SysEvent] = _
   @volatile private[reactive] var failureEmitter: Reactive.Emitter[Throwable] = _
 
@@ -85,7 +84,6 @@ trait Isolate[@spec(Int, Long, Double) T] extends ReactRecord {
     eventSources = mutable.Set[EventSource]()
     systemEmitter = new Reactive.Emitter[SysEvent]
     failureEmitter = new Reactive.Emitter[Throwable]
-    sourceConnector = open[T]
 
     Isolate.selfIsolate.set(this)
   }
@@ -94,12 +92,8 @@ trait Isolate[@spec(Int, Long, Double) T] extends ReactRecord {
 
   /* end workaround */
 
-  def open[@spec(Int, Long, Double) Q: Arrayable](factory: EventQueue.Factory = frame.eventQueueFactory): Connector[Q] = {
-    val eventQueue = factory.create[Q]
-    val connector = new Connector(frame, eventQueue)
-    frame.connectors += connector
-    connector
-  }
+  final def open[@spec(Int, Long, Double) Q: Arrayable](factory: EventQueue.Factory = frame.eventQueueFactory): Connector[Q] =
+    Isolate.openChannel[Q](frame, factory)
 
   /** The isolate system of this isolate.
    */
@@ -111,7 +105,7 @@ trait Isolate[@spec(Int, Long, Double) T] extends ReactRecord {
 
   /** The default event stream of this isolate.
    */
-  final def source: Reactive[T] = sourceConnector.events
+  final def source: Reactive[T] = frame.sourceConnector[T].events
 
   /** The failures event stream.
    */
@@ -119,11 +113,11 @@ trait Isolate[@spec(Int, Long, Double) T] extends ReactRecord {
 
   /** The default channel of this isolate.
    */
-  final def channel: Channel[T] = sourceConnector.channel
+  final def channel: Channel[T] = frame.sourceConnector[T].channel
 
   /** The `Enqueuer` interface to the default event queue.
    */
-  def later: Enqueuer[T] = sourceConnector.queue
+  def later: Enqueuer[T] = frame.sourceConnector[T].queue
 
 }
 
@@ -135,6 +129,13 @@ object Isolate {
   }
 
   private[reactive] val argFrame = new DynamicVariable[IsolateFrame](null)
+
+  private[reactive] def openChannel[@spec(Int, Long, Double) Q: Arrayable](frame: IsolateFrame, factory: EventQueue.Factory): Connector[Q] = {
+    val eventQueue = factory.create[Q]
+    val connector = new Connector(frame, eventQueue)
+    frame.multiplexer += connector
+    connector
+  }
 
   /** Returns the current isolate.
    *

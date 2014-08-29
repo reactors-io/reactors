@@ -58,7 +58,7 @@ abstract class IsolateSystem {
    *  @param frame      the isolate frame for the channel
    *  @return           the new channel for the isolate frame
    */
-  private[reactive] def newChannel[@spec(Int, Long, Double) Q](reactor: Reactor[Q]): Channel[Q]
+  protected[reactive] def newChannel[@spec(Int, Long, Double) Q](reactor: Reactor[Q]): Channel[Q]
 
   /** Generates a unique isolate name if the `name` argument is `null`,
    *  and throws an exception if the `name` is already taken.
@@ -101,21 +101,27 @@ abstract class IsolateSystem {
     }
     val queueFactory = proto.eventQueueFactory match {
       case null => EventQueue.SingleSubscriberSyncedUnrolledRing.factory
-      case fact => fact.create[T]
+      case fact => fact
+    }
+    val multiplexer = proto.multiplexer match {
+      case null => new Multiplexer.Default
+      case mult => mult
     }
     val uname = uniqueName(name)
     val frame = new IsolateFrame(
       uname,
       IsolateSystem.this,
       scheduler,
-      queueFactory
+      queueFactory,
+      multiplexer,
+      frame => Isolate.openChannel(frame, queueFactory)
     )
     val isolate = Isolate.argFrame.withValue(frame) {
       createAndResetIsolate(proto)
     }
     frame.isolate = isolate
     scheduler.initiate(frame)
-    frame.isolate
+    isolate
   }
 
 }

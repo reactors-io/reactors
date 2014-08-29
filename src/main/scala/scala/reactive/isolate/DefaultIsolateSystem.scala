@@ -29,7 +29,7 @@ extends IsolateSystem {
     else name
   }
 
-  protected def newChannel[@spec(Int, Long, Double) Q](reactor: Reactor[Q]) = {
+  protected[reactive] def newChannel[@spec(Int, Long, Double) Q](reactor: Reactor[Q]) = {
     new Channel.Synced(reactor, new util.Monitor)
   }
 
@@ -40,7 +40,7 @@ extends IsolateSystem {
       isolates(frame.name) = frame
     }
     frame.wake()
-    isolate.sourceChannel
+    isolate.channel
   }
 
 }

@@ -102,7 +102,7 @@ object Scheduler {
     /** Picks and dequeues a single event from the dequeuer set of the associated isolate.
      */
     def dequeueEvent(frame: IsolateFrame): Unit = {
-      ???
+      frame.multiplexer.dequeueEvent()
     }
   }
 
@@ -213,10 +213,10 @@ object Scheduler {
         try {
           frame.run()
           monitor.synchronized {
-            while (frame.eventQueue.isEmpty && !frame.isTerminated) monitor.wait()
+            while (frame.multiplexer.areEmpty && !frame.isTerminated) monitor.wait()
           }
         } catch handler
-        if (frame.isolateState.get != IsolateFrame.Terminated) loop(f)
+        if (!frame.isTerminated) loop(f)
       }
 
       def awake() {
@@ -283,6 +283,8 @@ object Scheduler {
    *  The isolate is run every `period` milliseconds.
    *  This is regardless of the number of events in this isolate's event queue.
    *
+   *  When the isolate runs, it flushes as many events as there are initially pending events.
+   *
    *  @param period       Period between executing the isolate.
    *  @param isDaemon     Is the timer thread a daemon thread.
    */
@@ -295,7 +297,7 @@ object Scheduler {
 
     override def newInfo(frame: IsolateFrame): Scheduler.Info = new Scheduler.Info.Default {
       override def onBatchStart(frame: IsolateFrame): Unit = {
-        allowedBudget = frame.eventQueue.size
+        allowedBudget = frame.multiplexer.totalSize
       }
     }
 
