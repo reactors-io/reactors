@@ -14,16 +14,24 @@ package scala.reactive
  *  In essence, a `Dequeuer` is an iterator that is internally used by the
  *  queue implementation to drop elements that are no longer used.
  *
+ *  When `dequeue` is called, an event is not returned.
+ *  Instead, it is emitted on the `events` reactive associated with this dequeuer.
+ *
  *  A dequeuer is used internally by isolate schedulers.
  *  
  *  @tparam T        the type of events stored in the queue this dequeuer belongs to
  */
 trait Dequeuer[@spec(Int, Long, Double) T] {
   /** Returns the next element.
-   *
-   *  @return        the next event in the event queue
    */
-  def dequeue(): T
+  def dequeue(): Unit
+
+  /** The event stream associated with this dequeuer,
+   *  which emits an event each time `dequeue` is invoked.
+   *
+   *  @return        the event stream of this dequeuer.
+   */
+  def events: Reactive[T]
 
   /** Tests if the dequeuer is empty.
    *

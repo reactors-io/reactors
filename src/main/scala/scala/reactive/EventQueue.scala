@@ -17,14 +17,14 @@ import scala.reactive.isolate.IsolateFrame
 trait EventQueue[@spec(Int, Long, Double) Q]
 extends Enqueuer[Q] {
 
-  /** Register the frame as a listener to events in the event queue.
+  /** Register a listener for the events in the event queue.
    *  
-   *  Will call this frame's `wake` method when events arrive.
+   *  Will call the specified function when events arrive.
    *
-   *  @param f     isolate frame to notify of events
+   *  @param f     a callback for the events
    *  @return      the dequeuer object used to dequeue events
    */
-  def foreach(f: IsolateFrame[Q]): Dequeuer[Q]
+  def foreach(f: () => Unit): Dequeuer[Q]
 
   /** The size of the event queue.
    *
@@ -62,11 +62,13 @@ object EventQueue {
     def create[@specialized(Int, Long, Double) Q: Arrayable]: EventQueue[Q]
   }
 
+  /** Event queue based on monitor locks and an unrolled ring data structure.
+   */
   class SingleSubscriberSyncedUnrolledRing[@spec(Int, Long, Double) Q: Arrayable](val monitor: util.Monitor)
   extends EventQueue[Q] {
     private[reactive] val ring = new core.UnrolledRing[Q]
 
-    private[reactive] var listener: IsolateFrame[Q] = null
+    private[reactive] var listener: () => Unit = null
 
     def enqueue(elem: Q) = {
       val l = monitor.synchronized {
@@ -76,11 +78,11 @@ object EventQueue {
       wakeAll(l)
     }
 
-    private def wakeAll(frame: IsolateFrame[Q]): Unit = {
-      if (frame != null) frame.wake()
+    private def wakeAll(l: () => Unit): Unit = {
+      if (l != null) l.apply()
     }
 
-    def foreach(f: IsolateFrame[Q]) = monitor.synchronized {
+    def foreach(f: () => Unit) = monitor.synchronized {
       val dequeuer = new SingleSubscriberSyncedUnrolledRing.Dequeuer(this)
       if (listener != null) sys.error("Event queue supports only a single subscriber.")
       else listener = f
@@ -95,7 +97,7 @@ object EventQueue {
       ring.isEmpty
     }
 
-    def dequeue(): Q = monitor.synchronized {
+    def dequeue() = monitor.synchronized {
       ring.dequeue()
     }
 
@@ -107,7 +109,8 @@ object EventQueue {
   object SingleSubscriberSyncedUnrolledRing {
     class Dequeuer[@spec(Int, Long, Double) Q](q: SingleSubscriberSyncedUnrolledRing[Q])
     extends scala.reactive.Dequeuer[Q] {
-      def dequeue() = q.dequeue()
+      val events = new Reactive.Emitter[Q]
+      def dequeue() = events += q.dequeue()
       def isEmpty = q.isEmpty
     }
 
@@ -118,18 +121,21 @@ object EventQueue {
     val factory = new Factory
   }
 
+  /** An event queue implementation that categorically loses all events.
+   */
   class DevNull[@spec(Int, Long, Double) Q: Arrayable]
   extends EventQueue[Q] {
     def enqueue(x: Q) {}
     def enqueueIfEmpty(x: Q) {}
-    def foreach(f: IsolateFrame[Q]) = new DevNull.Dequeuer[Q]
+    def foreach(f: () => Unit) = new DevNull.Dequeuer[Q]
     def size = 0
     def isEmpty = true
   }
 
   object DevNull {
     class Dequeuer[Q] extends scala.reactive.Dequeuer[Q] {
-      def dequeue() = sys.error("unsupported")
+      def dequeue() = {}
+      def events = Reactive.Never[Q]
       def isEmpty = true
     }
 

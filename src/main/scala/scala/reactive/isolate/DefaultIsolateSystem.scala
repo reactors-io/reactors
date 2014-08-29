@@ -15,7 +15,7 @@ import scala.collection._
  */
 class DefaultIsolateSystem(val name: String, val bundle: IsolateSystem.Bundle = IsolateSystem.defaultBundle)
 extends IsolateSystem {
-  private val isolates = mutable.Map[String, IsolateFrame[_]]()
+  private val isolates = mutable.Map[String, IsolateFrame]()
   private var uniqueNameCount = new AtomicLong(0L)
   private val monitor = new util.Monitor
 
@@ -29,16 +29,18 @@ extends IsolateSystem {
     else name
   }
 
-  protected def newChannel[@spec(Int, Long, Double) Q](frame: IsolateFrame[Q]) = new Channel.Synced(frame, new util.Monitor)
+  protected def newChannel[@spec(Int, Long, Double) Q](reactor: Reactor[Q]) = {
+    new Channel.Synced(reactor, new util.Monitor)
+  }
 
   def isolate[@spec(Int, Long, Double) T: Arrayable](proto: Proto[Isolate[T]], name: String = null): Channel[T] = {
-    val frame = createFrame(proto, name)
-    val channel = frame.channel
+    val isolate = createFrame(proto, name)
+    val frame = isolate.frame
     monitor.synchronized {
       isolates(frame.name) = frame
     }
     frame.wake()
-    channel
+    isolate.sourceChannel
   }
 
 }

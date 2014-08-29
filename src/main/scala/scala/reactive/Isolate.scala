@@ -67,8 +67,11 @@ import isolate._
  *  @tparam T        the type of the events this isolate produces
  */
 trait Isolate[@spec(Int, Long, Double) T] extends ReactRecord {
-  private[reactive] var frame: IsolateFrame[T] = _
-  private[reactive] var eventSources: mutable.Set[EventSource] = _
+  @volatile private[reactive] var frame: IsolateFrame = _
+  @volatile private[reactive] var eventSources: mutable.Set[EventSource] = _
+  @volatile private[reactive] var sourceConnector: Connector[T] = _
+  @volatile private[reactive] var systemEmitter: Reactive.Emitter[SysEvent] = _
+  @volatile private[reactive] var failureEmitter: Reactive.Emitter[Throwable] = _
 
   private def illegal() = throw new IllegalStateException("Only isolate systems can create isolates.")
 
@@ -77,10 +80,12 @@ trait Isolate[@spec(Int, Long, Double) T] extends ReactRecord {
   private def init(dummy: Isolate[T]) {
     frame = Isolate.argFrame.value match {
       case null => illegal()
-      case eq => eq.asInstanceOf[IsolateFrame[T]]
+      case eq => eq.asInstanceOf[IsolateFrame]
     }
-
     eventSources = mutable.Set[EventSource]()
+    systemEmitter = new Reactive.Emitter[SysEvent]
+    failureEmitter = new Reactive.Emitter[Throwable]
+    sourceConnector = open[T]
 
     Isolate.selfIsolate.set(this)
   }
@@ -89,29 +94,36 @@ trait Isolate[@spec(Int, Long, Double) T] extends ReactRecord {
 
   /* end workaround */
 
+  def open[@spec(Int, Long, Double) Q: Arrayable](factory: EventQueue.Factory = frame.eventQueueFactory): Connector[Q] = {
+    val eventQueue = factory.create[Q]
+    val connector = new Connector(frame, eventQueue)
+    frame.connectors += connector
+    connector
+  }
+
   /** The isolate system of this isolate.
    */
   final def system: IsolateSystem = frame.isolateSystem
 
   /** The system event stream.
    */
-  final def sysEvents: Reactive[SysEvent] = frame.systemEmitter
+  final def sysEvents: Reactive[SysEvent] = systemEmitter
 
   /** The default event stream of this isolate.
    */
-  final def source: Reactive[T] = frame.sourceEmitter
+  final def source: Reactive[T] = sourceConnector.events
 
   /** The failures event stream.
    */
-  final def failures: Reactive[Throwable] = frame.failureEmitter
+  final def failures: Reactive[Throwable] = failureEmitter
 
   /** The default channel of this isolate.
    */
-  final def channel: Channel[T] = frame.channel
+  final def channel: Channel[T] = sourceConnector.channel
 
   /** The `Enqueuer` interface to the default event queue.
    */
-  def later: Enqueuer[T] = frame.eventQueue
+  def later: Enqueuer[T] = sourceConnector.queue
 
 }
 
@@ -122,7 +134,7 @@ object Isolate {
     override def initialValue = null
   }
 
-  private[reactive] val argFrame = new DynamicVariable[IsolateFrame[_]](null)
+  private[reactive] val argFrame = new DynamicVariable[IsolateFrame](null)
 
   /** Returns the current isolate.
    *

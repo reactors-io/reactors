@@ -1447,7 +1447,7 @@ object Reactive {
    *  @tparam       the type of events that this emitter can emit
    */
   class Emitter[@spec(Int, Long, Double) T]
-  extends Reactive[T] with Default[T] with EventSource {
+  extends Reactive[T] with Default[T] with EventSource with Reactor[T] {
     private var live = true
     def +=(value: T) {
       if (live) reactAll(value)
@@ -1456,6 +1456,8 @@ object Reactive {
       live = false
       unreactAll()
     }
+    def react(value: T) = this += value
+    def unreact() = close()
   }
 
   /** A reactive emitter that can be used with the `mutate` block.

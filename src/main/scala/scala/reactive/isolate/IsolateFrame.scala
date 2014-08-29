@@ -9,35 +9,22 @@ import scala.util.control.NonFatal
 
 
 
-final class IsolateFrame[@spec(Int, Long, Double) T](
+final class IsolateFrame(
   val name: String,
   val isolateSystem: IsolateSystem,
-  val eventQueue: EventQueue[T],
-  val systemEmitter: Reactive.Emitter[SysEvent],
-  val sourceEmitter: Reactive.Emitter[T],
-  val failureEmitter: Reactive.Emitter[Throwable],
   val scheduler: Scheduler,
-  val state: IsolateFrame.State,
-  val isolateState: AtomicReference[IsolateFrame.IsolateState]
-) extends Reactor[T] {
-  @volatile private[reactive] var isolate: Isolate[T] = _
-  @volatile private[reactive] var channel: Channel[T] = _
-  @volatile private[reactive] var dequeuer: Dequeuer[T] = _
-  @volatile private[reactive] var errorHandling: PartialFunction[Throwable, Unit] = _
-  @volatile private[reactive] var terminating = false
-  @volatile var schedulerInfo: Scheduler.Info = _
-
-  private def propagate(event: T) {
-    try sourceEmitter += event
-    catch errorHandling
-    finally {}
+  val eventQueueFactory: EventQueue.Factory
+) extends (() => Unit) {
+  val state = new IsolateFrame.State
+  val isolateState = new AtomicReference[IsolateFrame.IsolateState](IsolateFrame.Created)
+  val connectors = new ConnectorSet
+  val errorHandling: PartialFunction[Throwable, Unit] = {
+    case NonFatal(t) => isolate.failureEmitter += t
   }
+  val schedulerInfo: Scheduler.Info = scheduler.newInfo(this)
+  @volatile private[reactive] var isolate: Isolate[_] = _
 
-  def react(event: T) {
-    isolate.later enqueue event
-  }
-
-  def isTerminating = terminating
+  def isTerminated = isolateState.get == IsolateFrame.Terminated
 
   def isOwned: Boolean = state.READ_STATE == 1
 
@@ -45,12 +32,7 @@ final class IsolateFrame[@spec(Int, Long, Double) T](
 
   final def unOwn(): Unit = state.WRITE_STATE(0)
 
-  def unreact() {
-    // channel and all its reactives have been closed
-    // so no new messages will be added to the event queue
-    terminating = true
-    wake()
-  }
+  def apply(): Unit = wake()
 
   @tailrec def wake(): Unit = if (isolateState.get != IsolateFrame.Terminated) {
     if (!isOwned) {
@@ -59,49 +41,26 @@ final class IsolateFrame[@spec(Int, Long, Double) T](
     }
   }
 
-  private def initErrorHandler() {
-    errorHandling = {
-      case NonFatal(t) => failureEmitter += t
-    }
-  }
-
-  def init(dummy: IsolateFrame[T]) {
-    // call the asynchronous foreach on the event queue
-    dequeuer = eventQueue.foreach(this)
-
-    // send to failure emitter
-    initErrorHandler()
-
-    // set scheduler info object
-    schedulerInfo = scheduler.newInfo(this)
-  }
-
-  init(this)
-
   /* running the frame */
   
   def run() {
-    run(this.dequeuer)
-  }
-
-  private def run(dummy: Dequeuer[T]) {
     try {
-      if (isolateState.get != IsolateFrame.Terminated) isolateAndRun(dequeuer)
+      if (isolateState.get != IsolateFrame.Terminated) isolateAndRun()
     } finally {
       unOwn()
-      if (dequeuer.nonEmpty || terminating) {
+      if (!connectors.areEmpty) {
         if (isolateState.get != IsolateFrame.Terminated) wake()
       }
     }
   }
 
-  private def isolateAndRun(dummy: Dequeuer[T]) {
+  private def isolateAndRun() {
     if (Isolate.selfIsolate.get != null) {
       throw new IllegalStateException(s"Cannot execute isolate inside of another isolate: ${Isolate.selfIsolate.get}.")
     }
     try {
       Isolate.selfIsolate.set(isolate)
-      runInIsolate(dequeuer)
+      runInsideIsolate()
     } catch {
       scheduler.handler
     } finally {
@@ -112,32 +71,31 @@ final class IsolateFrame[@spec(Int, Long, Double) T](
   @tailrec private def checkCreated() {
     import IsolateFrame._
     if (isolateState.get == Created) {
-      if (isolateState.compareAndSet(Created, Running)) systemEmitter += IsolateStarted
+      if (isolateState.compareAndSet(Created, Running)) isolate.systemEmitter += IsolateStarted
       else checkCreated()
     }
   }
 
   private def checkEmptyQueue() {
-    if (dequeuer.isEmpty) systemEmitter += IsolateEmptyQueue
+    if (connectors.areEmpty) isolate.systemEmitter += IsolateEmptyQueue
   }
 
   @tailrec private def checkTerminating() {
     import IsolateFrame._
-    if (terminating && dequeuer.isEmpty && isolateState.get == Running) {
+    if (connectors.areUnreacted && connectors.areEmpty && isolateState.get == Running) {
       if (isolateState.compareAndSet(Running, Terminated)) {
-        for (es <- isolate.eventSources) es.close()
-        systemEmitter += IsolateTerminated
+        try for (es <- isolate.eventSources) es.close()
+        finally isolate.systemEmitter += IsolateTerminated
       } else checkTerminating()
     }
   }
 
-  private def runInIsolate(dummy: Dequeuer[T]) {
+  private def runInsideIsolate() {
     try {
       checkCreated()
       schedulerInfo.onBatchStart(this)
-      while (dequeuer.nonEmpty && schedulerInfo.canSchedule) {
-        val event = dequeuer.dequeue()
-        propagate(event)
+      while (!connectors.areEmpty && schedulerInfo.canSchedule) {
+        schedulerInfo.dequeueEvent(this)
         schedulerInfo.onBatchEvent(this)
       }
     } finally {

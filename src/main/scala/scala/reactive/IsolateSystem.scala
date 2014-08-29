@@ -58,7 +58,7 @@ abstract class IsolateSystem {
    *  @param frame      the isolate frame for the channel
    *  @return           the new channel for the isolate frame
    */
-  protected def newChannel[@spec(Int, Long, Double) Q](frame: IsolateFrame[Q]): Channel[Q]
+  private[reactive] def newChannel[@spec(Int, Long, Double) Q](reactor: Reactor[Q]): Channel[Q]
 
   /** Generates a unique isolate name if the `name` argument is `null`,
    *  and throws an exception if the `name` is already taken.
@@ -94,35 +94,28 @@ abstract class IsolateSystem {
    *  @param name       name of the new isolate
    *  @return           the resulting isolate frame
    */
-  protected def createFrame[@spec(Int, Long, Double) T: Arrayable](proto: Proto[Isolate[T]], name: String): IsolateFrame[T] = {
+  protected def createFrame[@spec(Int, Long, Double) T: Arrayable](proto: Proto[Isolate[T]], name: String): Isolate[T] = {
     val scheduler = proto.scheduler match {
       case null => bundle.defaultScheduler
       case name => bundle.scheduler(name)
     }
-    val eventQueue = proto.eventQueueFactory match {
-      case null => new EventQueue.SingleSubscriberSyncedUnrolledRing[T](new util.Monitor)
+    val queueFactory = proto.eventQueueFactory match {
+      case null => EventQueue.SingleSubscriberSyncedUnrolledRing.factory
       case fact => fact.create[T]
     }
     val uname = uniqueName(name)
-    val frame = new IsolateFrame[T](
+    val frame = new IsolateFrame(
       uname,
       IsolateSystem.this,
-      eventQueue,
-      new Reactive.Emitter[SysEvent],
-      new Reactive.Emitter[T],
-      new Reactive.Emitter[Throwable],
       scheduler,
-      new IsolateFrame.State,
-      new AtomicReference(IsolateFrame.Created)
+      queueFactory
     )
-    val channel = newChannel(frame)
-    frame.channel = channel
     val isolate = Isolate.argFrame.withValue(frame) {
       createAndResetIsolate(proto)
     }
     frame.isolate = isolate
     scheduler.initiate(frame)
-    frame
+    frame.isolate
   }
 
 }

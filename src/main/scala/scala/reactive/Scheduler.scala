@@ -34,14 +34,14 @@ trait Scheduler {
    *
    *  @param frame      the isolate frame to schedule
    */
-  def schedule(frame: IsolateFrame[_]): Unit
+  def schedule(frame: IsolateFrame): Unit
 
   /** Initiates the isolate frame.
    *  Clients never call this method directly.
    *
    *  @param frame      the isolate frame to initiate
    */
-  def initiate(frame: IsolateFrame[_]): Unit
+  def initiate(frame: IsolateFrame): Unit
 
   /** The handler for the fatal errors that are not sent to
    *  the `failures` stream of the isolate.
@@ -61,7 +61,7 @@ trait Scheduler {
    *  @param frame       the isolate frame
    *  @return            creates a fresh scheduler info object
    */
-  def newInfo(frame: IsolateFrame[_]): Scheduler.Info = new Scheduler.Info.Default
+  def newInfo(frame: IsolateFrame): Scheduler.Info = new Scheduler.Info.Default
 
 }
 
@@ -77,7 +77,7 @@ object Scheduler {
      *  
      *  @param frame    the isolate frame
      */
-    def onBatchStart(frame: IsolateFrame[_]): Unit = {
+    def onBatchStart(frame: IsolateFrame): Unit = {
     }
 
     /** Checks whether the isolate can process more events.
@@ -90,13 +90,19 @@ object Scheduler {
      *  
      *  @param frame    the isolate frame
      */
-    def onBatchEvent(frame: IsolateFrame[_]): Unit
+    def onBatchEvent(frame: IsolateFrame): Unit
 
     /** Called when scheduling stops.
      *  
      *  @param frame    the isolate frame
      */
-    def onBatchStop(frame: IsolateFrame[_]): Unit = {
+    def onBatchStop(frame: IsolateFrame): Unit = {
+    }
+
+    /** Picks and dequeues a single event from the dequeuer set of the associated isolate.
+     */
+    def dequeueEvent(frame: IsolateFrame): Unit = {
+      ???
     }
   }
 
@@ -107,17 +113,17 @@ object Scheduler {
       @volatile var allowedBudget: Long = _
       @volatile var interruptRequested: Boolean = _
 
-      override def onBatchStart(frame: IsolateFrame[_]): Unit = {
+      override def onBatchStart(frame: IsolateFrame): Unit = {
         allowedBudget = 50
       }
 
       def canSchedule = allowedBudget > 0
 
-      def onBatchEvent(frame: IsolateFrame[_]): Unit = {
+      def onBatchEvent(frame: IsolateFrame): Unit = {
         allowedBudget -= 1
       }
 
-      override def onBatchStop(frame: IsolateFrame[_]): Unit = {
+      override def onBatchStop(frame: IsolateFrame): Unit = {
         interruptRequested = false
       }
     }
@@ -171,14 +177,14 @@ object Scheduler {
    */
   class Executed(val executor: java.util.concurrent.Executor, val handler: Scheduler.Handler = Scheduler.defaultHandler)
   extends Scheduler {
-    def initiate(frame: IsolateFrame[_]): Unit = {
+    def initiate(frame: IsolateFrame): Unit = {
     }
 
-    def schedule(frame: IsolateFrame[_]): Unit = {
+    def schedule(frame: IsolateFrame): Unit = {
       executor.execute(frame.schedulerInfo.asInstanceOf[Runnable])
     }
 
-    override def newInfo(frame: IsolateFrame[_]): Scheduler.Info = {
+    override def newInfo(frame: IsolateFrame): Scheduler.Info = {
       new Scheduler.Info.Default with Runnable {
         def run() = frame.run()
       }
@@ -188,26 +194,26 @@ object Scheduler {
   /** An abstract scheduler that always dedicates a thread to an isolate.
    */
   abstract class Dedicated extends Scheduler {
-    def schedule(frame: IsolateFrame[_]): Unit = {
+    def schedule(frame: IsolateFrame): Unit = {
       frame.schedulerInfo.asInstanceOf[Dedicated.Worker].awake()
     }
 
-    def initiate(frame: IsolateFrame[_]): Unit = {
+    def initiate(frame: IsolateFrame): Unit = {
     }
   }
 
   /** Contains utility classes and implementations of the dedicated scheduler.
    */
   object Dedicated {
-    private[reactive] class Worker(val frame: IsolateFrame[_], val handler: Scheduler.Handler)
+    private[reactive] class Worker(val frame: IsolateFrame, val handler: Scheduler.Handler)
     extends Scheduler.Info.Default {
       val monitor = new util.Monitor
 
-      @tailrec final def loop(f: IsolateFrame[_]): Unit = {
+      @tailrec final def loop(f: IsolateFrame): Unit = {
         try {
           frame.run()
           monitor.synchronized {
-            while (frame.eventQueue.isEmpty && !frame.isTerminating) monitor.wait()
+            while (frame.eventQueue.isEmpty && !frame.isTerminated) monitor.wait()
           }
         } catch handler
         if (frame.isolateState.get != IsolateFrame.Terminated) loop(f)
@@ -234,7 +240,7 @@ object Scheduler {
      */
     class NewThread(val isDaemon: Boolean, val handler: Scheduler.Handler = Scheduler.defaultHandler)
     extends Dedicated {
-      override def newInfo(frame: IsolateFrame[_]): Dedicated.Worker = {
+      override def newInfo(frame: IsolateFrame): Dedicated.Worker = {
         val w = new Worker(frame, handler)
         val t = new WorkerThread(w)
         t.start()
@@ -258,12 +264,12 @@ object Scheduler {
      *  @param handler           The error handler for the fatal errors not passed to isolates.
      */
     class Piggyback(val handler: Scheduler.Handler = Scheduler.defaultHandler) extends Dedicated {
-      override def newInfo(frame: IsolateFrame[_]): Dedicated.Worker = {
+      override def newInfo(frame: IsolateFrame): Dedicated.Worker = {
         val w = new Worker(frame, handler)
         w
       }
 
-      override def initiate(frame: IsolateFrame[_]) {
+      override def initiate(frame: IsolateFrame) {
         // ride, piggy, ride, like you never rode before!
         super.initiate(frame)
         frame.schedulerInfo.asInstanceOf[Worker].loop(frame)
@@ -283,19 +289,19 @@ object Scheduler {
   class Timer(private val period: Long, val isDaemon: Boolean = true, val handler: Scheduler.Handler = Scheduler.defaultHandler)
   extends Scheduler {
     private var timer: java.util.Timer = null
-    private val frames = mutable.Set[IsolateFrame[_]]()
+    private val frames = mutable.Set[IsolateFrame]()
 
     def shutdown() = if (timer != null) timer.cancel()
 
-    override def newInfo(frame: IsolateFrame[_]): Scheduler.Info = new Scheduler.Info.Default {
-      override def onBatchStart(frame: IsolateFrame[_]): Unit = {
+    override def newInfo(frame: IsolateFrame): Scheduler.Info = new Scheduler.Info.Default {
+      override def onBatchStart(frame: IsolateFrame): Unit = {
         allowedBudget = frame.eventQueue.size
       }
     }
 
-    def schedule(frame: IsolateFrame[_]) {}
+    def schedule(frame: IsolateFrame) {}
 
-    def initiate(frame: IsolateFrame[_]) {
+    def initiate(frame: IsolateFrame) {
       addFrame(frame)
 
       timer.schedule(new java.util.TimerTask {
@@ -316,14 +322,14 @@ object Scheduler {
       }, period, period)
     }
 
-    private def addFrame(frame: IsolateFrame[_]) = frames.synchronized {
+    private def addFrame(frame: IsolateFrame) = frames.synchronized {
       frames += frame
       if (frames.size == 1) {
         timer = new java.util.Timer(s"TimerScheduler-${util.freshId[Timer]}", isDaemon)
       }
     }
 
-    private def removeFrame(frame: IsolateFrame[_]) = frames.synchronized {
+    private def removeFrame(frame: IsolateFrame) = frames.synchronized {
       frames -= frame
       if (frames.size == 0) {
         timer.cancel()
