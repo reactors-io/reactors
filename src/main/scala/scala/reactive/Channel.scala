@@ -51,8 +51,16 @@ trait Channel[@spec(Int, Long, Double) T] {
   /** Seals this channel.
    *
    *  Once a seal is successful, no more `attach` calls will succeed.
+   *
+   *  @return        this reactive channel
    */
   def seal(): Channel[T]
+
+  /** Checks if this channel was sealed.
+   *
+   *  @return        `true` if the channel is sealed, `false` otherwise
+   */
+  def isSealed: Boolean
 
   /** Composes this channel with a custom mapping function for the input events.
    *  
@@ -82,6 +90,7 @@ object Channel {
       self.seal()
       this
     }
+    def isSealed = self.isSealed
   }
 
   /** A synchronized channel.
@@ -113,6 +122,7 @@ object Channel {
       checkTerminated()
       this
     }
+    def isSealed = sealedChannel
     private[reactive] def checkTerminated() {
       val done = monitor.synchronized { sealedChannel && reactives.isEmpty }
       if (done) reactor.unreact()

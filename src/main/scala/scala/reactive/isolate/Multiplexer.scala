@@ -4,17 +4,20 @@ package isolate
 
 
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.ConcurrentHashMap
 
 
 
 /** A thread-safe collection containing connectors.
  *
  *  A multiplexer must always be *consistently used*.
- *  Here, *consistency* means that the `+=` and `dequeueEvent` methods
+ *  *Consistency* means that the `+=` and `dequeueEvent` methods
  *  are never called during the execution of the `isTerminated`, `areEmpty` and `totalSize`.
- *  This is ensured by any scheduler/isolate system combination which uses the multiplexer consistently
+ *  It is the task of the scheduler/isolate system combination to use the multiplexer consistently
  *  (that is, only calls the above-mentioned methods from within isolate context, ensuring their serializibility).
- *  By contrast, methods `reacted` and `unreacted` (and `enqueue` on event queues) can be called whenever by whichever threads.
+ *  By contrast, methods `reacted` and `unreacted` (and `enqueue` on associated event queues)
+ *  can be called whenever by whichever threads.
  */
 trait Multiplexer {
 
@@ -82,19 +85,50 @@ object Multiplexer {
    *  when `dequeueEvent` is called.
    */
   class Default extends Multiplexer {
+    val updateFrequency = 50
+    val connectors = new ConcurrentHashMap[Connector[_], Default.Desc]
+
     def areEmpty = ???
 
     def isTerminated = ???
 
-    def totalSize = ???
+    def totalSize = {
+      ???
+    }
 
-    def dequeueEvent() = ???
+    def dequeueEvent() = {
+      val connector = ???
 
-    def +=(connector: Connector[_]) = ???
+      connector.multiplexerInfo match {
+        case d: Default.Desc =>
+          ???
+      }
+    }
 
-    def reacted(connector: Connector[_]) = ???
+    def +=(connector: Connector[_]) = {
+      val d = new Default.Desc
+      connector.multiplexerInfo = d
+      connectors.put(connector, d)
+    }
 
-    def unreacted(connector: Connector[_]) = ???
+    def reacted(connector: Connector[_]) = {
+      connector.multiplexerInfo match {
+        case d: Default.Desc =>
+          d.messageEstimate.incrementAndGet()
+          if (d.accessCounter.incrementAndGet() % updateFrequency == 0) {
+            ???
+          }
+      }
+    }
+
+    def unreacted(connector: Connector[_]) = {}
+  }
+
+  object Default {
+    class Desc {
+      val accessCounter = new AtomicLong(0)
+      val messageEstimate = new AtomicInteger(0)
+    }
   }
 
 }

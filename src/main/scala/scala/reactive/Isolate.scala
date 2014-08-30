@@ -92,7 +92,13 @@ trait Isolate[@spec(Int, Long, Double) T] extends ReactRecord {
 
   /* end workaround */
 
-  final def open[@spec(Int, Long, Double) Q: Arrayable](factory: EventQueue.Factory = frame.eventQueueFactory): Connector[Q] =
+  /** Opens a new channel for this isolate.
+   *
+   *  @tparam Q        type of the events in the new channel
+   *  @param factory   event queue factory
+   *  @return          the connector object of the new channel
+   */
+  final def open[@spec(Int, Long, Double) Q: Arrayable](implicit factory: EventQueue.Factory = frame.eventQueueFactory): Connector[Q] =
     Isolate.openChannel[Q](frame, factory)
 
   /** The isolate system of this isolate.

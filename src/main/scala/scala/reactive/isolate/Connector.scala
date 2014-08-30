@@ -23,11 +23,13 @@ class Connector[@spec(Int, Long, Double) T](
   @volatile private[reactive] var dequeuer: Dequeuer[T] = _
   @volatile private[reactive] var reactor: Reactor[T] = _
   @volatile private[reactive] var chan: Channel[T] = _
+  @volatile private[reactive] var multiplexerInfo: AnyRef = _
 
   private[reactive] def init(dummy: Connector[T]) {
     dequeuer = queue.foreach(frame)
-    reactor = new Connector.Reactor(this)
+    reactor = new Connector.Reactor(this, this.frame.multiplexer)
     chan = frame.isolateSystem.newChannel(reactor)
+    multiplexerInfo = null
   }
 
   init(this)
@@ -52,14 +54,15 @@ object Connector {
    *  and notifies the multiplexer.
    */
   class Reactor[@spec(Int, Long, Double) T](
-    val connector: Connector[T]
+    val connector: Connector[T],
+    val multiplexer: Multiplexer[T]
   ) extends scala.reactive.Reactor[T] {
     def react(event: T) = {
       connector.queue enqueue event
-      connector.frame.multiplexer.reacted(connector)
+      multiplexer.reacted(connector)
     }
     def unreact() = {
-      connector.frame.multiplexer.unreacted(connector)
+      multiplexer.unreacted(connector)
       connector.frame.apply()
     }
   }
