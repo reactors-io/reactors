@@ -4,8 +4,8 @@ package isolate
 
 
 import java.util.concurrent.atomic.AtomicLong
-import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.ConcurrentHashMap
+import scala.annotation.tailrec
+import scala.collection._
 
 
 
@@ -17,7 +17,7 @@ import java.util.concurrent.ConcurrentHashMap
  *  It is the task of the scheduler/isolate system combination to use the multiplexer consistently
  *  (that is, only calls the above-mentioned methods from within isolate context, ensuring their serializibility).
  *  By contrast, methods `reacted` and `unreacted` (and `enqueue` on associated event queues)
- *  can be called whenever by whichever threads.
+ *  can be called whenever by whichever thread.
  */
 trait Multiplexer {
 
@@ -81,53 +81,89 @@ object Multiplexer {
 
   /** The default multiplexer implementation.
    *
-   *  Heuristically picks the connector with most events
-   *  when `dequeueEvent` is called.
+   *  Heuristically picks the connector with most events when `dequeueEvent` is called.
+   *  The connector with the largest event queue is eventually chosen.
+   *
+   *  In this implementation, the `totalSize` method is O(n).
    */
   class Default extends Multiplexer {
-    val updateFrequency = 50
-    val connectors = new ConcurrentHashMap[Connector[_], Default.Desc]
+    private val updateFrequency = 100
+    private val descriptors = mutable.SortedSet[Default.Desc]()
+    @volatile private var first: Connector[_] = null
 
-    def areEmpty = ???
-
-    def isTerminated = ???
-
-    def totalSize = {
-      ???
+    def areEmpty = this.synchronized {
+      check(first, false)
+      first.dequeuer.isEmpty
     }
 
-    def dequeueEvent() = {
-      val connector = ???
+    def isTerminated = this.synchronized {
+      check(first, false)
+      descriptors.isEmpty
+    }
 
-      connector.multiplexerInfo match {
-        case d: Default.Desc =>
-          ???
+    def totalSize = this.synchronized {
+      var sz = 0
+      val it = descriptors.iterator
+      while (it.hasNext) sz += it.next().connector.dequeuer.size
+      sz
+    }
+
+    private def bookkeep(connector: Connector[_], d: Default.Desc) {
+      this.synchronized {
+        descriptors.remove(d)
+        d.lastCount = connector.dequeuer.size
+        if (!connector.isTerminated) descriptors.add(d)
+        first = descriptors.firstKey.connector
       }
     }
 
-    def +=(connector: Connector[_]) = {
-      val d = new Default.Desc
+    def desc(c: Connector[_]): Default.Desc = c.multiplexerInfo match {
+      case d: Default.Desc => d
+    }
+
+    @tailrec private def check(connector: Connector[_], bumpUp: Boolean) {
+      val d = desc(connector)
+      val actionCount = if (bumpUp) d.accessCounter.incrementAndGet() else d.accessCounter.get
+      if (actionCount % updateFrequency == 0 || connector.dequeuer.isEmpty) {
+        bookkeep(connector, d)
+        check(first, false)
+      }
+    }
+
+    @tailrec final def dequeueEvent() = {
+      val connector = /*READ*/first
+      if (connector.dequeuer.isEmpty) {
+        bookkeep(connector, desc(connector))
+        dequeueEvent()
+      } else {
+        connector.dequeuer.dequeue()
+        check(connector, true)
+      }
+    }
+
+    def +=(connector: Connector[_]) = this.synchronized {
+      val d = new Default.Desc(connector, 0)
       connector.multiplexerInfo = d
-      connectors.put(connector, d)
+      descriptors += d
+      if (first == null) first = connector
     }
 
-    def reacted(connector: Connector[_]) = {
-      connector.multiplexerInfo match {
-        case d: Default.Desc =>
-          d.messageEstimate.incrementAndGet()
-          if (d.accessCounter.incrementAndGet() % updateFrequency == 0) {
-            ???
-          }
-      }
-    }
+    def reacted(connector: Connector[_]) = check(connector, true)
 
-    def unreacted(connector: Connector[_]) = {}
+    def unreacted(connector: Connector[_]) = if (connector.isTerminated) check(connector, true)
   }
 
   object Default {
-    class Desc {
+    class Desc(val connector: Connector[_], var lastCount: Int) {
       val accessCounter = new AtomicLong(0)
-      val messageEstimate = new AtomicInteger(0)
+    }
+
+    object Desc {
+      implicit val ordering: Ordering[Desc] = new Ordering[Desc] {
+        def compare(x: Desc, y: Desc): Int = {
+          -(x.lastCount - y.lastCount)
+        }
+      }
     }
   }
 

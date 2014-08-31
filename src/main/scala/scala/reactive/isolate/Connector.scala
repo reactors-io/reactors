@@ -46,6 +46,14 @@ class Connector[@spec(Int, Long, Double) T](
    */
   def channel: Channel[T] = chan
 
+  /** Check if the connector is terminated, and won't produce any more events.
+   *
+   *  A connector is terminated if the associated channel is sealed, and the dequeuer is empty.
+   *  
+   *  @return            `true` if terminated, `false` otherwise
+   */
+  def isTerminated = chan.isSealed && dequeuer.isEmpty
+
 }
 
 
@@ -55,7 +63,7 @@ object Connector {
    */
   class Reactor[@spec(Int, Long, Double) T](
     val connector: Connector[T],
-    val multiplexer: Multiplexer[T]
+    val multiplexer: Multiplexer
   ) extends scala.reactive.Reactor[T] {
     def react(event: T) = {
       connector.queue enqueue event

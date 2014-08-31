@@ -112,6 +112,7 @@ object EventQueue {
       val events = new Reactive.Emitter[Q]
       def dequeue() = events += q.dequeue()
       def isEmpty = q.isEmpty
+      def size = q.size
     }
 
     class Factory extends EventQueue.Factory {
@@ -137,6 +138,7 @@ object EventQueue {
       def dequeue() = {}
       def events = Reactive.Never[Q]
       def isEmpty = true
+      def size = 0
     }
 
     class Factory extends EventQueue.Factory {

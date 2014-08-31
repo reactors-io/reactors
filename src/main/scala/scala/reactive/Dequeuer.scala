@@ -33,6 +33,12 @@ trait Dequeuer[@spec(Int, Long, Double) T] {
    */
   def events: Reactive[T]
 
+  /** Returns the number of elements left in the dequeuer.
+   *
+   *  @return        the number of elements 
+   */
+  def size: Int
+
   /** Tests if the dequeuer is empty.
    *
    *  @return        `true` if the dequeuer returned all the currently available elements

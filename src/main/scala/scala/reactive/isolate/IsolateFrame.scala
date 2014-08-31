@@ -88,8 +88,8 @@ final class IsolateFrame(
     import IsolateFrame._
     if (multiplexer.isTerminated && isolateState.get == Running) {
       if (isolateState.compareAndSet(Running, Terminated)) {
-        try for (es <- isolate.eventSources) es.close()
-        finally isolate.systemEmitter += IsolateTerminated
+        try isolate.systemEmitter += IsolateTerminated
+        finally for (es <- isolate.eventSources) es.close()
       } else checkTerminating()
     }
   }
