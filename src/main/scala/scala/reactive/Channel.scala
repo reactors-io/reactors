@@ -62,6 +62,14 @@ trait Channel[@spec(Int, Long, Double) T] {
    */
   def isSealed: Boolean
 
+  /** Checks if this channel was terminated.
+   *
+   *  A channel is terminated if it is sealed and all its reactives are unreacted.
+   *
+   *  @return        `true` if the channel is terminated, `false` otherwise
+   */
+  def isTerminated: Boolean
+
   /** Composes this channel with a custom mapping function for the input events.
    *  
    *  Events from reactives passed to this channel are mapped inside their isolates.
@@ -91,6 +99,7 @@ object Channel {
       this
     }
     def isSealed = self.isSealed
+    def isTerminated = self.isTerminated
   }
 
   /** A synchronized channel.
@@ -123,9 +132,11 @@ object Channel {
       this
     }
     def isSealed = sealedChannel
+    def isTerminated = monitor.synchronized {
+      sealedChannel && reactives.isEmpty
+    }
     private[reactive] def checkTerminated() {
-      val done = monitor.synchronized { sealedChannel && reactives.isEmpty }
-      if (done) reactor.unreact()
+      if (isTerminated) reactor.unreact()
     }
   }
 

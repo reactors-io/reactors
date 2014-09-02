@@ -242,9 +242,13 @@ object Scheduler {
     extends Dedicated {
       override def newInfo(frame: IsolateFrame): Dedicated.Worker = {
         val w = new Worker(frame, handler)
+        w
+      }
+
+      override def initiate(frame: IsolateFrame): Unit = {
+        val w = frame.schedulerInfo.asInstanceOf[Worker]
         val t = new WorkerThread(w)
         t.start()
-        w
       }
     }
 

@@ -84,13 +84,13 @@ final class IsolateFrame(
     if (multiplexer.areEmpty) isolate.systemEmitter += IsolateEmptyQueue
   }
 
-  @tailrec private def checkTerminating() {
+  @tailrec private def checkTerminated() {
     import IsolateFrame._
     if (multiplexer.isTerminated && isolateState.get == Running) {
       if (isolateState.compareAndSet(Running, Terminated)) {
         try isolate.systemEmitter += IsolateTerminated
         finally for (es <- isolate.eventSources) es.close()
-      } else checkTerminating()
+      } else checkTerminated()
     }
   }
 
@@ -105,7 +105,7 @@ final class IsolateFrame(
     } finally {
       schedulerInfo.onBatchStop(this)
       try checkEmptyQueue()
-      finally checkTerminating()
+      finally checkTerminated()
     }
   }
 

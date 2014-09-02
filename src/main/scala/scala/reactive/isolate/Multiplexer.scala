@@ -83,17 +83,18 @@ object Multiplexer {
    *
    *  Heuristically picks the connector with most events when `dequeueEvent` is called.
    *  The connector with the largest event queue is eventually chosen.
+   *  Simultaneously, the multiplexer strives to be fair and eventually choose every connector.
    *
    *  In this implementation, the `totalSize` method is O(n).
    */
   class Default extends Multiplexer {
-    private val updateFrequency = 100
-    private val descriptors = mutable.SortedSet[Default.Desc]()
+    private val updateFrequency = 200
+    private var descriptors = immutable.TreeSet[Default.Desc]()
     @volatile private var first: Connector[_] = null
 
     def areEmpty = this.synchronized {
       check(first, false)
-      first.dequeuer.isEmpty
+      first == null || first.dequeuer.isEmpty
     }
 
     def isTerminated = this.synchronized {
@@ -110,18 +111,19 @@ object Multiplexer {
 
     private def bookkeep(connector: Connector[_], d: Default.Desc) {
       this.synchronized {
-        descriptors.remove(d)
-        d.lastCount = connector.dequeuer.size
-        if (!connector.isTerminated) descriptors.add(d)
-        first = descriptors.firstKey.connector
+        descriptors -= d
+        d.priority = connector.dequeuer.size - updateFrequency
+        if (!connector.isTerminated) descriptors += d
+        if (descriptors.isEmpty) first = null
+        else first = descriptors.firstKey.connector
       }
     }
 
-    def desc(c: Connector[_]): Default.Desc = c.multiplexerInfo match {
+    private def desc(c: Connector[_]): Default.Desc = c.multiplexerInfo match {
       case d: Default.Desc => d
     }
 
-    @tailrec private def check(connector: Connector[_], bumpUp: Boolean) {
+    @tailrec private def check(connector: Connector[_], bumpUp: Boolean): Unit = if (connector != null) {
       val d = desc(connector)
       val actionCount = if (bumpUp) d.accessCounter.incrementAndGet() else d.accessCounter.get
       if (actionCount % updateFrequency == 0 || connector.dequeuer.isEmpty) {
@@ -154,14 +156,16 @@ object Multiplexer {
   }
 
   object Default {
-    class Desc(val connector: Connector[_], var lastCount: Int) {
+    class Desc(val connector: Connector[_], var priority: Long) {
       val accessCounter = new AtomicLong(0)
     }
 
     object Desc {
       implicit val ordering: Ordering[Desc] = new Ordering[Desc] {
         def compare(x: Desc, y: Desc): Int = {
-          -(x.lastCount - y.lastCount)
+          if (x.priority > y.priority) -1
+          else if (x.priority < y.priority) 1
+          else 0
         }
       }
     }

@@ -48,11 +48,11 @@ class Connector[@spec(Int, Long, Double) T](
 
   /** Check if the connector is terminated, and won't produce any more events.
    *
-   *  A connector is terminated if the associated channel is sealed, and the dequeuer is empty.
+   *  A connector is terminated if the associated channel is terminated, and the dequeuer is empty.
    *  
    *  @return            `true` if terminated, `false` otherwise
    */
-  def isTerminated = chan.isSealed && dequeuer.isEmpty
+  def isTerminated = chan.isTerminated && dequeuer.isEmpty
 
 }
 
