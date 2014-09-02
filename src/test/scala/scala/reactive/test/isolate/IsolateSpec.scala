@@ -32,7 +32,7 @@ object Isolates {
     react <<= history.onEvent {
       x => if (x.size == many) sv.put(x)
     }
-    react <<= sysEvents.onEvent(println)
+    //react <<= sysEvents.onEvent(println)
   }
 
   class SelfIso(sv: SyncVar[Boolean]) extends Isolate[Int] {
@@ -97,18 +97,22 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
     sv.take() should equal ("test event")
   }
 
-  it should "react to many events" in {
-    val many = 50
+  def reactToMany(many: Int) {
     val sv = new SyncVar[List[Int]]
 
     val emitter = new Reactive.Emitter[Int]
     val proto = Proto(classOf[ManyIso], many, sv)
     val c = isoSystem.isolate(proto).attach(emitter).seal()
-    for (i <- 0 until 50) emitter += i
+    for (i <- 0 until many) emitter += i
     emitter.close()
 
-    val expected = (0 until 50).reverse
+    val expected = (0 until many).reverse
     assert(sv.get == expected, "${sv.get} vs $expected")
+  }
+
+  it should "react to many events" in {
+    for (i <- 2 until 10) reactToMany(i)
+    for (i <- 10 until 200 by 20) reactToMany(i)
   }
 
   // it should "see itself as an isolate" in {

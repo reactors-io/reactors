@@ -3,7 +3,7 @@ package isolate
 
 
 
-import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
 import scala.annotation.tailrec
 import scala.collection._
 
@@ -51,8 +51,6 @@ trait Multiplexer {
   def totalSize: Int
 
   /** Releases an event from some event queue according to some strategy.
-   *
-   *  At least one event queue must non-empty.
    */
   def dequeueEvent(): Unit
 
@@ -85,58 +83,82 @@ object Multiplexer {
    *  The connector with the largest event queue is eventually chosen.
    *  Simultaneously, the multiplexer strives to be fair and eventually choose every connector.
    *
-   *  In this implementation, the `totalSize` method is O(n).
+   *  In this implementation, the `totalSize` method is `O(n)`, where `n` is the **number of event queues**.
    */
   class Default extends Multiplexer {
-    private val updateFrequency = 200
-    private var descriptors = immutable.TreeSet[Default.Desc]()
-    @volatile private var first: Connector[_] = null
+    private val minUpdateFrequency = 200
+    private var descriptors = mutable.ArrayBuffer[Connector[_]]()
+    private var pos = 0
+    @volatile private var current: Connector[_] = null
 
     def areEmpty = this.synchronized {
-      check(first, false)
-      first == null || first.dequeuer.isEmpty
+      check(current, false)
+      current == null || current.dequeuer.isEmpty
     }
 
     def isTerminated = this.synchronized {
-      check(first, false)
+      check(current, false)
       descriptors.isEmpty
     }
 
     def totalSize = this.synchronized {
       var sz = 0
-      val it = descriptors.iterator
-      while (it.hasNext) sz += it.next().connector.dequeuer.size
-      sz
-    }
-
-    private def bookkeep(connector: Connector[_], d: Default.Desc) {
-      this.synchronized {
-        descriptors -= d
-        d.priority = connector.dequeuer.size - updateFrequency
-        if (!connector.isTerminated) descriptors += d
-        if (descriptors.isEmpty) first = null
-        else first = descriptors.firstKey.connector
+      var i = 0
+      while (i < descriptors.length) {
+        sz += descriptors(i).dequeuer.size
+        i += 1
       }
+      sz
     }
 
     private def desc(c: Connector[_]): Default.Desc = c.multiplexerInfo match {
       case d: Default.Desc => d
     }
 
-    @tailrec private def check(connector: Connector[_], bumpUp: Boolean): Unit = if (connector != null) {
-      val d = desc(connector)
-      val actionCount = if (bumpUp) d.accessCounter.incrementAndGet() else d.accessCounter.get
-      if (actionCount % updateFrequency == 0 || connector.dequeuer.isEmpty) {
-        bookkeep(connector, d)
-        check(first, false)
+    private def deleteCurrentConnector() {
+      val lastPos = descriptors.length - 1
+      descriptors(pos) = descriptors(lastPos)
+      descriptors.remove(lastPos)
+    }
+
+    private def findNonEmpty() {
+      var attemptsLeft = descriptors.length
+      while (attemptsLeft > 0 && descriptors(pos).dequeuer.isEmpty) {
+        pos = (pos + 1) % descriptors.length
+        attemptsLeft -= 1
       }
     }
 
+    private def bookkeep() = this.synchronized {
+      val connector = /*READ*/current
+      if (connector != null) {
+        if (connector.isTerminated) deleteCurrentConnector()
+
+        findNonEmpty()
+
+        if (descriptors.isEmpty) current = null
+        else {
+          val newCurrent = descriptors(pos)
+          val newCount = math.max(minUpdateFrequency, newCurrent.dequeuer.size)
+          desc(newCurrent).countdown.set(newCount)
+          current = newCurrent
+        }
+      }
+    }
+
+    private def check(connector: Connector[_], bumpDown: Boolean): Unit = if (connector != null) {
+      val d = desc(connector)
+      val count = if (bumpDown) d.countdown.decrementAndGet() else d.countdown.get
+      if (count <= 0 || connector.dequeuer.isEmpty) bookkeep()
+    }
+
     @tailrec final def dequeueEvent() = {
-      val connector = /*READ*/first
+      val connector = /*READ*/current
       if (connector.dequeuer.isEmpty) {
-        bookkeep(connector, desc(connector))
-        dequeueEvent()
+        bookkeep()
+
+        val nconnector = /*READ*/current
+        if (nconnector.dequeuer.nonEmpty) dequeueEvent()
       } else {
         connector.dequeuer.dequeue()
         check(connector, true)
@@ -144,30 +166,20 @@ object Multiplexer {
     }
 
     def +=(connector: Connector[_]) = this.synchronized {
-      val d = new Default.Desc(connector, 0)
+      val d = new Default.Desc(connector)
       connector.multiplexerInfo = d
-      descriptors += d
-      if (first == null) first = connector
+      descriptors += connector
+      if (current == null) current = connector
     }
 
-    def reacted(connector: Connector[_]) = check(connector, true)
+    def reacted(connector: Connector[_]) = check(current, false)
 
-    def unreacted(connector: Connector[_]) = if (connector.isTerminated) check(connector, true)
+    def unreacted(connector: Connector[_]) = check(current, false)
   }
 
   object Default {
-    class Desc(val connector: Connector[_], var priority: Long) {
-      val accessCounter = new AtomicLong(0)
-    }
-
-    object Desc {
-      implicit val ordering: Ordering[Desc] = new Ordering[Desc] {
-        def compare(x: Desc, y: Desc): Int = {
-          if (x.priority > y.priority) -1
-          else if (x.priority < y.priority) 1
-          else 0
-        }
-      }
+    class Desc(val connector: Connector[_]) {
+      val countdown = new AtomicInteger(0)
     }
   }
 
