@@ -154,7 +154,7 @@ object Multiplexer {
 
     @tailrec final def dequeueEvent() = {
       val connector = /*READ*/current
-      if (connector.dequeuer.isEmpty) {
+      if (connector != null && connector.dequeuer.isEmpty) {
         bookkeep()
 
         val nconnector = /*READ*/current
@@ -172,9 +172,9 @@ object Multiplexer {
       if (current == null) current = connector
     }
 
-    def reacted(connector: Connector[_]) = check(current, false)
+    def reacted(connector: Connector[_]) = {}
 
-    def unreacted(connector: Connector[_]) = check(current, false)
+    def unreacted(connector: Connector[_]) = {}
   }
 
   object Default {
