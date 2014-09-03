@@ -4,7 +4,7 @@ package test.isolate
 
 
 import scala.collection._
-import scala.concurrent._
+import scala.concurrent.SyncVar
 import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers
 
@@ -73,6 +73,28 @@ object Isolates {
 
     react <<= emitter onUnreact {
       sv.put(true)
+    }
+  }
+
+  class DualChannelIso(sv: SyncVar[Int]) extends Isolate[Channel[Channel[Int]]] {
+    val second = open[Int]
+
+    react <<= second.events onEvent { i =>
+      sv.put(i)
+    }
+
+    react <<= source onEvent { c =>
+      c.send(second.channel)
+    }
+  }
+
+  class MasterIso(ask: Channel[Channel[Channel[Int]]]) extends Isolate[Channel[Int]] {
+    react <<= sysEvents onCase {
+      case IsolateStarted => ask.send(channel)
+    }
+
+    react <<= source onEvent { c =>
+      c.send(7)
     }
   }
 
@@ -150,6 +172,17 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
     val c = isoSystem.isolate(proto).seal()
 
     sv.get should equal (true)
+  }
+
+  it should "receive events from all its channels" in {
+    val sv = new SyncVar[Boolean]
+
+    val emitter = new Reactive.Emitter[Channel[Int]]
+
+    val dc = isoSystem.isolate(Proto(classOf[DualChannelIso], sv))
+    val mc = isoSystem.isolate(Proto(classOf[MasterIso], dc))
+
+    sv.get should equal (7)
   }
 
 }
