@@ -115,42 +115,42 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
     for (i <- 10 until 200 by 20) reactToMany(i)
   }
 
-  // it should "see itself as an isolate" in {
-  //   val sv = new SyncVar[Boolean]
+  it should "see itself as an isolate" in {
+    val sv = new SyncVar[Boolean]
 
-  //   val emitter = new Reactive.Emitter[Int]
+    val emitter = new Reactive.Emitter[Int]
 
-  //   val proto = Proto(classOf[SelfIso], sv)
-  //   val c = isoSystem.isolate(proto).attach(emitter).seal()
+    val proto = Proto(classOf[SelfIso], sv)
+    val c = isoSystem.isolate(proto).attach(emitter).seal()
 
-  //   emitter += 7
-  //   emitter.close()
+    emitter += 7
+    emitter.close()
 
-  //   sv.get should equal (true)
-  // }
+    sv.get should equal (true)
+  }
 
-  // it should "set a custom event queue" in {
-  //   val sv = new SyncVar[Boolean]
+  it should "set a custom event queue" in {
+    val sv = new SyncVar[Boolean]
 
-  //   val emitter = new Reactive.Emitter[Int]
+    val emitter = new Reactive.Emitter[Int]
 
-  //   val proto = Proto(classOf[CustomIso], sv).withEventQueue(EventQueue.DevNull.factory)
-  //   val c = isoSystem.isolate(proto).attach(emitter).seal()
+    val proto = Proto(classOf[CustomIso], sv).withEventQueue(EventQueue.DevNull.factory)
+    val c = isoSystem.isolate(proto).attach(emitter).seal()
 
-  //   emitter += 7
-  //   emitter.close()
+    emitter += 7
+    emitter.close()
 
-  //   sv.get should equal (true)
-  // }
+    sv.get should equal (true)
+  }
 
-  // it should "close its reactives when it terminates" in {
-  //   val sv = new SyncVar[Boolean]
+  it should "close its reactives when it terminates" in {
+    val sv = new SyncVar[Boolean]
 
-  //   val proto = Proto(classOf[AutoClosingIso], sv)
-  //   val c = isoSystem.isolate(proto).seal()
+    val proto = Proto(classOf[AutoClosingIso], sv)
+    val c = isoSystem.isolate(proto).seal()
 
-  //   sv.get should equal (true)
-  // }
+    sv.get should equal (true)
+  }
 
 }
 
@@ -161,16 +161,17 @@ trait LooperIsolateSpec extends FlatSpec with ShouldMatchers {
 
   val isoSystem: IsolateSystem
 
-  // "A LooperIsolate" should "do 3 loops" in {
-  //   val sv = new SyncVar[Int]
+  "A LooperIsolate" should "do 3 loops" in {
+    val sv = new SyncVar[Int]
 
-  //   println("looper -----------")
+    println("looper -----------")
 
-  //   val proto = Proto(classOf[TestLooper], sv)
-  //   isoSystem.isolate(proto)
+    val proto = Proto(classOf[TestLooper], sv)
+    isoSystem.isolate(proto)
 
-  //   sv.get should equal (3)
-  // }
+    sv.get should equal (3)
+  }
+
 }
 
 
