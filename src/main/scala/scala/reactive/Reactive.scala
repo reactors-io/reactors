@@ -1493,5 +1493,67 @@ object Reactive {
     }
   }
 
+  /** A reactive value that can be either completed or closed at most once.
+   *
+   *  Assigning a value propagates an event to all the subscribers,
+   *  and then propagates an unreaction.
+   *  To assign a value:
+   *
+   *  {{{
+   *  val iv = new Reactive.Ivar[Int]
+   *  iv := 5
+   *  assert(iv() == 5)
+   *  }}}
+   *
+   *  To close an ivar without assigning a value:
+   *
+   *  {{{
+   *  val iv = new Reactive.Ivar[Int]
+   *  iv.close()
+   *  assert(iv.isClosed)
+   *  }}}
+   *  
+   *  @tparam T          type of the value in the `Ivar`
+   */
+  class Ivar[@spec(Int, Long, Double) T]
+  extends Reactive[T] with Default[T] with EventSource {
+    private var state = 0
+    private var value: T = _
+
+    /** Returns `true` iff the ivar has been assigned.
+     */
+    def isAssigned: Boolean = state == 1
+
+    /** Returns `true` iff the ivar has been closed.
+     */
+    def isClosed: Boolean = state == -1
+
+    /** Returns the value of the ivar if it has been already assigned,
+     *  and throws an exception otherwise.
+     */
+    def apply(): T = {
+      if (state == 1) value
+      else if (state == -1) sys.error("Ivar closed.")
+      else sys.error("Ivar unassigned.")
+    }
+
+    /** Assigns a value to the ivar if it is unassigned,
+     *  and throws an exception otherwise.
+     */
+    def :=(x: T): Unit = if (state == 0) {
+      state = 1
+      value = x
+      reactAll(x)
+      unreactAll()
+    } else sys.error("Ivar is not unassigned.")
+
+    /** Closes the ivar iff it is unassigned.
+     */
+    def close(): Unit = if (state == 0) {
+      state = -1
+      unreactAll()
+    }
+  }
+
 }
 
