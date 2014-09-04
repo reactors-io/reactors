@@ -80,7 +80,7 @@ trait Channel[@spec(Int, Long, Double) T] {
    */
   def compose[@spec(Int, Long, Double) S](f: S => T) = new Channel.Composed(this, f)
 
-  /** Creates and attaches an emitter to the channel.
+  /** Creates and attaches a reactive emitter to the channel.
    *
    *  The call `c.attachEmitter()` is equivalent to:
    *
@@ -90,7 +90,7 @@ trait Channel[@spec(Int, Long, Double) T] {
    *  e
    *  }}}
    *
-   *  @return        the new emitter, just attached to this reactive
+   *  @return        the new emitter, just attached to this channel
    */
   def attachEmitter(): Reactive.Emitter[T] = {
     val e = new Reactive.Emitter[T]
@@ -101,7 +101,7 @@ trait Channel[@spec(Int, Long, Double) T] {
   /** Asynchronously sends a single event to this channel.
    *
    *  When multiple events need to be sent,
-   *  it is **much** more efficient to attach an emitter.
+   *  it is usually **much** more efficient to attach an emitter.
    *  
    *  '''Note''': the channel must not be sealed.
    *  
@@ -114,6 +114,24 @@ trait Channel[@spec(Int, Long, Double) T] {
     e += x
     e.close()
     this
+  }
+
+  /** Creates and attaches a reactive ivar to the channel.
+   *
+   *  The call `c.attachIvar()` is equivalent to:
+   *
+   *  {{{
+   *  val iv = new Reactive.Ivar[T]
+   *  c.attach(iv)
+   *  iv
+   *  }}}
+   *  
+   *  @return        the new ivar, just attached to this channel
+   */
+  def attachIvar(): Reactive.Ivar[T] = {
+    val iv = new Reactive.Ivar[T]
+    this.attach(iv)
+    iv
   }
 
 }
