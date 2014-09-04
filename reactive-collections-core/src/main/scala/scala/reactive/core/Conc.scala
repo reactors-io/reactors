@@ -125,7 +125,7 @@ object Conqueue {
   sealed abstract class Num[+T] extends Conc[T] {
     def leftmost: Conc[T]
     def rightmost: Conc[T]
-    def index: Int
+    def digit: Int
   }
 
   case object Zero extends Num[Nothing] {
@@ -135,7 +135,7 @@ object Conqueue {
     def rightmost = unsupported("empty")
     def level: Int = 0
     def size: Int = 0
-    def index = 0
+    def digit = 0
     override def normalized = Conc.Empty
   }
 
@@ -146,7 +146,7 @@ object Conqueue {
     def rightmost = _1
     def level: Int = 1 + _1.level
     def size: Int = _1.size
-    def index = 1
+    def digit = 1
     override def normalized = _1
   }
 
@@ -157,7 +157,7 @@ object Conqueue {
     def rightmost = _2
     def level: Int = 1 + math.max(_1.level, _2.level)
     def size: Int = _1.size + _2.size
-    def index = 2
+    def digit = 2
     override def normalized = _1 <> _2
   }
 
@@ -168,7 +168,7 @@ object Conqueue {
     def rightmost = _3
     def level: Int = 1 + math.max(math.max(_1.level, _2.level), _3.level)
     def size: Int = _1.size + _2.size + _3.size
-    def index = 3
+    def digit = 3
     override def normalized = _1 <> _2 <> _3
   }
 
@@ -179,7 +179,7 @@ object Conqueue {
     def rightmost = _4
     def level: Int = 1 + math.max(math.max(_1.level, _2.level), math.max(_3.level, _4.level))
     def size: Int = _1.size + _2.size + _3.size + _4.size
-    def index = 4
+    def digit = 4
     override def normalized = _1 <> _2 <> _3 <> _4
   }
 }
@@ -796,7 +796,7 @@ object ConcUtils {
 
   val doNothing = () => {}
 
-  def noCarryPushHead[T](num: Num[T], c: Conc[T]): Num[T] = (num.index: @switch) match {
+  def noCarryPushHead[T](num: Num[T], c: Conc[T]): Num[T] = (num.digit: @switch) match {
     case 0 =>
       One(c)
     case 1 =>
@@ -809,7 +809,7 @@ object ConcUtils {
       invalid("Causes a carry.")
   }
 
-  def noCarryPushLast[T](num: Num[T], c: Conc[T]): Num[T] = (num.index: @switch) match {
+  def noCarryPushLast[T](num: Num[T], c: Conc[T]): Num[T] = (num.digit: @switch) match {
     case 0 =>
       One(c)
     case 1 =>
@@ -822,12 +822,12 @@ object ConcUtils {
       invalid("Causes a carry.")
   }
 
-  def noCarryAdd[T](n: Num[T], m: Num[T]): Num[T] = (n.index: @switch) match {
+  def noCarryAdd[T](n: Num[T], m: Num[T]): Num[T] = (n.digit: @switch) match {
     case 0 =>
       m
     case 1 =>
       val One(n1) = n
-      (m.index: @switch) match {
+      (m.digit: @switch) match {
         case 0 =>
           n
         case 1 =>
@@ -844,7 +844,7 @@ object ConcUtils {
       }
     case 2 =>
       val Two(n1, n2) = n
-      (m.index: @switch) match {
+      (m.digit: @switch) match {
         case 0 =>
           n
         case 1 =>
@@ -858,7 +858,7 @@ object ConcUtils {
       }
     case 3 =>
       val Three(n1, n2, n3) = n
-      (m.index: @switch) match {
+      (m.digit: @switch) match {
         case 0 =>
           n
         case 1 =>
@@ -868,7 +868,7 @@ object ConcUtils {
           invalid("Causes a carry.")
       }
     case 4 =>
-      (m.index: @switch) match {
+      (m.digit: @switch) match {
         case 0 =>
           n
         case _ =>
@@ -876,7 +876,7 @@ object ConcUtils {
       }
   }
 
-  def noBorrowPopHead[T](num: Num[T]): Num[T] = (num.index: @switch) match {
+  def noBorrowPopHead[T](num: Num[T]): Num[T] = (num.digit: @switch) match {
     case 0 =>
       unsupported("empty")
     case 1 =>
@@ -891,7 +891,7 @@ object ConcUtils {
       invalid("Four should never happen.")
   }
 
-  def noBorrowPopLast[T](num: Num[T]): Num[T] = (num.index: @switch) match {
+  def noBorrowPopLast[T](num: Num[T]): Num[T] = (num.digit: @switch) match {
     case 0 =>
       unsupported("empty")
     case 1 =>
@@ -911,14 +911,14 @@ object ConcUtils {
 
     (conq: @unchecked) match {
       case s: Spine[T] =>
-        if (s.lwing.index < 3) {
+        if (s.lwing.digit < 3) {
           Spine.withSameTail(s, noCarryPushHead(s.lwing, c), s.rwing)
         } else {
           val Three(_1, _2, _3) = s.lwing
           val nlwing = Two(c, _1)
           val carry = _2 <> _3
           val ntail = (s.rear: @unchecked) match {
-            case st: Spine[T] if st.lwing.index == 3 =>
+            case st: Spine[T] if st.lwing.digit == 3 =>
               () => pushHead(s.rear, carry, onPush)
             case _ =>
               pushHead(s.rear, carry, onPush)
@@ -926,7 +926,7 @@ object ConcUtils {
           new Spine(nlwing, s.rwing, ntail)
         }
       case Tip(tip) =>
-        if (tip.index < 3) {
+        if (tip.digit < 3) {
           Tip(noCarryPushHead(tip, c))
         } else {
           val Three(_1, _2, _3) = tip
@@ -975,12 +975,12 @@ object ConcUtils {
     onFix()
 
     (s.rear: @unchecked) match {
-      case st: Spine[T] if st.lwing.index == 0 =>
+      case st: Spine[T] if st.lwing.digit == 0 =>
         (st.rear: @unchecked) match {
           case stt: Spine[T] =>
             val nttlwing = noBorrowPopHead(stt.lwing)
             val nttail = Spine.withSameTail(stt, nttlwing, stt.rwing)
-            spreadBorrow(stt.lwing.leftmost, st, nttail, nttlwing.index > 0)
+            spreadBorrow(stt.lwing.leftmost, st, nttail, nttlwing.digit > 0)
           case Tip(Zero) =>
             new Spine(s.lwing, s.rwing, Tip(st.rwing))
           case Tip(tip) =>
@@ -994,7 +994,7 @@ object ConcUtils {
   def popHead[T](conq: Conqueue[T], onFix: () => Unit = doNothing): Conqueue[T] = {
     (conq: @unchecked) match {
       case s: Spine[T] =>
-        if (s.lwing.index > 1) {
+        if (s.lwing.digit > 1) {
           Spine.withSameTail(s, noBorrowPopHead(s.lwing), s.rwing)
         } else {
           (s.rear: @unchecked) match {
@@ -1004,7 +1004,7 @@ object ConcUtils {
               val ntlwing = noBorrowPopHead(st.lwing)
               val ntail = Spine.withSameTail(st, ntlwing, st.rwing)
               val nspine = new Spine(nlwing, s.rwing, ntail)
-              if (ntlwing.index > 0) nspine else fixLeft(nspine, onFix)
+              if (ntlwing.digit > 0) nspine else fixLeft(nspine, onFix)
             case Tip(Zero) =>
               Tip(s.rwing)
             case Tip(tip) =>
@@ -1054,7 +1054,7 @@ object ConcUtils {
 
     (conq: @unchecked) match {
       case s: Spine[T] =>
-        if (s.rwing.index < 3) {
+        if (s.rwing.digit < 3) {
           Spine.withSameTail(s, s.lwing, noCarryPushLast(s.rwing, c))
         } else {
           val Three(_1, _2, _3) = s.rwing
@@ -1069,7 +1069,7 @@ object ConcUtils {
           new Spine(s.lwing, nrwing, ntail)
         }
       case Tip(tip) =>
-        if (tip.index < 3) {
+        if (tip.digit < 3) {
           Tip(noCarryPushLast(tip, c))
         } else {
           val Three(_1, _2, _3) = tip
@@ -1116,12 +1116,12 @@ object ConcUtils {
       }
     }
     (s.rear: @unchecked) match {
-      case st: Spine[T] if st.rwing.index == 0 =>
+      case st: Spine[T] if st.rwing.digit == 0 =>
         (st.rear: @unchecked) match {
           case stt: Spine[T] =>
             val nttrwing = noBorrowPopLast(stt.rwing)
             val nttail = Spine.withSameTail(stt, stt.lwing, nttrwing)
-            spreadBorrow(stt.rwing.rightmost, st, nttail, nttrwing.index > 0)
+            spreadBorrow(stt.rwing.rightmost, st, nttail, nttrwing.digit > 0)
           case Tip(Zero) =>
             new Spine(s.lwing, s.rwing, Tip(st.lwing))
           case Tip(tip) =>
@@ -1135,7 +1135,7 @@ object ConcUtils {
   def popLast[T](conq: Conqueue[T], onFix: () => Unit = doNothing): Conqueue[T] = {
     (conq: @unchecked) match {
       case s: Spine[T] =>
-        if (s.rwing.index > 1) {
+        if (s.rwing.digit > 1) {
           Spine.withSameTail(s, s.lwing, noBorrowPopLast(s.rwing))
         } else {
           (s.rear: @unchecked) match {
@@ -1145,7 +1145,7 @@ object ConcUtils {
               val ntrwing = noBorrowPopLast(st.rwing)
               val ntail = Spine.withSameTail(st, st.lwing, ntrwing)
               val nspine = new Spine(s.lwing, nrwing, ntail)
-              if (ntrwing.index > 0) nspine else fixRight(nspine, onFix)
+              if (ntrwing.digit > 0) nspine else fixRight(nspine, onFix)
             case Tip(Zero) =>
               Tip(s.lwing)
             case Tip(tip) =>
@@ -1245,11 +1245,11 @@ object ConcUtils {
 
   case class Partial[T](rank: Int, bucket: List[Conc[T]], stack: List[Num[T]]) {
     def lborrow(): Partial[T] = {
-      if (stack.head.index == 1) copy(stack = stack.tail, rank = rank - 1)
+      if (stack.head.digit == 1) copy(stack = stack.tail, rank = rank - 1)
       else copy(stack = noBorrowPopLast(stack.head) :: stack.tail)
     }
     def rborrow(): Partial[T] = {
-      if (stack.head.index == 1) copy(stack = stack.tail, rank = rank - 1)
+      if (stack.head.digit == 1) copy(stack = stack.tail, rank = rank - 1)
       else copy(stack = noBorrowPopHead(stack.head) :: stack.tail)
     }
   }
