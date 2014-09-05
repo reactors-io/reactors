@@ -34,8 +34,25 @@ extends IsoSystem {
     else name
   }
 
+  protected[reactive] def releaseName(name: String): Unit = monitor.synchronized {
+    isolates.remove(name)
+  }
+
   protected[reactive] def newChannel[@spec(Int, Long, Double) Q](reactor: Reactor[Q]) = {
     new Channel.Synced(reactor, new util.Monitor)
+  }
+
+  def channels = new IsoSystem.Channels {
+    private val channelMap = ReactMap[String, Channel[_]]
+    def update(name: String, c: Channel[_]) = channelMap.synchronized {
+      if (!channelMap.contains(name)) channelMap(name) = c
+      else sys.error(s"Name $name already contained in channels.")
+    }
+    def apply(name: String): Channel[_] = channelMap.synchronized {
+      channelMap(name)
+    }
+    def get(name: String): Ivar[Channel[_]] = ???
+    def getUnsealed(name: String): Ivar[Channel[_]] = ???
   }
 
   def isolate[@spec(Int, Long, Double) T: Arrayable](proto: Proto[Iso[T]], name: String = null): Channel[T] = {
@@ -47,7 +64,5 @@ extends IsoSystem {
     frame.wake()
     isolate.channel
   }
-
-  def sentinel: Channel[Sentinel.Req] = ???
 
 }

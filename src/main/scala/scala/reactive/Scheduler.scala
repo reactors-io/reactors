@@ -213,7 +213,7 @@ object Scheduler {
         try {
           frame.run()
           monitor.synchronized {
-            while (frame.multiplexer.areEmpty && !frame.isTerminated) monitor.wait()
+            while (frame.multiplexer.areEmpty && !frame.multiplexer.isTerminated) monitor.wait()
           }
         } catch handler
         if (!frame.isTerminated) loop(f)

@@ -129,7 +129,7 @@ trait Iso[@spec(Int, Long, Double) T] extends ReactRecord {
 
   /** The `Enqueuer` interface to the default event queue.
    */
-  def later: Enqueuer[T] = frame.sourceConnector[T].queue
+  final def later: Enqueuer[T] = frame.sourceConnector[T].queue
 
 }
 

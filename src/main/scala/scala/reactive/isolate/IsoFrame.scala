@@ -90,7 +90,8 @@ final class IsoFrame(
     if (multiplexer.isTerminated && isolateState.get == Running) {
       if (isolateState.compareAndSet(Running, Terminated)) {
         try isolate.systemEmitter += IsoTerminated
-        finally for (es <- isolate.eventSources) es.close()
+        finally try for (es <- isolate.eventSources) es.close()
+        finally isolateSystem.releaseName(name)
       } else checkTerminated()
     }
   }

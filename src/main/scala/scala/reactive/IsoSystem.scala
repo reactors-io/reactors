@@ -17,9 +17,9 @@ import scala.reactive.isolate._
  */
 abstract class IsoSystem {
 
-  /** Retrieves the scheduler bundle for this isolate system.
+  /** Retrieves the bundle for this isolate system.
    *  
-   *  @return           the scheduler bundle
+   *  @return           the bundle
    */
   def bundle: IsoSystem.Bundle
 
@@ -29,7 +29,13 @@ abstract class IsoSystem {
    */
   def name: String
 
-  /** Creates an isolate in this isolate system using the specified scheduler.
+  /** Retrieves the register of channels in this isolate system.
+   *  
+   *  @return          the channels register
+   */
+  def channels: IsoSystem.Channels
+
+  /** Creates a new isolate instance in this isolate system.
    *
    *  '''Use case:'''
    *  {{{
@@ -39,6 +45,7 @@ abstract class IsoSystem {
    *  Implementations of this method must initialize the isolate frame with the `createFrame` method,
    *  add the isolate to the specific bookkeeping code,
    *  and then call the `wake` method on the isolate frame to start it for the first time.
+   *  Finally, they must return the isolate's default channel.
    *
    *  @tparam T         the type of the events for the isolate
    *  @tparam Q         the type of the events in the event queue of the isolate,
@@ -69,6 +76,12 @@ abstract class IsoSystem {
    *  @return           a unique isolate name
    */
   protected def uniqueName(name: String): String
+
+  /** Releases the name after the isolate terminates.
+   *  
+   *  @param name       the name to release
+   */
+  protected[reactive] def releaseName(name: String): Unit
 
   /** Generates a new unique id, generated only once during
    *  the lifetime of this isolate system.
@@ -133,15 +146,6 @@ abstract class IsoSystem {
     isolate
   }
 
-  /** Returns the channel to this isolate system's sentinel isolate.
-   *
-   *  The sentinel isolate tracks the default channels of all the isolates,
-   *  and can be used to resolve them.
-   *  
-   *  @return          the sentinel channel, used for various requests
-   */
-  def sentinel: Channel[Sentinel.Req]
-
 }
 
 
@@ -199,6 +203,42 @@ object IsoSystem {
       b.registerScheduler("scala.reactive.Scheduler.piggyback", Scheduler.piggyback)
       b
     }
+  }
+
+  /** The channel register used for channel lookup by name.
+   */
+  trait Channels {
+    /** Registers a new channel with this isolate system.
+     *
+     *  Throws an exception if name is already taken.
+     *  
+     *  @param name       name of the channel
+     *  @param channel    the channel to register
+     */
+    def update(name: String, channel: Channel[_]): Unit
+
+    /** Returns a channel under the specified name, if any.
+     *
+     *  Throws an exception if such a channel does not exist.
+     *  
+     *  @param name       name of the channel
+     *  @return           the channel registered under the specified name
+     */
+    def apply(name: String): Channel[_]
+
+    /** Eventually returns a channel under the specified name.
+     *
+     *  @param name       name of the channel
+     *  @return           the ivar with the channel registered under the specified name
+     */
+    def get(name: String): Reactive.Ivar[Channel[_]]
+
+    /** Eventually returns an *unsealed* channel under the specified name.
+     *
+     *  @param name       name of the channel
+     *  @return           the ivar with the channel registered under the specified name
+     */
+    def getUnsealed(name: String): Reactive.Ivar[Channel[_]]
   }
 
   /** Default scheduler bundle.
