@@ -217,6 +217,12 @@ object IsoSystem {
      */
     def update(name: String, channel: Channel[_]): Unit
 
+    /** Removes the channel registration.
+     *
+     *  @param name       name of the channel to remove from the register
+     */
+    def remove(name: String): Unit
+
     /** Returns a channel under the specified name, if any.
      *
      *  Throws an exception if such a channel does not exist.
@@ -226,19 +232,28 @@ object IsoSystem {
      */
     def apply[@spec(Int, Long, Double) T](name: String): Channel[T]
 
+    /** Returns a channel under the specified name, if any.
+     *
+     *  Returns `None` if none exist.
+     *  
+     *  @param name       name of the channel
+     *  @return           optionally, the channel registered under the specified name
+     */
+    def get[T](name: String): Option[Channel[T]]
+
     /** Eventually returns a channel under the specified name.
      *
      *  @param name       name of the channel
      *  @return           the ivar with the channel registered under the specified name
      */
-    def get[@spec(Int, Long, Double) T](name: String): Reactive.Ivar[Channel[T]]
+    def iget[@spec(Int, Long, Double) T](name: String): Reactive.Ivar[Channel[T]]
 
     /** Eventually returns an *unsealed* channel under the specified name.
      *
      *  @param name       name of the channel
      *  @return           the ivar with the channel registered under the specified name
      */
-    def getUnsealed[@spec(Int, Long, Double) T](name: String): Reactive.Ivar[Channel[T]]
+    def igetUnsealed[@spec(Int, Long, Double) T](name: String): Reactive.Ivar[Channel[T]]
   }
 
   /** Default scheduler bundle.

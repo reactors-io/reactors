@@ -67,6 +67,12 @@ object DefaultIsoSystem {
     def apply[@spec(Int, Long, Double) T](name: String): Channel[T] = channelMap.synchronized {
       channelMap(name).asInstanceOf[Channel[T]]
     }
+    def remove(name: String): Unit = channelMap.synchronized {
+      channelMap.remove(name)
+    }
+    def get[T](name: String): Option[Channel[T]] = channelMap.synchronized {
+      channelMap.get(name).asInstanceOf[Option[Channel[T]]]
+    }
     private def getIvar[@spec(Int, Long, Double) T](name: String, pred: Channel[_] => Boolean): Reactive.Ivar[Channel[T]] = channelMap.synchronized {
       val c = channelMap.applyOrNil(name)
       if (pred(c)) {
@@ -84,8 +90,8 @@ object DefaultIsoSystem {
         connector.events.ivar
       }
     }
-    def get[@spec(Int, Long, Double) T](name: String) = getIvar(name, c => c != null)
-    def getUnsealed[@spec(Int, Long, Double) T](name: String) = getIvar(name, c => c != null && !c.isSealed)
+    def iget[@spec(Int, Long, Double) T](name: String) = getIvar(name, c => c != null)
+    def igetUnsealed[@spec(Int, Long, Double) T](name: String) = getIvar(name, c => c != null && !c.isSealed)
   }
 }
 

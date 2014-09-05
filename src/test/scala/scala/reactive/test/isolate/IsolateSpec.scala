@@ -81,6 +81,7 @@ object Isolates {
 
     react <<= second.events onEvent { i =>
       sv.put(i)
+      second.channel.seal()
     }
 
     react <<= events onEvent { c =>
@@ -104,11 +105,13 @@ object Isolates {
 
     react <<= second.events onEvent { i =>
       sv.put(i)
+      second.channel.seal()
+      system.channels.remove("secondChannel")
     }
   }
 
   class LookupIso extends Iso[Null] {
-    react <<= system.channels.get[Int]("secondChannel").use { c =>
+    react <<= system.channels.iget[Int]("secondChannel").use { c =>
       c << 7
     }
   }
@@ -198,6 +201,10 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
     val mc = isoSystem.isolate(Proto(classOf[MasterIso], dc))
 
     sv.get should equal (7)
+
+    dc.seal()
+    mc.seal()
+    Thread.sleep(100)
   }
 
   it should "use channel name resolution" in {
@@ -209,6 +216,26 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
     val lc = isoSystem.isolate(Proto(classOf[LookupIso]))
 
     sv.get should equal (7)
+
+    rc.seal()
+    lc.seal()
+    Thread.sleep(100)
+  }
+
+  it should "use channel name resolution with ivars" in {
+    val sv = new SyncVar[Boolean]
+
+    val emitter = new Reactive.Emitter[Channel[Int]]
+
+    val lc = isoSystem.isolate(Proto(classOf[LookupIso]))
+    Thread.sleep(100)
+    val rc = isoSystem.isolate(Proto(classOf[RegChannelIso], sv))
+
+    sv.get should equal (7)
+
+    rc.seal()
+    lc.seal()
+    Thread.sleep(100)
   }
 
 }

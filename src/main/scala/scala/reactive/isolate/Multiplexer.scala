@@ -119,6 +119,7 @@ object Multiplexer {
       val lastPos = descriptors.length - 1
       descriptors(pos) = descriptors(lastPos)
       descriptors.remove(lastPos)
+      if (pos == lastPos) pos = 0
     }
 
     private def findNonEmpty() {
