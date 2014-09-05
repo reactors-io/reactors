@@ -224,21 +224,21 @@ object IsoSystem {
      *  @param name       name of the channel
      *  @return           the channel registered under the specified name
      */
-    def apply(name: String): Channel[_]
+    def apply[@spec(Int, Long, Double) T](name: String): Channel[T]
 
     /** Eventually returns a channel under the specified name.
      *
      *  @param name       name of the channel
      *  @return           the ivar with the channel registered under the specified name
      */
-    def get(name: String): Reactive.Ivar[Channel[_]]
+    def get[@spec(Int, Long, Double) T](name: String): Reactive.Ivar[Channel[T]]
 
     /** Eventually returns an *unsealed* channel under the specified name.
      *
      *  @param name       name of the channel
      *  @return           the ivar with the channel registered under the specified name
      */
-    def getUnsealed(name: String): Reactive.Ivar[Channel[_]]
+    def getUnsealed[@spec(Int, Long, Double) T](name: String): Reactive.Ivar[Channel[T]]
   }
 
   /** Default scheduler bundle.

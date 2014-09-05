@@ -98,6 +98,21 @@ object Isolates {
     }
   }
 
+  class RegChannelIso(sv: SyncVar[Int]) extends Iso[Null] {
+    val second = open[Int]
+    system.channels("secondChannel") = second.channel
+
+    react <<= second.events onEvent { i =>
+      sv.put(i)
+    }
+  }
+
+  class LookupIso extends Iso[Null] {
+    react <<= system.channels.get[Int]("secondChannel").use { c =>
+      c << 7
+    }
+  }
+
 }
 
 
@@ -181,6 +196,17 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
 
     val dc = isoSystem.isolate(Proto(classOf[DualChannelIso], sv))
     val mc = isoSystem.isolate(Proto(classOf[MasterIso], dc))
+
+    sv.get should equal (7)
+  }
+
+  it should "use channel name resolution" in {
+    val sv = new SyncVar[Boolean]
+
+    val emitter = new Reactive.Emitter[Channel[Int]]
+
+    val rc = isoSystem.isolate(Proto(classOf[RegChannelIso], sv))
+    val lc = isoSystem.isolate(Proto(classOf[LookupIso]))
 
     sv.get should equal (7)
   }

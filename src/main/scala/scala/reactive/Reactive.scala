@@ -573,7 +573,8 @@ object Reactive {
      */
     def ivar: Reactive.Ivar[T] = {
       val iv = new Reactive.Ivar[T]
-      self.onReaction(new Reactive.IvarAssignReactor(iv))
+      val r = new Reactive.IvarAssignReactor(iv)
+      r.subscription = self.onReaction(r)
       iv
     }
 
@@ -798,11 +799,18 @@ object Reactive {
 
   private[reactive] class IvarAssignReactor[@spec(Int, Long, Double) T](val iv: Ivar[T])
   extends Reactor[T] {
+    var subscription = Subscription.empty
     def react(value: T) {
-      if (iv.isUnassigned) iv := value
+      if (iv.isUnassigned) {
+        try iv := value
+        finally subscription.unsubscribe()
+      }
     }
     def unreact() {
-      if (iv.isUnassigned) iv.close()
+      if (iv.isUnassigned) {
+        try iv.close()
+        finally subscription.unsubscribe()
+      }
     }
   }
 
@@ -1574,11 +1582,33 @@ object Reactive {
       unreactAll()
     } else sys.error("Ivar is not unassigned.")
 
+    /** Invokes the callback immediately if the ivar is assigned,
+     *  or executes it once the ivar is assigned.
+     *
+     *  If the ivar gets closed, the callback is never invoked.
+     *
+     *  @param f        the callback to invoke with the ivar value
+     */
+    def use(f: T => Unit): Reactive.Subscription = {
+      if (isAssigned) {
+        f(this())
+        Reactive.Subscription.empty
+      } else onEvent(f)
+    }
+
     /** Closes the ivar iff it is unassigned.
      */
     def close(): Unit = if (state == 0) {
       state = -1
       unreactAll()
+    }
+  }
+
+  object Ivar {
+    def apply[@spec(Int, Long, Double) T](x: T): Ivar[T] = {
+      val iv = new Ivar[T]
+      iv := x
+      iv
     }
   }
 
