@@ -564,6 +564,19 @@ object Reactive {
   implicit def reactive2ops[@spec(Int, Long, Double) T](self: Reactive[T]) = new ReactiveOps(self)
 
   class ReactiveOps[@spec(Int, Long, Double) T](val self: Reactive[T]) {
+    /** Creates an `Ivar` reactive value, completed with the first event from this reactive.
+     *
+     *  After the `Ivar` is assigned, all subsequent events are ignored.
+     *  If the `self` reactive is unreacted before any event arrives, the `Ivar` is closed.
+     *  
+     *  @return          an `Ivar` with the first event from this reactive
+     */
+    def ivar: Reactive.Ivar[T] = {
+      val iv = new Reactive.Ivar[T]
+      self.onReaction(new Reactive.IvarAssignReactor(iv))
+      iv
+    }
+
     /** Given an initial event `init`, converts this reactive into a `Signal`.
      *
      *  The resulting signal initially contains the event `init`,
@@ -780,6 +793,16 @@ object Reactive {
       val pc = new Reactive.PostfixConcat[T, S](self, evidence)
       pc.subscription = self onReaction pc
       pc
+    }
+  }
+
+  private[reactive] class IvarAssignReactor[@spec(Int, Long, Double) T](val iv: Ivar[T])
+  extends Reactor[T] {
+    def react(value: T) {
+      if (iv.isUnassigned) iv := value
+    }
+    def unreact() {
+      if (iv.isUnassigned) iv.close()
     }
   }
 
@@ -1527,6 +1550,10 @@ object Reactive {
     /** Returns `true` iff the ivar has been closed.
      */
     def isClosed: Boolean = state == -1
+
+    /** Returns `true` iff the ivar is unassigned.
+     */
+    def isUnassigned: Boolean = state == 0
 
     /** Returns the value of the ivar if it has been already assigned,
      *  and throws an exception otherwise.

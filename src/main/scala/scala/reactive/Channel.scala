@@ -108,7 +108,7 @@ trait Channel[@spec(Int, Long, Double) T] {
    *  @param x       the event to send to the channel
    *  @return        this channel
    */
-  def send(x: T): Channel[T] = {
+  def <<(x: T): Channel[T] = {
     val e = new Reactive.Emitter[T]
     this.attach(e)
     e += x

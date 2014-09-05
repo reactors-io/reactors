@@ -15,13 +15,13 @@ import scala.reactive.isolate._
  *  An isolate system is composed of a set of isolates that have
  *  a common configuration.
  */
-abstract class IsolateSystem {
+abstract class IsoSystem {
 
   /** Retrieves the scheduler bundle for this isolate system.
    *  
    *  @return           the scheduler bundle
    */
-  def bundle: IsolateSystem.Bundle
+  def bundle: IsoSystem.Bundle
 
   /** Name of this isolate system instance.
    *
@@ -33,7 +33,7 @@ abstract class IsolateSystem {
    *
    *  '''Use case:'''
    *  {{{
-   *  def isolate(proto: Proto[Isolate[T]]): Channel[T]
+   *  def isolate(proto: Proto[Iso[T]]): Channel[T]
    *  }}}
    *
    *  Implementations of this method must initialize the isolate frame with the `createFrame` method,
@@ -47,7 +47,7 @@ abstract class IsolateSystem {
    *  @param scheduler  the scheduler used to scheduler the isolate
    *  @return           the channel for this isolate
    */
-  def isolate[@spec(Int, Long, Double) T: Arrayable](proto: Proto[Isolate[T]], name: String = null): Channel[T]
+  def isolate[@spec(Int, Long, Double) T: Arrayable](proto: Proto[Iso[T]], name: String = null): Channel[T]
 
   /** Creates a new channel for the specified isolate frame.
    *
@@ -70,17 +70,24 @@ abstract class IsolateSystem {
    */
   protected def uniqueName(name: String): String
 
+  /** Generates a new unique id, generated only once during
+   *  the lifetime of this isolate system.
+   *
+   *  @return           a unique id
+   */
+  protected def uniqueId(): Long
+
   /** Creates an isolate from the `Proto` object.
    *
    *  Starts by memoizing the old isolate object,
    *  and then calling the creation method.
    */
-  protected def createAndResetIsolate[T](proto: Proto[Isolate[T]]): Isolate[T] = {
-    val oldi = Isolate.selfIsolate.get
+  protected def createAndResetIso[T](proto: Proto[Iso[T]]): Iso[T] = {
+    val oldi = Iso.selfIso.get
     try {
       proto.create()
     } finally {
-      Isolate.selfIsolate.set(oldi)
+      Iso.selfIso.set(oldi)
     }
   }
 
@@ -94,7 +101,7 @@ abstract class IsolateSystem {
    *  @param name       name of the new isolate
    *  @return           the resulting isolate frame
    */
-  protected def createFrame[@spec(Int, Long, Double) T: Arrayable](proto: Proto[Isolate[T]], name: String): Isolate[T] = {
+  protected def createFrame[@spec(Int, Long, Double) T: Arrayable](proto: Proto[Iso[T]], name: String): Iso[T] = {
     val scheduler = proto.scheduler match {
       case null => bundle.defaultScheduler
       case name => bundle.scheduler(name)
@@ -107,29 +114,40 @@ abstract class IsolateSystem {
       case null => new Multiplexer.Default
       case mult => mult
     }
+    val uid = uniqueId()
     val uname = uniqueName(name)
-    val frame = new IsolateFrame(
+    val frame = new IsoFrame(
+      uid,
       uname,
-      IsolateSystem.this,
+      IsoSystem.this,
       scheduler,
       queueFactory,
       multiplexer,
-      frame => Isolate.openChannel(frame, queueFactory)
+      frame => Iso.openChannel(frame, queueFactory)
     )
-    val isolate = Isolate.argFrame.withValue(frame) {
-      createAndResetIsolate(proto)
+    val isolate = Iso.argFrame.withValue(frame) {
+      createAndResetIso(proto)
     }
     frame.isolate = isolate
     scheduler.initiate(frame)
     isolate
   }
 
+  /** Returns the channel to this isolate system's sentinel isolate.
+   *
+   *  The sentinel isolate tracks the default channels of all the isolates,
+   *  and can be used to resolve them.
+   *  
+   *  @return          the sentinel channel, used for various requests
+   */
+  def sentinel: Channel[Sentinel.Req]
+
 }
 
 
 /** Contains factory methods for creating isolate systems.
  */
-object IsolateSystem {
+object IsoSystem {
 
   /** Retrieves the default isolate system.
    *  
@@ -137,7 +155,7 @@ object IsolateSystem {
    *  @param scheduler  the default scheduler
    *  @return           a new isolate system instance
    */
-  def default(name: String, bundle: IsolateSystem.Bundle = IsolateSystem.defaultBundle) = new isolate.DefaultIsolateSystem(name, bundle)
+  def default(name: String, bundle: IsoSystem.Bundle = IsoSystem.defaultBundle) = new isolate.DefaultIsoSystem(name, bundle)
 
   /** Contains a set of schedulers registered with each isolate system.
    */

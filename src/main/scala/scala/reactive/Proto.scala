@@ -12,7 +12,7 @@ import scala.reactive.isolate.Multiplexer
  * 
  *  @tparam I         type of the isolate
  */
-final class Proto[+I <: Isolate[_]] private[reactive] (
+final class Proto[+I <: Iso[_]] private[reactive] (
   val clazz: Class[_],
   val params: Seq[Any],
   val scheduler: String = null,
@@ -26,7 +26,7 @@ final class Proto[+I <: Isolate[_]] private[reactive] (
 
   /** Associates the specified scheduler and returns the new `Proto` object.
    *
-   *  Note that the scheduler name needs to be registered with the `IsolateSystem` object.
+   *  Note that the scheduler name needs to be registered with the `IsoSystem` object.
    *  
    *  @param sname               name of the scheduler
    *  @return                    a new `Proto` object
@@ -53,7 +53,7 @@ object Proto {
    *  @tparam I         type of the isolate, must be a concrete type, or its class tag must be in scope
    *  @return           a new prototype of an isolate of type `T`
    */
-  def apply[I <: Isolate[_]: ClassTag] = new Proto[I](implicitly[ClassTag[I]].erasure.asInstanceOf[Class[I]], Seq())
+  def apply[I <: Iso[_]: ClassTag] = new Proto[I](implicitly[ClassTag[I]].erasure.asInstanceOf[Class[I]], Seq())
 
   /** Creates prototype for instantiating an isolate that takes specific parameters.
    * 
@@ -62,7 +62,7 @@ object Proto {
    *  @param params     parameters for instantiating the prototype
    *  @return           a new prototype of an isolate of type `T` with the specified parameters
    */
-  def apply[I <: Isolate[_]](clazz: Class[I], params: Any*) = new Proto[I](clazz, params)
+  def apply[I <: Iso[_]](clazz: Class[I], params: Any*) = new Proto[I](clazz, params)
 
 }
 

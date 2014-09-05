@@ -18,15 +18,15 @@ object Logging {
 object Isolates {
   import Logging._
 
-  class OneIso(sv: SyncVar[String]) extends Isolate[String] {
-    react <<= source.onEvent { v =>
+  class OneIso(sv: SyncVar[String]) extends Iso[String] {
+    react <<= events.onEvent { v =>
       log(s"got event '$v'")
       sv.put(v)
     }
   }
 
-  class ManyIso(many: Int, sv: SyncVar[List[Int]]) extends Isolate[Int] {
-    val history = source.scanPast(List[Int]()) {
+  class ManyIso(many: Int, sv: SyncVar[List[Int]]) extends Iso[Int] {
+    val history = events.scanPast(List[Int]()) {
       (acc, x) => x :: acc
     }
     react <<= history.onEvent {
@@ -35,10 +35,10 @@ object Isolates {
     //react <<= sysEvents.onEvent(println)
   }
 
-  class SelfIso(sv: SyncVar[Boolean]) extends Isolate[Int] {
-    react <<= source.onEvent { _ =>
-      log(s"${Isolate.self} vs ${this}}")
-      sv.put(Isolate.self[SelfIso] == this)
+  class SelfIso(sv: SyncVar[Boolean]) extends Iso[Int] {
+    react <<= events.onEvent { _ =>
+      log(s"${Iso.self} vs ${this}}")
+      sv.put(Iso.self[SelfIso] == this)
     }
   }
 
@@ -46,10 +46,10 @@ object Isolates {
     val fallback = ReactCell(Option(1))
 
     react <<= sysEvents onCase {
-      case IsolateEmptyQueue => log(s"empty queue!")
+      case IsoEmptyQueue => log(s"empty queue!")
     }
 
-    react <<= source.scanPast(0)(_ + _) onEvent { e =>
+    react <<= events.scanPast(0)(_ + _) onEvent { e =>
       log(s"scanned to $e")
       if (e >= 3) {
         sv.put(e)
@@ -58,17 +58,17 @@ object Isolates {
     }
   }
 
-  class CustomIso(sv: SyncVar[Boolean]) extends Isolate[Int] {
-    react <<= source on {
+  class CustomIso(sv: SyncVar[Boolean]) extends Iso[Int] {
+    react <<= events on {
       sv.put(false)
     }
 
     react <<= sysEvents onCase {
-      case IsolateTerminated => if (!sv.isSet) sv.put(true)
+      case IsoTerminated => if (!sv.isSet) sv.put(true)
     }
   }
 
-  class AutoClosingIso(sv: SyncVar[Boolean]) extends Isolate[Int] {
+  class AutoClosingIso(sv: SyncVar[Boolean]) extends Iso[Int] {
     val emitter = new Reactive.Emitter[Int]
 
     react <<= emitter onUnreact {
@@ -76,25 +76,25 @@ object Isolates {
     }
   }
 
-  class DualChannelIso(sv: SyncVar[Int]) extends Isolate[Channel[Channel[Int]]] {
+  class DualChannelIso(sv: SyncVar[Int]) extends Iso[Channel[Channel[Int]]] {
     val second = open[Int]
 
     react <<= second.events onEvent { i =>
       sv.put(i)
     }
 
-    react <<= source onEvent { c =>
-      c.send(second.channel)
+    react <<= events onEvent { c =>
+      c << second.channel
     }
   }
 
-  class MasterIso(ask: Channel[Channel[Channel[Int]]]) extends Isolate[Channel[Int]] {
+  class MasterIso(ask: Channel[Channel[Channel[Int]]]) extends Iso[Channel[Int]] {
     react <<= sysEvents onCase {
-      case IsolateStarted => ask.send(channel)
+      case IsoStarted => ask << channel
     }
 
-    react <<= source onEvent { c =>
-      c.send(7)
+    react <<= events onEvent { c =>
+      c << 7
     }
   }
 
@@ -105,7 +105,7 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
   import Logging._
   import Isolates._
 
-  val isoSystem: IsolateSystem
+  val isoSystem: IsoSystem
 
   "A synced isolate" should "react to an event" in {
     val sv = new SyncVar[String]
@@ -192,9 +192,9 @@ trait LooperIsolateSpec extends FlatSpec with ShouldMatchers {
   import Logging._
   import Isolates._
 
-  val isoSystem: IsolateSystem
+  val isoSystem: IsoSystem
 
-  "A LooperIsolate" should "do 3 loops" in {
+  "A LooperIso" should "do 3 loops" in {
     val sv = new SyncVar[Int]
 
     println("looper -----------")
@@ -211,8 +211,8 @@ trait LooperIsolateSpec extends FlatSpec with ShouldMatchers {
 class ExecutorSyncedIsolateSpec extends IsolateSpec with LooperIsolateSpec {
 
   val scheduler = Scheduler.default
-  val bundle = IsolateSystem.Bundle.default(scheduler)
-  val isoSystem = IsolateSystem.default("TestSystem", bundle)
+  val bundle = IsoSystem.Bundle.default(scheduler)
+  val isoSystem = IsoSystem.default("TestSystem", bundle)
 
 }
 
@@ -220,8 +220,8 @@ class ExecutorSyncedIsolateSpec extends IsolateSpec with LooperIsolateSpec {
 class NewThreadSyncedIsolateSpec extends IsolateSpec with LooperIsolateSpec {
 
   val scheduler = Scheduler.newThread
-  val bundle = IsolateSystem.Bundle.default(scheduler)
-  val isoSystem = IsolateSystem.default("TestSystem", bundle)
+  val bundle = IsoSystem.Bundle.default(scheduler)
+  val isoSystem = IsoSystem.default("TestSystem", bundle)
 
 }
 
@@ -229,8 +229,8 @@ class NewThreadSyncedIsolateSpec extends IsolateSpec with LooperIsolateSpec {
 class PiggybackSyncedIsolateSpec extends LooperIsolateSpec {
 
   val scheduler = Scheduler.piggyback
-  val bundle = IsolateSystem.Bundle.default(scheduler)
-  val isoSystem = IsolateSystem.default("TestSystem", bundle)
+  val bundle = IsoSystem.Bundle.default(scheduler)
+  val isoSystem = IsoSystem.default("TestSystem", bundle)
 
 }
 
@@ -238,8 +238,8 @@ class PiggybackSyncedIsolateSpec extends LooperIsolateSpec {
 class TimerSyncedIsolateSpec extends LooperIsolateSpec {
 
   val scheduler = new Scheduler.Timer(400)
-  val bundle = IsolateSystem.Bundle.default(scheduler)
-  val isoSystem = IsolateSystem.default("TestSystem", bundle)
+  val bundle = IsoSystem.Bundle.default(scheduler)
+  val isoSystem = IsoSystem.default("TestSystem", bundle)
 
 }
 

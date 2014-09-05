@@ -20,12 +20,12 @@ import isolate._
  *
  *  Isolates are defined by extending the `Isolate` trait.
  *  The events passed to isolates can be subscribed to using
- *  their `source` reactive.
+ *  their `events` reactive.
  *  Here is an example:
  *
  *  {{{
  *  class MyPrinter extends Isolate[String] {
- *    react <<= source onEvent {
+ *    react <<= events onEvent {
  *      e => println(e)
  *    }
  *  }
@@ -61,13 +61,13 @@ import isolate._
  *  }}}
  *
  *  Isolates also receive special `SysEvent`s on the `sysEvents` reactive.
- *  If a subscription on the `source` reactive throws a non-fatal exception,
+ *  If a subscription on the `events` reactive throws a non-fatal exception,
  *  the exception is emitted on the `failures` reactive.
  *  
  *  @tparam T        the type of the events this isolate produces
  */
-trait Isolate[@spec(Int, Long, Double) T] extends ReactRecord {
-  @volatile private[reactive] var frame: IsolateFrame = _
+trait Iso[@spec(Int, Long, Double) T] extends ReactRecord {
+  @volatile private[reactive] var frame: IsoFrame = _
   @volatile private[reactive] var eventSources: mutable.Set[EventSource] = _
   @volatile private[reactive] var systemEmitter: Reactive.Emitter[SysEvent] = _
   @volatile private[reactive] var failureEmitter: Reactive.Emitter[Throwable] = _
@@ -76,16 +76,16 @@ trait Isolate[@spec(Int, Long, Double) T] extends ReactRecord {
 
   /* start workaround for a handful of specialization bugs */
 
-  private def init(dummy: Isolate[T]) {
-    frame = Isolate.argFrame.value match {
+  private def init(dummy: Iso[T]) {
+    frame = Iso.argFrame.value match {
       case null => illegal()
-      case eq => eq.asInstanceOf[IsolateFrame]
+      case eq => eq.asInstanceOf[IsoFrame]
     }
     eventSources = mutable.Set[EventSource]()
     systemEmitter = new Reactive.Emitter[SysEvent]
     failureEmitter = new Reactive.Emitter[Throwable]
 
-    Isolate.selfIsolate.set(this)
+    Iso.selfIso.set(this)
   }
 
   init(this)
@@ -99,11 +99,17 @@ trait Isolate[@spec(Int, Long, Double) T] extends ReactRecord {
    *  @return          the connector object of the new channel
    */
   final def open[@spec(Int, Long, Double) Q: Arrayable](implicit factory: EventQueue.Factory = frame.eventQueueFactory): Connector[Q] =
-    Isolate.openChannel[Q](frame, factory)
+    Iso.openChannel[Q](frame, factory)
+
+  /** The unique id of this isolate.
+   *  
+   *  @return          the unique id, assigned only to this isolate
+   */
+  final def uid: Long = frame.uid
 
   /** The isolate system of this isolate.
    */
-  final def system: IsolateSystem = frame.isolateSystem
+  final def system: IsoSystem = frame.isolateSystem
 
   /** The system event stream.
    */
@@ -111,7 +117,7 @@ trait Isolate[@spec(Int, Long, Double) T] extends ReactRecord {
 
   /** The default event stream of this isolate.
    */
-  final def source: Reactive[T] = frame.sourceConnector[T].events
+  final def events: Reactive[T] = frame.sourceConnector[T].events
 
   /** The failures event stream.
    */
@@ -128,15 +134,15 @@ trait Isolate[@spec(Int, Long, Double) T] extends ReactRecord {
 }
 
 
-object Isolate {
+object Iso {
 
-  private[reactive] val selfIsolate = new ThreadLocal[Isolate[_]] {
+  private[reactive] val selfIso = new ThreadLocal[Iso[_]] {
     override def initialValue = null
   }
 
-  private[reactive] val argFrame = new DynamicVariable[IsolateFrame](null)
+  private[reactive] val argFrame = new DynamicVariable[IsoFrame](null)
 
-  private[reactive] def openChannel[@spec(Int, Long, Double) Q: Arrayable](frame: IsolateFrame, factory: EventQueue.Factory): Connector[Q] = {
+  private[reactive] def openChannel[@spec(Int, Long, Double) Q: Arrayable](frame: IsoFrame, factory: EventQueue.Factory): Connector[Q] = {
     val eventQueue = factory.create[Q]
     val connector = new Connector(frame, eventQueue)
     frame.multiplexer += connector
@@ -154,8 +160,8 @@ object Isolate {
    *  @tparam I      the type of the current isolate
    *  @return        the current isolate
    */
-  def self[I <: Isolate[_]]: I = {
-    val i = selfIsolate.get
+  def self[I <: Iso[_]]: I = {
+    val i = selfIso.get
     if (i == null) throw new IllegalStateException(s"${Thread.currentThread.getName} not executing in an isolate.")
     i.asInstanceOf[I]
   }
@@ -168,10 +174,10 @@ object Isolate {
    *  @tparam I      the type of the current isolate
    *  @return        the current isolate, or `null`
    */
-  def selfOrNull[I <: Isolate[_]]: I = selfIsolate.get.asInstanceOf[I]
+  def selfOrNull[I <: Iso[_]]: I = selfIso.get.asInstanceOf[I]
 
   /** Returns the current isolate that produces events of type `T`.
    */
-  def of[@specialized(Int, Long, Double) T]: Isolate[T] = Isolate.self[Isolate[T]]
+  def of[@specialized(Int, Long, Double) T]: Iso[T] = Iso.self[Iso[T]]
 
 }

@@ -16,7 +16,7 @@ trait EventSource {
   private var sub: Reactive.Subscription = _
 
   private def initEventSource() {
-    sub = Isolate.selfOrNull[Isolate[_]] match {
+    sub = Iso.selfOrNull[Iso[_]] match {
       case null =>
         Reactive.Subscription.empty
       case iso  =>

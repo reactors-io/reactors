@@ -17,7 +17,7 @@ package isolate
  *  @param queue         the event queue
  */
 class Connector[@spec(Int, Long, Double) T](
-  private[reactive] val frame: IsolateFrame,
+  private[reactive] val frame: IsoFrame,
   private[reactive] val queue: EventQueue[T]
 ) {
   @volatile private[reactive] var dequeuer: Dequeuer[T] = _

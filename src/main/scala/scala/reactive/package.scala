@@ -251,18 +251,18 @@ package object reactive {
    *
    *  Produced before any other event.
    */
-  case object IsolateStarted extends SysEvent
+  case object IsoStarted extends SysEvent
 
   /** Denotes the termination of an isolate.
    *
    *  Called after all other events.
    */
-  case object IsolateTerminated extends SysEvent
+  case object IsoTerminated extends SysEvent
 
   /** Denotes that all the events were processed
    *  and the queue became empty.
    */
-  case object IsolateEmptyQueue extends SysEvent
+  case object IsoEmptyQueue extends SysEvent
 
   /* exceptions */
 

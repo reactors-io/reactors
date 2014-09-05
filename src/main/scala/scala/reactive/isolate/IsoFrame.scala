@@ -9,24 +9,25 @@ import scala.util.control.NonFatal
 
 
 
-final class IsolateFrame(
+final class IsoFrame(
+  val uid: Long,
   val name: String,
-  val isolateSystem: IsolateSystem,
+  val isolateSystem: IsoSystem,
   val scheduler: Scheduler,
   val eventQueueFactory: EventQueue.Factory,
   val multiplexer: Multiplexer,
-  val newSourceConnector: IsolateFrame => Connector[_]
+  val newSourceConnector: IsoFrame => Connector[_]
 ) extends (() => Unit) {
-  val state = new IsolateFrame.State
-  val isolateState = new AtomicReference[IsolateFrame.IsolateState](IsolateFrame.Created)
+  val state = new IsoFrame.State
+  val isolateState = new AtomicReference[IsoFrame.IsoState](IsoFrame.Created)
   val errorHandling: PartialFunction[Throwable, Unit] = {
     case NonFatal(t) => isolate.failureEmitter += t
   }
   val schedulerInfo: Scheduler.Info = scheduler.newInfo(this)
   val isolateSourceConnector: Connector[_] = newSourceConnector(this)
-  @volatile private[reactive] var isolate: Isolate[_] = _
+  @volatile private[reactive] var isolate: Iso[_] = _
 
-  def isTerminated = isolateState.get == IsolateFrame.Terminated
+  def isTerminated = isolateState.get == IsoFrame.Terminated
 
   def isOwned: Boolean = state.READ_STATE == 1
 
@@ -36,7 +37,7 @@ final class IsolateFrame(
 
   def apply(): Unit = wake()
 
-  @tailrec def wake(): Unit = if (isolateState.get != IsolateFrame.Terminated) {
+  @tailrec def wake(): Unit = if (isolateState.get != IsoFrame.Terminated) {
     if (!isOwned) {
       if (tryOwn()) scheduler.schedule(this)
       else wake()
@@ -49,52 +50,52 @@ final class IsolateFrame(
   
   def run() {
     try {
-      if (isolateState.get != IsolateFrame.Terminated) isolateAndRun()
+      if (isolateState.get != IsoFrame.Terminated) isolateAndRun()
     } finally {
       unOwn()
       if (!multiplexer.areEmpty) {
-        if (isolateState.get != IsolateFrame.Terminated) wake()
+        if (isolateState.get != IsoFrame.Terminated) wake()
       }
     }
   }
 
   private def isolateAndRun() {
-    if (Isolate.selfIsolate.get != null) {
-      throw new IllegalStateException(s"Cannot execute isolate inside of another isolate: ${Isolate.selfIsolate.get}.")
+    if (Iso.selfIso.get != null) {
+      throw new IllegalStateException(s"Cannot execute isolate inside of another isolate: ${Iso.selfIso.get}.")
     }
     try {
-      Isolate.selfIsolate.set(isolate)
-      runInsideIsolate()
+      Iso.selfIso.set(isolate)
+      runInsideIso()
     } catch {
       scheduler.handler
     } finally {
-      Isolate.selfIsolate.set(null)
+      Iso.selfIso.set(null)
     }
   }
 
   @tailrec private def checkCreated() {
-    import IsolateFrame._
+    import IsoFrame._
     if (isolateState.get == Created) {
-      if (isolateState.compareAndSet(Created, Running)) isolate.systemEmitter += IsolateStarted
+      if (isolateState.compareAndSet(Created, Running)) isolate.systemEmitter += IsoStarted
       else checkCreated()
     }
   }
 
   private def checkEmptyQueue() {
-    if (multiplexer.areEmpty) isolate.systemEmitter += IsolateEmptyQueue
+    if (multiplexer.areEmpty) isolate.systemEmitter += IsoEmptyQueue
   }
 
   @tailrec private def checkTerminated() {
-    import IsolateFrame._
+    import IsoFrame._
     if (multiplexer.isTerminated && isolateState.get == Running) {
       if (isolateState.compareAndSet(Running, Terminated)) {
-        try isolate.systemEmitter += IsolateTerminated
+        try isolate.systemEmitter += IsoTerminated
         finally for (es <- isolate.eventSources) es.close()
       } else checkTerminated()
     }
   }
 
-  private def runInsideIsolate() {
+  private def runInsideIso() {
     try {
       checkCreated()
       schedulerInfo.onBatchStart(this)
@@ -112,7 +113,7 @@ final class IsolateFrame(
 }
 
 
-object IsolateFrame {
+object IsoFrame {
 
   /** Ownership state of the isolate frame - 0 is not owned, 1 is owned.
    */
@@ -121,17 +122,17 @@ object IsolateFrame {
 
     def READ_STATE: Int = state
 
-    def WRITE_STATE(v: Int): Unit = util.unsafe.putIntVolatile(this, IsolateFrame.STATE_OFFSET, v)
+    def WRITE_STATE(v: Int): Unit = util.unsafe.putIntVolatile(this, IsoFrame.STATE_OFFSET, v)
 
-    def CAS_STATE(ov: Int, nv: Int): Boolean = util.unsafe.compareAndSwapInt(this, IsolateFrame.STATE_OFFSET, ov, nv)
+    def CAS_STATE(ov: Int, nv: Int): Boolean = util.unsafe.compareAndSwapInt(this, IsoFrame.STATE_OFFSET, ov, nv)
   }
 
   val STATE_OFFSET = util.unsafe.objectFieldOffset(classOf[State].getDeclaredField("state"))
 
-  sealed trait IsolateState
-  case object Created extends IsolateState
-  case object Running extends IsolateState
-  case object Terminated extends IsolateState
+  sealed trait IsoState
+  case object Created extends IsoState
+  case object Running extends IsoState
+  case object Terminated extends IsoState
 
 }
 

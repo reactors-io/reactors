@@ -13,14 +13,19 @@ import scala.collection._
  *  @param name      the name of this isolate system
  *  @param bundle    the scheduler bundle used by the isolate system
  */
-class DefaultIsolateSystem(val name: String, val bundle: IsolateSystem.Bundle = IsolateSystem.defaultBundle)
-extends IsolateSystem {
-  private val isolates = mutable.Map[String, IsolateFrame]()
+class DefaultIsoSystem(val name: String, val bundle: IsoSystem.Bundle = IsoSystem.defaultBundle)
+extends IsoSystem {
+  private val isolates = mutable.Map[String, IsoFrame]()
   private var uniqueNameCount = new AtomicLong(0L)
   private val monitor = new util.Monitor
 
-  protected def uniqueName(name: String) = if (name == null) {
+  protected def uniqueId(): Long = {
     val uid = uniqueNameCount.incrementAndGet()
+    uid
+  }
+
+  protected def uniqueName(name: String) = if (name == null) {
+    val uid = uniqueId()
     s"isolate-$uid"
   } else ensureUnique(name)
 
@@ -33,7 +38,7 @@ extends IsolateSystem {
     new Channel.Synced(reactor, new util.Monitor)
   }
 
-  def isolate[@spec(Int, Long, Double) T: Arrayable](proto: Proto[Isolate[T]], name: String = null): Channel[T] = {
+  def isolate[@spec(Int, Long, Double) T: Arrayable](proto: Proto[Iso[T]], name: String = null): Channel[T] = {
     val isolate = createFrame(proto, name)
     val frame = isolate.frame
     monitor.synchronized {
@@ -42,5 +47,7 @@ extends IsolateSystem {
     frame.wake()
     isolate.channel
   }
+
+  def sentinel: Channel[Sentinel.Req] = ???
 
 }

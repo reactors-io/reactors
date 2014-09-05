@@ -11,7 +11,7 @@ import scala.collection.convert.decorateAsScala._
 
 
 
-class ReactFileSystem(val uri: URI) extends Isolate[ReactFileSystem.Command] {
+class ReactFileSystem(val uri: URI) extends Iso[ReactFileSystem.Command] {
   import ReactFileSystem._
 
   private val fs = FileSystems.getFileSystem(uri)
@@ -20,7 +20,7 @@ class ReactFileSystem(val uri: URI) extends Isolate[ReactFileSystem.Command] {
   private val directories = mutable.Map[Path, WatchKey]()
   private val poller = new ReactFileSystem.Poller(this, watcher, subscriptions)
 
-  react <<= source onCase {
+  react <<= events onCase {
     case ReactFileSystem.Watch(dir, channel) =>
       val key = dir.register(watcher, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY)
       val emitter = new Reactive.Emitter[Event]
@@ -37,9 +37,9 @@ class ReactFileSystem(val uri: URI) extends Isolate[ReactFileSystem.Command] {
   }
 
   react <<= sysEvents onCase {
-    case IsolateStarted =>
+    case IsoStarted =>
       poller.start()
-    case IsolateTerminated =>
+    case IsoTerminated =>
       watcher.close()
   }
 }

@@ -4,7 +4,7 @@ package scala.reactive
 
 import scala.annotation._
 import scala.collection._
-import scala.reactive.isolate.IsolateFrame
+import scala.reactive.isolate.IsoFrame
 
 
 
