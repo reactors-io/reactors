@@ -10,3 +10,5 @@ function publish() {
 
 publish 2.10.4
 publish 2.11.1
+
+`dirname $0`/publishDocs.sh
