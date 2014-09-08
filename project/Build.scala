@@ -24,7 +24,7 @@ object ReactiveCollectionsBuild extends Build {
 
   val rcCrossScalaVersions = baseDirectory { dir =>
     val path = dir + File.separator + "cross.conf"
-    scala.io.Source.fromFile(path).lines.toSeq
+    scala.io.Source.fromFile(path).getLines.toSeq
   }
 
   val reactiveCollectionsSettings = Defaults.defaultSettings ++ Seq (
