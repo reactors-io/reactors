@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -x
+
 SCRIPT_PATH=`dirname $0`
 
 source $SCRIPT_PATH/../version.conf
@@ -8,7 +10,7 @@ PROJECT_NAME="reactive-collections"
 VERSION="$reactive_collections_major.$reactive_collections_minor"
 TMP_DOCS_DIR=`mktemp -d`
 WORKING_DIR=`mktemp -d`
-REPO_GIT_URL=""
+REPO_GIT_URL="git@github.com:storm-enroute/apidocs.git"
 SCALA_VERSION="2.10"
 DOCS_SUBDIR_NAME="$PROJECT_NAME/$VERSION/"
 DOCS_SOURCE_PATH="$SCRIPT_PATH/../target/scala-$SCALA_VERSION/api"
@@ -29,7 +31,7 @@ git checkout gh-pages
 
 rm -rf $DOCS_SUBDIR_NAME
 mkdir $DOCS_SUBDIR_NAME
-mv $TMP_DOCS_DIR $DOCS_SUBDIR_NAME
+mv $TMP_DOCS_DIR/* $DOCS_SUBDIR_NAME
 rm -rf $TMP_DOCS_DIR
 echo "Moved docs dir."
 ls -a
