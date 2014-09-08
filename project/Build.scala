@@ -22,8 +22,8 @@ object ReactiveCollectionsBuild extends Build {
 
   val rcScalaVersion = "2.10.4"
 
-  val rcCrossScalaVersions = baseDirectory { dir =>
-    val path = dir + File.separator + "cross.conf"
+  val rcCrossScalaVersions = {
+    val path = "cross.conf"
     scala.io.Source.fromFile(path).getLines.filter(_.trim != "").toSeq
   }
 
@@ -32,7 +32,7 @@ object ReactiveCollectionsBuild extends Build {
     version := frameworkVersion,
     organization := "com.storm-enroute",
     scalaVersion := rcScalaVersion,
-    crossScalaVersions <<= rcCrossScalaVersions,
+    crossScalaVersions := rcCrossScalaVersions,
     libraryDependencies <++= (scalaVersion)(sv => dependencies(sv)),
     testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
     parallelExecution in Test := false,
@@ -96,7 +96,7 @@ object ReactiveCollectionsBuild extends Build {
     version := frameworkVersion,
     organization := "com.storm-enroute",
     scalaVersion := rcScalaVersion,
-    crossScalaVersions <<= rcCrossScalaVersions,
+    crossScalaVersions := rcCrossScalaVersions,
     libraryDependencies <++= (scalaVersion)(sv => coreDependencies(sv)),
     testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
     parallelExecution in Test := false,
