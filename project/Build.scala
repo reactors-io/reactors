@@ -1,13 +1,24 @@
 import sbt._
 import Keys._
 import Process._
-import java.io.File
+import java.io._
 
 
 
 object ReactiveCollectionsBuild extends Build {
 
-  val frameworkVersion = "0.6-SNAPSHOT"
+  def versionFromFile(filename: String): String = {
+    val fis = new FileInputStream(filename)
+    val props = new java.util.Properties()
+    try props.load(fis)
+    finally fis.close()
+
+    val major = props.getProperty("reactive_collections_major")
+    val minor = props.getProperty("reactive_collections_minor")
+    s"$major.$minor"
+  }
+
+  val frameworkVersion = versionFromFile("version.conf")
 
   val reactiveCollectionsSettings = Defaults.defaultSettings ++ Seq (
     name := "reactive-collections",
