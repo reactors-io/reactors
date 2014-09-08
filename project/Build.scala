@@ -22,14 +22,17 @@ object ReactiveCollectionsBuild extends Build {
 
   val rcScalaVersion = "2.10.4"
 
-  val rcCrossScalaVersions = Seq("2.10.4", "2.11.1")
+  val rcCrossScalaVersions = baseDirectory { dir =>
+    val path = dir + File.separator + "cross.conf"
+    scala.io.Source.fromFile(path).lines.toSeq
+  }
 
   val reactiveCollectionsSettings = Defaults.defaultSettings ++ Seq (
     name := "reactive-collections",
     version := frameworkVersion,
     organization := "com.storm-enroute",
     scalaVersion := rcScalaVersion,
-    crossScalaVersions := rcCrossScalaVersions,
+    crossScalaVersions <<= rcCrossScalaVersions,
     libraryDependencies <++= (scalaVersion)(sv => dependencies(sv)),
     testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
     parallelExecution in Test := false,
@@ -93,7 +96,7 @@ object ReactiveCollectionsBuild extends Build {
     version := frameworkVersion,
     organization := "com.storm-enroute",
     scalaVersion := rcScalaVersion,
-    crossScalaVersions := rcCrossScalaVersions,
+    crossScalaVersions <<= rcCrossScalaVersions,
     libraryDependencies <++= (scalaVersion)(sv => coreDependencies(sv)),
     testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
     parallelExecution in Test := false,
