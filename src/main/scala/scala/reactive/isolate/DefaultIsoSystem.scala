@@ -42,7 +42,7 @@ extends IsoSystem {
     new Channel.Synced(reactor, new util.Monitor)
   }
 
-  val channels = new DefaultIsoSystem.Channels
+  val channels = new IsoSystem.Channels.Default
 
   def isolate[@spec(Int, Long, Double) T: Arrayable](proto: Proto[Iso[T]], name: String = null): Channel[T] = {
     val isolate = createFrame(proto, name)
@@ -58,40 +58,6 @@ extends IsoSystem {
 
 
 object DefaultIsoSystem {
-  class Channels extends IsoSystem.Channels {
-    private val channelMap = container.ReactMap[String, Channel[_]]
-    def update(name: String, c: Channel[_]) = channelMap.synchronized {
-      if (!channelMap.contains(name)) channelMap(name) = c
-      else sys.error(s"Name $name already contained in channels.")
-    }
-    def apply[@spec(Int, Long, Double) T](name: String): Channel[T] = channelMap.synchronized {
-      channelMap(name).asInstanceOf[Channel[T]]
-    }
-    def remove(name: String): Unit = channelMap.synchronized {
-      channelMap.remove(name)
-    }
-    def get[T](name: String): Option[Channel[T]] = channelMap.synchronized {
-      channelMap.get(name).asInstanceOf[Option[Channel[T]]]
-    }
-    private def getIvar[@spec(Int, Long, Double) T](name: String, pred: Channel[_] => Boolean): Reactive.Ivar[Channel[T]] = channelMap.synchronized {
-      val c = channelMap.applyOrNil(name)
-      if (pred(c)) {
-        Reactive.Ivar(c.asInstanceOf[Channel[T]])
-      } else {
-        val connector = Iso.self.open[Channel[T]]
-        var sub: Reactive.Subscription = null
-        sub = channelMap.react(name).onEvent { c =>
-          if (pred(c)) {
-            connector.channel << c.asInstanceOf[Channel[T]]
-            connector.channel.seal()
-            sub.unsubscribe()
-          }
-        }
-        connector.events.ivar
-      }
-    }
-    def iget[@spec(Int, Long, Double) T](name: String) = getIvar(name, c => c != null)
-    def igetUnsealed[@spec(Int, Long, Double) T](name: String) = getIvar(name, c => c != null && !c.isSealed)
-  }
+
 }
 
