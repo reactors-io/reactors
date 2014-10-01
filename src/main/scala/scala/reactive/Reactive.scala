@@ -1451,8 +1451,8 @@ object Reactive {
           val r = ref.get
           if (r ne null) r.unreact()
           else wht.removeEntryAt(i, null)
-          i += 1
         }
+        i += 1
       }
       checkHashTable(wht)
     }
