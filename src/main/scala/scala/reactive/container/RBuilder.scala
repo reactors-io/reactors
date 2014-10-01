@@ -8,7 +8,7 @@ import scala.annotation.implicitNotFound
 
 
 
-trait ReactBuilder[@spec(Int, Long, Double) -T, +Repr] extends ReactMutable.Subscriptions {
+trait RBuilder[@spec(Int, Long, Double) -T, +Repr] extends ReactMutable.Subscriptions {
 
   def +=(value: T): Boolean
 
@@ -19,11 +19,11 @@ trait ReactBuilder[@spec(Int, Long, Double) -T, +Repr] extends ReactMutable.Subs
 }
 
 
-object ReactBuilder {
+object RBuilder {
 
   @implicitNotFound(msg = "Cannot construct a reactive container of type ${That} with elements of type ${S}.")
   trait Factory[@spec(Int, Long, Double) -S, +That] {
-    def apply(): ReactBuilder[S, That]
+    def apply(): RBuilder[S, That]
   }
 
 }

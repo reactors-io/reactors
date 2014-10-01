@@ -9,14 +9,14 @@ import scala.collection._
 
 class CommuteCatamorph[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
   (val get: S => T, val zero: T, val op: (T, T) => T)
-extends ReactCatamorph[T, S] with ReactBuilder[S, CommuteCatamorph[T, S]] {
+extends RCatamorph[T, S] with RBuilder[S, CommuteCatamorph[T, S]] {
   import CommuteCatamorph._
 
   private[reactive] var root: Node[T] = null
   private[reactive] var leaves: mutable.Map[S, Leaf[T]] = null
   private val insertsEmitter = new Reactive.Emitter[S]
   private val removesEmitter = new Reactive.Emitter[S]
-  private var rootValue: ReactCell[T] = null
+  private var rootValue: RCell[T] = null
 
   def inserts: Reactive[S] = insertsEmitter
 
@@ -25,7 +25,7 @@ extends ReactCatamorph[T, S] with ReactBuilder[S, CommuteCatamorph[T, S]] {
   def init(z: T) {
     root = new Empty(zero)
     leaves = mutable.Map[S, Leaf[T]]()
-    rootValue = ReactCell(root.value)
+    rootValue = RCell(root.value)
   }
 
   init(zero)
@@ -76,7 +76,7 @@ object CommuteCatamorph {
   def apply[@spec(Int, Long, Double) T](implicit m: Commutoid[T]) = new CommuteCatamorph[T, T](v => v, m.zero, m.operator)
 
   implicit def factory[@spec(Int, Long, Double) T: Commutoid] =
-    new ReactBuilder.Factory[T, CommuteCatamorph[T, T]] {
+    new RBuilder.Factory[T, CommuteCatamorph[T, T]] {
       def apply() = CommuteCatamorph[T]
     }
 

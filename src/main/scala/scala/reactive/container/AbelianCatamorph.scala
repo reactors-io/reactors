@@ -10,23 +10,23 @@ import scala.collection._
 class AbelianCatamorph[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
   (val get: S => T, val zero: T, val op: (T, T) => T, val inv: (T, T) => T)
   (implicit val canT: Arrayable[T], val canS: Arrayable[S])
-extends ReactCatamorph[T, S] with ReactBuilder[S, AbelianCatamorph[T, S]] {
+extends RCatamorph[T, S] with RBuilder[S, AbelianCatamorph[T, S]] {
   import AbelianCatamorph._
 
-  private[reactive] var elements: ReactHashValMap[S, T] = null
+  private[reactive] var elements: RHashValMap[S, T] = null
   private var insertsEmitter: Reactive.Emitter[S] = null
   private var removesEmitter: Reactive.Emitter[S] = null
-  private var value: ReactCell[T] = null
+  private var value: RCell[T] = null
 
   def inserts: Reactive[S] = insertsEmitter
 
   def removes: Reactive[S] = removesEmitter
 
   def init(z: T) {
-    elements = ReactHashValMap[S, T]
+    elements = RHashValMap[S, T]
     insertsEmitter = new Reactive.Emitter[S]
     removesEmitter = new Reactive.Emitter[S]
-    value = ReactCell[T](zero)
+    value = RCell[T](zero)
   }
 
   init(zero)
@@ -78,7 +78,7 @@ object AbelianCatamorph {
   }
 
   implicit def factory[@spec(Int, Long, Double) T: Abelian: Arrayable] =
-    new ReactBuilder.Factory[T, AbelianCatamorph[T, T]] {
+    new RBuilder.Factory[T, AbelianCatamorph[T, T]] {
       def apply() = AbelianCatamorph[T]
     }
 

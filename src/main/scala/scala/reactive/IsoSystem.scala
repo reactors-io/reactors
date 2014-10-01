@@ -265,7 +265,7 @@ object IsoSystem {
     /** A default implementation of the channels register.
      */
     class Default extends IsoSystem.Channels {
-      private val channelMap = container.ReactMap[String, Channel[_]]
+      private val channelMap = container.RMap[String, Channel[_]]
       def update(name: String, c: Channel[_]) = channelMap.synchronized {
         if (!channelMap.contains(name)) channelMap(name) = c
         else sys.error(s"Name $name already contained in channels.")

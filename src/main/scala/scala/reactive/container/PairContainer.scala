@@ -18,9 +18,9 @@ trait PairContainer[@spec(Int, Long, Double) P, Q <: AnyRef] {
 
   def react = liftedContainer
 
-  def inserts: ReactPair[P, Q]
+  def inserts: RPair[P, Q]
 
-  def removes: ReactPair[P, Q]
+  def removes: RPair[P, Q]
 
   def filter1(p: P => Boolean): PairContainer[P, Q] = {
     new PairContainer.Filter1(this, p)
@@ -44,7 +44,7 @@ trait PairContainer[@spec(Int, Long, Double) P, Q <: AnyRef] {
 object PairContainer {
 
   class Lifted[@spec(Int, Long, Double) P, Q <: AnyRef](val container: PairContainer[P, Q]) {
-    def to[That <: ReactMap[P, Q]](implicit factory: PairBuilder.Factory[P, Q, That]): That = {
+    def to[That <: RMap[P, Q]](implicit factory: PairBuilder.Factory[P, Q, That]): That = {
       val builder = factory()
       val result = builder.container
   
@@ -57,19 +57,19 @@ object PairContainer {
   
       result
     }
-    def mutate(m: ReactMutable)(insert: ReactPair.Signal[P, Q] => Unit)(remove: ReactPair.Signal[P, Q] => Unit): Reactive.Subscription = {
+    def mutate(m: ReactMutable)(insert: RPair.Signal[P, Q] => Unit)(remove: RPair.Signal[P, Q] => Unit): Reactive.Subscription = {
       new Mutate(container, m, insert, remove)
     }
   }
 
   class Emitter[@spec(Int, Long, Double) P, Q <: AnyRef]
   extends PairContainer[P, Q] {
-    private[reactive] var insertsEmitter: ReactPair.Emitter[P, Q] = _
-    private[reactive] var removesEmitter: ReactPair.Emitter[P, Q] = _
+    private[reactive] var insertsEmitter: RPair.Emitter[P, Q] = _
+    private[reactive] var removesEmitter: RPair.Emitter[P, Q] = _
 
     def init(dummy: Emitter[P, Q]) {
-      insertsEmitter = new ReactPair.Emitter[P, Q]
-      removesEmitter = new ReactPair.Emitter[P, Q]
+      insertsEmitter = new RPair.Emitter[P, Q]
+      removesEmitter = new RPair.Emitter[P, Q]
     }
 
     init(this)
@@ -108,7 +108,7 @@ object PairContainer {
   }
 
   class Mutate[@spec(Int, Long, Double) P, Q <: AnyRef, M <: ReactMutable]
-    (val container: PairContainer[P, Q], val m: M, val ins: ReactPair.Signal[P, Q] => Unit, val rem: ReactPair.Signal[P, Q] => Unit)
+    (val container: PairContainer[P, Q], val m: M, val ins: RPair.Signal[P, Q] => Unit, val rem: RPair.Signal[P, Q] => Unit)
   extends Reactive.ProxySubscription {
     val subscription = Reactive.CompositeSubscription(
       container.inserts.mutate(m)(ins),

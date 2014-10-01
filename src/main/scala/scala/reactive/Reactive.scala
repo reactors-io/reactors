@@ -431,8 +431,8 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    *  @param e          evidence that events in this reactive are values
    *  @return           reactive value pair
    */
-  def valsplit[@spec(Int, Long, Double) P <: AnyVal, @spec(Int, Long, Double) Q <: AnyVal](pf: T => P)(qf: T => Q)(implicit e: T <:< AnyVal): ReactValPair[P, Q] = {
-    val e = new ReactValPair.Emitter[P, Q]
+  def valsplit[@spec(Int, Long, Double) P <: AnyVal, @spec(Int, Long, Double) Q <: AnyVal](pf: T => P)(qf: T => Q)(implicit e: T <:< AnyVal): RValPair[P, Q] = {
+    val e = new RValPair.Emitter[P, Q]
     e.subscription = this.onReaction(new Reactor[T] {
       def react(x: T) = e.emit(pf(x), qf(x))
       def unreact() = e.close()
@@ -451,8 +451,8 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    *  @param ev         evidence that events in this reactive are values
    *  @return           reactive value pair
    */
-  def valsplit[@spec(Int, Long, Double) P <: AnyVal, @spec(Int, Long, Double) Q <: AnyVal](pf: RefValFun[T, P])(qf: RefValFun[T, Q])(implicit ev: T <:< AnyRef): ReactValPair[P, Q] = {
-    val e = new ReactValPair.Emitter[P, Q]
+  def valsplit[@spec(Int, Long, Double) P <: AnyVal, @spec(Int, Long, Double) Q <: AnyVal](pf: RefValFun[T, P])(qf: RefValFun[T, Q])(implicit ev: T <:< AnyRef): RValPair[P, Q] = {
+    val e = new RValPair.Emitter[P, Q]
     e.subscription = this.onReaction(new Reactor[T] {
       def react(x: T) = e.emit(pf(x), qf(x))
       def unreact() = e.close()
@@ -471,8 +471,8 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    *  @param qf         mapping function from events in this reactive to the second part of the pair
    *  @return           reactive pair
    */
-  def split[@spec(Int, Long, Double) P <: AnyVal, Q <: AnyRef](pf: RefValFun[T, P])(qf: T => Q)(implicit ev: T <:< AnyRef): ReactPair[P, Q] = {
-    val e = new ReactPair.Emitter[P, Q]
+  def split[@spec(Int, Long, Double) P <: AnyVal, Q <: AnyRef](pf: RefValFun[T, P])(qf: T => Q)(implicit ev: T <:< AnyRef): RPair[P, Q] = {
+    val e = new RPair.Emitter[P, Q]
     e.subscription = this.onReaction(new Reactor[T] {
       def react(x: T) = e.emit(pf(x), qf(x))
       def unreact() = e.close()
@@ -492,8 +492,8 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    *  @param e          evidence that events in this reactive are values
    *  @return           reactive pair
    */
-  def split[P <: AnyRef, Q <: AnyRef](pf: T => P)(qf: T => Q)(implicit ev: T <:< AnyRef): ReactPair[P, Q] = {
-    val e = new ReactPair.Emitter[P, Q]
+  def split[P <: AnyRef, Q <: AnyRef](pf: T => P)(qf: T => Q)(implicit ev: T <:< AnyRef): RPair[P, Q] = {
+    val e = new RPair.Emitter[P, Q]
     e.subscription = this.onReaction(new Reactor[T] {
       def react(x: T) = e.emit(pf(x), qf(x))
       def unreact() = e.close()

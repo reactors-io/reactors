@@ -9,14 +9,14 @@ import core.UnrolledRing
 
 
 
-class ReactUnrolledQueue[@spec(Int, Long, Double) T](implicit val arrayable: Arrayable[T])
-extends ReactQueue[T] {
+class RUnrolledQueue[@spec(Int, Long, Double) T](implicit val arrayable: Arrayable[T])
+extends RQueue[T] {
   private var ring: UnrolledRing[T] = _
   private var insertsEmitter: Reactive.Emitter[T] = _
   private var removesEmitter: Reactive.Emitter[T] = _
   private var headEmitter: Reactive.Emitter[T] = _
 
-  private def init(dummy: ReactUnrolledQueue[T]) {
+  private def init(dummy: RUnrolledQueue[T]) {
     ring = new UnrolledRing[T]
     insertsEmitter = new Reactive.Emitter[T]
     removesEmitter = new Reactive.Emitter[T]
@@ -35,7 +35,7 @@ extends ReactQueue[T] {
 
   def foreach(f: T => Unit) = ring.foreach(f)
 
-  val react = new ReactUnrolledQueue.Lifted(this)
+  val react = new RUnrolledQueue.Lifted(this)
 
   def enqueue(elem: T) {
     ring.enqueue(elem)
@@ -55,11 +55,11 @@ extends ReactQueue[T] {
 }
 
 
-object ReactUnrolledQueue {
+object RUnrolledQueue {
 
-  def apply[@spec(Int, Long, Double) T: Arrayable]() = new ReactUnrolledQueue[T]
+  def apply[@spec(Int, Long, Double) T: Arrayable]() = new RUnrolledQueue[T]
 
-  class Lifted[@spec(Int, Long, Double) T](val container: ReactUnrolledQueue[T]) extends ReactContainer.Lifted[T] {
+  class Lifted[@spec(Int, Long, Double) T](val container: RUnrolledQueue[T]) extends RContainer.Lifted[T] {
     def head: Reactive[T] = container.headEmitter
   }
 

@@ -7,14 +7,14 @@ import scala.collection._
 
 
 
-class SignalCatamorph[@spec(Int, Long, Double) T](val catamorph: ReactCatamorph[T, Signal[T]])
-extends ReactCatamorph[T, Signal[T]] with ReactBuilder[Signal[T], SignalCatamorph[T]] {
+class SignalCatamorph[@spec(Int, Long, Double) T](val catamorph: RCatamorph[T, Signal[T]])
+extends RCatamorph[T, Signal[T]] with RBuilder[Signal[T], SignalCatamorph[T]] {
   private var signalSubscriptions = mutable.Map[Signal[T], Reactive.Subscription]()
   private var insertsReactive: Reactive[Signal[T]] = null
   private var removesReactive: Reactive[Signal[T]] = null
   private var defaultSignal: Signal.Default[T] = null
 
-  def init(c: ReactCatamorph[T, Signal[T]]) {
+  def init(c: RCatamorph[T, Signal[T]]) {
     insertsReactive = catamorph.inserts
     removesReactive = catamorph.removes
     defaultSignal = new Signal.Default[T] {
@@ -24,7 +24,7 @@ extends ReactCatamorph[T, Signal[T]] with ReactBuilder[Signal[T], SignalCatamorp
 
   init(catamorph)
 
-  def builder: ReactBuilder[Signal[T], SignalCatamorph[T]] = this
+  def builder: RBuilder[Signal[T], SignalCatamorph[T]] = this
 
   def container = this
 
@@ -68,14 +68,14 @@ extends ReactCatamorph[T, Signal[T]] with ReactBuilder[Signal[T], SignalCatamorp
 
 
 trait LowLowSignalCatamorph {
-  implicit def monoidFactory[@spec(Int, Long, Double) T](implicit m: Monoid[T]) = new ReactBuilder.Factory[Signal[T], SignalCatamorph[T]] {
+  implicit def monoidFactory[@spec(Int, Long, Double) T](implicit m: Monoid[T]) = new RBuilder.Factory[Signal[T], SignalCatamorph[T]] {
     def apply() = SignalCatamorph.monoid
   }
 }
 
 
 trait LowSignalCatamorph extends LowLowSignalCatamorph {
-  implicit def commutoidFactory[@spec(Int, Long, Double) T](implicit cm: Commutoid[T]) = new ReactBuilder.Factory[Signal[T], SignalCatamorph[T]] {
+  implicit def commutoidFactory[@spec(Int, Long, Double) T](implicit cm: Commutoid[T]) = new RBuilder.Factory[Signal[T], SignalCatamorph[T]] {
     def apply() = SignalCatamorph.commutoid
   }
 }
@@ -104,7 +104,7 @@ object SignalCatamorph extends LowSignalCatamorph {
 
   def apply[@spec(Int, Long, Double) T](cm: Abelian[T])(implicit a: Arrayable[T]) = abelian(cm, a)
 
-  implicit def abelianFactory[@spec(Int, Long, Double) T](implicit cm: Abelian[T], a: Arrayable[T]) = new ReactBuilder.Factory[Signal[T], SignalCatamorph[T]] {
+  implicit def abelianFactory[@spec(Int, Long, Double) T](implicit cm: Abelian[T], a: Arrayable[T]) = new RBuilder.Factory[Signal[T], SignalCatamorph[T]] {
     def apply() = SignalCatamorph.abelian
   }
 

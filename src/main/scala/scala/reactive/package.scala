@@ -35,57 +35,57 @@ package object reactive {
 
   val SubscriptionSet = container.SubscriptionSet
 
-  type ReactCell[T] = container.ReactCell[T]
+  type RCell[T] = container.RCell[T]
 
-  val ReactCell = container.ReactCell
+  val RCell = container.RCell
 
   type ReactRecord = container.ReactRecord
 
   val ReactRecord = container.ReactRecord
 
-  type ReactContainer[T] = container.ReactContainer[T]
+  type RContainer[T] = container.RContainer[T]
 
-  val ReactContainer = container.ReactContainer
+  val RContainer = container.RContainer
 
-  type ReactBuilder[T, Repr] = container.ReactBuilder[T, Repr]
+  type RBuilder[T, Repr] = container.RBuilder[T, Repr]
 
-  val ReactBuilder = container.ReactBuilder
+  val RBuilder = container.RBuilder
 
-  type ReactArray[T] = container.ReactArray[T]
+  type RArray[T] = container.RArray[T]
 
-  val ReactArray = container.ReactArray
+  val RArray = container.RArray
 
-  type ReactQueue[T] = container.ReactQueue[T]
+  type RQueue[T] = container.RQueue[T]
 
-  val ReactQueue = container.ReactQueue
+  val RQueue = container.RQueue
 
-  type ReactUnrolledQueue[T] = container.ReactUnrolledQueue[T]
+  type RUnrolledQueue[T] = container.RUnrolledQueue[T]
 
-  val ReactUnrolledQueue = container.ReactUnrolledQueue
+  val RUnrolledQueue = container.RUnrolledQueue
 
-  type ReactPriorityQueue[T] = container.ReactPriorityQueue[T]
+  type RPriorityQueue[T] = container.RPriorityQueue[T]
 
-  val ReactPriorityQueue = container.ReactPriorityQueue
+  val RPriorityQueue = container.RPriorityQueue
 
-  type ReactBinaryHeap[T] = container.ReactBinaryHeap[T]
+  type RBinaryHeap[T] = container.RBinaryHeap[T]
 
-  val ReactBinaryHeap = container.ReactBinaryHeap
+  val RBinaryHeap = container.RBinaryHeap
 
-  type ReactHashSet[T] = container.ReactHashSet[T]
+  type RHashSet[T] = container.RHashSet[T]
 
-  val ReactHashSet = container.ReactHashSet
+  val RHashSet = container.RHashSet
 
-  type ReactHashValMap[K, V] = container.ReactHashValMap[K, V]
+  type RHashValMap[K, V] = container.RHashValMap[K, V]
 
-  val ReactHashValMap = container.ReactHashValMap
+  val RHashValMap = container.RHashValMap
 
-  type ReactHashMap[K, V >: Null <: AnyRef] = container.ReactHashMap[K, V]
+  type RHashMap[K, V >: Null <: AnyRef] = container.RHashMap[K, V]
 
-  val ReactHashMap = container.ReactHashMap
+  val RHashMap = container.RHashMap
 
-  type ReactCatamorph[T, S] = container.ReactCatamorph[T, S]
+  type RCatamorph[T, S] = container.RCatamorph[T, S]
 
-  val ReactCatamorph = container.ReactCatamorph
+  val RCatamorph = container.RCatamorph
 
   type MonoidCatamorph[T, S] = container.MonoidCatamorph[T, S]
 
@@ -99,9 +99,9 @@ package object reactive {
 
   val AbelianCatamorph = container.AbelianCatamorph
 
-  type ReactTileMap[T] = container.ReactTileMap[T]
+  type RTileMap[T] = container.RTileMap[T]
 
-  val ReactTileMap = container.ReactTileMap
+  val RTileMap = container.RTileMap
 
   type SignalCatamorph[T] = container.SignalCatamorph[T]
 

@@ -9,14 +9,14 @@ import scala.reactive.core.BinaryHeap
 
 
 
-class ReactBinaryHeap[@spec(Int, Long, Double) T](val initialSize: Int = 16)(implicit val arrayable: Arrayable[T], val order: Order[T])
-extends ReactPriorityQueue[T] {
+class RBinaryHeap[@spec(Int, Long, Double) T](val initialSize: Int = 16)(implicit val arrayable: Arrayable[T], val order: Order[T])
+extends RPriorityQueue[T] {
   private var heap: BinaryHeap[T] = _
   private var insertsEmitter: Reactive.Emitter[T] = _
   private var removesEmitter: Reactive.Emitter[T] = _
   private var headEmitter: Reactive.Emitter[T] = _
 
-  def init(dummy: ReactBinaryHeap[T]) {
+  def init(dummy: RBinaryHeap[T]) {
     heap = new BinaryHeap(initialSize)
     insertsEmitter = new Reactive.Emitter[T]
     removesEmitter = new Reactive.Emitter[T]
@@ -33,7 +33,7 @@ extends ReactPriorityQueue[T] {
 
   def removes = removesEmitter
 
-  val react = new ReactBinaryHeap.Lifted(this)
+  val react = new RBinaryHeap.Lifted(this)
 
   def enqueue(elem: T) {
     val oldHead = if (heap.nonEmpty) heap.head else arrayable.nil
@@ -55,11 +55,11 @@ extends ReactPriorityQueue[T] {
 }
 
 
-object ReactBinaryHeap {
+object RBinaryHeap {
 
-  def apply[@spec(Int, Long, Double) T: Arrayable: Order](initialSize: Int) = new ReactBinaryHeap[T](initialSize)
+  def apply[@spec(Int, Long, Double) T: Arrayable: Order](initialSize: Int) = new RBinaryHeap[T](initialSize)
 
-  class Lifted[@spec(Int, Long, Double) T](val container: ReactBinaryHeap[T]) extends ReactPriorityQueue.Lifted[T] {
+  class Lifted[@spec(Int, Long, Double) T](val container: RBinaryHeap[T]) extends RPriorityQueue.Lifted[T] {
     def head: Reactive[T] = container.headEmitter
   }
 

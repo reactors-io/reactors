@@ -7,20 +7,20 @@ import scala.reflect.ClassTag
 
 
 
-class ReactTileMap[@spec(Int, Long, Double) T: ClassTag](
+class RTileMap[@spec(Int, Long, Double) T: ClassTag](
   private[reactive] var dim: Int,
   private[reactive] val dflt: T,
   private[reactive] val compress: Boolean = true
-) extends ReactContainer[(Int, Int, T)] with ReactBuilder[(Int, Int, T), ReactTileMap[T]] with ReactContainer.Default[(Int, Int, T)] {
+) extends RContainer[(Int, Int, T)] with RBuilder[(Int, Int, T), RTileMap[T]] with RContainer.Default[(Int, Int, T)] {
   self =>
 
-  import ReactTileMap._
+  import RTileMap._
 
   private var pow2size = 0
   private var previous: Ref[T] = null
   private var sz = 0
   private[reactive] var hiddenRoot: Node[T] = null
-  private[reactive] var valueContainer: ReactContainer.Emitter[T] = null
+  private[reactive] var valueContainer: RContainer.Emitter[T] = null
   private[reactive] var insertsEmitter: Reactive.Emitter[(Int, Int, T)] = null
   private[reactive] var removesEmitter: Reactive.Emitter[(Int, Int, T)] = null
   private[reactive] var updatesEmitter: Reactive.Emitter[XY] = null
@@ -46,7 +46,7 @@ class ReactTileMap[@spec(Int, Long, Double) T: ClassTag](
     pow2size = nextPow2(dim)
     previous = new Ref[T]
     hiddenRoot = new Node.Leaf(d)
-    valueContainer = new ReactContainer.Emitter[T](f => foreachNonDefaultTile(0, 0, dim, dim)(new Applier[T] {
+    valueContainer = new RContainer.Emitter[T](f => foreachNonDefaultTile(0, 0, dim, dim)(new Applier[T] {
       def apply(x: Int, y: Int, elem: T) = f(elem)
     }), () => size)
     insertsEmitter = new Reactive.Emitter[(Int, Int, T)]
@@ -57,7 +57,7 @@ class ReactTileMap[@spec(Int, Long, Double) T: ClassTag](
 
   init(dflt)
 
-  def builder: ReactBuilder[(Int, Int, T), ReactTileMap[T]] = this
+  def builder: RBuilder[(Int, Int, T), RTileMap[T]] = this
 
   def +=(kv: (Int, Int, T)) = {
     if (kv._1 >= pow2size || kv._2 >= pow2size) dimension = math.max(kv._1, kv._2)
@@ -72,7 +72,7 @@ class ReactTileMap[@spec(Int, Long, Double) T: ClassTag](
 
   def container = this
   
-  def values: ReactContainer[T] = valueContainer
+  def values: RContainer[T] = valueContainer
 
   def updates: Reactive[XY] = {
     checkRoot(dflt)
@@ -245,7 +245,7 @@ class ReactTileMap[@spec(Int, Long, Double) T: ClassTag](
 }
 
 
-object ReactTileMap {
+object RTileMap {
 
   trait Applier[@spec(Int, Long, Double) T] {
     def apply(x: Int, y: Int, elem: T): Unit
@@ -265,10 +265,10 @@ object ReactTileMap {
     def apply() = v
   }
 
-  def apply[@spec(Int, Long, Double) T: ClassTag](size: Int, default: T) = new ReactTileMap[T](size, default)
+  def apply[@spec(Int, Long, Double) T: ClassTag](size: Int, default: T) = new RTileMap[T](size, default)
 
-  implicit def factory[@spec(Int, Long, Double) S](implicit d: DefaultValue[S], ct: ClassTag[S]) = new ReactBuilder.Factory[(Int, Int, S), ReactTileMap[S]] {
-    def apply() = new ReactTileMap[S](1, d())
+  implicit def factory[@spec(Int, Long, Double) S](implicit d: DefaultValue[S], ct: ClassTag[S]) = new RBuilder.Factory[(Int, Int, S), RTileMap[S]] {
+    def apply() = new RTileMap[S](1, d())
   }
 
   private[reactive] class Ref[@spec(Int, Long, Double) T] {

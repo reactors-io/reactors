@@ -6,14 +6,14 @@ package container
 
 
 
-trait ReactContainer[@spec(Int, Long, Double) T] extends ReactMutable.Subscriptions {
+trait RContainer[@spec(Int, Long, Double) T] extends ReactMutable.Subscriptions {
   self =>
 
   def inserts: Reactive[T]
   
   def removes: Reactive[T]
 
-  def react: ReactContainer.Lifted[T]
+  def react: RContainer.Lifted[T]
 
   def foreach(f: T => Unit): Unit
 
@@ -35,19 +35,19 @@ trait ReactContainer[@spec(Int, Long, Double) T] extends ReactMutable.Subscripti
     agg
   }
 
-  def map[@spec(Int, Long, Double) S](f: T => S): ReactContainer[S] =
-    new ReactContainer.Map(this, f)
+  def map[@spec(Int, Long, Double) S](f: T => S): RContainer[S] =
+    new RContainer.Map(this, f)
 
-  def filter(p: T => Boolean): ReactContainer[T] =
-    new ReactContainer.Filter(this, p)
+  def filter(p: T => Boolean): RContainer[T] =
+    new RContainer.Filter(this, p)
 
-  def collect[S <: AnyRef](pf: PartialFunction[T, S])(implicit e: T <:< AnyRef): ReactContainer[S] =
-    new ReactContainer.Collect(this, pf)
+  def collect[S <: AnyRef](pf: PartialFunction[T, S])(implicit e: T <:< AnyRef): RContainer[S] =
+    new RContainer.Collect(this, pf)
 
-  def union(that: ReactContainer[T])(implicit count: ReactContainer.Union.Count[T], a: Arrayable[T], b: CanBeBuffered): ReactContainer[T] =
-    new ReactContainer.Union(this, that, count)
+  def union(that: RContainer[T])(implicit count: RContainer.Union.Count[T], a: Arrayable[T], b: CanBeBuffered): RContainer[T] =
+    new RContainer.Union(this, that, count)
 
-  def to[That <: ReactContainer[T]](implicit factory: ReactBuilder.Factory[T, That]): That = {
+  def to[That <: RContainer[T]](implicit factory: RBuilder.Factory[T, That]): That = {
     val builder = factory()
     for (x <- this) builder += x
     builder.container
@@ -56,10 +56,10 @@ trait ReactContainer[@spec(Int, Long, Double) T] extends ReactMutable.Subscripti
 }
 
 
-object ReactContainer {
+object RContainer {
 
   trait Lifted[@spec(Int, Long, Double) T] {
-    val container: ReactContainer[T]
+    val container: RContainer[T]
 
     /* queries */
 
@@ -103,7 +103,7 @@ object ReactContainer {
 
     /* transformers */
   
-    def to[That <: ReactContainer[T]](implicit factory: ReactBuilder.Factory[T, That]): That = {
+    def to[That <: RContainer[T]](implicit factory: RBuilder.Factory[T, That]): That = {
       val builder = factory()
       val result = builder.container
   
@@ -120,10 +120,10 @@ object ReactContainer {
   }
 
   object Lifted {
-    class Default[@spec(Int, Long, Double) T](val container: ReactContainer[T])
+    class Default[@spec(Int, Long, Double) T](val container: RContainer[T])
     extends Lifted[T]
 
-    class Eager[@spec(Int, Long, Double) T](val container: ReactContainer[T])
+    class Eager[@spec(Int, Long, Double) T](val container: RContainer[T])
     extends Lifted[T] {
       override val size: Signal[Int] with Reactive.Subscription =
         new Signal.Default[Int] with Reactive.ProxySubscription {
@@ -137,15 +137,15 @@ object ReactContainer {
     }
   }
 
-  trait Default[@spec(Int, Long, Double) T] extends ReactContainer[T] {
+  trait Default[@spec(Int, Long, Double) T] extends RContainer[T] {
     val react = new Lifted.Default[T](this)
   }
 
-  trait Eager[@spec(Int, Long, Double) T] extends ReactContainer[T] {
+  trait Eager[@spec(Int, Long, Double) T] extends RContainer[T] {
     val react = new Lifted.Eager[T](this)
   }
 
-  class Size[@spec(Int, Long, Double) T](self: ReactContainer[T])
+  class Size[@spec(Int, Long, Double) T](self: RContainer[T])
   extends Signal.Default[Int] with Reactive.ProxySubscription {
     private[reactive] var value = self.size
     def apply() = value
@@ -155,7 +155,7 @@ object ReactContainer {
     )
   }
 
-  class Mutate[@spec(Int, Long, Double) T](self: ReactContainer[T], insert: T => Unit, remove: T => Unit)
+  class Mutate[@spec(Int, Long, Double) T](self: RContainer[T], insert: T => Unit, remove: T => Unit)
   extends Reactive.ProxySubscription {
     val subscription = Reactive.CompositeSubscription(
       self.inserts.mutate(self)(insert),
@@ -163,24 +163,24 @@ object ReactContainer {
     )
   }
 
-  class Map[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](self: ReactContainer[T], f: T => S)
-  extends ReactContainer.Default[S] {
+  class Map[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](self: RContainer[T], f: T => S)
+  extends RContainer.Default[S] {
     val inserts = self.inserts.map(f)
     val removes = self.removes.map(f)
     def size = self.size
     def foreach(g: S => Unit) = self.foreach(x => g(f(x)))
   }
 
-  class Filter[@spec(Int, Long, Double) T](self: ReactContainer[T], p: T => Boolean)
-  extends ReactContainer.Default[T] {
+  class Filter[@spec(Int, Long, Double) T](self: RContainer[T], p: T => Boolean)
+  extends RContainer.Default[T] {
     val inserts = self.inserts.filter(p)
     val removes = self.removes.filter(p)
     def size = self.count(p)
     def foreach(f: T => Unit) = self.foreach(x => if (p(x)) f(x))
   }
 
-  class Collect[T, S <: AnyRef](self: ReactContainer[T], pf: PartialFunction[T, S])(implicit e: T <:< AnyRef)
-  extends ReactContainer.Default[S] {
+  class Collect[T, S <: AnyRef](self: RContainer[T], pf: PartialFunction[T, S])(implicit e: T <:< AnyRef)
+  extends RContainer.Default[S] {
     val inserts = self.inserts.collect(pf)
     val removes = self.removes.collect(pf)
     def size = self.count(pf.isDefinedAt)
@@ -188,8 +188,8 @@ object ReactContainer {
   }
 
   class Union[@spec(Int, Long, Double) T]
-    (self: ReactContainer[T], that: ReactContainer[T], count: Union.Count[T])(implicit at: Arrayable[T])
-  extends ReactContainer.Default[T] {
+    (self: RContainer[T], that: RContainer[T], count: Union.Count[T])(implicit at: Arrayable[T])
+  extends RContainer.Default[T] {
     val inserts = new Reactive.BindEmitter[T]
     val removes = new Reactive.BindEmitter[T]
     var countSignal: Signal.Mutable[Union.Count[T]] = new Signal.Mutable(count)
@@ -200,7 +200,7 @@ object ReactContainer {
       if (count.dec(x)) removes += x
     }
     def computeUnion = {
-      val s = ReactHashSet[T]
+      val s = RHashSet[T]
       for (v <- self) s += v
       for (v <- that) s += v
       s
@@ -216,7 +216,7 @@ object ReactContainer {
     }
 
     class PrimitiveCount[@spec(Int, Long, Double) T](implicit val at: Arrayable[T]) extends Count[T] {
-      val table = ReactHashValMap[T, Int](at, Arrayable.nonZeroInt)
+      val table = RHashValMap[T, Int](at, Arrayable.nonZeroInt)
       def inc(x: T) = {
         val curr = table.applyOrNil(x)
         table(x) = curr + 1
@@ -253,7 +253,7 @@ object ReactContainer {
     }
 
     class RefCount[T](implicit val at: Arrayable[T]) extends Count[T] {
-      val table = ReactHashValMap[T, Numeral]
+      val table = RHashValMap[T, Numeral]
       def inc(x: T) = {
         val curr = table.applyOrElse(x, Zero)
         table(x) = curr.inc
@@ -284,14 +284,14 @@ object ReactContainer {
   }
 
   class Aggregate[@spec(Int, Long, Double) T]
-    (val container: ReactContainer[T], val catamorph: ReactCatamorph[T, T])
+    (val container: RContainer[T], val catamorph: RCatamorph[T, T])
   extends Signal.Proxy[T] with Reactive.ProxySubscription {
     commuted =>
     val id = (v: T) => v
     var subscription: Reactive.Subscription = _
     var proxy: Signal[T] = _
 
-    def init(c: ReactContainer[T]) {
+    def init(c: RContainer[T]) {
       proxy = catamorph.signal
       for (v <- container) catamorph += v
       subscription = Reactive.CompositeSubscription(
@@ -307,11 +307,11 @@ object ReactContainer {
 
   class Emitter[@spec(Int, Long, Double) T]
     (private val foreachF: (T => Unit) => Unit, private val sizeF: () => Int)
-  extends ReactContainer[T] {
+  extends RContainer[T] {
     private[reactive] var insertsEmitter: Reactive.Emitter[T] = null
     private[reactive] var removesEmitter: Reactive.Emitter[T] = null
 
-    private def init(dummy: ReactContainer.Emitter[T]) {
+    private def init(dummy: RContainer.Emitter[T]) {
       insertsEmitter = new Reactive.Emitter[T]
       removesEmitter = new Reactive.Emitter[T]
     }
@@ -326,7 +326,7 @@ object ReactContainer {
 
     def size = sizeF()
 
-    def react = new ReactContainer.Lifted.Default(this)
+    def react = new RContainer.Lifted.Default(this)
 
   }
 

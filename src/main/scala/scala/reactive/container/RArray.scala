@@ -8,15 +8,15 @@ import scala.annotation.implicitNotFound
 
 
 
-class ReactArray[@spec(Int, Long, Double) T: Arrayable]
-extends ReactContainer[T] {
+class RArray[@spec(Int, Long, Double) T: Arrayable]
+extends RContainer[T] {
   private var array = implicitly[Arrayable[T]].newArray(8)
   private var len = 0
 
   val inserts = new Reactive.Emitter[T]
   val removes = new Reactive.Emitter[T]
 
-  val react = new ReactArray.Lifted(this)
+  val react = new RArray.Lifted(this)
 
   def +=(value: T) = {
     if (len == array.length) {
@@ -56,11 +56,11 @@ extends ReactContainer[T] {
 }
 
 
-object ReactArray {
+object RArray {
 
-  def apply[@spec(Int, Long, Double) T: Arrayable]() = new ReactArray[T]
+  def apply[@spec(Int, Long, Double) T: Arrayable]() = new RArray[T]
 
-  class Lifted[@spec(Int, Long, Double) T](val container: ReactArray[T]) extends ReactContainer.Lifted[T]
+  class Lifted[@spec(Int, Long, Double) T](val container: RArray[T]) extends RContainer.Lifted[T]
 
   val initSize = 16
 

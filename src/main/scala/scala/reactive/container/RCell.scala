@@ -7,7 +7,7 @@ import scala.reflect.ClassTag
 
 
 
-class ReactCell[@spec(Int, Long, Double) T](private var value: T)
+class RCell[@spec(Int, Long, Double) T](private var value: T)
 extends Signal.Default[T] with ReactMutable {
   self =>
 
@@ -18,12 +18,12 @@ extends Signal.Default[T] with ReactMutable {
     reactAll(v)
   }
 
-  override def toString = s"ReactCell($value)"
+  override def toString = s"RCell($value)"
 }
 
 
-object ReactCell {
+object RCell {
 
-  def apply[@spec(Int, Long, Double) T](x: T) = new ReactCell[T](x)
+  def apply[@spec(Int, Long, Double) T](x: T) = new RCell[T](x)
   
 }
