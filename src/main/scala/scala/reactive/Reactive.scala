@@ -1421,6 +1421,18 @@ object Reactive {
       }
       wb
     }
+    private def cleanHashTable(wht: WeakHashTable[Reactor[T]]) {
+      val table = wht.table
+      var i = 0
+      while (i < table.length) {
+        val ref = table(i)
+        if (ref ne null) {
+          val r = ref.get
+          if (r eq null) wht.removeEntryAt(i, null)
+        }
+        i += 1
+      }
+    }
     private def checkHashTable(wht: WeakHashTable[Reactor[T]]) {
       if (wht.size < hashTableLowerBound) {
         val wb = toBuffer(wht)
@@ -1436,10 +1448,10 @@ object Reactive {
         if (ref ne null) {
           val r = ref.get
           if (r ne null) r.react(value)
-          else wht.removeEntryAt(i, null)
         }
         i += 1
       }
+      cleanHashTable(wht)
       checkHashTable(wht)
     }
     private def tableUnreactAll(wht: WeakHashTable[Reactor[T]]) {
@@ -1450,10 +1462,10 @@ object Reactive {
         if (ref ne null) {
           val r = ref.get
           if (r ne null) r.unreact()
-          else wht.removeEntryAt(i, null)
         }
         i += 1
       }
+      cleanHashTable(wht)
       checkHashTable(wht)
     }
     def hasSubscriptions: Boolean = demux != null
