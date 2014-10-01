@@ -16,14 +16,14 @@ class HashTablePerformanceBench extends PerformanceTest.Regression {
   val reactTables = for {
     sz <- hashTableSizes
   } yield {
-    val m = ReactHashValMap[Int, Int]
+    val m = RHashValMap[Int, Int]
     for (i <- 1 until sz) m(i) = 0
     m
   }
   val reactSets = for {
     sz <- hashTableSizes
   } yield {
-    val m = ReactHashSet[Int]
+    val m = RHashSet[Int]
     for (i <- 1 until sz) m += i
     m
   }
@@ -44,39 +44,39 @@ class HashTablePerformanceBench extends PerformanceTest.Regression {
     exec.reinstantiation.frequency -> 6
   ) in {
 
-    measure method "ReactHashMap" in {
-      using(hashTableSizes) curve("ReactHashMap") in { sz =>
-        val m = new ReactHashMap[Int, String]
+    measure method "RHashMap" in {
+      using(hashTableSizes) curve("RHashMap") in { sz =>
+        val m = new RHashMap[Int, String]
         for (i <- 1 until sz) m(i) = "value"
         m
       }
     }
 
-    measure method "ReactHashValMap" in {
-      using(hashTableSizes) curve("ReactHashValMap") in { sz =>
-        val m = ReactHashValMap[Int, Int]
+    measure method "RHashValMap" in {
+      using(hashTableSizes) curve("RHashValMap") in { sz =>
+        val m = RHashValMap[Int, Int]
         for (i <- 1 until sz) m(i) = i
         m
       }
     }
 
-    measure method "ReactHashValMap-stable" in {
-      using(reactTables) curve("ReactHashValMap") in { m =>
+    measure method "RHashValMap-stable" in {
+      using(reactTables) curve("RHashValMap") in { m =>
         val sz = m.size
         for (i <- 1 until sz) m(i) = i
       }
     }
 
-    measure method "ReactHashSet" in {
-      using(hashTableSizes) curve("ReactHashSet") in { sz =>
-        val m = ReactHashSet[Int]
+    measure method "RHashSet" in {
+      using(hashTableSizes) curve("RHashSet") in { sz =>
+        val m = RHashSet[Int]
         for (i <- 1 until sz) m += i
         m
       }
     }
 
-    measure method "ReactHashSet-stable" in {
-      using(reactSets) curve("ReactHashSet") in { m =>
+    measure method "RHashSet-stable" in {
+      using(reactSets) curve("RHashSet") in { m =>
         val sz = m.size
         for (i <- 1 until sz) m += i
       }

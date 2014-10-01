@@ -17,10 +17,10 @@ class SignalSpec extends FlatSpec with ShouldMatchers {
   }
 
   class ReactiveTest {
-    val x = ReactCell(0)
-    val y = ReactCell(0)
-    val z = ReactCell(0)
-    val w = ReactCell(0)
+    val x = RCell(0)
+    val y = RCell(0)
+    val z = RCell(0)
+    val w = RCell(0)
   }
 
   it should "be mapped" in {
@@ -36,7 +36,7 @@ class SignalSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "be scanned past from now" in {
-    val cell = ReactCell(0)
+    val cell = RCell(0)
     val sum = cell.scanPastNow { (s, x) =>
       s + x
     }
@@ -52,7 +52,7 @@ class SignalSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "be diffed past" in {
-    val cell = ReactCell(1)
+    val cell = RCell(1)
     val diff = cell.diffPast(0)(_ - _)
     var total = 0
     val a = diff onEvent { case d =>
@@ -88,7 +88,7 @@ class SignalSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "reflect changes" in {
-    val rc = ReactCell(0)
+    val rc = RCell(0)
     val buffer = mutable.Buffer[Int]()
     val subscription = rc.changes.onEvent {
       case x => buffer += x
@@ -106,9 +106,9 @@ class SignalSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "be muxed as signal" in {
-    val c1 = ReactCell[Int](1)
-    val c2 = ReactCell[Int](2)
-    val cell = ReactCell(c1)
+    val c1 = RCell[Int](1)
+    val c2 = RCell[Int](2)
+    val cell = RCell(c1)
     val ints = cell.muxSignal()
 
     assert(ints() == 1, ints())
@@ -146,8 +146,8 @@ class SignalSpec extends FlatSpec with ShouldMatchers {
   "A signal tuple" should "mutate" in {
     val ms = Signal.Mutable(new Cell)
     val vals = ms.map(_.x).signal(0)
-    val e1 = new ReactCell[Int](0)
-    val e2 = new ReactCell[Int](0)
+    val e1 = new RCell[Int](0)
+    val e2 = new RCell[Int](0)
     (e1 zip e2)(_ + _).mutate(ms) {
       ms().x = _
     }

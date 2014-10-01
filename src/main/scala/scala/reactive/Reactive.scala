@@ -5,7 +5,7 @@ package scala.reactive
 import scala.annotation.tailrec
 import scala.collection._
 import scala.reactive.util._
-import scala.reactive.calc.RefValFun
+import scala.reactive.calc.RVFun
 
 
 
@@ -451,7 +451,7 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    *  @param ev         evidence that events in this reactive are values
    *  @return           reactive value pair
    */
-  def valsplit[@spec(Int, Long, Double) P <: AnyVal, @spec(Int, Long, Double) Q <: AnyVal](pf: RefValFun[T, P])(qf: RefValFun[T, Q])(implicit ev: T <:< AnyRef): RValPair[P, Q] = {
+  def valsplit[@spec(Int, Long, Double) P <: AnyVal, @spec(Int, Long, Double) Q <: AnyVal](pf: RVFun[T, P])(qf: RVFun[T, Q])(implicit ev: T <:< AnyRef): RValPair[P, Q] = {
     val e = new RValPair.Emitter[P, Q]
     e.subscription = this.onReaction(new Reactor[T] {
       def react(x: T) = e.emit(pf(x), qf(x))
@@ -471,7 +471,7 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    *  @param qf         mapping function from events in this reactive to the second part of the pair
    *  @return           reactive pair
    */
-  def split[@spec(Int, Long, Double) P <: AnyVal, Q <: AnyRef](pf: RefValFun[T, P])(qf: T => Q)(implicit ev: T <:< AnyRef): RPair[P, Q] = {
+  def split[@spec(Int, Long, Double) P <: AnyVal, Q <: AnyRef](pf: RVFun[T, P])(qf: T => Q)(implicit ev: T <:< AnyRef): RPair[P, Q] = {
     val e = new RPair.Emitter[P, Q]
     e.subscription = this.onReaction(new Reactor[T] {
       def react(x: T) = e.emit(pf(x), qf(x))

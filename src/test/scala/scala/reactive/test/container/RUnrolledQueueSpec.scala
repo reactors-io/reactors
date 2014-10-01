@@ -10,22 +10,23 @@ import scala.collection._
 
 
 
-class ReactBinaryHeapSpec extends FlatSpec with ShouldMatchers {
+class RUnrolledQueueSpec extends FlatSpec with ShouldMatchers {
 
-  "A ReactBinaryHeap" should "react to head changes" in {
+  "A RUnrolledQueue" should "react to head changes" in {
     val size = 200
-    val q = new ReactBinaryHeap[Int]
+    val q = new RUnrolledQueue[Int]
     val buffer = mutable.Buffer[Int]()
     val heads = q.react.head.onEvent(buffer += _)
 
-    for (i <- (0 until size).reverse) q.enqueue(i)
+    for (i <- 0 until size) q.enqueue(i)
 
-    buffer should equal ((0 until size).reverse)
+    buffer should equal (0 until 1)
 
     for (i <- 0 until size) {
       q.dequeue() should equal (i)
       if (i < (size - 1)) {
         q.head should equal (i + 1)
+        buffer should equal (0 to (i + 1))
       }
     }
   }

@@ -3,7 +3,7 @@ package container
 
 
 
-import scala.reactive.calc.RefValFun
+import scala.reactive.calc.RVFun
 
 
 
@@ -22,6 +22,8 @@ trait PairContainer[@spec(Int, Long, Double) P, Q <: AnyRef] {
 
   def removes: RPair[P, Q]
 
+
+
   def filter1(p: P => Boolean): PairContainer[P, Q] = {
     new PairContainer.Filter1(this, p)
   }
@@ -34,7 +36,7 @@ trait PairContainer[@spec(Int, Long, Double) P, Q <: AnyRef] {
     new PairContainer.Collect2(this, pf)
   }
 
-  def valmap2[@spec(Int, Long, Double) R <: AnyVal, @spec(Int, Long, Double) S <: AnyVal](f: RefValFun[Q, S])(implicit e: P =:= R): ValPairContainer[R, S] = {
+  def valmap2[@spec(Int, Long, Double) R <: AnyVal, @spec(Int, Long, Double) S <: AnyVal](f: RVFun[Q, S])(implicit e: P =:= R): ValPairContainer[R, S] = {
     new PairContainer.Valmap2(this, f)
   }
 
@@ -101,7 +103,7 @@ object PairContainer {
   }
 
   class Valmap2[@spec(Int, Long, Double) P, Q <: AnyRef, @spec(Int, Long, Double) R <: AnyVal, @spec(Int, Long, Double) S <: AnyVal]
-    (val container: PairContainer[P, Q], val f: RefValFun[Q, S])(implicit e: P =:= R)
+    (val container: PairContainer[P, Q], val f: RVFun[Q, S])(implicit e: P =:= R)
   extends ValPairContainer[R, S] {
     val inserts = container.inserts.valmap2(f)
     val removes = container.removes.valmap2(f)

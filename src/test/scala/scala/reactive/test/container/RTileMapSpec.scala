@@ -9,17 +9,17 @@ import scala.collection._
 
 
 
-class ReactTileMapSpec extends FlatSpec with ShouldMatchers {
+class RTileMapSpec extends FlatSpec with ShouldMatchers {
 
-  "A ReactTileMap" should "have dimension 128" in {
-    val table = new ReactTileMap[String](128, "")
+  "A RTileMap" should "have dimension 128" in {
+    val table = new RTileMap[String](128, "")
     table.dimension should equal (128)
     table(30, 30) should equal ("")
     table(90, 90) should equal ("")
   }
 
   it should "contain a single element" in {
-    val table = new ReactTileMap[String](128, "")
+    val table = new RTileMap[String](128, "")
 
     table(0, 0) = "ok"
 
@@ -30,7 +30,7 @@ class ReactTileMapSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "contain a rectangle in the middle" in {
-    val table = new ReactTileMap[String](128, "")
+    val table = new RTileMap[String](128, "")
     for (x <- 50 until 70; y <- 55 until 75) table(x, y) = (x, y).toString
 
     for (x <- 0 until 128; y <- 0 until 128) assert(table(x, y) == (
@@ -42,7 +42,7 @@ class ReactTileMapSpec extends FlatSpec with ShouldMatchers {
 
   it should "be big and contain a checkerboard" in {
     val big = 1024
-    val table = new ReactTileMap[Int](1024, 0)
+    val table = new RTileMap[Int](1024, 0)
     for (x <- 0 until big by 2; y <- 0 until big by 2) table(x, y) = 1
 
     for (x <- 0 until big; y <- 0 until big) assert(table(x, y) == (
@@ -55,7 +55,7 @@ class ReactTileMapSpec extends FlatSpec with ShouldMatchers {
 
   it should "be cleared" in {
     val big = 1024
-    val table = new ReactTileMap[Int](1024, 0)
+    val table = new RTileMap[Int](1024, 0)
     for (x <- 0 until big by 2; y <- 0 until big by 2) table(x, y) = 1
 
     table.clear()
@@ -66,7 +66,7 @@ class ReactTileMapSpec extends FlatSpec with ShouldMatchers {
   it should "detect modifications" in {
     import scala.reactive._
     val size = 32
-    val tilemap = new ReactTileMap[String](size, null)
+    val tilemap = new RTileMap[String](size, null)
     val m = tilemap.updates
     val a = m onEvent { case _ =>
       assert(tilemap(0, 0) == "OK")
@@ -77,7 +77,7 @@ class ReactTileMapSpec extends FlatSpec with ShouldMatchers {
 
   it should "contain the correct set of values" in {
     val size = 256
-    val tilemap = new ReactTileMap[String](size, null)
+    val tilemap = new RTileMap[String](size, null)
     val observed = mutable.Set[String]()
     val insertSub = tilemap.values.inserts.onEvent(observed += _)
     val removeSub = tilemap.values.removes.onEvent(observed -= _)

@@ -8,7 +8,7 @@ import org.scalatest.matchers.ShouldMatchers
 
 
 
-class ReactCatamorphSpec extends FlatSpec with ShouldMatchers {
+class RCatamorphSpec extends FlatSpec with ShouldMatchers {
 
   "CommuteCatamorph" should "be balanced" in {
     val tree = CommuteCatamorph(Commutoid(0)(_ + _))

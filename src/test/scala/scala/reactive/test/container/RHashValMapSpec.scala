@@ -8,10 +8,10 @@ import org.scalatest.matchers.ShouldMatchers
 
 
 
-class ReactHashValMapSpec extends FlatSpec with ShouldMatchers {
+class RHashValMapSpec extends FlatSpec with ShouldMatchers {
 
-  "A ReactHashValMap" should "be empty" in {
-    val table = new ReactHashValMap[Long, Int]
+  "A RHashValMap" should "be empty" in {
+    val table = new RHashValMap[Long, Int]
 
     table.size should equal (0)
     table.get(0L) should equal (None)
@@ -20,7 +20,7 @@ class ReactHashValMapSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "contain a single element" in {
-    val table = new ReactHashValMap[Long, Int]
+    val table = new RHashValMap[Long, Int]
     table(2L) = 2L.toInt
 
     table.size should equal (1)
@@ -32,7 +32,7 @@ class ReactHashValMapSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "contain two elements" in {
-    val table = new ReactHashValMap[Long, Int]
+    val table = new RHashValMap[Long, Int]
     table.update(3L, 3L.toInt)
     table.update(4L, 4L.toInt)
 
@@ -43,7 +43,7 @@ class ReactHashValMapSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "contain several elements" in {
-    val table = new ReactHashValMap[Int, Int]
+    val table = new RHashValMap[Int, Int]
     table.update(0, 1)
     table.update(1, 2)
     table.update(2, 3)
@@ -63,7 +63,7 @@ class ReactHashValMapSpec extends FlatSpec with ShouldMatchers {
 
   it should "contain many elements" in {
     val many = 1024
-    val table = new ReactHashValMap[Long, Int]
+    val table = new RHashValMap[Long, Int]
     for (i <- 0 until many) table(i) = i.toInt
 
     table.size should equal (many)

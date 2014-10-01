@@ -3,7 +3,7 @@ package scala.reactive
 
 
 import scala.reflect.ClassTag
-import scala.reactive.calc.RefValFun
+import scala.reactive.calc.RVFun
 
 
 
@@ -98,7 +98,7 @@ trait RPair[@spec(Int, Long, Double) P, Q <: AnyRef] {
     r
   }
 
-  def valmap2[@spec(Int, Long, Double) R <: AnyVal, @spec(Int, Long, Double) S <: AnyVal](f: RefValFun[Q, S])(implicit e: P =:= R): RValPair[R, S] = {
+  def valmap2[@spec(Int, Long, Double) R <: AnyVal, @spec(Int, Long, Double) S <: AnyVal](f: RVFun[Q, S])(implicit e: P =:= R): RValPair[R, S] = {
     val r = new RValPair.Default[R, S]
     r.subscription = changes.onReactUnreact { _ =>
       r._1 = e(_1)

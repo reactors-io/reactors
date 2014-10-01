@@ -12,10 +12,10 @@ import org.scalatest.matchers.ShouldMatchers
 class ReactiveSpec extends FlatSpec with ShouldMatchers {
 
   class ReactiveTest {
-    val x = ReactCell(0)
-    val y = ReactCell(0)
-    val z = ReactCell(0)
-    val w = ReactCell(0)
+    val x = RCell(0)
+    val y = RCell(0)
+    val z = RCell(0)
+    val w = RCell(0)
   }
 
   "A reactive" should "be filtered" in {
@@ -69,7 +69,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "be scanned past" in {
-    val cell = ReactCell(0)
+    val cell = RCell(0)
     val s = cell.scanPast(List[Int]()) { (acc, x) =>
       x :: acc
     }
@@ -186,7 +186,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
   it should "mutate" in {
     val ms = Signal.Mutable(new Cell)
     val vals = ms.map(_.x).signal(0)
-    val e = new ReactCell[Int](0)
+    val e = new RCell[Int](0)
     e.mutate(ms) {
       ms().x = _
     }
@@ -198,7 +198,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "be muxed" in {
-    val cell = ReactCell[Reactive[Int]](Signal.Constant(0))
+    val cell = RCell[Reactive[Int]](Signal.Constant(0))
     val e1 = new Reactive.Emitter[Int]
     val e2 = new Reactive.Emitter[Int]
     val ints = cell.mux().signal(0)
@@ -222,7 +222,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "be higher-order union" in {
-    val cell = ReactCell[Reactive[Int]](Signal.Constant(0))
+    val cell = RCell[Reactive[Int]](Signal.Constant(0))
     val e1 = new Reactive.Emitter[Int]
     val e2 = new Reactive.Emitter[Int]
     val e3 = new Reactive.Emitter[Int]
@@ -261,7 +261,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
 
   it should "be higher-order concat" in {
     import Permission.canBuffer
-    val cell = ReactCell[Reactive[Int]](Signal.Constant(0))
+    val cell = RCell[Reactive[Int]](Signal.Constant(0))
     val e1 = new Reactive.Emitter[Int]
     val closeE1 = new Reactive.Emitter[Unit]
     val e2 = new Reactive.Emitter[Int]
