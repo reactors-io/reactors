@@ -62,7 +62,7 @@ object Proto {
    *  @param params     parameters for instantiating the prototype
    *  @return           a new prototype of an isolate of type `T` with the specified parameters
    */
-  def apply[I <: Iso[_]](clazz: Class[I], params: Any*) = new Proto[I](clazz, params)
+  def apply[I <: Iso[_]: ClassTag](params: Any*) = new Proto[I](implicitly[ClassTag[I]].erasure.asInstanceOf[Class[I]], params)
 
 }
 

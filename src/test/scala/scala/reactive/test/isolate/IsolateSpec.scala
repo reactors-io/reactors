@@ -129,7 +129,7 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
     val sv = new SyncVar[String]
 
     val emitter = new Reactive.Emitter[String]
-    val proto = Proto(classOf[OneIso], sv)
+    val proto = Proto[OneIso](sv)
     val c = isoSystem.isolate(proto).attach(emitter).seal()
     emitter += "test event"
     emitter.close()
@@ -141,7 +141,7 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
     val sv = new SyncVar[List[Int]]
 
     val emitter = new Reactive.Emitter[Int]
-    val proto = Proto(classOf[ManyIso], many, sv)
+    val proto = Proto[ManyIso](many, sv)
     val c = isoSystem.isolate(proto).attach(emitter).seal()
     for (i <- 0 until many) emitter += i
     emitter.close()
@@ -160,7 +160,7 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
 
     val emitter = new Reactive.Emitter[Int]
 
-    val proto = Proto(classOf[SelfIso], sv)
+    val proto = Proto[SelfIso](sv)
     val c = isoSystem.isolate(proto).attach(emitter).seal()
 
     emitter += 7
@@ -174,7 +174,7 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
 
     val emitter = new Reactive.Emitter[Int]
 
-    val proto = Proto(classOf[CustomIso], sv).withEventQueue(EventQueue.DevNull.factory)
+    val proto = Proto[CustomIso](sv).withEventQueue(EventQueue.DevNull.factory)
     val c = isoSystem.isolate(proto).attach(emitter).seal()
 
     emitter += 7
@@ -186,7 +186,7 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
   it should "close its reactives when it terminates" in {
     val sv = new SyncVar[Boolean]
 
-    val proto = Proto(classOf[AutoClosingIso], sv)
+    val proto = Proto[AutoClosingIso](sv)
     val c = isoSystem.isolate(proto).seal()
 
     sv.get should equal (true)
@@ -197,8 +197,8 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
 
     val emitter = new Reactive.Emitter[Channel[Int]]
 
-    val dc = isoSystem.isolate(Proto(classOf[DualChannelIso], sv))
-    val mc = isoSystem.isolate(Proto(classOf[MasterIso], dc))
+    val dc = isoSystem.isolate(Proto[DualChannelIso](sv))
+    val mc = isoSystem.isolate(Proto[MasterIso](dc))
 
     sv.get should equal (7)
 
@@ -212,8 +212,8 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
 
     val emitter = new Reactive.Emitter[Channel[Int]]
 
-    val rc = isoSystem.isolate(Proto(classOf[RegChannelIso], sv))
-    val lc = isoSystem.isolate(Proto(classOf[LookupIso]))
+    val rc = isoSystem.isolate(Proto[RegChannelIso](sv))
+    val lc = isoSystem.isolate(Proto[LookupIso])
 
     sv.get should equal (7)
 
@@ -227,9 +227,9 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
 
     val emitter = new Reactive.Emitter[Channel[Int]]
 
-    val lc = isoSystem.isolate(Proto(classOf[LookupIso]))
+    val lc = isoSystem.isolate(Proto[LookupIso])
     Thread.sleep(100)
-    val rc = isoSystem.isolate(Proto(classOf[RegChannelIso], sv))
+    val rc = isoSystem.isolate(Proto[RegChannelIso](sv))
 
     sv.get should equal (7)
 
@@ -252,7 +252,7 @@ trait LooperIsolateSpec extends FlatSpec with ShouldMatchers {
 
     println("looper -----------")
 
-    val proto = Proto(classOf[TestLooper], sv)
+    val proto = Proto[TestLooper](sv)
     isoSystem.isolate(proto)
 
     sv.get should equal (3)
