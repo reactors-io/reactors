@@ -185,7 +185,7 @@ class RHashMapSpec extends FlatSpec with ShouldMatchers {
     val bigIntToInt = new RVFun[math.BigInt, Int] { def apply(x: BigInt) = x.toInt }
     val lessThanBig = table.entries.collect2({
       case b if b < big => b
-    }).valmap2(bigIntToInt).swap.react.to[RHashValMap[Int, Int]]
+    }).rvmap2(bigIntToInt).swap.react.to[RHashValMap[Int, Int]]
     
     for (i <- 0 until size) table(-i) = math.BigInt(i)
     table(-big) = math.BigInt(big)

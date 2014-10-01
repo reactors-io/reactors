@@ -4,6 +4,7 @@ package scala.reactive
 
 import scala.reflect.ClassTag
 import scala.reactive.calc.RVFun
+import scala.reactive.calc.VRVFun
 
 
 
@@ -98,11 +99,23 @@ trait RPair[@spec(Int, Long, Double) P, Q <: AnyRef] {
     r
   }
 
-  def valmap2[@spec(Int, Long, Double) R <: AnyVal, @spec(Int, Long, Double) S <: AnyVal](f: RVFun[Q, S])(implicit e: P =:= R): RValPair[R, S] = {
+  def rvmap2[@spec(Int, Long, Double) R <: AnyVal, @spec(Int, Long, Double) S <: AnyVal](f: RVFun[Q, S])(implicit e: P =:= R): RValPair[R, S] = {
     val r = new RValPair.Default[R, S]
     r.subscription = changes.onReactUnreact { _ =>
       r._1 = e(_1)
       r._2 = f(_2)
+      r.changes += ()
+    } {
+      r.changes.close()
+    }
+    r
+  }
+
+  def vrvmap1[@spec(Int, Long, Double) S <: AnyVal](f: VRVFun[P, Q, S])(implicit e: P <:< AnyVal): RPair[S, Q] = {
+    val r = new RPair.Default[S, Q]
+    r.subscription = changes.onReactUnreact { _ =>
+      r._1 = f(_1, _2)
+      r._2 = _2
       r.changes += ()
     } {
       r.changes.close()
