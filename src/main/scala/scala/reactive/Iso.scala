@@ -18,13 +18,13 @@ import isolate._
  *  it is an error to use a reactive value originating in one isolate
  *  in some different isolate.
  *
- *  Isolates are defined by extending the `Isolate` trait.
+ *  Isolates are defined by extending the `Iso` trait.
  *  The events passed to isolates can be subscribed to using
  *  their `events` reactive.
  *  Here is an example:
  *
  *  {{{
- *  class MyPrinter extends Isolate[String] {
+ *  class MyPrinter extends Iso[String] {
  *    react <<= events onEvent {
  *      e => println(e)
  *    }
@@ -39,7 +39,7 @@ import isolate._
  *
  *  {{{
  *  import Scheduler.Implicits.globalExecutionContext
- *  val isolateSystem = IsolateSystem.default("MyIsolateSystem")
+ *  val isolateSystem = IsoSystem.default("MyIsolateSystem")
  *  val channel = isolateSystem.isolate(Proto[MyPrinter])
  *  }}}
  *
