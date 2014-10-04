@@ -288,7 +288,7 @@ object IsoSystem {
         else {
           val reqId = Iso.self.frame.counter.incrementAndGet()
           val sysChannel = Iso.self.sysChannel
-          val desiredChannels = channelMap.react(name).filter(pred).harden
+          val desiredChannels = channelMap.react(name).filter(pred).endure
           desiredChannels.effect(_ => desiredChannels.unsubscribe()).map(ChannelRetrieved(reqId, _): InternalEvent).pipe(sysChannel)
           Iso.self.internalEvents.collect(channelExtractor[T](reqId)).ivar
         }

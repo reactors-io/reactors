@@ -569,7 +569,9 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    *  
    *  @return           returns the hardened version of this reactive
    */
-  def harden: Reactive[T] with Reactive.Subscription = ???
+  def endure: Reactive[T] with Reactive.Subscription = {
+    new Reactive.Endure(this)
+  }
 
 }
 
@@ -1079,6 +1081,25 @@ object Reactive {
       }
     }
     var subscription = Subscription.empty
+  }
+
+  private[reactive] class Endure[@spec(Int, Long, Double) T](val self: Reactive[T])
+  extends Reactive.Default[T] with Reactor[T] with Reactive.Subscription {
+    def react(value: T) = reactAll(value)
+    def unreact() {
+      Iso.self.declarations -= this
+      unreactAll()
+    }
+    def unsubscribe() {
+      Iso.self.declarations -= this
+      subscription.unsubscribe()
+    }
+    var subscription = Subscription.empty
+    def init(dummy: Reactive[T]) {
+      Iso.self.declarations += this
+      subscription = self.onReaction(this)
+    }
+    init(this)
   }
 
   private[reactive] class Mux[T, @spec(Int, Long, Double) S]
