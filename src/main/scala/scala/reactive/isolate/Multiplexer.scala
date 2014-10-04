@@ -80,7 +80,7 @@ object Multiplexer {
   /** The default multiplexer implementation.
    *
    *  Heuristically picks the connector with most events when `dequeueEvent` is called.
-   *  The connector with the largest event queue is eventually chosen.
+   *  The connector with the largest event queue is eventually chosen and flushed.
    *  Simultaneously, the multiplexer strives to be fair and eventually choose every connector.
    *
    *  In this implementation, the `totalSize` method is `O(n)`, where `n` is the **number of event queues**.
