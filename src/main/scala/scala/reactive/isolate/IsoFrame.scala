@@ -16,7 +16,8 @@ final class IsoFrame(
   val scheduler: Scheduler,
   val eventQueueFactory: EventQueue.Factory,
   val multiplexer: Multiplexer,
-  val newConnector: IsoFrame => Connector[_]
+  val newSourceConnector: IsoFrame => Connector[_],
+  val newInternalConnector: IsoFrame => Connector[_]
 ) extends (() => Unit) {
   val state = new IsoFrame.State
   val isolateState = new AtomicReference[IsoFrame.IsoState](IsoFrame.Created)
@@ -25,8 +26,8 @@ final class IsoFrame(
     case NonFatal(t) => isolate.failureEmitter += t
   }
   val schedulerInfo: Scheduler.Info = scheduler.newInfo(this)
-  val isolateSourceConnector: Connector[_] = newConnector(this)
-  val isolateInternalConnector: Connector[_] = newConnector(this)
+  val isolateSourceConnector: Connector[_] = newSourceConnector(this)
+  val isolateInternalConnector: Connector[_] = newInternalConnector(this)
   @volatile private[reactive] var isolate: Iso[_] = _
 
   def isTerminated = isolateState.get == IsoFrame.Terminated

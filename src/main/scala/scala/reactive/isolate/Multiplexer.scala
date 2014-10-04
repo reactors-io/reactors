@@ -88,6 +88,7 @@ object Multiplexer {
   class Default extends Multiplexer {
     private val minUpdateFrequency = 200
     private var descriptors = mutable.ArrayBuffer[Connector[_]]()
+    private var liveCount = 0
     private var pos = 0
     @volatile private var current: Connector[_] = null
 
@@ -98,7 +99,7 @@ object Multiplexer {
 
     def isTerminated = this.synchronized {
       check(current, false)
-      descriptors.isEmpty
+      liveCount == 0
     }
 
     def totalSize = this.synchronized {
@@ -115,7 +116,13 @@ object Multiplexer {
       case d: Default.Desc => d
     }
 
+    private def addConnector(connector: Connector[_]) {
+      descriptors += connector
+      if (!connector.isDaemon) liveCount += 1
+    }
+
     private def deleteCurrentConnector() {
+      if (!current.isDaemon) liveCount -= 1
       val lastPos = descriptors.length - 1
       descriptors(pos) = descriptors(lastPos)
       descriptors.remove(lastPos)
@@ -170,7 +177,7 @@ object Multiplexer {
     def +=(connector: Connector[_]) = this.synchronized {
       val d = new Default.Desc(connector)
       connector.multiplexerInfo = d
-      descriptors += connector
+      addConnector(connector)
       if (current == null) current = connector
     }
 

@@ -136,7 +136,8 @@ abstract class IsoSystem {
       scheduler,
       queueFactory,
       multiplexer,
-      frame => Iso.openChannel(frame, queueFactory)
+      frame => Iso.openChannel(frame, queueFactory, false),
+      frame => Iso.openChannel(frame, queueFactory, true)
     )
     val isolate = Iso.argFrame.withValue(frame) {
       createAndResetIso(proto)

@@ -15,10 +15,12 @@ package isolate
  *  @tparam T            the type of the events in this connector
  *  @param frame         the isolate frame
  *  @param queue         the event queue
+ *  @param isDaemon      is the connector a daemon -- daemon channels are ignored when determining termination
  */
 class Connector[@spec(Int, Long, Double) T](
   private[reactive] val frame: IsoFrame,
-  private[reactive] val queue: EventQueue[T]
+  private[reactive] val queue: EventQueue[T],
+  val isDaemon: Boolean
 ) {
   @volatile private[reactive] var dequeuer: Dequeuer[T] = _
   @volatile private[reactive] var reactor: Reactor[T] = _
