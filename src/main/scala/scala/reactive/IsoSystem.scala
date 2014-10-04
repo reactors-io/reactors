@@ -258,7 +258,7 @@ object IsoSystem {
      *  @param name       name of the channel
      *  @return           the ivar with the channel registered under the specified name
      */
-    def igetUnsealed[@spec(Int, Long, Double) T](name: String): Reactive.Ivar[Channel[T]]
+    def iunsealed[@spec(Int, Long, Double) T](name: String): Reactive.Ivar[Channel[T]]
   }
 
   object Channels {
@@ -295,7 +295,7 @@ object IsoSystem {
         }
       }
       def iget[@spec(Int, Long, Double) T](name: String) = getIvar(name, c => c != null)
-      def igetUnsealed[@spec(Int, Long, Double) T](name: String) = getIvar(name, c => c != null && !c.isSealed)
+      def iunsealed[@spec(Int, Long, Double) T](name: String) = getIvar(name, c => c != null && !c.isSealed)
     }
 
   }
