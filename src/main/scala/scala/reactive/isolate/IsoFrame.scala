@@ -3,7 +3,7 @@ package isolate
 
 
 
-import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.atomic._
 import scala.annotation.tailrec
 import scala.util.control.NonFatal
 
@@ -16,15 +16,17 @@ final class IsoFrame(
   val scheduler: Scheduler,
   val eventQueueFactory: EventQueue.Factory,
   val multiplexer: Multiplexer,
-  val newSourceConnector: IsoFrame => Connector[_]
+  val newConnector: IsoFrame => Connector[_]
 ) extends (() => Unit) {
   val state = new IsoFrame.State
   val isolateState = new AtomicReference[IsoFrame.IsoState](IsoFrame.Created)
+  val counter = new AtomicLong(0L)
   val errorHandling: PartialFunction[Throwable, Unit] = {
     case NonFatal(t) => isolate.failureEmitter += t
   }
   val schedulerInfo: Scheduler.Info = scheduler.newInfo(this)
-  val isolateSourceConnector: Connector[_] = newSourceConnector(this)
+  val isolateSourceConnector: Connector[_] = newConnector(this)
+  val isolateInternalConnector: Connector[_] = newConnector(this)
   @volatile private[reactive] var isolate: Iso[_] = _
 
   def isTerminated = isolateState.get == IsoFrame.Terminated
@@ -45,6 +47,8 @@ final class IsoFrame(
   }
 
   def sourceConnector[T]: Connector[T] = isolateSourceConnector.asInstanceOf[Connector[T]]
+
+  def internalConnector: Connector[InternalEvent] = isolateInternalConnector.asInstanceOf[Connector[InternalEvent]]
 
   /* running the frame */
   

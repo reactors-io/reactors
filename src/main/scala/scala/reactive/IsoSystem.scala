@@ -279,21 +279,18 @@ object IsoSystem {
       def get[T](name: String): Option[Channel[T]] = channelMap.synchronized {
         channelMap.get(name).asInstanceOf[Option[Channel[T]]]
       }
+      private def channelExtractor[T](reqId: Long): PartialFunction[InternalEvent, Channel[T]] = {
+        case ChannelRetrieved(`reqId`, c: Channel[T]) => c
+      }
       private def getIvar[@spec(Int, Long, Double) T](name: String, pred: Channel[_] => Boolean): Reactive.Ivar[Channel[T]] = channelMap.synchronized {
         val c = channelMap.applyOrNil(name)
-        if (pred(c)) {
-          Reactive.Ivar(c.asInstanceOf[Channel[T]])
-        } else {
-          val connector = Iso.self.open[Channel[T]]
-          var sub: Reactive.Subscription = null
-          sub = channelMap.react(name).onEvent { c =>
-            if (pred(c)) {
-              connector.channel << c.asInstanceOf[Channel[T]]
-              connector.channel.seal()
-              sub.unsubscribe()
-            }
-          }
-          connector.events.ivar
+        if (pred(c)) Reactive.Ivar(c.asInstanceOf[Channel[T]])
+        else {
+          val reqId = Iso.self.frame.counter.incrementAndGet()
+          val sysChannel = Iso.self.sysChannel
+          val desiredChannels = channelMap.react(name).filter(pred).harden
+          desiredChannels.effect(_ => desiredChannels.unsubscribe()).map(ChannelRetrieved(reqId, _): InternalEvent).pipe(sysChannel)
+          Iso.self.internalEvents.collect(channelExtractor[T](reqId)).ivar
         }
       }
       def iget[@spec(Int, Long, Double) T](name: String) = getIvar(name, c => c != null)

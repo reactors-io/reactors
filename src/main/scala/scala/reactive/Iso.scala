@@ -92,6 +92,10 @@ trait Iso[@spec(Int, Long, Double) T] extends ReactRecord {
 
   /* end workaround */
 
+  /** Make sure that system events reach the `systemEmitter`.
+   */
+  react <<= frame.internalConnector.events.collect({ case e: SysEvent => e }).pipe(systemEmitter)
+
   /** Opens a new channel for this isolate.
    *
    *  @tparam Q        type of the events in the new channel
@@ -111,6 +115,10 @@ trait Iso[@spec(Int, Long, Double) T] extends ReactRecord {
    */
   final def system: IsoSystem = frame.isolateSystem
 
+  /** Internal events received by this isolate.
+   */
+  private[reactive] final def internalEvents: Reactive[InternalEvent] = frame.internalConnector.events
+
   /** The system event stream.
    */
   final def sysEvents: Reactive[SysEvent] = systemEmitter
@@ -122,6 +130,10 @@ trait Iso[@spec(Int, Long, Double) T] extends ReactRecord {
   /** The failures event stream.
    */
   final def failures: Reactive[Throwable] = failureEmitter
+
+  /** The system channel of this isolate.
+   */
+  final def sysChannel: Channel[InternalEvent] = frame.internalConnector.channel
 
   /** The default channel of this isolate.
    */

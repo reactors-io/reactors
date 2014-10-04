@@ -243,9 +243,19 @@ package object reactive {
 
   /* system events */
 
-  /** The type of system events.
+  /** Internal events are used by the isolate system to communicate with different isolates.
    */
-  sealed trait SysEvent
+  sealed trait InternalEvent
+
+  /** Denotes that a channel corresponding to the specified request identifier
+   *  has been found.
+   */
+  case class ChannelRetrieved(reqId: Long, channel: Channel[_]) extends InternalEvent
+
+  /** System events are a special kind of internal events that can be observed
+   *  by isolates.
+   */
+  sealed trait SysEvent extends InternalEvent
 
   /** Denotes start of an isolate.
    *
@@ -260,7 +270,7 @@ package object reactive {
   case object IsoTerminated extends SysEvent
 
   /** Denotes that all the events were processed
-   *  and the queue became empty.
+   *  and the queues became empty.
    */
   case object IsoEmptyQueue extends SysEvent
 

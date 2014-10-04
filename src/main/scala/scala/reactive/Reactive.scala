@@ -431,7 +431,7 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    *  @param e          evidence that events in this reactive are values
    *  @return           reactive value pair
    */
-  def valsplit[@spec(Int, Long, Double) P <: AnyVal, @spec(Int, Long, Double) Q <: AnyVal](pf: T => P)(qf: T => Q)(implicit e: T <:< AnyVal): RValPair[P, Q] = {
+  def rvsplit[@spec(Int, Long, Double) P <: AnyVal, @spec(Int, Long, Double) Q <: AnyVal](pf: T => P)(qf: T => Q)(implicit e: T <:< AnyVal): RValPair[P, Q] = {
     val e = new RValPair.Emitter[P, Q]
     e.subscription = this.onReaction(new Reactor[T] {
       def react(x: T) = e.emit(pf(x), qf(x))
@@ -451,7 +451,7 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    *  @param ev         evidence that events in this reactive are values
    *  @return           reactive value pair
    */
-  def valsplit[@spec(Int, Long, Double) P <: AnyVal, @spec(Int, Long, Double) Q <: AnyVal](pf: RVFun[T, P])(qf: RVFun[T, Q])(implicit ev: T <:< AnyRef): RValPair[P, Q] = {
+  def rvsplit[@spec(Int, Long, Double) P <: AnyVal, @spec(Int, Long, Double) Q <: AnyVal](pf: RVFun[T, P])(qf: RVFun[T, Q])(implicit ev: T <:< AnyRef): RValPair[P, Q] = {
     val e = new RValPair.Emitter[P, Q]
     e.subscription = this.onReaction(new Reactor[T] {
       def react(x: T) = e.emit(pf(x), qf(x))
@@ -554,6 +554,23 @@ trait Reactive[@spec(Int, Long, Double) +T] {
     new Reactive.Mux[T, S](this, evidence)
   }
 
+  /** Invokes a side-effect every time an event gets produced.
+   *  
+   *  @param f          an effect to invoke when an event is produced
+   *  @return           a reactive with the same events as this reactive
+   */
+  def effect(f: T => Unit): Reactive[T] = self.map({ x => f(x); x })
+
+  /** Adds this reactive to the current isolate's `react` store,
+   *  and removes it either when the reactive unreacts or when `unsubscribe` gets called.
+   *
+   *  While the reactive is in the `react` store,
+   *  it is not necessary to keep a reference to it to prevent it from getting garbage collected.
+   *  
+   *  @return           returns the hardened version of this reactive
+   */
+  def harden: Reactive[T] with Reactive.Subscription = ???
+
 }
 
 
@@ -620,6 +637,12 @@ object Reactive {
      *  }}}
      */
     def pipe(c: Channel[T]): Unit = c.attach(self)
+
+    /** Pipes the events from this reactive to the specified emitter.
+     *
+     *  @param em        emitter to forward the events to
+     */
+    def pipe(em: Reactive.Emitter[T]): Reactive.Subscription = self.onEvent(em += _)
 
     /** Creates a union of `this` and `that` reactive.
      *  
