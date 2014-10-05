@@ -15,11 +15,13 @@ package isolate
  *  @tparam T            the type of the events in this connector
  *  @param frame         the isolate frame
  *  @param queue         the event queue
+ *  @param name          the name of the channel in this connector
  *  @param isDaemon      is the connector a daemon -- daemon channels are ignored when determining termination
  */
 class Connector[@spec(Int, Long, Double) T](
   private[reactive] val frame: IsoFrame,
   private[reactive] val queue: EventQueue[T],
+  val name: String,
   val isDaemon: Boolean
 ) {
   @volatile private[reactive] var dequeuer: Dequeuer[T] = _
@@ -73,6 +75,7 @@ object Connector {
     }
     def unreact() = {
       multiplexer.unreacted(connector)
+      connector.frame.isolateSystem.channels.removeIsolate(connector.name)
       connector.frame.apply()
     }
   }

@@ -54,7 +54,7 @@ abstract class IsoSystem {
    *  @param scheduler  the scheduler used to scheduler the isolate
    *  @return           the channel for this isolate
    */
-  def isolate[@spec(Int, Long, Double) T: Arrayable](proto: Proto[Iso[T]], name: String = null): Channel[T]
+  def isolate[@spec(Int, Long, Double) T: Arrayable](proto: Proto[Iso[T]]): Channel[T]
 
   /** Creates a new channel for the specified isolate frame.
    *
@@ -77,11 +77,14 @@ abstract class IsoSystem {
    */
   protected def uniqueName(name: String): String
 
-  /** Releases the name after the isolate terminates.
+  /** Releases the channel names associated with the isolate,
+   *  and then releases the name of the isolate.
+   *
+   *  Called after the isolate terminates.
    *  
    *  @param name       the name to release
    */
-  protected[reactive] def releaseName(name: String): Unit
+  protected[reactive] def releaseNames(name: String): Unit
 
   /** Generates a new unique id, generated only once during
    *  the lifetime of this isolate system.
@@ -107,14 +110,18 @@ abstract class IsoSystem {
   /** Creates an isolate frame.
    *
    *  Should only be overridden if the default isolate initialization order needs to change.
+   *  The multiplexer, unique name and unique id are created for an isolate first.
+   *  Then, the isolate frame is created.
+   *  Then, the isolate object (concrete user implementation) is instantiated.
+   *  Then, the isolate frame is assigned the isolate object.
+   *  Finally, the `initiate` method is called on the scheduler, and the isolate is returned.
    *  See the source code of the default implementation of this method for more details.
    *
    *  @tparam T         the type of the events for the isolate
    *  @param proto      prototype for the isolate
-   *  @param name       name of the new isolate
    *  @return           the resulting isolate frame
    */
-  protected def createFrame[@spec(Int, Long, Double) T: Arrayable](proto: Proto[Iso[T]], name: String): Iso[T] = {
+  protected def createFrame[@spec(Int, Long, Double) T: Arrayable](proto: Proto[Iso[T]]): Iso[T] = {
     val scheduler = proto.scheduler match {
       case null => bundle.defaultScheduler
       case name => bundle.scheduler(name)
@@ -128,7 +135,7 @@ abstract class IsoSystem {
       case mult => mult
     }
     val uid = uniqueId()
-    val uname = uniqueName(name)
+    val uname = uniqueName(proto.name)
     val frame = new IsoFrame(
       uid,
       uname,
@@ -136,8 +143,8 @@ abstract class IsoSystem {
       scheduler,
       queueFactory,
       multiplexer,
-      frame => Iso.openChannel(frame, queueFactory, false),
-      frame => Iso.openChannel(frame, queueFactory, true)
+      frame => IsoSystem.openChannel(IsoSystem.this, frame, queueFactory, "events", false),
+      frame => IsoSystem.openChannel(IsoSystem.this, frame, queueFactory, "internal", true)
     )
     val isolate = Iso.argFrame.withValue(frame) {
       createAndResetIso(proto)
@@ -153,6 +160,19 @@ abstract class IsoSystem {
 /** Contains factory methods for creating isolate systems.
  */
 object IsoSystem {
+
+  /** Opens a channel for the current isolate, using the specified parameters.
+   */
+  private[reactive] def openChannel[@spec(Int, Long, Double) Q: Arrayable](system: IsoSystem, frame: IsoFrame, f: EventQueue.Factory, cn: String, isDaemon: Boolean): Connector[Q] = {
+    val factory = if (f != null) f else Iso.self.frame.eventQueueFactory
+    val channelName = if (cn != null) cn else "channel-" + frame.counter.incrementAndGet().toString
+    val eventQueue = factory.create[Q]
+    val name = frame.name + "#" + channelName
+    val connector = new Connector(frame, eventQueue, name, isDaemon)
+    system.channels(name) = connector.channel
+    frame.multiplexer += connector
+    connector
+  }
 
   /** Retrieves the default isolate system.
    *  
@@ -210,9 +230,38 @@ object IsoSystem {
    */
   lazy val defaultBundle = Bundle.default(Scheduler.default)
 
+  class ChannelBuilder(
+    val system: IsoSystem,
+    val channelName: String,
+    val isDaemon: Boolean,
+    val eventQueueFactory: EventQueue.Factory
+  ) {
+    /** Associates a new name for the channel.
+     */
+    def named(name: String) = new ChannelBuilder(system, name, isDaemon, eventQueueFactory)
+
+    /** Specifies a daemon channel.
+     */
+    def daemon = new ChannelBuilder(system, channelName, true, eventQueueFactory)
+
+    /** Associates a new event queue factory.
+     */
+    def eventQueue(factory: EventQueue.Factory) = new ChannelBuilder(system, channelName, isDaemon, factory)
+
+    /** Opens a new channel for this isolate.
+     *
+     *  @tparam Q        type of the events in the new channel
+     *  @param factory   event queue factory
+     *  @return          the connector object of the new channel
+     */
+    final def open[@spec(Int, Long, Double) Q: Arrayable]: Connector[Q] =
+      IsoSystem.openChannel[Q](system, Iso.self.frame, eventQueueFactory, channelName, isDaemon)
+  }
+
   /** The channel register used for channel lookup by name.
    */
-  trait Channels {
+  abstract class Channels(system: IsoSystem) extends ChannelBuilder(system, null, false, null) {
+
     /** Registers a new channel with this isolate system.
      *
      *  Throws an exception if name is already taken.
@@ -220,31 +269,19 @@ object IsoSystem {
      *  @param name       name of the channel
      *  @param channel    the channel to register
      */
-    def update(name: String, channel: Channel[_]): Unit
+    private[reactive] def update(name: String, channel: Channel[_]): Unit
 
     /** Removes the channel registration.
      *
      *  @param name       name of the channel to remove from the register
      */
-    def remove(name: String): Unit
+    private[reactive] def remove(name: String): Unit
 
-    /** Returns a channel under the specified name, if any.
+    /** Removes all the channels registered with a specific isolate.
      *
-     *  Throws an exception if such a channel does not exist.
-     *  
-     *  @param name       name of the channel
-     *  @return           the channel registered under the specified name
+     *  @param isoName    name of the isolate whose channels must be removed
      */
-    def apply[@spec(Int, Long, Double) T](name: String): Channel[T]
-
-    /** Returns a channel under the specified name, if any.
-     *
-     *  Returns `None` if none exist.
-     *  
-     *  @param name       name of the channel
-     *  @return           optionally, the channel registered under the specified name
-     */
-    def get[T](name: String): Option[Channel[T]]
+    private[reactive] def removeIsolate(isoName: String): Unit
 
     /** Eventually returns a channel under the specified name.
      *
@@ -255,6 +292,9 @@ object IsoSystem {
 
     /** Eventually returns an *unsealed* channel under the specified name.
      *
+     *  Note: between the time that the channel is retrieved and the time it is first used,
+     *  that channel can asynchronously become sealed.
+     *  
      *  @param name       name of the channel
      *  @return           the ivar with the channel registered under the specified name
      */
@@ -265,20 +305,19 @@ object IsoSystem {
 
     /** A default implementation of the channels register.
      */
-    class Default extends IsoSystem.Channels {
+    class Default(system: IsoSystem) extends IsoSystem.Channels(system) {
       private val channelMap = container.RMap[String, Channel[_]]
-      def update(name: String, c: Channel[_]) = channelMap.synchronized {
+      private[reactive] def update(name: String, c: Channel[_]) = channelMap.synchronized {
         if (!channelMap.contains(name)) channelMap(name) = c
         else sys.error(s"Name $name already contained in channels.")
       }
-      def apply[@spec(Int, Long, Double) T](name: String): Channel[T] = channelMap.synchronized {
-        channelMap(name).asInstanceOf[Channel[T]]
-      }
-      def remove(name: String): Unit = channelMap.synchronized {
+      private[reactive] def remove(name: String): Unit = channelMap.synchronized {
         channelMap.remove(name)
       }
-      def get[T](name: String): Option[Channel[T]] = channelMap.synchronized {
-        channelMap.get(name).asInstanceOf[Option[Channel[T]]]
+      private[reactive] def removeIsolate(isoName: String): Unit = channelMap.synchronized {
+        val prefix = isoName + "#"
+        val obsoleteNames = channelMap.keys.filter(_ startsWith prefix)
+        for (name <- obsoleteNames) channelMap.remove(name)
       }
       private def channelExtractor[T](reqId: Long): PartialFunction[InternalEvent, Channel[T]] = {
         case ChannelRetrieved(`reqId`, c: Channel[T]) => c

@@ -77,7 +77,7 @@ object Isolates {
   }
 
   class DualChannelIso(sv: SyncVar[Int]) extends Iso[Channel[Channel[Int]]] {
-    val second = open[Int]
+    val second = system.channels.open[Int]
 
     react <<= second.events onEvent { i =>
       sv.put(i)
@@ -100,20 +100,16 @@ object Isolates {
   }
 
   class RegChannelIso(sv: SyncVar[Int]) extends Iso[Null] {
-    val second = open[Int]
-    system.channels("secondChannel") = second.channel
+    val second = system.channels.named("secondChannel").open[Int]
 
     react <<= second.events onEvent { i =>
       sv.put(i)
       second.channel.seal()
-      system.channels.remove("secondChannel")
     }
   }
 
   class LookupIso extends Iso[Null] {
-    react <<= system.channels.iget[Int]("secondChannel").use { c =>
-      c << 7
-    }
+    react <<= system.channels.iget[Int]("reggy#secondChannel").use(_ << 7)
   }
 
 }
@@ -212,7 +208,7 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
 
     val emitter = new Reactive.Emitter[Channel[Int]]
 
-    val rc = isoSystem.isolate(Proto[RegChannelIso](sv))
+    val rc = isoSystem.isolate(Proto[RegChannelIso](sv).withName("reggy"))
     val lc = isoSystem.isolate(Proto[LookupIso])
 
     sv.get should equal (7)
@@ -229,7 +225,7 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
 
     val lc = isoSystem.isolate(Proto[LookupIso])
     Thread.sleep(100)
-    val rc = isoSystem.isolate(Proto[RegChannelIso](sv))
+    val rc = isoSystem.isolate(Proto[RegChannelIso](sv).withName("reggy"))
 
     sv.get should equal (7)
 

@@ -96,26 +96,6 @@ trait Iso[@spec(Int, Long, Double) T] extends ReactRecord {
    */
   react <<= frame.internalConnector.events.collect({ case e: SysEvent => e }).pipe(systemEmitter)
 
-  /** Opens a new channel for this isolate.
-   *
-   *  @tparam Q        type of the events in the new channel
-   *  @param factory   event queue factory
-   *  @return          the connector object of the new channel
-   */
-  final def open[@spec(Int, Long, Double) Q: Arrayable](implicit factory: EventQueue.Factory = frame.eventQueueFactory): Connector[Q] =
-    Iso.openChannel[Q](frame, factory, false)
-
-  /** Opens a new daemon channel for this isolate.
-   *
-   *  Daemon channels do not affect isolate termination.
-   *
-   *  @tparam Q        type of the events in the new channel
-   *  @param factory   event queue factory
-   *  @return          the connector object of the new channel
-   */
-  final def daemon[@spec(Int, Long, Double) Q: Arrayable](implicit factory: EventQueue.Factory = frame.eventQueueFactory): Connector[Q] =
-    Iso.openChannel[Q](frame, factory, true)
-
   /** The unique id of this isolate.
    *  
    *  @return          the unique id, assigned only to this isolate
@@ -164,13 +144,6 @@ object Iso {
   }
 
   private[reactive] val argFrame = new DynamicVariable[IsoFrame](null)
-
-  private[reactive] def openChannel[@spec(Int, Long, Double) Q: Arrayable](frame: IsoFrame, factory: EventQueue.Factory, isDaemon: Boolean): Connector[Q] = {
-    val eventQueue = factory.create[Q]
-    val connector = new Connector(frame, eventQueue, isDaemon)
-    frame.multiplexer += connector
-    connector
-  }
 
   /** Returns the current isolate.
    *

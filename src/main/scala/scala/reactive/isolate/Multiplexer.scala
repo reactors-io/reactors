@@ -117,8 +117,8 @@ object Multiplexer {
     }
 
     private def addConnector(connector: Connector[_]) {
-      descriptors += connector
       if (!connector.isDaemon) liveCount += 1
+      descriptors += connector
     }
 
     private def deleteCurrentConnector() {

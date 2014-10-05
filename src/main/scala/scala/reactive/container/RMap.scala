@@ -14,6 +14,10 @@ trait RMap[@spec(Int, Long, Double) K, V <: AnyRef] extends RContainer[(K, V)] {
 
   def entries: PairContainer[K, V]
 
+  def keys: RContainer[K]
+
+  def values: RContainer[V]
+
   def react: RMap.Lifted[K, V]
 
 }

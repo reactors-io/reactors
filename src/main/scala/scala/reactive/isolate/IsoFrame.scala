@@ -96,7 +96,7 @@ final class IsoFrame(
       if (isolateState.compareAndSet(Running, Terminated)) {
         try isolate.systemEmitter += IsoTerminated
         finally try for (es <- isolate.eventSources) es.close()
-        finally isolateSystem.releaseName(name)
+        finally isolateSystem.releaseNames(name)
       } else checkTerminated()
     }
   }

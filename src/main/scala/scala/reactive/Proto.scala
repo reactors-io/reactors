@@ -17,7 +17,8 @@ final class Proto[+I <: Iso[_]] private[reactive] (
   val params: Seq[Any],
   val scheduler: String = null,
   val eventQueueFactory: EventQueue.Factory = null,
-  val multiplexer: Multiplexer = null
+  val multiplexer: Multiplexer = null,
+  val name: String = null
 ) {
 
   /** Instantiates and returns the isolate.
@@ -31,17 +32,22 @@ final class Proto[+I <: Iso[_]] private[reactive] (
    *  @param sname               name of the scheduler
    *  @return                    a new `Proto` object
    */
-  def withScheduler(sname: String): Proto[I] = new Proto(clazz, params, sname, eventQueueFactory, multiplexer)
+  def withScheduler(sname: String): Proto[I] = new Proto(clazz, params, sname, eventQueueFactory, multiplexer, name)
 
   /** Associates the specified event queue type and returns the new `Proto` object.
    *  
    *  @param f                   event queue factory, used to instantiate the event queue object
    *  @return                    a new `Proto` object
    */
-  def withEventQueue(f: EventQueue.Factory): Proto[I] = new Proto(clazz, params, scheduler, f, multiplexer)
+  def withEventQueue(f: EventQueue.Factory): Proto[I] = new Proto(clazz, params, scheduler, f, multiplexer, name)
 
+  /** Associates a multiplexer with the event queue type and returns the new `Proto` object.
+   */
+  def withMultiplexer(m: Multiplexer): Proto[I] = new Proto(clazz, params, scheduler, eventQueueFactory, m, name)
 
-  def withMultiplexer(m: Multiplexer): Proto[I] = new Proto(clazz, params, scheduler, eventQueueFactory, m)
+  /** Associates the name for the new isolate and returns the new `Proto` object.
+   */
+  def withName(nm: String): Proto[I] = new Proto(clazz, params, scheduler, eventQueueFactory, multiplexer, nm)
 
 }
 

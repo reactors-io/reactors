@@ -34,7 +34,8 @@ extends IsoSystem {
     else name
   }
 
-  protected[reactive] def releaseName(name: String): Unit = monitor.synchronized {
+  protected[reactive] def releaseNames(name: String): Unit = monitor.synchronized {
+    channels.removeIsolate(name)
     isolates.remove(name)
   }
 
@@ -42,10 +43,10 @@ extends IsoSystem {
     new Channel.Synced(reactor, new util.Monitor)
   }
 
-  val channels = new IsoSystem.Channels.Default
+  val channels = new IsoSystem.Channels.Default(this)
 
-  def isolate[@spec(Int, Long, Double) T: Arrayable](proto: Proto[Iso[T]], name: String = null): Channel[T] = {
-    val isolate = createFrame(proto, name)
+  def isolate[@spec(Int, Long, Double) T: Arrayable](proto: Proto[Iso[T]]): Channel[T] = {
+    val isolate = createFrame(proto)
     val frame = isolate.frame
     monitor.synchronized {
       isolates(frame.name) = frame
