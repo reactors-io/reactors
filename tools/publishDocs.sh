@@ -4,7 +4,7 @@ set -x
 
 SCRIPT_PATH=`dirname $0`
 
-source $SCRIPT_PATH/../version.conf
+. $SCRIPT_PATH/../version.conf
 
 PROJECT_NAME="reactive-collections"
 VERSION="$reactive_collections_major.$reactive_collections_minor"
