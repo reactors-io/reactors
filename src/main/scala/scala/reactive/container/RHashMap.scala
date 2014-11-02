@@ -231,6 +231,8 @@ extends RMap[K, V] with RBuilder[(K, V), RHashMap[K, V]] with PairBuilder[K, V, 
 
   private def noKeyError(key: K) = throw new NoSuchElementException("key: " + key)
 
+  def nil: V = null
+
   def applyOrNil(key: K): V = {
     val entry = lookup(key)
     if (entry == null || entry.value == null) null

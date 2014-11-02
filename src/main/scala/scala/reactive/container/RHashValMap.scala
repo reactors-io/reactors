@@ -26,6 +26,8 @@ class RHashValMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
 
   init(emptyKey, emptyVal)
 
+  def nil: V = emptyVal.nil
+
   def inserts: Reactive[(K, V)] = insertsEmitter
   def removes: Reactive[(K, V)] = removesEmitter
 
