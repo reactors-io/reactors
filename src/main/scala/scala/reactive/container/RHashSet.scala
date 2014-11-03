@@ -9,7 +9,7 @@ import scala.reflect.ClassTag
 
 class RHashSet[@spec(Int, Long, Double) T](
   implicit val arrayable: Arrayable[T]
-) extends RContainer[T] with RBuilder[T, RHashSet[T]] {
+) extends RSet[T] with RBuilder[T, RHashSet[T]] {
   self =>
 
   private var table: Array[T] = null
@@ -183,7 +183,7 @@ object RHashSet {
 
   def apply[@spec(Int, Long, Double) T: Arrayable]() = new RHashSet[T]
 
-  class Lifted[@spec(Int, Long, Double) T](val container: RHashSet[T]) extends RContainer.Lifted[T]
+  class Lifted[@spec(Int, Long, Double) T](val container: RHashSet[T]) extends RSet.Lifted[T]
 
   val initSize = 16
 

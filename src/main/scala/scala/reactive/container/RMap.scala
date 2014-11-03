@@ -45,6 +45,26 @@ trait RMap[@spec(Int, Long, Double) K, V <: AnyRef] extends RContainer[(K, V)] {
    */
   def get(k: K): Option[V]
 
+  /** Returns `true` iff the map contains the specified key.
+   */
+  def contains(k: K): Boolean
+
+  /** Updates the key in the map with a new value.
+   *
+   *  If the key already existed in the map, the existing value is replaced with the new value.
+   *
+   *  @param key      the key
+   *  @param value    the new value to associate with the key
+   */
+  def update(key: K, value: V): Unit
+
+  /** Removes the key from the map.
+   *
+   *  @param key      the key to remove
+   *  @returns        `true` if the key was previously in the map, `false` otherwise
+   */
+  def remove(key: K): Boolean
+
   /** Returns the view over pairs in this map.
    */
   def entries: PairContainer[K, V]
