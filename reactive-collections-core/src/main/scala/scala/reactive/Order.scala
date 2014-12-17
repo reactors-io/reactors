@@ -5,6 +5,8 @@ package scala.reactive
 
 
 
+/** Specialized typeclass for describing ordering between elements.
+ */
 trait Order[@specialized(Short, Int, Long, Float, Double) T] {
 
   def compare(x: T, y: T): Int
@@ -22,6 +24,8 @@ trait Order[@specialized(Short, Int, Long, Float, Double) T] {
 }
 
 
+/** Default ordering objects.
+ */
 object Order {
 
   implicit object ShortOrder extends Order[Short] {
