@@ -1,38 +1,38 @@
+
+
+
 import sbt._
 import Keys._
 import Process._
 import java.io._
+import org.stormenroute.mecha._
 
 
 
-object ReactiveCollectionsBuild extends Build {
+object ReactiveCollectionsBuild extends MechaRepoBuild {
 
-  def versionFromFile(filename: String): String = {
-    val fis = new FileInputStream(filename)
-    val props = new java.util.Properties()
-    try props.load(fis)
-    finally fis.close()
-
-    val major = props.getProperty("reactive_collections_major")
-    val minor = props.getProperty("reactive_collections_minor")
-    s"$major.$minor"
+  val frameworkVersion = Def.setting {
+    ConfigParsers.versionFromFile(
+        (baseDirectory in reactiveCollections).value / "version.conf",
+        List("reactive_collections_major", "reactive_collections_minor"))
   }
 
-  val frameworkVersion = versionFromFile("version.conf")
-
-  val rcScalaVersion = "2.10.4"
-
-  val rcCrossScalaVersions = {
-    val path = "cross.conf"
+  val reactiveCollectionsCrossScalaVersions = Def.setting {
+    val dir = (baseDirectory in reactiveCollections).value
+    val path = dir + File.separator + "cross.conf"
     scala.io.Source.fromFile(path).getLines.filter(_.trim != "").toSeq
+  }
+
+  val reactiveCollectionsScalaVersion = Def.setting {
+    reactiveCollectionsCrossScalaVersions.value.head
   }
 
   val reactiveCollectionsSettings = Defaults.defaultSettings ++ Seq (
     name := "reactive-collections",
-    version := frameworkVersion,
+    version <<= frameworkVersion,
     organization := "com.storm-enroute",
-    scalaVersion := rcScalaVersion,
-    crossScalaVersions := rcCrossScalaVersions,
+    scalaVersion <<= reactiveCollectionsScalaVersion,
+    crossScalaVersions <<= reactiveCollectionsCrossScalaVersions,
     libraryDependencies <++= (scalaVersion)(sv => dependencies(sv)),
     testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
     parallelExecution in Test := false,
@@ -93,10 +93,10 @@ object ReactiveCollectionsBuild extends Build {
 
   val reactiveCollectionsCoreSettings = Defaults.defaultSettings ++ Seq (
     name := "reactive-collections-core",
-    version := frameworkVersion,
+    version <<= frameworkVersion,
     organization := "com.storm-enroute",
-    scalaVersion := rcScalaVersion,
-    crossScalaVersions := rcCrossScalaVersions,
+    scalaVersion <<= reactiveCollectionsScalaVersion,
+    crossScalaVersions <<= reactiveCollectionsCrossScalaVersions,
     libraryDependencies <++= (scalaVersion)(sv => coreDependencies(sv)),
     testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
     parallelExecution in Test := false,
@@ -161,7 +161,7 @@ object ReactiveCollectionsBuild extends Build {
     settings = reactiveCollectionsCoreSettings
   )
 
-  lazy val reactiveCollections = Project(
+  lazy val reactiveCollections: Project = Project(
     "reactive-collections",
     file("."),
     settings = reactiveCollectionsSettings
