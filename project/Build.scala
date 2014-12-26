@@ -11,6 +11,8 @@ import org.stormenroute.mecha._
 
 object ReactiveCollectionsBuild extends MechaRepoBuild {
 
+  def repoName = "reactive-collections"
+
   val frameworkVersion = Def.setting {
     ConfigParsers.versionFromFile(
         (baseDirectory in reactiveCollections).value / "version.conf",
