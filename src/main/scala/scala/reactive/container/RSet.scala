@@ -38,14 +38,14 @@ extends RContainer[T] {
   /** Adds an element to the set.
    *
    *  @param elem       the element to add
-   *  @returns          `true` if the element was not present, `false` otherwise
+   *  @return           `true` if the element was not present, `false` otherwise
    */
   def add(elem: T): Boolean
 
   /** Removes an element from the set
    *
    *  @param elem       the element to remove
-   *  @returns          `true` if the element was remove, `false` otherwise
+   *  @return           `true` if the element was remove, `false` otherwise
    */
   def remove(elem: T): Boolean
 

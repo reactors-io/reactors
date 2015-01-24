@@ -20,28 +20,28 @@ trait RMap[@spec(Int, Long, Double) K, V <: AnyRef] extends RContainer[(K, V)] {
   /** The special value that represents an absence of the value
    *  under the specified key.
    *
-   *  @returns        the nil value
+   *  @return         the nil value
    */
   def nil: V
 
   /** Returns the value associated with the specified key or throws an exception if the key is not present.
    *
    *  @param k        the key
-   *  @returns        the value associated with the key
+   *  @return         the value associated with the key
    */
   def apply(k: K): V
 
   /** Returns the value associated with the specified key or a nil value if the key is not present.
    *
    *  @param k        the key
-   *  @returns        the value associated with the key, or a nil value
+   *  @return         the value associated with the key, or a nil value
    */
   def applyOrNil(k: K): V
   
   /** Optionally returns the value associated with the key, if it is present.
    *
    *  @param k        the key
-   *  @returns        the optional value associated with the key
+   *  @return         the optional value associated with the key
    */
   def get(k: K): Option[V]
 
@@ -61,7 +61,7 @@ trait RMap[@spec(Int, Long, Double) K, V <: AnyRef] extends RContainer[(K, V)] {
   /** Removes the key from the map.
    *
    *  @param key      the key to remove
-   *  @returns        `true` if the key was previously in the map, `false` otherwise
+   *  @return         `true` if the key was previously in the map, `false` otherwise
    */
   def remove(key: K): Boolean
 
@@ -118,7 +118,7 @@ object RMap {
      *  is subsequently assigned to the specified key.
      *
      *  @param key         the key
-     *  @returns           the reactive containing all the values assigned to the key
+     *  @return            the reactive containing all the values assigned to the key
      */
     def apply(key: K): Reactive[V]
   }

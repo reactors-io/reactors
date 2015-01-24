@@ -29,21 +29,24 @@ object ReactiveCollectionsBuild extends MechaRepoBuild {
     reactiveCollectionsCrossScalaVersions.value.head
   }
 
-  val reactiveCollectionsSettings = Defaults.defaultSettings ++ Seq (
+  val reactiveCollectionsSettings = Defaults.defaultSettings ++
+    MechaRepoPlugin.defaultSettings ++ Seq(
     name := "reactive-collections",
     version <<= frameworkVersion,
     organization := "com.storm-enroute",
     scalaVersion <<= reactiveCollectionsScalaVersion,
     crossScalaVersions <<= reactiveCollectionsCrossScalaVersions,
     libraryDependencies <++= (scalaVersion)(sv => dependencies(sv)),
-    testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
+    //testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
     parallelExecution in Test := false,
     scalacOptions in (Compile, doc) ++= Seq(
       "-implicits"
     ),
     resolvers ++= Seq(
-      "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots",
-      "Sonatype OSS Releases" at "https://oss.sonatype.org/content/repositories/releases"
+      "Sonatype OSS Snapshots" at
+        "https://oss.sonatype.org/content/repositories/snapshots",
+      "Sonatype OSS Releases" at
+        "https://oss.sonatype.org/content/repositories/releases"
     ),
     publishMavenStyle := true,
     publishTo <<= version { (v: String) =>
@@ -74,10 +77,15 @@ object ReactiveCollectionsBuild extends MechaRepoBuild {
           <name>Aleksandar Prokopec</name>
           <url>http://axel22.github.com/</url>
         </developer>
-      </developers>
+      </developers>,
+    (test in Test) <<= (test in Test)
+      .dependsOn(test in (reactiveCollectionsCore, Test)),
+    publish <<= publish.dependsOn(publish in reactiveCollectionsCore),
+    mechaPublishKey := { publish.value }
   )
 
-  def dependencies(scalaVersion: String) = CrossVersion.partialVersion(scalaVersion) match {
+  def dependencies(scalaVersion: String) =
+    CrossVersion.partialVersion(scalaVersion) match {
     case Some((2, major)) if major >= 11 => Seq(
       "org.scalatest" % "scalatest_2.11" % "2.1.7" % "test",
       "com.storm-enroute" %% "scalameter" % "0.6" % "test",
@@ -100,14 +108,16 @@ object ReactiveCollectionsBuild extends MechaRepoBuild {
     scalaVersion <<= reactiveCollectionsScalaVersion,
     crossScalaVersions <<= reactiveCollectionsCrossScalaVersions,
     libraryDependencies <++= (scalaVersion)(sv => coreDependencies(sv)),
-    testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
+    //testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
     parallelExecution in Test := false,
     scalacOptions in (Compile, doc) ++= Seq(
       "-implicits"
     ),
     resolvers ++= Seq(
-      "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots",
-      "Sonatype OSS Releases" at "https://oss.sonatype.org/content/repositories/releases"
+      "Sonatype OSS Snapshots" at
+        "https://oss.sonatype.org/content/repositories/snapshots",
+      "Sonatype OSS Releases" at
+        "https://oss.sonatype.org/content/repositories/releases"
     ),
     publishMavenStyle := true,
     publishTo <<= version { (v: String) =>
@@ -141,7 +151,8 @@ object ReactiveCollectionsBuild extends MechaRepoBuild {
       </developers>
   )
 
-  def coreDependencies(scalaVersion: String) = CrossVersion.partialVersion(scalaVersion) match {
+  def coreDependencies(scalaVersion: String) =
+    CrossVersion.partialVersion(scalaVersion) match {
     case Some((2, major)) if major >= 11 => Seq(
       "org.scalatest" % "scalatest_2.11" % "2.1.7" % "test",
       "org.scalacheck" %% "scalacheck" % "1.11.3" % "test",
