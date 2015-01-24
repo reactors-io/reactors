@@ -10,8 +10,8 @@ import Keys._
 object Plugins extends Build {
   val mechadir = new File(s"mecha")
   val mechaPlugin = {
-    if (mechadir.exists) ProjectRef(file("../../mecha"), "mecha-repo-plugin")
-    else ProjectRef(uri("git://github.com/storm-enroute/mecha.git"), "mecha-repo-plugin")
+    if (mechadir.exists) ProjectRef(file("../../mecha"), "mecha")
+    else ProjectRef(uri("git://github.com/storm-enroute/mecha.git"), "mecha")
   }
   
   lazy val build = Project(
