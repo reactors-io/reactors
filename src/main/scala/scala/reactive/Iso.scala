@@ -67,12 +67,17 @@ import isolate._
  *  @tparam T        the type of the events this isolate produces
  */
 trait Iso[@spec(Int, Long, Double) T] extends ReactRecord {
-  @volatile private[reactive] var frame: IsoFrame = _
-  @volatile private[reactive] var eventSources: mutable.Set[EventSource] = _
-  @volatile private[reactive] var systemEmitter: Reactive.Emitter[SysEvent] = _
-  @volatile private[reactive] var failureEmitter: Reactive.Emitter[Throwable] = _
+  @volatile private[reactive] var frame:
+    IsoFrame = _
+  @volatile private[reactive] var eventSources:
+    mutable.Set[EventSource] = _
+  @volatile private[reactive] var systemEmitter:
+    Reactive.Emitter[SysEvent] = _
+  @volatile private[reactive] var failureEmitter:
+    Reactive.Emitter[Throwable] = _
 
-  private def illegal() = throw new IllegalStateException("Only isolate systems can create isolates.")
+  private def illegal() =
+    throw new IllegalStateException("Only isolate systems can create isolates.")
 
   /* start workaround for a handful of specialization bugs */
 
@@ -94,7 +99,9 @@ trait Iso[@spec(Int, Long, Double) T] extends ReactRecord {
 
   /** Make sure that system events reach the `systemEmitter`.
    */
-  react <<= frame.internalConnector.events.collect({ case e: SysEvent => e }).pipe(systemEmitter)
+  react <<= frame.internalConnector.events.collect({
+    case e: SysEvent => e
+  }).pipe(systemEmitter)
 
   /** The unique id of this isolate.
    *  
@@ -108,7 +115,8 @@ trait Iso[@spec(Int, Long, Double) T] extends ReactRecord {
 
   /** Internal events received by this isolate.
    */
-  private[reactive] final def internalEvents: Reactive[InternalEvent] = frame.internalConnector.events
+  private[reactive] final def internalEvents: Reactive[InternalEvent] =
+    frame.internalConnector.events
 
   /** The system event stream.
    */
@@ -158,7 +166,9 @@ object Iso {
    */
   def self[I <: Iso[_]]: I = {
     val i = selfIso.get
-    if (i == null) throw new IllegalStateException(s"${Thread.currentThread.getName} not executing in an isolate.")
+    if (i == null)
+      throw new IllegalStateException(
+        s"${Thread.currentThread.getName} not executing in an isolate.")
     i.asInstanceOf[I]
   }
 
