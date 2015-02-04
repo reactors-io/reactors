@@ -633,7 +633,7 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    *  it is not necessary to keep a reference to it to prevent it from getting
    *  garbage collected.
    *  
-   *  @return           returns the hardened version of this reactive
+   *  @return           returns the endured version of this reactive
    */
   def endure: Reactive[T] with Reactive.Subscription = {
     new Reactive.Endure(this)

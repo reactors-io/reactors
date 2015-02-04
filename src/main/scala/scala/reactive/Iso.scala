@@ -71,6 +71,8 @@ trait Iso[@spec(Int, Long, Double) T] extends ReactRecord {
     IsoFrame = _
   @volatile private[reactive] var eventSources:
     mutable.Set[EventSource] = _
+  @volatile private[reactive] var eventSinks:
+    mutable.Set[EventSink] = _
   @volatile private[reactive] var systemEmitter:
     Reactive.Emitter[SysEvent] = _
   @volatile private[reactive] var failureEmitter:
@@ -87,6 +89,7 @@ trait Iso[@spec(Int, Long, Double) T] extends ReactRecord {
       case eq => eq.asInstanceOf[IsoFrame]
     }
     eventSources = mutable.Set[EventSource]()
+    eventSinks = mutable.Set[EventSink]()
     systemEmitter = new Reactive.Emitter[SysEvent]
     failureEmitter = new Reactive.Emitter[Throwable]
 
