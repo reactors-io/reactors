@@ -7,9 +7,10 @@ package scala.reactive
 
 /** An interface that describes event sources.
  *
- *  Automatically installs itself into the `EventSource` set of the enclosing isolate.
- *  If the event source object is created outside of the isolate, it is not registered
- *  by any isolates.
+ *  Automatically installs itself into the `EventSource` set of the enclosing
+ *  isolate.
+ *  If the event source object is created outside of the isolate, it is not
+ *  registered by any isolates.
  */
 trait EventSource {
   
