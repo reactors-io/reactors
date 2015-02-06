@@ -67,16 +67,18 @@ import isolate._
  *  @tparam T        the type of the events this isolate produces
  */
 trait Iso[@spec(Int, Long, Double) T] extends ReactRecord {
-  @volatile private[reactive] var frame:
-    IsoFrame = _
-  @volatile private[reactive] var eventSources:
-    mutable.Set[EventSource] = _
-  @volatile private[reactive] var eventSinks:
-    mutable.Set[EventSink] = _
-  @volatile private[reactive] var systemEmitter:
-    Reactive.Emitter[SysEvent] = _
+  @volatile private[reactive] var frame: IsoFrame = _
+
+  @volatile private[reactive] var eventSources: mutable.Set[EventSource] = _
+
+  @volatile private[reactive] var eventSinks: mutable.Set[EventSink] = _
+
+  @volatile private[reactive] var systemEmitter: Reactive.Emitter[SysEvent] = _
+
   @volatile private[reactive] var failureEmitter:
     Reactive.Emitter[Throwable] = _
+
+  val implicits = Iso.Implicits
 
   private def illegal() =
     throw new IllegalStateException("Only isolate systems can create isolates.")
@@ -188,5 +190,9 @@ object Iso {
   /** Returns the current isolate that produces events of type `T`.
    */
   def of[@specialized(Int, Long, Double) T]: Iso[T] = Iso.self[Iso[T]]
+
+  object Implicits {
+    implicit def canLeak: CanLeak = CanLeak.isoCanLeak
+  }
 
 }

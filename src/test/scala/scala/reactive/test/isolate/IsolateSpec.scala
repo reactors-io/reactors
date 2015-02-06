@@ -43,7 +43,7 @@ object Isolates {
   }
 
   class TestLooper(sv: SyncVar[Int]) extends isolate.Looper[Int] {
-    import Implicits.canLeak
+    import implicits.canLeak
 
     val fallback = RCell(Option(1))
 
@@ -61,7 +61,7 @@ object Isolates {
   }
 
   class CustomIso(sv: SyncVar[Boolean]) extends Iso[Int] {
-    import Implicits.canLeak
+    import implicits.canLeak
 
     events on {
       sv.put(false)
@@ -73,7 +73,7 @@ object Isolates {
   }
 
   class AutoClosingIso(sv: SyncVar[Boolean]) extends Iso[Int] {
-    import Implicits.canLeak
+    import implicits.canLeak
 
     val emitter = new Reactive.Emitter[Int]
 
@@ -96,7 +96,7 @@ object Isolates {
   }
 
   class MasterIso(ask: Channel[Channel[Channel[Int]]]) extends Iso[Channel[Int]] {
-    import Implicits.canLeak
+    import implicits.canLeak
 
     sysEvents onCase {
       case IsoStarted => ask << channel

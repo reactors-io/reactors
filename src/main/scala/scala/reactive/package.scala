@@ -250,8 +250,9 @@ package object reactive {
     "Otherwise, consider calling observe or foreach.")
   sealed trait CanLeak
 
-  object Implicits {
-    implicit val canLeak = new CanLeak {}
+  object CanLeak {
+    private[reactive] def newCanLeak: CanLeak = new CanLeak {}
+    private[reactive] val isoCanLeak: CanLeak = new CanLeak {}
   }
 
   /* system events */
