@@ -81,9 +81,12 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    *  @param reactor     the reactor
    *  @return            a subscription for unsubscribing from reactions
    */
-  //def onReaction(reactor: Reactor[T]): Reactive.Subscription = {
-  //  observe(reactor) // TODO
-  //}
+  def onReaction(reactor: Reactor[T])(implicit canLeak: CanLeak):
+    Reactive.Subscription = {
+    val eventSink = new Reactor.EventSink(reactor)
+    val subscription = observe(eventSink)
+    eventSink.liftSubscription(subscription)
+  }
 
   /** A shorthand for `onReaction` -- the specified functions are invoked
    *  whenever there is an event or an unreaction.
@@ -92,11 +95,13 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    *  @param unreactFunc called when this reactive unreacts
    *  @return            a subscription for unsubscribing from reactions
    */
-  def onReactUnreact(reactFunc: T => Unit)(unreactFunc: =>Unit):
-    Reactive.Subscription = observe(new Reactor[T] { // TODO
-    def react(event: T) = reactFunc(event)
-    def unreact() = unreactFunc
-  })
+  def onReactUnreact(reactFunc: T => Unit)(unreactFunc: =>Unit)
+    (implicit canLeak: CanLeak): Reactive.Subscription = {
+    onReaction(new Reactor[T] {
+      def react(event: T) = reactFunc(event)
+      def unreact() = unreactFunc
+    })
+  }
 
   /** A shorthand for `onReaction` -- the specified function is invoked whenever
    *  there is an event.
@@ -104,11 +109,14 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    *  @param reactor     the callback for events
    *  @return            a subcriptions for unsubscribing from reactions
    */
-  def onEvent(reactor: T => Unit): Reactive.Subscription = observe( // TODO
-    new Reactor[T] {
-    def react(event: T) = reactor(event)
-    def unreact() {}
-  })
+  def onEvent(reactor: T => Unit)(implicit canLeak: CanLeak):
+    Reactive.Subscription = {
+    onReaction(
+      new Reactor[T] {
+      def react(event: T) = reactor(event)
+      def unreact() {}
+    })
+  }
 
   /** A shorthand for `onReaction` -- the specified partial function is applied
    *  to only those events for which it is defined.
@@ -133,11 +141,13 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    *  @param reactor     the callback for those events for which it is defined
    *  @return            a subscription for unsubscribing from reactions
    */
-  def onCase(reactor: PartialFunction[T, Unit])(implicit sub: T <:< AnyRef):
-    Reactive.Subscription = observe(new Reactor[T] { // TODO
-    def react(event: T) = if (reactor.isDefinedAt(event)) reactor(event)
-    def unreact() {}
-  })
+  def onCase(reactor: PartialFunction[T, Unit])
+    (implicit sub: T <:< AnyRef, canLeak: CanLeak): Reactive.Subscription = {
+    onReaction(new Reactor[T] {
+      def react(event: T) = if (reactor.isDefinedAt(event)) reactor(event)
+      def unreact() {}
+    })
+  }
 
   /** A shorthand for `onReaction` -- called whenever an event occurs.
    *
@@ -147,9 +157,8 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    *  @param reactor     the callback invoked when an event arrives
    *  @return            a subscription for unsubscribing from reactions
    */
-  def on(reactor: =>Unit): Reactive.Subscription = {
-    // TODO
-    observe(new Reactor[T] {
+  def on(reactor: =>Unit)(implicit canLeak: CanLeak): Reactive.Subscription = {
+    onReaction(new Reactor[T] {
       def react(value: T) = reactor
       def unreact() {}
     })
@@ -160,17 +169,22 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    *  @param f           the callback invoked when `this` unreacts
    *  @return            a subscription for the unreaction notification
    */
-  def onUnreact(reactor: =>Unit): Reactive.Subscription = observe( // TODO
-    new Reactor[T] {
-    def react(value: T) {}
-    def unreact() = reactor
-  })
+  def onUnreact(reactor: =>Unit)(implicit canLeak: CanLeak):
+    Reactive.Subscription = {
+    onReaction(new Reactor[T] {
+      def react(value: T) {}
+      def unreact() = reactor
+    })
+  }
 
   /** Executes the specified function every time an event arrives.
    *
    *  Semantically equivalent to `onEvent`,
-   *  but supports `for`-loop syntax with reactive values.
+   *  but supports `for`-loop syntax with reactive values,
+   *  and does not cause time and memory leaks.
    *
+   *  The resulting reactive emits unit events every time an event arrives.
+   *  
    *  {{{
    *  for (event <- r) println("Event arrived: " + event)
    *  }}}
@@ -181,6 +195,23 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    */
   def foreach(f: T => Unit): Reactive[Unit] with Reactive.Subscription = {
     val rf = new Reactive.Foreach(self, f)
+    rf.subscription = self observe rf
+    rf
+  }
+
+  /** Executes when the underlying reactive unreacts.
+   *  
+   *  Semantically equivalent to `onUnreact`,
+   *  but does not cause time and memory leaks.
+   *
+   *  The resulting reactive emits a unit event when the underlying reactive
+   *  unreacts. It then itself unreacts.
+   *
+   *  @param body        the callback invoked when an event arrives
+   *  @return            a subscription that is also a reactive value
+   */
+  def ultimately(body: =>Unit): Reactive[Unit] with Reactive.Subscription = {
+    val rf = new Reactive.Ultimately(self, () => body)
     rf.subscription = self observe rf
     rf
   }
@@ -729,7 +760,7 @@ object Reactive {
      *  @param em        emitter to forward the events to
      */
     def pipe(em: Reactive.Emitter[T]): Reactive.Subscription =
-      self.onEvent(em += _)
+      self.foreach(em += _)
 
     /** Creates a union of `this` and `that` reactive.
      *  
@@ -960,6 +991,19 @@ object Reactive {
       reactAll(())
     }
     def unreact() {
+      unreactAll()
+    }
+    var subscription = Subscription.empty
+  }
+
+  private[reactive] class Ultimately[@spec(Int, Long, Double) T]
+    (val self: Reactive[T], val body: () => Unit)
+  extends Reactive.Default[Unit] with Reactor[T]
+  with Reactive.ProxySubscription {
+    def react(value: T) {}
+    def unreact() {
+      body()
+      reactAll(())
       unreactAll()
     }
     var subscription = Subscription.empty
@@ -1791,7 +1835,7 @@ object Reactive {
       if (isAssigned) {
         f(this())
         Reactive.Subscription.empty
-      } else onEvent(f)
+      } else foreach(f)
     }
 
     /** Closes the ivar iff it is unassigned.

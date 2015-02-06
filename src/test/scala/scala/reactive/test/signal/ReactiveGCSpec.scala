@@ -14,7 +14,7 @@ class ReactiveGCSpec extends FlatSpec with ShouldMatchers {
   def testGC(num: Int)(afterCheck: Reactive.Emitter[Int] => Boolean) {
     var signsOfLife = Array.fill(num)(false)
     val emitter = new Reactive.Emitter[Int]
-    for (i <- 0 until num) emitter on {
+    for (i <- 0 until num) emitter foreach { _ =>
       signsOfLife(i) = true
     }
 
@@ -44,10 +44,49 @@ class ReactiveGCSpec extends FlatSpec with ShouldMatchers {
     }
   }
 
+  def testOnX(num: Int)(afterCheck: Reactive.Emitter[Int] => Boolean) {
+    import Implicits.canLeak
+
+    var signsOfLife = Array.fill(num)(false)
+    val emitter = new Reactive.Emitter[Int]
+    for (i <- 0 until num) emitter onEvent { _ =>
+      signsOfLife(i) = true
+    }
+
+    sys.runtime.gc()
+
+    emitter += 1
+
+    try {
+      for (i <- 0 until num) signsOfLife(i) should equal (true)
+      afterCheck(emitter) should equal (true)
+    } finally {
+      EventSink.globalEventSinks.clear()
+    }
+  }
+
+  it should "not GC 1 onX dependency" in {
+    testOnX(1) {
+      _.demux != null
+    }
+  }
+
+  it should "not GC several onX dependencies" in {
+    testOnX(4) {
+      _.demux != null
+    }
+  }
+
+  it should "not GC many onX dependencies" in {
+    testOnX(32) {
+      _.demux != null
+    }
+  }
+
   def testDep(num: Int)(afterCheck: Reactive.Emitter[Int] => Boolean) {
     var signsOfLife = Array.fill(num)(false)
     val emitter = new Reactive.Emitter[Int]
-    val subs = for (i <- 0 until num) yield emitter on {
+    val subs = for (i <- 0 until num) yield emitter foreach { _ =>
       signsOfLife(i) = true
     }
 
@@ -80,10 +119,10 @@ class ReactiveGCSpec extends FlatSpec with ShouldMatchers {
   def testGChalf(num: Int)(afterCheck: Reactive.Emitter[Int] => Boolean) {
     var signsOfLife = Array.fill(num)(false)
     val emitter = new Reactive.Emitter[Int]
-    val kept = for (i <- 0 until num / 2) yield emitter on {
+    val kept = for (i <- 0 until num / 2) yield emitter foreach { _ =>
       signsOfLife(i) = true
     }
-    for (i <- num / 2 until num) emitter on {
+    for (i <- num / 2 until num) emitter foreach { _ =>
       signsOfLife(i) = true
     }
 

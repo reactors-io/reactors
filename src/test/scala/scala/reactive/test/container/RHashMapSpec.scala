@@ -119,7 +119,7 @@ class RHashMapSpec extends FlatSpec with ShouldMatchers {
     val signsOfLife = Array.fill(many)(false)
     val subs = for (i <- 0 until many) yield {
       val values = table.react(i)
-      values on {
+      values foreach { _ =>
         signsOfLife(i) = true
       }
     }
@@ -146,7 +146,7 @@ class RHashMapSpec extends FlatSpec with ShouldMatchers {
     val table = new RHashMap[Int, String]
     val observed = mutable.Set[Int]()
     val keys = table.keys
-    keys.inserts.onEvent(observed += _)
+    keys.inserts.foreach(observed += _)
     for (i <- 0 until size) table(i) = i.toString
 
     observed should equal ((0 until size).toSet)
@@ -157,7 +157,7 @@ class RHashMapSpec extends FlatSpec with ShouldMatchers {
     val table = new RHashMap[Int, String]
     val observed = mutable.Set[Int]()
     val keys = table.keys
-    val insertSub = keys.inserts.onEvent(observed += _)
+    val insertSub = keys.inserts.foreach(observed += _)
     for (i <- 0 until size) table(i) = i.toString
 
     observed should equal ((0 until size).toSet)

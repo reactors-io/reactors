@@ -13,7 +13,8 @@ package object isolate {
     val fallback: Signal[Option[T]]
 
     def initialize() {
-      react <<= sysEvents onCase {
+      import Implicits.canLeak
+      sysEvents onCase {
         case IsoStarted | IsoEmptyQueue => fallback() match {
           case Some(v) => later.enqueueIfEmpty(v)
           case None => channel.seal()

@@ -227,7 +227,7 @@ class RContainerSpec extends FlatSpec with ShouldMatchers {
       case (k, "ok") => (k, "ok")
     })
     val observed = mutable.Buffer[String]()
-    val insertSub = oks.inserts.onEvent(kv => observed += kv._2)
+    val insertSub = oks.inserts.foreach(kv => observed += kv._2)
     for (i <- 0 until size) table(i) = if (i % 2 == 0) "ok" else "notok"
 
     observed.size should equal (size / 2)

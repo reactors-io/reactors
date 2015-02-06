@@ -19,7 +19,7 @@ object Isolates {
   import Logging._
 
   class OneIso(sv: SyncVar[String]) extends Iso[String] {
-    react <<= events.onEvent { v =>
+    react <<= events.foreach { v =>
       log(s"got event '$v'")
       sv.put(v)
     }
@@ -29,27 +29,29 @@ object Isolates {
     val history = events.scanPast(List[Int]()) {
       (acc, x) => x :: acc
     }
-    react <<= history.onEvent {
+    react <<= history.foreach {
       x => if (x.size == many) sv.put(x)
     }
-    //react <<= sysEvents.onEvent(println)
+    //react <<= sysEvents.foreach(println)
   }
 
   class SelfIso(sv: SyncVar[Boolean]) extends Iso[Int] {
-    react <<= events.onEvent { _ =>
+    react <<= events.foreach { _ =>
       log(s"${Iso.self} vs ${this}}")
       sv.put(Iso.self[SelfIso] == this)
     }
   }
 
   class TestLooper(sv: SyncVar[Int]) extends isolate.Looper[Int] {
+    import Implicits.canLeak
+
     val fallback = RCell(Option(1))
 
     react <<= sysEvents onCase {
       case IsoEmptyQueue => log(s"empty queue!")
     }
 
-    react <<= events.scanPast(0)(_ + _) onEvent { e =>
+    react <<= events.scanPast(0)(_ + _) foreach { e =>
       log(s"scanned to $e")
       if (e >= 3) {
         sv.put(e)
@@ -59,19 +61,23 @@ object Isolates {
   }
 
   class CustomIso(sv: SyncVar[Boolean]) extends Iso[Int] {
-    react <<= events on {
+    import Implicits.canLeak
+
+    events on {
       sv.put(false)
     }
 
-    react <<= sysEvents onCase {
+    sysEvents onCase {
       case IsoTerminated => if (!sv.isSet) sv.put(true)
     }
   }
 
   class AutoClosingIso(sv: SyncVar[Boolean]) extends Iso[Int] {
+    import Implicits.canLeak
+
     val emitter = new Reactive.Emitter[Int]
 
-    react <<= emitter onUnreact {
+    emitter onUnreact {
       sv.put(true)
     }
   }
@@ -79,22 +85,24 @@ object Isolates {
   class DualChannelIso(sv: SyncVar[Int]) extends Iso[Channel[Channel[Int]]] {
     val second = system.channels.open[Int]
 
-    react <<= second.events onEvent { i =>
+    react <<= second.events foreach { i =>
       sv.put(i)
       second.channel.seal()
     }
 
-    react <<= events onEvent { c =>
+    react <<= events foreach { c =>
       c << second.channel
     }
   }
 
   class MasterIso(ask: Channel[Channel[Channel[Int]]]) extends Iso[Channel[Int]] {
-    react <<= sysEvents onCase {
+    import Implicits.canLeak
+
+    sysEvents onCase {
       case IsoStarted => ask << channel
     }
 
-    react <<= events onEvent { c =>
+    react <<= events foreach { c =>
       c << 7
     }
   }
@@ -102,7 +110,7 @@ object Isolates {
   class RegChannelIso(sv: SyncVar[Int]) extends Iso[Null] {
     val second = system.channels.named("secondChannel").open[Int]
 
-    react <<= second.events onEvent { i =>
+    react <<= second.events foreach { i =>
       sv.put(i)
       second.channel.seal()
     }

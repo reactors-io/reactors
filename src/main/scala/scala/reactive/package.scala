@@ -241,6 +241,19 @@ package object reactive {
     }
   }
 
+  /* implicits */
+
+  @implicitNotFound("Calling on* methods can result in time and memory leaks " +
+    "when the reference to the corresponding Subscription object is lost. " +
+    "If you are sure you want to risk this, import " +
+    "scala.reactive.Implicits.canLeak. " +
+    "Otherwise, consider calling observe or foreach.")
+  sealed trait CanLeak
+
+  object Implicits {
+    implicit val canLeak = new CanLeak {}
+  }
+
   /* system events */
 
   /** Internal events are used by the isolate system to communicate with different isolates.

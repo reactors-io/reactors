@@ -23,7 +23,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     val s = rt.x.filter {
       _ % 2 == 0
     }
-    val a = s onEvent { case x =>
+    val a = s foreach { case x =>
       assert(x % 2 == 0)
     }
 
@@ -36,7 +36,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     val s = e.map {
       _ + 1
     }
-    val a = s onEvent { case x =>
+    val a = s foreach { case x =>
       assert(x == 2)
     }
 
@@ -47,7 +47,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     val e = new Reactive.Emitter[Int]
     val s = e.once
     val check = mutable.Buffer[Int]()
-    val adds = s.onEvent(check += _)
+    val adds = s.foreach(check += _)
 
     e += 1
     e += 2
@@ -73,7 +73,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     val s = cell.scanPast(List[Int]()) { (acc, x) =>
       x :: acc
     }
-    val a = s onEvent { case xs =>
+    val a = s foreach { case xs =>
       assert(xs.reverse == Stream.from(1).take(xs.length))
     }
 
@@ -88,7 +88,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     val e = new Reactive.Emitter[Int]
     val start = new Reactive.Emitter[Boolean]
     val buffer = mutable.Buffer[Int]()
-    val s = (e after start) onEvent { case x => buffer += x }
+    val s = (e after start) foreach { case x => buffer += x }
 
     e += 1
     e += 2
@@ -107,7 +107,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     val e = new Reactive.Emitter[Int]
     val start = Reactive.Never[Int]
     val buffer = mutable.Buffer[Int]()
-    val s = (e after start) onEvent { case x => buffer += x }
+    val s = (e after start) foreach { case x => buffer += x }
 
     e += 1
     e += 2
@@ -119,7 +119,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     val e = new Reactive.Emitter[Int]
     val end = new Reactive.Emitter[Boolean]
     val buffer = mutable.Buffer[Int]()
-    val s = (e until end) onEvent { x => buffer += x }
+    val s = (e until end) foreach { x => buffer += x }
 
     e += 1
     e += 2
@@ -134,7 +134,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     val xs = new Reactive.Emitter[Int]
     val ys = new Reactive.Emitter[Int]
     val buffer = mutable.Buffer[Int]()
-    val s = (xs union ys) onEvent { case x => buffer += x }
+    val s = (xs union ys) foreach { case x => buffer += x }
 
     xs += 1
     ys += 11
@@ -151,7 +151,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     val closeXs = new Reactive.Emitter[Unit]
     val ys = new Reactive.Emitter[Int]
     val buffer = mutable.Buffer[Int]()
-    val s = ((xs until closeXs) concat ys) onEvent { case x => buffer += x }
+    val s = ((xs until closeXs) concat ys) foreach { case x => buffer += x }
 
     xs += 1
     ys += 11
@@ -169,7 +169,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     val ys = new Reactive.Emitter[Int]
     val synced = (xs sync ys) { _ + _ }
     val buffer = mutable.Buffer[Int]()
-    val s = synced onEvent { case x => buffer += x }
+    val s = synced foreach { case x => buffer += x }
 
     for (i <- 0 until 200) xs += i
     for (j <- 200 to 51 by -1) ys += j
@@ -229,7 +229,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     val e4 = new Reactive.Emitter[Int]
     val closeE4 = new Reactive.Emitter[Unit]
     val buffer = mutable.Buffer[Int]()
-    val s = cell.union() onEvent { case x => buffer += x }
+    val s = cell.union() foreach { case x => buffer += x }
 
     e1 += -1
     e2 += -2
@@ -270,7 +270,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     val closeE3 = new Reactive.Emitter[Unit]
     val e4 = new Reactive.Emitter[Int]
     val buffer = mutable.Buffer[Int]()
-    val s = cell.concat() onEvent { x => buffer += x }
+    val s = cell.concat() foreach { x => buffer += x }
 
     e1 += -1
     e2 += -2
@@ -308,7 +308,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
       case x if x.toInt % 2 == 0 => x
     }
     val observed = mutable.Buffer[String]()
-    val emitSub = evens.onEvent(observed += _)
+    val emitSub = evens.foreach(observed += _)
 
     for (i <- 0 until 100) e += i.toString
 

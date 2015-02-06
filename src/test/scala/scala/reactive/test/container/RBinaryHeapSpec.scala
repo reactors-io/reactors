@@ -16,7 +16,7 @@ class RBinaryHeapSpec extends FlatSpec with ShouldMatchers {
     val size = 200
     val q = new RBinaryHeap[Int]
     val buffer = mutable.Buffer[Int]()
-    val heads = q.react.head.onEvent(buffer += _)
+    val heads = q.react.head.foreach(buffer += _)
 
     for (i <- (0 until size).reverse) q.enqueue(i)
 

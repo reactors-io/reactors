@@ -22,7 +22,7 @@ trait EventSource {
         Reactive.Subscription.empty
       case iso  =>
         iso.eventSources += this
-        onUnreact { iso.eventSources -= this }
+        ultimately { iso.eventSources -= this }
     }
   }
 
@@ -34,6 +34,6 @@ trait EventSource {
 
   /** Invoked when the event source is closed.
    */
-  def onUnreact(reactor: =>Unit): Reactive.Subscription
+  def ultimately(reactor: =>Unit): Reactive.Subscription
 
 }

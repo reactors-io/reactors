@@ -68,7 +68,7 @@ class RTileMapSpec extends FlatSpec with ShouldMatchers {
     val size = 32
     val tilemap = new RTileMap[String](size, null)
     val m = tilemap.updates
-    val a = m onEvent { case _ =>
+    val a = m foreach { case _ =>
       assert(tilemap(0, 0) == "OK")
     }
 
@@ -79,8 +79,8 @@ class RTileMapSpec extends FlatSpec with ShouldMatchers {
     val size = 256
     val tilemap = new RTileMap[String](size, null)
     val observed = mutable.Set[String]()
-    val insertSub = tilemap.values.inserts.onEvent(observed += _)
-    val removeSub = tilemap.values.removes.onEvent(observed -= _)
+    val insertSub = tilemap.values.inserts.foreach(observed += _)
+    val removeSub = tilemap.values.removes.foreach(observed -= _)
 
     for (x <- 0 until 200 by 20; y <- 0 until 200 by 10) tilemap(x, y) = s"($x, $y)"
     val produced = for (x <- 0 until 200 by 20; y <- 0 until 200 by 10) yield s"($x, $y)"

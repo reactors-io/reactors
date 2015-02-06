@@ -14,7 +14,8 @@ trait RPair[@spec(Int, Long, Double) P, Q <: AnyRef] {
   private[reactive] var p: P = _
   private[reactive] var q: Q = _
   private[reactive] var asSignal: RPair.Signal[P, Q] = _
-  private[reactive] var subscription: Reactive.Subscription = Reactive.Subscription.empty
+  private[reactive] var subscription: Reactive.Subscription =
+    Reactive.Subscription.empty
   private[reactive] val changes = new Reactive.Emitter[Unit]
 
   def init(dummy: RPair[P, Q]) {
@@ -31,100 +32,127 @@ trait RPair[@spec(Int, Long, Double) P, Q <: AnyRef] {
 
   private[reactive] def _2_=(v: Q) = q = v
 
-  def onUnreact(reactor: =>Unit): Reactive.Subscription = changes.onUnreact(reactor)
+  def ultimately(reactor: =>Unit): Reactive.Subscription =
+    changes.ultimately(reactor)
 
   def filter1(p: P => Boolean): RPair[P, Q] = {
     val r = new RPair.Default[P, Q]
-    r.subscription = changes.onReactUnreact { _ =>
-      if (p(_1)) {
-        r._1 = _1
-        r._2 = _2
-        r.changes += ()
+    r.subscription = changes.observe(new Reactor[Unit] {
+      def react(u: Unit) {
+        if (p(_1)) {
+          r._1 = _1
+          r._2 = _2
+          r.changes += ()
+        }
       }
-    } {
-      r.changes.close()
-    }
+      def unreact() {
+        r.changes.close()
+      }
+    })
     r
   }
 
   def filter2(p: Q => Boolean): RPair[P, Q] = {
     val r = new RPair.Default[P, Q]
-    r.subscription = changes.onReactUnreact { _ =>
-      if (p(_2)) {
-        r._1 = _1
-        r._2 = _2
-        r.changes += ()
+    r.subscription = changes.observe(new Reactor[Unit] {
+      def react(u: Unit) {
+        if (p(_2)) {
+          r._1 = _1
+          r._2 = _2
+          r.changes += ()
+        }
       }
-    } {
-      r.changes.close()
-    }
+      def unreact() {
+        r.changes.close()
+      }
+    })
     r
   }
 
   def map1[@spec(Int, Long, Double) R](f: P => R): RPair[R, Q] = {
     val r = new RPair.Default[R, Q]
-    r.subscription = changes.onReactUnreact { _ =>
-      r._1 = f(_1)
-      r._2 = _2
-      r.changes += ()
-    } {
-      r.changes.close()
-    }
+    r.subscription = changes.observe(new Reactor[Unit] {
+      def react(u: Unit) {
+        r._1 = f(_1)
+        r._2 = _2
+        r.changes += ()
+      }
+      def unreact() {
+        r.changes.close()
+      }
+    })
     r
   }
 
   def map2[S <: AnyRef](f: Q => S): RPair[P, S] = {
     val r = new RPair.Default[P, S]
-    r.subscription = changes.onReactUnreact { _ =>
-      r._1 = _1
-      r._2 = f(_2)
-      r.changes += ()
-    } {
-      r.changes.close()
-    }
+    r.subscription = changes.observe(new Reactor[Unit] {
+      def react(u: Unit) {
+        r._1 = _1
+        r._2 = f(_2)
+        r.changes += ()
+      }
+      def unreact() {
+        r.changes.close()
+      }
+    })
     r
   }
 
   def collect2[S <: AnyRef](pf: PartialFunction[Q, S]): RPair[P, S] = {
     val r = new RPair.Default[P, S]
-    r.subscription = changes.onReactUnreact { _ =>
-      if (pf.isDefinedAt(_2)) {
-        r._1 = _1
-        r._2 = pf(_2)
+    r.subscription = changes.observe(new Reactor[Unit] {
+      def react(u: Unit) {
+        if (pf.isDefinedAt(_2)) {
+          r._1 = _1
+          r._2 = pf(_2)
+          r.changes += ()
+        }
+      }
+      def unreact() {
+        r.changes.close()
+      }
+    })
+    r
+  }
+
+  def rvmap2[
+    @spec(Int, Long, Double) R <: AnyVal,
+    @spec(Int, Long, Double) S <: AnyVal
+  ](f: RVFun[Q, S])(implicit e: P =:= R): RValPair[R, S] = {
+    val r = new RValPair.Default[R, S]
+    r.subscription = changes.observe(new Reactor[Unit] {
+      def react(u: Unit) {
+        r._1 = e(_1)
+        r._2 = f(_2)
         r.changes += ()
       }
-    } {
-      r.changes.close()
-    }
+      def unreact() {
+        r.changes.close()
+      }
+    })
     r
   }
 
-  def rvmap2[@spec(Int, Long, Double) R <: AnyVal, @spec(Int, Long, Double) S <: AnyVal](f: RVFun[Q, S])(implicit e: P =:= R): RValPair[R, S] = {
-    val r = new RValPair.Default[R, S]
-    r.subscription = changes.onReactUnreact { _ =>
-      r._1 = e(_1)
-      r._2 = f(_2)
-      r.changes += ()
-    } {
-      r.changes.close()
-    }
-    r
-  }
-
-  def vrvmap1[@spec(Int, Long, Double) S <: AnyVal](f: VRVFun[P, Q, S])(implicit e: P <:< AnyVal): RPair[S, Q] = {
+  def vrvmap1[@spec(Int, Long, Double) S <: AnyVal](f: VRVFun[P, Q, S])
+    (implicit e: P <:< AnyVal): RPair[S, Q] = {
     val r = new RPair.Default[S, Q]
-    r.subscription = changes.onReactUnreact { _ =>
-      r._1 = f(_1, _2)
-      r._2 = _2
-      r.changes += ()
-    } {
-      r.changes.close()
-    }
+    r.subscription = changes.observe(new Reactor[Unit] {
+      def react(u: Unit) {
+        r._1 = f(_1, _2)
+        r._2 = _2
+        r.changes += ()
+      }
+      def unreact() {
+        r.changes.close()
+      }
+    })
     r
   }
 
-  def mutate[M <: ReactMutable](mutable: M)(mutation: RPair.Signal[P, Q] => Unit): Reactive.Subscription = {
-    changes on {
+  def mutate[M <: ReactMutable](mutable: M)
+    (mutation: RPair.Signal[P, Q] => Unit): Reactive.Subscription = {
+    changes foreach { _ =>
       mutation(asSignal)
       mutable.onMutated()
     }
@@ -149,7 +177,8 @@ trait RPair[@spec(Int, Long, Double) P, Q <: AnyRef] {
 
 object RPair {
 
-  class Emitter[@spec(Int, Long, Double) P, Q <: AnyRef] extends RPair[P, Q] with EventSource {
+  class Emitter[@spec(Int, Long, Double) P, Q <: AnyRef]
+  extends RPair[P, Q] with EventSource {
     def emit(p: P, q: Q) {
       _1 = p
       _2 = q

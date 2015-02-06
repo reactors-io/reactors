@@ -25,3 +25,23 @@ trait Reactor[@spec(Int, Long, Double) -T] {
   def unreact(): Unit
 }
 
+
+object Reactor {
+
+  class EventSink[@spec(Int, Long, Double) T](val underlying: Reactor[T])
+  extends Reactor[T] with scala.reactive.EventSink {
+    def init(dummy: EventSink[T]) {
+      registerEventSink()
+    }
+
+    init(this)
+
+    def react(value: T) = underlying.react(value)
+
+    def unreact() = {
+      unregisterEventSink()
+      underlying.unreact()
+    }
+  }
+
+}

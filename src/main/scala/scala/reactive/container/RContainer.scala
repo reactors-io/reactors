@@ -71,8 +71,8 @@ object RContainer {
         private[reactive] var value = container.count(p)
         def apply() = value
         val subscription = Reactive.CompositeSubscription(
-          container.inserts onEvent { x => if (p(x)) { value += 1; reactAll(value) } },
-          container.removes onEvent { x => if (p(x)) { value -= 1; reactAll(value) } }
+          container.inserts foreach { x => if (p(x)) { value += 1; reactAll(value) } },
+          container.removes foreach { x => if (p(x)) { value -= 1; reactAll(value) } }
         )
       }
 
@@ -83,8 +83,8 @@ object RContainer {
         private[reactive] var value = container.count(p)
         def apply() = value == container.size
         val subscription = Reactive.CompositeSubscription(
-          container.inserts onEvent { x => if (p(x)) value += 1; reactAll(value == container.size) },
-          container.removes onEvent { x => if (p(x)) value -= 1; reactAll(value == container.size) }
+          container.inserts foreach { x => if (p(x)) value += 1; reactAll(value == container.size) },
+          container.removes foreach { x => if (p(x)) value -= 1; reactAll(value == container.size) }
         )
       }
 
@@ -130,8 +130,8 @@ object RContainer {
           private[reactive] var value = 0
           def apply() = value
           val subscription = Reactive.CompositeSubscription(
-            container.inserts on { value += 1; reactAll(value) },
-            container.removes on { value -= 1; reactAll(value) }
+            container.inserts foreach { _ => value += 1; reactAll(value) },
+            container.removes foreach { _ => value -= 1; reactAll(value) }
           )
         }
     }
@@ -150,8 +150,8 @@ object RContainer {
     private[reactive] var value = self.size
     def apply() = value
     val subscription = Reactive.CompositeSubscription(
-      self.inserts on { value += 1; reactAll(value) },
-      self.removes on { value -= 1; reactAll(value) }
+      self.inserts foreach { _ => value += 1; reactAll(value) },
+      self.removes foreach { _ => value -= 1; reactAll(value) }
     )
   }
 
@@ -295,8 +295,8 @@ object RContainer {
       proxy = catamorph.signal
       for (v <- container) catamorph += v
       subscription = Reactive.CompositeSubscription(
-        container.inserts onEvent { v => catamorph += v },
-        container.removes onEvent { v => catamorph -= v }
+        container.inserts foreach { v => catamorph += v },
+        container.removes foreach { v => catamorph -= v }
       )
     }
 
