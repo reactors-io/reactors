@@ -2,7 +2,6 @@ package scala.reactive
 
 
 
-import scala.collection._
 
 
 
@@ -12,27 +11,17 @@ import scala.collection._
  */
 trait EventSink {
 
-  def registerEventSink() {
-    Iso.selfIso.get match {
-      case null =>
-        EventSink.globalEventSinks += this
-      case iso =>
-        iso.eventSinks += this
-    }
+  def registerEventSink(canLeak: CanLeak) {
+    canLeak.eventSinks += this
   }
 
-  def unregisterEventSink() {
-    Iso.selfIso.get match {
-      case null =>
-        EventSink.globalEventSinks -= this
-      case iso =>
-        iso.eventSinks -= this
-    }
+  def unregisterEventSink(canLeak: CanLeak) {
+    canLeak.eventSinks -= this
   }
 
-  def liftSubscription(s: Reactive.Subscription) = {
+  def liftSubscription(s: Reactive.Subscription, canLeak: CanLeak) = {
     Reactive.Subscription {
-      unregisterEventSink()
+      unregisterEventSink(canLeak)
       s.unsubscribe()
     }
   }
@@ -41,8 +30,5 @@ trait EventSink {
 
 
 object EventSink {
-
-  /** A set of global event sinks. */
-  private[reactive] val globalEventSinks = mutable.Set[EventSink]()
 
 }

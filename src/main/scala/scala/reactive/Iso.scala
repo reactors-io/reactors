@@ -71,14 +71,12 @@ trait Iso[@spec(Int, Long, Double) T] extends ReactRecord {
 
   @volatile private[reactive] var eventSources: mutable.Set[EventSource] = _
 
-  @volatile private[reactive] var eventSinks: mutable.Set[EventSink] = _
-
   @volatile private[reactive] var systemEmitter: Reactive.Emitter[SysEvent] = _
 
   @volatile private[reactive] var failureEmitter:
     Reactive.Emitter[Throwable] = _
 
-  val implicits = Iso.Implicits
+  val implicits = new Iso.Implicits
 
   private def illegal() =
     throw new IllegalStateException("Only isolate systems can create isolates.")
@@ -91,7 +89,6 @@ trait Iso[@spec(Int, Long, Double) T] extends ReactRecord {
       case eq => eq.asInstanceOf[IsoFrame]
     }
     eventSources = mutable.Set[EventSource]()
-    eventSinks = mutable.Set[EventSink]()
     systemEmitter = new Reactive.Emitter[SysEvent]
     failureEmitter = new Reactive.Emitter[Throwable]
 
@@ -191,8 +188,8 @@ object Iso {
    */
   def of[@specialized(Int, Long, Double) T]: Iso[T] = Iso.self[Iso[T]]
 
-  object Implicits {
-    implicit def canLeak: CanLeak = CanLeak.isoCanLeak
+  class Implicits {
+    implicit val canLeak: CanLeak = CanLeak.newCanLeak
   }
 
 }

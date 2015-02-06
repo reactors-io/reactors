@@ -83,9 +83,9 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    */
   def onReaction(reactor: Reactor[T])(implicit canLeak: CanLeak):
     Reactive.Subscription = {
-    val eventSink = new Reactor.EventSink(reactor)
+    val eventSink = new Reactor.EventSink(reactor, canLeak)
     val subscription = observe(eventSink)
-    eventSink.liftSubscription(subscription)
+    eventSink.liftSubscription(subscription, canLeak)
   }
 
   /** A shorthand for `onReaction` -- the specified functions are invoked

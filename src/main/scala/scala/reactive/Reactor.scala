@@ -28,10 +28,11 @@ trait Reactor[@spec(Int, Long, Double) -T] {
 
 object Reactor {
 
-  class EventSink[@spec(Int, Long, Double) T](val underlying: Reactor[T])
+  class EventSink[@spec(Int, Long, Double) T]
+    (val underlying: Reactor[T], val canLeak: CanLeak)
   extends Reactor[T] with scala.reactive.EventSink {
     def init(dummy: EventSink[T]) {
-      registerEventSink()
+      registerEventSink(canLeak)
     }
 
     init(this)
@@ -39,7 +40,7 @@ object Reactor {
     def react(value: T) = underlying.react(value)
 
     def unreact() = {
-      unregisterEventSink()
+      unregisterEventSink(canLeak)
       underlying.unreact()
     }
   }

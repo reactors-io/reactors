@@ -3,6 +3,7 @@ package scala
 
 
 import scala.annotation.implicitNotFound
+import scala.collection._
 import scala.reflect.ClassTag
 
 
@@ -248,11 +249,12 @@ package object reactive {
     "If you are sure you want to risk this, import " +
     "scala.reactive.Implicits.canLeak. " +
     "Otherwise, consider calling observe or foreach.")
-  sealed trait CanLeak
+  sealed trait CanLeak {
+    val eventSinks = mutable.Set[EventSink]()
+  }
 
   object CanLeak {
     private[reactive] def newCanLeak: CanLeak = new CanLeak {}
-    private[reactive] val isoCanLeak: CanLeak = new CanLeak {}
   }
 
   /* system events */

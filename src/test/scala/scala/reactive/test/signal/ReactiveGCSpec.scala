@@ -57,12 +57,8 @@ class ReactiveGCSpec extends FlatSpec with ShouldMatchers {
 
     emitter += 1
 
-    try {
-      for (i <- 0 until num) signsOfLife(i) should equal (true)
-      afterCheck(emitter) should equal (true)
-    } finally {
-      EventSink.globalEventSinks.clear()
-    }
+    for (i <- 0 until num) signsOfLife(i) should equal (true)
+    afterCheck(emitter) should equal (true)
   }
 
   it should "not GC 1 onX dependency" in {
