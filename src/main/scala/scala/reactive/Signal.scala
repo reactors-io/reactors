@@ -36,7 +36,7 @@ extends Reactive[T] {
    */
   override def map[@spec(Int, Long, Double) S](f: T => S): Signal[S] with Reactive.Subscription = {
     val sm = new Signal.Map(self, f)
-    sm.subscription = self onReaction sm
+    sm.subscription = self observe sm
     sm
   }
 
@@ -66,7 +66,7 @@ extends Reactive[T] {
   def changes: Signal[T] with Reactive.Subscription = {
     val initial = this()
     val sc = new Signal.Changes(self, initial)
-    sc.subscription = self onReaction sc
+    sc.subscription = self observe sc
     sc
   }
 
@@ -86,7 +86,7 @@ extends Reactive[T] {
   def diffPast[@spec(Int, Long, Double) S](z: S)(op: (T, T) => S): Signal[S] with Reactive.Subscription = {
     val initial = this()
     val sd = new Signal.DiffPast(self, initial, z, op)
-    sd.subscription = self onReaction sd
+    sd.subscription = self observe sd
     sd
   }
 
@@ -129,8 +129,8 @@ extends Reactive[T] {
   def zip[@spec(Int, Long, Double) S, @spec(Int, Long, Double) R](that: Signal[S])(f: (T, S) => R): Signal[R] with Reactive.Subscription = {
     val sz = new Signal.Zip(self, that, f)
     sz.subscription = Reactive.CompositeSubscription(
-      self onReaction sz.selfReactor,
-      that onReaction sz.thatReactor
+      self observe sz.selfReactor,
+      that observe sz.thatReactor
     )
     sz
   }
@@ -189,7 +189,7 @@ object Signal {
     def scanPastNow(op: (T, T) => T): Signal[T] with Reactive.Subscription = {
       val initial = self()
       val srp = new Signal.ScanPastNow(self, initial, op)
-      srp.subscription = self onReaction srp
+      srp.subscription = self observe srp
       srp
     }
 
@@ -330,7 +330,7 @@ object Signal {
     def proxy: Signal[T]
     def apply() = proxy()
     def hasSubscriptions = proxy.hasSubscriptions
-    def onReaction(r: Reactor[T]) = proxy.onReaction(r)
+    def observe(r: Reactor[T]) = proxy.observe(r)
   }
 
   /** A signal that emits events that are mutable values.
@@ -461,7 +461,7 @@ object Signal {
       val nextSignal = evidence(v)
       currentSubscription.unsubscribe()
       value = nextSignal()
-      currentSubscription = nextSignal onReaction newReactor
+      currentSubscription = nextSignal observe newReactor
       reactAll(value)
     }
     def unreact() {
@@ -477,7 +477,7 @@ object Signal {
     def init(e: T <:< Reactive[S]) {
       value = evidence(self()).apply()
       currentSubscription = Subscription.empty
-      subscription = self onReaction this
+      subscription = self observe this
     }
     init(evidence)
   }

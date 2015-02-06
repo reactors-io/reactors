@@ -170,7 +170,7 @@ object Channel {
     private val reactives = mutable.Map[Reactive[T], Reactive.Subscription]()
     def attach(r: Reactive[T]) = monitor.synchronized {
       if (!sealedChannel) {
-        if (!reactives.contains(r)) reactives(r) = r.onReaction(new Reactor[T] {
+        if (!reactives.contains(r)) reactives(r) = r.observe(new Reactor[T] {
           def react(event: T) = reactor.react(event)
           def unreact() {
             monitor.synchronized { reactives.remove(r) }

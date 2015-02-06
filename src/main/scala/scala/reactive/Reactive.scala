@@ -65,14 +65,25 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    */
   private[reactive] def hasSubscriptions: Boolean
 
-  /** Attaches a new `reactor` to this reactive
-   *  that is called multiple times when an event is produced
+  /** Attaches a new `reactor` to this reactive,
+   *  which is called multiple times when an event is produced
    *  and once when the reactive is terminated.
    *
    *  @param reactor     the reactor that accepts `react` and `unreact` events
    *  @return            a subscription for unsubscribing from reactions
    */
-  def onReaction(reactor: Reactor[T]): Reactive.Subscription
+  def observe(reactor: Reactor[T]): Reactive.Subscription
+
+  /** Attaches a reactor to this reactive,
+   *  which is called multiple times when an event is produced
+   *  and once when the reactive is terminated.
+   *
+   *  @param reactor     the reactor
+   *  @return            a subscription for unsubscribing from reactions
+   */
+  //def onReaction(reactor: Reactor[T]): Reactive.Subscription = {
+  //  observe(reactor) // TODO
+  //}
 
   /** A shorthand for `onReaction` -- the specified functions are invoked
    *  whenever there is an event or an unreaction.
@@ -82,7 +93,7 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    *  @return            a subscription for unsubscribing from reactions
    */
   def onReactUnreact(reactFunc: T => Unit)(unreactFunc: =>Unit):
-    Reactive.Subscription = onReaction(new Reactor[T] {
+    Reactive.Subscription = observe(new Reactor[T] { // TODO
     def react(event: T) = reactFunc(event)
     def unreact() = unreactFunc
   })
@@ -93,7 +104,7 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    *  @param reactor     the callback for events
    *  @return            a subcriptions for unsubscribing from reactions
    */
-  def onEvent(reactor: T => Unit): Reactive.Subscription = onReaction(
+  def onEvent(reactor: T => Unit): Reactive.Subscription = observe( // TODO
     new Reactor[T] {
     def react(event: T) = reactor(event)
     def unreact() {}
@@ -123,7 +134,7 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    *  @return            a subscription for unsubscribing from reactions
    */
   def onCase(reactor: PartialFunction[T, Unit])(implicit sub: T <:< AnyRef):
-    Reactive.Subscription = onReaction(new Reactor[T] {
+    Reactive.Subscription = observe(new Reactor[T] { // TODO
     def react(event: T) = if (reactor.isDefinedAt(event)) reactor(event)
     def unreact() {}
   })
@@ -136,17 +147,20 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    *  @param reactor     the callback invoked when an event arrives
    *  @return            a subscription for unsubscribing from reactions
    */
-  def on(reactor: =>Unit): Reactive.Subscription = onReaction(new Reactor[T] {
-    def react(value: T) = reactor
-    def unreact() {}
-  })
+  def on(reactor: =>Unit): Reactive.Subscription = {
+    // TODO
+    observe(new Reactor[T] {
+      def react(value: T) = reactor
+      def unreact() {}
+    })
+  }
 
   /** Executes the specified block when `this` reactive unreacts.
    *
    *  @param f           the callback invoked when `this` unreacts
    *  @return            a subscription for the unreaction notification
    */
-  def onUnreact(reactor: =>Unit): Reactive.Subscription = onReaction(
+  def onUnreact(reactor: =>Unit): Reactive.Subscription = observe( // TODO
     new Reactor[T] {
     def react(value: T) {}
     def unreact() = reactor
@@ -167,7 +181,7 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    */
   def foreach(f: T => Unit): Reactive[Unit] with Reactive.Subscription = {
     val rf = new Reactive.Foreach(self, f)
-    rf.subscription = self onReaction rf
+    rf.subscription = self observe rf
     rf
   }
 
@@ -222,7 +236,7 @@ trait Reactive[@spec(Int, Long, Double) +T] {
   def scanPast[@spec(Int, Long, Double) S](z: S)(op: (S, T) => S):
     Signal[S] with Reactive.Subscription = {
     val r = new Reactive.ScanPast(self, z, op)
-    r.subscription = self onReaction r
+    r.subscription = self observe r
     r
   }
 
@@ -305,7 +319,7 @@ trait Reactive[@spec(Int, Long, Double) +T] {
   def mutate[M <: ReactMutable](mutable: M)(mutation: T => Unit):
     Reactive.Subscription = {
     val rm = new Reactive.Mutate(self, mutable, mutation)
-    rm.subscription = mutable.bindSubscription(self onReaction rm)
+    rm.subscription = mutable.bindSubscription(self observe rm)
     rm
   }
 
@@ -330,7 +344,7 @@ trait Reactive[@spec(Int, Long, Double) +T] {
     Reactive.Subscription = {
     val mutables = Seq(m1, m2) ++ mr
     val rm = new Reactive.MutateMany(self, mutables, mutation)
-    val selfsub = self onReaction rm
+    val selfsub = self observe rm
     val subs = mutablesCompositeSubscription(mutables, selfsub)
     rm.subscription = Reactive.CompositeSubscription(subs: _*)
     rm
@@ -354,8 +368,8 @@ trait Reactive[@spec(Int, Long, Double) +T] {
   def after[@spec(Int, Long, Double) S](that: Reactive[S]):
     Reactive[T] with Reactive.Subscription = {
     val ra = new Reactive.After(self, that)
-    ra.selfSubscription = self onReaction ra.selfReactor
-    ra.thatSubscription = that onReaction ra.thatReactor
+    ra.selfSubscription = self observe ra.selfReactor
+    ra.thatSubscription = that observe ra.thatReactor
     ra.subscription = Reactive.CompositeSubscription(
       ra.selfSubscription, ra.thatSubscription)
     ra
@@ -378,8 +392,8 @@ trait Reactive[@spec(Int, Long, Double) +T] {
   def until[@spec(Int, Long, Double) S](that: Reactive[S]):
     Reactive[T] with Reactive.Subscription = {
     val ru = new Reactive.Until(self, that)
-    ru.selfSubscription = self onReaction ru.selfReactor
-    ru.thatSubscription = that onReaction ru.thatReactor
+    ru.selfSubscription = self observe ru.selfReactor
+    ru.thatSubscription = that observe ru.thatReactor
     ru.subscription = Reactive.CompositeSubscription(
       ru.selfSubscription, ru.thatSubscription)
     ru
@@ -401,7 +415,7 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    */
   def once: Reactive[T] with Reactive.Subscription = {
     val ro = new Reactive.Once(self)
-    ro.subscription = self onReaction ro
+    ro.subscription = self observe ro
     ro
   }
 
@@ -415,7 +429,7 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    */
   def filter(p: T => Boolean): Reactive[T] with Reactive.Subscription = {
     val rf = new Reactive.Filter[T](self, p)
-    rf.subscription = self onReaction rf
+    rf.subscription = self observe rf
     rf
   }
 
@@ -442,7 +456,7 @@ trait Reactive[@spec(Int, Long, Double) +T] {
     (implicit evidence: T <:< AnyRef):
     Reactive[S] with Reactive.Subscription = {
     val cf = new Reactive.Collect[T, S](self, pf)
-    cf.subscription = self onReaction cf
+    cf.subscription = self observe cf
     cf
   }
 
@@ -457,7 +471,7 @@ trait Reactive[@spec(Int, Long, Double) +T] {
   def map[@spec(Int, Long, Double) S](f: T => S):
     Reactive[S] with Reactive.Subscription = {
     val rm = new Reactive.Map[T, S](self, f)
-    rm.subscription = self onReaction rm
+    rm.subscription = self observe rm
     rm
   }
 
@@ -480,7 +494,7 @@ trait Reactive[@spec(Int, Long, Double) +T] {
     @spec(Int, Long, Double) Q <: AnyVal
   ](pf: T => P)(qf: T => Q)(implicit e: T <:< AnyVal): RValPair[P, Q] = {
     val e = new RValPair.Emitter[P, Q]
-    e.subscription = this.onReaction(new Reactor[T] {
+    e.subscription = this.observe(new Reactor[T] {
       def react(x: T) = e.emit(pf(x), qf(x))
       def unreact() = e.close()
     })
@@ -506,7 +520,7 @@ trait Reactive[@spec(Int, Long, Double) +T] {
   ](pf: RVFun[T, P])(qf: RVFun[T, Q])(implicit ev: T <:< AnyRef):
     RValPair[P, Q] = {
     val e = new RValPair.Emitter[P, Q]
-    e.subscription = this.onReaction(new Reactor[T] {
+    e.subscription = this.observe(new Reactor[T] {
       def react(x: T) = e.emit(pf(x), qf(x))
       def unreact() = e.close()
     })
@@ -531,7 +545,7 @@ trait Reactive[@spec(Int, Long, Double) +T] {
     Q <: AnyRef
   ](pf: RVFun[T, P])(qf: T => Q)(implicit ev: T <:< AnyRef): RPair[P, Q] = {
     val e = new RPair.Emitter[P, Q]
-    e.subscription = this.onReaction(new Reactor[T] {
+    e.subscription = this.observe(new Reactor[T] {
       def react(x: T) = e.emit(pf(x), qf(x))
       def unreact() = e.close()
     })
@@ -555,7 +569,7 @@ trait Reactive[@spec(Int, Long, Double) +T] {
   def split[P <: AnyRef, Q <: AnyRef](pf: T => P)(qf: T => Q)
     (implicit ev: T <:< AnyRef): RPair[P, Q] = {
     val e = new RPair.Emitter[P, Q]
-    e.subscription = this.onReaction(new Reactor[T] {
+    e.subscription = this.observe(new Reactor[T] {
       def react(x: T) = e.emit(pf(x), qf(x))
       def unreact() = e.close()
     })
@@ -662,7 +676,7 @@ object Reactive {
     def ivar: Reactive.Ivar[T] = {
       val iv = new Reactive.Ivar[T]
       val r = new Reactive.IvarAssignReactor(iv)
-      r.subscription = self.onReaction(r)
+      r.subscription = self.observe(r)
       iv
     }
 
@@ -729,8 +743,8 @@ object Reactive {
      */
     def union(that: Reactive[T]): Reactive[T] with Reactive.Subscription = {
       val ru = new Reactive.Union(self, that)
-      ru.selfSubscription = self onReaction ru.selfReactor
-      ru.thatSubscription = that onReaction ru.thatReactor
+      ru.selfSubscription = self observe ru.selfReactor
+      ru.thatSubscription = that observe ru.thatReactor
       ru.subscription = Reactive.CompositeSubscription(
         ru.selfSubscription, ru.thatSubscription)
       ru
@@ -767,8 +781,8 @@ object Reactive {
     def concat(that: Reactive[T])(implicit a: Arrayable[T], b: CanBeBuffered):
       Reactive[T] with Reactive.Subscription = {
       val rc = new Reactive.Concat(self, that, a)
-      rc.selfSubscription = self onReaction rc.selfReactor
-      rc.thatSubscription = that onReaction rc.thatReactor
+      rc.selfSubscription = self observe rc.selfReactor
+      rc.thatSubscription = that observe rc.thatReactor
       rc.subscription = Reactive.CompositeSubscription(
         rc.selfSubscription, rc.thatSubscription)
       rc
@@ -836,8 +850,8 @@ object Reactive {
       (implicit at: Arrayable[T], as: Arrayable[S], b: CanBeBuffered):
       Reactive[R] with Reactive.Subscription = {
       val rs = new Reactive.Sync(self, that, f, at, as)
-      rs.selfSubscription = self onReaction rs.selfReactor
-      rs.thatSubscription = that onReaction rs.thatReactor
+      rs.selfSubscription = self observe rs.selfReactor
+      rs.thatSubscription = that observe rs.thatReactor
       rs.subscription = Reactive.CompositeSubscription(
         rs.selfSubscription, rs.thatSubscription)
       rs
@@ -914,7 +928,7 @@ object Reactive {
       (implicit evidence: T <:< Reactive[S], a: Arrayable[S], b: CanBeBuffered):
       Reactive[S] with Reactive.Subscription = {
       val pc = new Reactive.PostfixConcat[T, S](self, evidence)
-      pc.subscription = self onReaction pc
+      pc.subscription = self observe pc
       pc
     }
   }
@@ -1213,7 +1227,7 @@ object Reactive {
     var subscription = Subscription.empty
     def init(dummy: Reactive[T]) {
       Iso.self.declarations += this
-      subscription = self.onReaction(this)
+      subscription = self.observe(this)
     }
     init(this)
   }
@@ -1236,7 +1250,7 @@ object Reactive {
     def react(value: T) {
       val nextReactive = evidence(value)
       currentSubscription.unsubscribe()
-      currentSubscription = nextReactive onReaction newReactor
+      currentSubscription = nextReactive observe newReactor
     }
     def unreact() {
       terminated = true
@@ -1250,7 +1264,7 @@ object Reactive {
     var subscription: Subscription = null
     def init(e: T <:< Reactive[S]) {
       currentSubscription = Subscription.empty
-      subscription = self onReaction this
+      subscription = self observe this
     }
     init(evidence)
   }
@@ -1273,7 +1287,7 @@ object Reactive {
     def react(value: T) {
       val nextReactive = evidence(value)
       if (!subscriptions.contains(nextReactive)) {
-        val sub = nextReactive onReaction newReactor(nextReactive)
+        val sub = nextReactive observe newReactor(nextReactive)
         subscriptions(nextReactive) = sub
       }
     }
@@ -1286,7 +1300,7 @@ object Reactive {
       subscriptions.clear()
       super.unsubscribe()
     }
-    val subscription = self onReaction this
+    val subscription = self observe this
   }
 
   private[reactive] final class ConcatEntry[S](
@@ -1333,7 +1347,7 @@ object Reactive {
     def react(value: T) {
       val nextReactive = evidence(value)
       val entry = new ConcatEntry(null, new UnrolledBuffer[S], true)
-      entry.subscription = nextReactive onReaction newReactor(entry)
+      entry.subscription = nextReactive observe newReactor(entry)
       subscriptions.enqueue(entry)
       if (!subscriptions.head.ready) moveToNext()
     }
@@ -1358,7 +1372,7 @@ object Reactive {
   trait Never[@spec(Int, Long, Double) T]
   extends Reactive[T] {
     def hasSubscriptions = false
-    def onReaction(reactor: Reactor[T]) = {
+    def observe(reactor: Reactor[T]) = {
       reactor.unreact()
       Subscription.empty
     }
@@ -1384,7 +1398,7 @@ object Reactive {
   extends Reactive[T] {
     val underlying: Reactive[T]
     def hasSubscriptions = underlying.hasSubscriptions
-    def onReaction(r: Reactor[T]) = underlying.onReaction(r)
+    def observe(r: Reactor[T]) = underlying.observe(r)
   }
 
   /** A subscription to a certain kind of event,
@@ -1453,7 +1467,7 @@ object Reactive {
   trait Default[@spec(Int, Long, Double) T] extends Reactive[T] {
     private[reactive] var demux: AnyRef = null
     private[reactive] var unreacted: Boolean = false
-    def onReaction(reactor: Reactor[T]) = {
+    def observe(reactor: Reactor[T]) = {
       if (unreacted) {
         reactor.unreact()
         Subscription.empty

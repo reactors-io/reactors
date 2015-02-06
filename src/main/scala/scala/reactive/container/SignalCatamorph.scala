@@ -32,7 +32,7 @@ extends RCatamorph[T, Signal[T]] with RBuilder[Signal[T], SignalCatamorph[T]] {
   
   def +=(s: Signal[T]): Boolean = {
     if (catamorph += s) {
-      signalSubscriptions(s) = s.onReaction(new Reactor[T] {
+      signalSubscriptions(s) = s.observe(new Reactor[T] {
         def react(v: T) {
           catamorph.push(s)
           defaultSignal.reactAll(catamorph.signal())

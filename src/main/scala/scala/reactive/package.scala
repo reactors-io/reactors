@@ -164,8 +164,8 @@ package object reactive {
     def mutate[M <: ReactMutable](mutable: M)(f: (T, S) => Unit) = {
       val s = new Tuple2Extensions.Mutate(tuple, mutable, f)
       s.subscription = Reactive.CompositeSubscription(
-        tuple._1.onReaction(s.m1),
-        tuple._2.onReaction(s.m2)
+        tuple._1.observe(s.m1),
+        tuple._2.observe(s.m2)
       )
       s
     }
@@ -200,9 +200,9 @@ package object reactive {
     def mutate[M <: ReactMutable](mutable: M)(f: (T, S, U) => Unit) = {
       val s = new Tuple3Extensions.Mutate(tuple, mutable, f)
       s.subscription = Reactive.CompositeSubscription(
-        tuple._1.onReaction(s.m1),
-        tuple._2.onReaction(s.m2),
-        tuple._3.onReaction(s.m3)
+        tuple._1.observe(s.m1),
+        tuple._2.observe(s.m2),
+        tuple._3.observe(s.m3)
       )
       s
     }
