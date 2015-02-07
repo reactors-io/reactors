@@ -247,7 +247,8 @@ package object reactive {
   @implicitNotFound("Calling on* methods can result in time and memory leaks " +
     "when the reference to the corresponding Subscription object is lost. " +
     "If you are sure you want to risk this, import " +
-    "scala.reactive.Implicits.canLeak. " +
+    "implicits.canLeak or scala.reactive.Iso.canLeak from within an isolate, " +
+    "or instantiate a fresh canLeak object if calling outside of an isolate. " +
     "Otherwise, consider calling observe or foreach.")
   sealed trait CanLeak {
     val eventSinks = mutable.Set[EventSink]()

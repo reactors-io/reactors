@@ -192,4 +192,11 @@ object Iso {
     implicit val canLeak: CanLeak = CanLeak.newCanLeak
   }
 
+  def canLeak: CanLeak = selfIso.get match {
+    case null =>
+      sys.error("Iso.Implicits.canLeak cannot be used outside an isolate")
+    case iso =>
+      iso.implicits.canLeak
+  }
+
 }
