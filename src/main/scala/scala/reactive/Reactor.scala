@@ -7,7 +7,7 @@ package scala.reactive
 
 /** An object that can act upon an event or be signalled that
  *  there will be no more vents.
- * 
+ *
  *  This is, in essence, an observer.
  * 
  *  @tparam T        type of events the observer responds to
