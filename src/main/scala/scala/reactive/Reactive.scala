@@ -98,8 +98,15 @@ trait Reactive[@spec(Int, Long, Double) +T] {
   def onReactUnreact(reactFunc: T => Unit)(unreactFunc: =>Unit)
     (implicit canLeak: CanLeak): Reactive.Subscription = {
     onReaction(new Reactor[T] {
-      def react(event: T) = reactFunc(event)
-      def unreact() = unreactFunc
+      def react(event: T) {
+        try reactFunc(event)
+        catch ignoreNonLethal
+      }
+      def except(t: Throwable) {}
+      def unreact() {
+        try unreactFunc
+        catch ignoreNonLethal
+      }
     })
   }
 
@@ -111,9 +118,12 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    */
   def onEvent(reactor: T => Unit)(implicit canLeak: CanLeak):
     Reactive.Subscription = {
-    onReaction(
-      new Reactor[T] {
-      def react(event: T) = reactor(event)
+    onReaction(new Reactor[T] {
+      def react(event: T) {
+        try reactor(event)
+        catch ignoreNonLethal
+      }
+      def except(t: Throwable) {}
       def unreact() {}
     })
   }
@@ -144,7 +154,12 @@ trait Reactive[@spec(Int, Long, Double) +T] {
   def onCase(reactor: PartialFunction[T, Unit])
     (implicit sub: T <:< AnyRef, canLeak: CanLeak): Reactive.Subscription = {
     onReaction(new Reactor[T] {
-      def react(event: T) = if (reactor.isDefinedAt(event)) reactor(event)
+      def react(event: T) = {
+        try {
+          if (reactor.isDefinedAt(event)) reactor(event)
+        } catch ignoreNonLethal
+      }
+      def except(t: Throwable) {}
       def unreact() {}
     })
   }
@@ -159,7 +174,11 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    */
   def on(reactor: =>Unit)(implicit canLeak: CanLeak): Reactive.Subscription = {
     onReaction(new Reactor[T] {
-      def react(value: T) = reactor
+      def react(value: T) {
+        try reactor
+        catch ignoreNonLethal
+      }
+      def except(t: Throwable) {}
       def unreact() {}
     })
   }
@@ -173,7 +192,28 @@ trait Reactive[@spec(Int, Long, Double) +T] {
     Reactive.Subscription = {
     onReaction(new Reactor[T] {
       def react(value: T) {}
-      def unreact() = reactor
+      def except(t: Throwable) {}
+      def unreact() {
+        try reactor
+        catch ignoreNonLethal
+      }
+    })
+  }
+
+  /** Executes the specified block when `this` reactive forwards an exception.
+   *
+   *  @param pf          the partial function used to handle the exception
+   *  @return            a subscription for the exception notifications
+   */
+  def onExcept(pf: PartialFunction[Throwable, Unit]): Reactive.Subscription = {
+    onReaction(new Reactor[T] {
+      def react(value: T) {}
+      def except(t: Throwable) {
+        try {
+          if (pf.isDefinedAt(t)) pf(t)
+        } catch ignoreNonLethal
+      }
+      def unreact() {}
     })
   }
 
@@ -190,13 +230,29 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    *  }}}
    *
    *  @param f           the callback invoked when an event arrives
-   *  @return            a subscription that is also a reactive value
-   *                     producing `Unit` events after each callback invocation
+   *  @return            a subscription that is also a reactive value producing
+   *                     `Unit` events after each callback invocation
    */
   def foreach(f: T => Unit): Reactive[Unit] with Reactive.Subscription = {
     val rf = new Reactive.Foreach(self, f)
     rf.subscription = self observe rf
     rf
+  }
+
+  /** Executes the specified function every time an event arrives.
+   *
+   *  Semantically equivalent to `onExcept`,
+   *  but does not cause time and memory leaks.
+   *  
+   *  @param  f          an exception handler
+   *  @return            a subscription that is also a reactive value producing
+   *                     `Unit` events after each callback invocation
+   */
+  def handle(f: Throwable => Unit):
+    Reactive[Unit] with Reactive.Subscription = {
+    val rh = new Reactive.Handle(self, f)
+    rh.subscription = self observe rh
+    rh
   }
 
   /** Executes when the underlying reactive unreacts.
@@ -214,6 +270,22 @@ trait Reactive[@spec(Int, Long, Double) +T] {
     val rf = new Reactive.Ultimately(self, () => body)
     rf.subscription = self observe rf
     rf
+  }
+
+  /** Transforms exceptions into events.
+   *
+   *  If the specified partial function is defined for the exception,
+   *  an event is emitted.
+   *  Otherwise, the same exception is forwarded.
+   *  
+   *  @param  pf         partial mapping from functions to events
+   *  @return            a reactive that emits events when an exception arrives
+   */
+  def recover(pf: PartialFunction[Throwable, T])(implicit evid: T <:< AnyRef):
+    Reactive[T] with Reactive.Subscription = {
+    val rr = new Reactive.Recover(self, pf)
+    rr.subscription = self observe rr
+    rr
   }
 
   /** Creates a new reactive `s` that produces events by consecutively
@@ -526,7 +598,20 @@ trait Reactive[@spec(Int, Long, Double) +T] {
   ](pf: T => P)(qf: T => Q)(implicit e: T <:< AnyVal): RValPair[P, Q] = {
     val e = new RValPair.Emitter[P, Q]
     e.subscription = this.observe(new Reactor[T] {
-      def react(x: T) = e.emit(pf(x), qf(x))
+      def react(x: T) {
+        var p = null.asInstanceOf[P]
+        var q = null.asInstanceOf[Q]
+        try {
+          p = pf(x)
+          q = qf(x)
+        } catch {
+          case t if isNonLethal(t) =>
+            except(t)
+            return
+        }
+        e.react(p, q)
+      }
+      def except(t: Throwable) = e.except(t)
       def unreact() = e.close()
     })
     e
@@ -552,7 +637,20 @@ trait Reactive[@spec(Int, Long, Double) +T] {
     RValPair[P, Q] = {
     val e = new RValPair.Emitter[P, Q]
     e.subscription = this.observe(new Reactor[T] {
-      def react(x: T) = e.emit(pf(x), qf(x))
+      def react(x: T) {
+        var p = null.asInstanceOf[P]
+        var q = null.asInstanceOf[Q]
+        try {
+          p = pf(x)
+          q = qf(x)
+        } catch {
+          case t if isNonLethal(t) =>
+            except(t)
+            return
+        }
+        e.react(p, q)
+      }
+      def except(t: Throwable) = e.except(t)
       def unreact() = e.close()
     })
     e
@@ -577,7 +675,20 @@ trait Reactive[@spec(Int, Long, Double) +T] {
   ](pf: RVFun[T, P])(qf: T => Q)(implicit ev: T <:< AnyRef): RPair[P, Q] = {
     val e = new RPair.Emitter[P, Q]
     e.subscription = this.observe(new Reactor[T] {
-      def react(x: T) = e.emit(pf(x), qf(x))
+      def react(x: T) {
+        var p = null.asInstanceOf[P]
+        var q = null.asInstanceOf[Q]
+        try {
+          p = pf(x)
+          q = qf(x)
+        } catch {
+          case t if isNonLethal(t) =>
+            except(t)
+            return
+        }
+        e.react(p, q)
+      }
+      def except(t: Throwable) = e.except(t)
       def unreact() = e.close()
     })
     e
@@ -601,7 +712,20 @@ trait Reactive[@spec(Int, Long, Double) +T] {
     (implicit ev: T <:< AnyRef): RPair[P, Q] = {
     val e = new RPair.Emitter[P, Q]
     e.subscription = this.observe(new Reactor[T] {
-      def react(x: T) = e.emit(pf(x), qf(x))
+      def react(x: T) {
+        var p = null.asInstanceOf[P]
+        var q = null.asInstanceOf[Q]
+        try {
+          p = pf(x)
+          q = qf(x)
+        } catch {
+          case t if isNonLethal(t) =>
+            except(t)
+            return
+        }
+        e.react(p, q)
+      }
+      def except(t: Throwable) = e.except(t)
       def unreact() = e.close()
     })
     e
@@ -974,9 +1098,10 @@ object Reactive {
         finally subscription.unsubscribe()
       }
     }
+    def except(t: Throwable) {}
     def unreact() {
       if (iv.isUnassigned) {
-        try iv.close()
+        try iv.unreact()
         finally subscription.unsubscribe()
       }
     }
@@ -996,6 +1121,22 @@ object Reactive {
     var subscription = Subscription.empty
   }
 
+  private[reactive] class Handle[@spec(Int, Long, Double) T]
+    (val self: Reactive[T], val f: Throwable => Unit)
+  extends Reactive.Default[Unit] with Reactor[T]
+  with Reactive.ProxySubscription {
+    def react(value: T) {}
+    def except(t: Throwable) {
+      try f(t)
+      catch ignoreNonLethal
+      finally reactAll(())
+    }
+    def unreact() {
+      unreactAll()
+    }
+    var subscription = Subscription.empty
+  }
+
   private[reactive] class Ultimately[@spec(Int, Long, Double) T]
     (val self: Reactive[T], val body: () => Unit)
   extends Reactive.Default[Unit] with Reactor[T]
@@ -1004,6 +1145,43 @@ object Reactive {
     def unreact() {
       body()
       reactAll(())
+      unreactAll()
+    }
+    var subscription = Subscription.empty
+  }
+
+  private[reactive] class Recover[T]
+    (val self: Reactive[T], val f: Throwable => Unit)
+    (implicit evid: T <:< AnyRef)
+  extends Reactive.Default[Unit] with Reactor[T]
+  with Reactive.ProxySubscription {
+    def react(value: T) {
+      reactAll(value)
+    }
+    def except(t: Throwable) {
+      var isDefined = false
+      try isDefined = pf.isDefinedAt(t)
+      catch {
+        case other if isNonLethal(other) =>
+          exceptAll(other)
+          return
+      }
+      if (!isDefined) {
+        exceptAll(t)
+      } else {
+        var event = null.asInstanceOf[T]
+        try {
+          event = pf(t)
+        } catch {
+          case other if isNonLethal(other) =>
+            exceptAll(other)
+            return
+        }
+
+        reactAll(event)
+      }
+    }
+    def unreact() {
       unreactAll()
     }
     var subscription = Subscription.empty
@@ -1720,15 +1898,16 @@ object Reactive {
   class Emitter[@spec(Int, Long, Double) T]
   extends Reactive[T] with Default[T] with EventSource with Reactor[T] {
     private var live = true
-    def +=(value: T) {
+    def react(value: T) {
       if (live) reactAll(value)
     }
-    def close(): Unit = if (live) {
+    def except(t: Throwable) {
+      if (live) exceptAll(t)
+    }
+    def unreact(): Unit = if (live) {
       live = false
       unreactAll()
     }
-    def react(value: T) = this += value
-    def unreact() = close()
   }
 
   /** A reactive emitter that can be used with the `mutate` block.
@@ -1744,10 +1923,13 @@ object Reactive {
   extends Reactive[T] with Default[T] with EventSource
   with ReactMutable.Subscriptions {
     private var live = true
-    def +=(value: T) {
+    def react(value: T) {
       if (live) reactAll(value)
     }
-    def close(): Unit = if (live) {
+    def except(t: Throwable) {
+      if (live) exceptAll(t)
+    }
+    def unreact(): Unit = if (live) {
       live = false
       unreactAll()
     }
@@ -1758,10 +1940,21 @@ object Reactive {
    */
   class SideEffectEmitter[@spec(Int, Long, Double) T](f: () => T)
   extends Reactive.Default[T] with EventSource {
-    private var closed = false
-    final def emit() = if (!closed) reactAll(f())
-    final def close() = {
-      closed = true
+    private var live = true
+    final def react() {
+      if (live) {
+        val event = {
+          try {
+            f()
+          } catch {
+            case t if isNonLethal(t) => exceptAll(t)
+          }
+        }
+        reactAll(event)
+      }
+    }
+    final def unreact() = if (live) {
+      live = false
       unreactAll()
     }
   }
@@ -1840,7 +2033,7 @@ object Reactive {
 
     /** Closes the ivar iff it is unassigned.
      */
-    def close(): Unit = if (state == 0) {
+    def unreact(): Unit = if (state == 0) {
       state = -1
       unreactAll()
     }

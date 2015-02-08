@@ -146,7 +146,8 @@ package object reactive {
    *  Users that are sure their events will not be buffered forever
    *  should import `Permission.canBuffer`.
    */
-  @implicitNotFound("This operation can buffer events, and may consume an arbitrary amount of memory. " +
+  @implicitNotFound("This operation can buffer events, and may consume an " +
+    "arbitrary amount of memory. " +
     "Import the value `Permission.canBuffer` to allow buffering operations.")
   sealed trait CanBeBuffered
 
@@ -157,6 +158,50 @@ package object reactive {
      *  that can potentially unboundedly buffer events.
      */
     implicit val canBuffer = new CanBeBuffered {}
+  }
+
+  @implicitNotFound("Calling on* methods can result in time and memory leaks " +
+    "when the reference to the corresponding Subscription object is lost. " +
+    "If you are sure you want to risk this, import " +
+    "implicits.canLeak or scala.reactive.Iso.canLeak from within an isolate, " +
+    "or instantiate a fresh canLeak object if calling outside of an isolate. " +
+    "Otherwise, consider using observe or foreach.")
+  sealed trait CanLeak {
+    val eventSinks = mutable.Set[EventSink]()
+  }
+
+  object CanLeak {
+    def newCanLeak: CanLeak = new CanLeak {}
+  }
+
+  /* exception handling */
+
+  def isLethal(t: Throwable): Boolean = t match {
+    case e: VirtualMachineError => true
+    case e: LinkageError => true
+    case _ => false
+  }
+
+  object Lethal {
+    def unapply(t: Throwable): Option[Throwable] = t match {
+      case e: VirtualMachineError => Some(e)
+      case e: LinkageError => Some(e)
+      case _ => None
+    }
+  }
+
+  def isNonLethal(t: Throwable): Boolean = !isLethal(t)
+
+  object NonLethal {
+    def unapply(t: Throwable): Option[Throwable] = t match {
+      case e: VirtualMachineError => None
+      case e: LinkageError => None
+      case _ => Some(t)
+    }
+  }
+
+  val ignoreNonLethal: PartialFunction[Throwable, Unit] = {
+    case t if isNonLethal(t) => // ignore
   }
 
   /* extensions on tuples */
@@ -240,22 +285,6 @@ package object reactive {
       }
       var subscription = Reactive.Subscription.empty
     }
-  }
-
-  /* implicits */
-
-  @implicitNotFound("Calling on* methods can result in time and memory leaks " +
-    "when the reference to the corresponding Subscription object is lost. " +
-    "If you are sure you want to risk this, import " +
-    "implicits.canLeak or scala.reactive.Iso.canLeak from within an isolate, " +
-    "or instantiate a fresh canLeak object if calling outside of an isolate. " +
-    "Otherwise, consider calling observe or foreach.")
-  sealed trait CanLeak {
-    val eventSinks = mutable.Set[EventSink]()
-  }
-
-  object CanLeak {
-    private[reactive] def newCanLeak: CanLeak = new CanLeak {}
   }
 
   /* system events */
