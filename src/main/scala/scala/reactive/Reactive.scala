@@ -1112,8 +1112,17 @@ object Reactive {
   extends Reactive.Default[Unit] with Reactor[T]
   with Reactive.ProxySubscription {
     def react(value: T) {
-      f(value)
+      try {
+        f(value)
+      } catch {
+        case t if isNonLethal(t) =>
+          exceptAll(t)
+          return
+      }
       reactAll(())
+    }
+    def except(t: Throwable) {
+      exceptAll(t)
     }
     def unreact() {
       unreactAll()
@@ -1128,8 +1137,15 @@ object Reactive {
     def react(value: T) {}
     def except(t: Throwable) {
       try f(t)
-      catch ignoreNonLethal
-      finally reactAll(())
+      catch {
+        catch t if isNonLethal(t) =>
+          exceptAll(t)
+          return
+      }
+      reactAll(())
+    }
+    def except(t: Throwable) {
+      exceptAll(t)
     }
     def unreact() {
       unreactAll()
@@ -1142,8 +1158,18 @@ object Reactive {
   extends Reactive.Default[Unit] with Reactor[T]
   with Reactive.ProxySubscription {
     def react(value: T) {}
+    def except(t: Throwable) {
+      exceptAll(t)
+    }
     def unreact() {
-      body()
+      try {
+        body()
+      } catch {
+        case t if isNonLethal(t) =>
+          exceptAll(t)
+          unreactAll()
+          return
+      }
       reactAll(())
       unreactAll()
     }
@@ -1159,23 +1185,24 @@ object Reactive {
       reactAll(value)
     }
     def except(t: Throwable) {
-      var isDefined = false
-      try isDefined = pf.isDefinedAt(t)
-      catch {
-        case other if isNonLethal(other) =>
-          exceptAll(other)
-          return
-      }
-      if (!isDefined) {
-        exceptAll(t)
-      } else {
-        var event = null.asInstanceOf[T]
-        try {
-          event = pf(t)
-        } catch {
+      val isDefined = {
+        try pf.isDefinedAt(t)
+        catch {
           case other if isNonLethal(other) =>
             exceptAll(other)
             return
+        }
+      }
+      if (!isDefined) exceptAll(t)
+      else {
+        val event = {
+          try {
+            pf(t)
+          } catch {
+            case other if isNonLethal(other) =>
+              exceptAll(other)
+              return
+          }
         }
 
         reactAll(event)
@@ -1198,8 +1225,17 @@ object Reactive {
     init(z)
     def apply() = cached
     def react(value: T) {
-      cached = op(cached, value)
+      try {
+        cached = op(cached, value)
+      } catch {
+        case t if isNonLethal(t) =>
+          exceptAll(t)
+          return
+      }
       reactAll(cached)
+    }
+    def except(t: Throwable) {
+      exceptAll(t)
     }
     def unreact() {
       unreactAll()
@@ -1211,8 +1247,17 @@ object Reactive {
     (val self: Reactive[T], val mutable: M, val mutation: T => Unit)
   extends Reactor[T] with Reactive.ProxySubscription {
     def react(value: T) = {
-      mutation(value)
+      try {
+        mutation(value)
+      } catch {
+        case t if isNonLethal(t) =>
+          exceptAll(t)
+          // note: still need to mutate, just in case
+      }
       mutable.onMutated()
+    }
+    def except(t: Throwable) {
+      exceptAll(t)
     }
     def unreact() {}
     var subscription = Subscription.empty
@@ -1223,8 +1268,17 @@ object Reactive {
     (val self: Reactive[T], val mutables: Seq[M], val mutation: T => Unit)
   extends Reactor[T] with Reactive.ProxySubscription {
     def react(value: T) = {
-      mutation(value)
+      try {
+        mutation(value)
+      } catch {
+        case t if isNonLethal(t) =>
+          exceptAll(t)
+          // note: still need to mutate, just in case
+      }
       for (m <- mutables) m.onMutated()
+    }
+    def except(t: Throwable) {
+      exceptAll(t)
     }
     def unreact() {}
     var subscription = Subscription.empty
