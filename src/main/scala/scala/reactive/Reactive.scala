@@ -1138,7 +1138,7 @@ object Reactive {
     def except(t: Throwable) {
       try f(t)
       catch {
-        catch t if isNonLethal(t) =>
+        case t if isNonLethal(t) =>
           exceptAll(t)
           return
       }
