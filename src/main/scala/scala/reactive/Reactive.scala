@@ -1412,7 +1412,14 @@ object Reactive {
         if (sbuffer.isEmpty) tbuffer += tvalue
         else {
           val svalue = sbuffer.dequeue()
-          reactAll(f(tvalue, svalue))
+          val event = try {
+            f(tvalue, svalue)
+          } catch {
+            case t if isNonLethal(t) =>
+              exceptAll(t)
+              return
+          }
+          reactAll(event)
         }
       }
       def unreact() = unreactBoth()
