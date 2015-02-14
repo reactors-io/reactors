@@ -47,9 +47,9 @@ class ReactRandom(private val jucRandom: java.util.Random) {
 
   def this(seed: Long) = this(new java.util.Random(seed))
 
-  def emit() = react.randomEmitter.emit()
+  def react() = react.randomEmitter.react()
 
-  def close() = react.randomEmitter.close()
+  def unreact() = react.randomEmitter.unreact()
 
   object react {
     private[calc] val randomEmitter = new Reactive.SideEffectEmitter[Unit](() => ())

@@ -39,14 +39,14 @@ extends RPriorityQueue[T] {
     val oldHead = if (heap.nonEmpty) heap.head else arrayable.nil
     heap.enqueue(elem)
     val newHead = heap.head
-    insertsEmitter += elem
-    if (newHead != oldHead) headEmitter += newHead
+    insertsEmitter.react(elem)
+    if (newHead != oldHead) headEmitter.react(newHead)
   }
 
   def dequeue(): T = {
     val elem = heap.dequeue()
-    removesEmitter += elem
-    if (size > 0) headEmitter += heap.head
+    removesEmitter.react(elem)
+    if (size > 0) headEmitter.react(heap.head)
     elem
   }
 

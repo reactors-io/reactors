@@ -205,7 +205,8 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    *  @param pf          the partial function used to handle the exception
    *  @return            a subscription for the exception notifications
    */
-  def onExcept(pf: PartialFunction[Throwable, Unit]): Reactive.Subscription = {
+  def onExcept(pf: PartialFunction[Throwable, Unit])(implicit canLeak: CanLeak):
+    Reactive.Subscription = {
     onReaction(new Reactor[T] {
       def react(value: T) {}
       def except(t: Throwable) {
@@ -281,8 +282,8 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    *  @param  pf         partial mapping from functions to events
    *  @return            a reactive that emits events when an exception arrives
    */
-  def recover(pf: PartialFunction[Throwable, T])(implicit evid: T <:< AnyRef):
-    Reactive[T] with Reactive.Subscription = {
+  def recover[U >: T](pf: PartialFunction[Throwable, U])
+    (implicit evid: U <:< AnyRef): Reactive[U] with Reactive.Subscription = {
     val rr = new Reactive.Recover(self, pf)
     rr.subscription = self observe rr
     rr
@@ -612,7 +613,7 @@ trait Reactive[@spec(Int, Long, Double) +T] {
         e.react(p, q)
       }
       def except(t: Throwable) = e.except(t)
-      def unreact() = e.close()
+      def unreact() = e.unreact()
     })
     e
   }
@@ -651,7 +652,7 @@ trait Reactive[@spec(Int, Long, Double) +T] {
         e.react(p, q)
       }
       def except(t: Throwable) = e.except(t)
-      def unreact() = e.close()
+      def unreact() = e.unreact()
     })
     e
   }
@@ -689,7 +690,7 @@ trait Reactive[@spec(Int, Long, Double) +T] {
         e.react(p, q)
       }
       def except(t: Throwable) = e.except(t)
-      def unreact() = e.close()
+      def unreact() = e.unreact()
     })
     e
   }
@@ -726,7 +727,7 @@ trait Reactive[@spec(Int, Long, Double) +T] {
         e.react(p, q)
       }
       def except(t: Throwable) = e.except(t)
-      def unreact() = e.close()
+      def unreact() = e.unreact()
     })
     e
   }
@@ -884,7 +885,7 @@ object Reactive {
      *  @param em        emitter to forward the events to
      */
     def pipe(em: Reactive.Emitter[T]): Reactive.Subscription =
-      self.foreach(em += _)
+      self.foreach(em react _)
 
     /** Creates a union of `this` and `that` reactive.
      *  
@@ -1144,9 +1145,6 @@ object Reactive {
       }
       reactAll(())
     }
-    def except(t: Throwable) {
-      exceptAll(t)
-    }
     def unreact() {
       unreactAll()
     }
@@ -1176,35 +1174,31 @@ object Reactive {
     var subscription = Subscription.empty
   }
 
-  private[reactive] class Recover[T]
-    (val self: Reactive[T], val f: Throwable => Unit)
-    (implicit evid: T <:< AnyRef)
-  extends Reactive.Default[Unit] with Reactor[T]
+  private[reactive] class Recover[U]
+    (val self: Reactive[U], val pf: PartialFunction[Throwable, U])
+    (implicit evid: U <:< AnyRef)
+  extends Reactive.Default[U] with Reactor[U]
   with Reactive.ProxySubscription {
-    def react(value: T) {
+    def react(value: U) {
       reactAll(value)
     }
     def except(t: Throwable) {
-      val isDefined = {
-        try pf.isDefinedAt(t)
-        catch {
+      val isDefined = try {
+        pf.isDefinedAt(t)
+      } catch {
+        case other if isNonLethal(other) =>
+          exceptAll(other)
+          return
+      }
+      if (!isDefined) exceptAll(t)
+      else {
+        val event = try {
+          pf(t)
+        } catch {
           case other if isNonLethal(other) =>
             exceptAll(other)
             return
         }
-      }
-      if (!isDefined) exceptAll(t)
-      else {
-        val event = {
-          try {
-            pf(t)
-          } catch {
-            case other if isNonLethal(other) =>
-              exceptAll(other)
-              return
-          }
-        }
-
         reactAll(event)
       }
     }
@@ -1251,13 +1245,13 @@ object Reactive {
         mutation(value)
       } catch {
         case t if isNonLethal(t) =>
-          exceptAll(t)
+          except(t)
           // note: still need to mutate, just in case
       }
-      mutable.onMutated()
+      mutable.react()
     }
     def except(t: Throwable) {
-      exceptAll(t)
+      mutable.except(t)
     }
     def unreact() {}
     var subscription = Subscription.empty
@@ -1272,13 +1266,13 @@ object Reactive {
         mutation(value)
       } catch {
         case t if isNonLethal(t) =>
-          exceptAll(t)
+          except(t)
           // note: still need to mutate, just in case
       }
-      for (m <- mutables) m.onMutated()
+      for (m <- mutables) m.react()
     }
     def except(t: Throwable) {
-      exceptAll(t)
+      for (m <- mutables) m.except(t)
     }
     def unreact() {}
     var subscription = Subscription.empty
@@ -1298,11 +1292,17 @@ object Reactive {
       def react(value: T) {
         if (started) reactAll(value)
       }
+      def except(t: Throwable) {
+        if (started) exceptAll(t)
+      }
       def unreact() = unreactBoth()
     }
     val thatReactor = new Reactor[S] {
       def react(value: S) {
         started = true
+      }
+      def except(t: Throwable) {
+        if (!started) exceptAll(t)
       }
       def unreact() = if (!started) unreactBoth()
     }
@@ -1322,10 +1322,12 @@ object Reactive {
     }
     val selfReactor = new Reactor[T] {
       def react(value: T) = if (live) reactAll(value)
+      def except(t: Throwable) = if (live) exceptAll(t)
       def unreact() = unreactBoth()
     }
     val thatReactor = new Reactor[S] {
       def react(value: S) = unreactBoth()
+      def except(t: Throwable) = if (live) exceptAll(t)
       def unreact() {}
     }
     var selfSubscription: Reactive.Subscription = Subscription.empty
@@ -1343,10 +1345,12 @@ object Reactive {
     }
     val selfReactor = new Reactor[T] {
       def react(value: T) = reactAll(value)
+      def except(t: Throwable) = exceptAll(t)
       def unreact() = unreactBoth()
     }
     val thatReactor = new Reactor[T] {
       def react(value: T) = reactAll(value)
+      def except(t: Throwable) = exceptAll(t)
       def unreact() = unreactBoth()
     }
     var selfSubscription: Reactive.Subscription = Subscription.empty
@@ -1371,6 +1375,7 @@ object Reactive {
     }
     val selfReactor = new Reactor[T] {
       def react(value: T) = reactAll(value)
+      def except(t: Throwable) = exceptAll(t)
       def unreact() {
         selfLive = false
         flush()
@@ -1382,6 +1387,7 @@ object Reactive {
         if (selfLive) buffer += value
         else reactAll(value)
       }
+      def except(t: Throwable) = exceptAll(t)
       def unreact() {
         thatLive = false
         unreactBoth()
@@ -1422,15 +1428,28 @@ object Reactive {
           reactAll(event)
         }
       }
+      def except(t: Throwable) {
+        exceptAll(t)
+      }
       def unreact() = unreactBoth()
     }
     val thatReactor = new Reactor[S] {
-      def react(svalue: S) = {
+      def react(svalue: S) {
         if (tbuffer.isEmpty) sbuffer += svalue
         else {
           val tvalue = tbuffer.dequeue()
-          reactAll(f(tvalue, svalue))
+          val event = try {
+            f(tvalue, svalue)
+          } catch {
+            case t if isNonLethal(t) =>
+              exceptAll(t)
+              return
+          }
+          reactAll(event)
         }
+      }
+      def except(t: Throwable) {
+        exceptAll(t)
       }
       def unreact() = unreactBoth()
     }
@@ -1443,7 +1462,17 @@ object Reactive {
     (val self: Reactive[T], val p: T => Boolean)
   extends Reactive.Default[T] with Reactor[T] with Reactive.ProxySubscription {
     def react(value: T) {
-      if (p(value)) reactAll(value)
+      val ok = try {
+        p(value)
+      } catch {
+        case t if isNonLethal(t) =>
+          exceptAll(t)
+          return
+      }
+      if (ok) reactAll(value)
+    }
+    def except(t: Throwable) {
+      exceptAll(t)
     }
     def unreact() {
       unreactAll()
@@ -1455,7 +1484,26 @@ object Reactive {
     (val self: Reactive[T], val pf: PartialFunction[T, S])
   extends Reactive.Default[S] with Reactor[T] with Reactive.ProxySubscription {
     def react(value: T) {
-      if (pf.isDefinedAt(value)) reactAll(pf(value))
+      val isDefined = try {
+        pf.isDefinedAt(value)
+      } catch {
+        case t if isNonLethal(t) =>
+          exceptAll(t)
+          return
+      }
+      if (isDefined) {
+        val event = try {
+          pf(value)
+        } catch {
+          case t if isNonLethal(t) =>
+            exceptAll(t)
+            return
+        }
+        reactAll(event)
+      }
+    }
+    def except(t: Throwable) {
+      exceptAll(t)
     }
     def unreact() {
       unreactAll()
@@ -1468,7 +1516,17 @@ object Reactive {
     (val self: Reactive[T], val f: T => S)
   extends Reactive.Default[S] with Reactor[T] with Reactive.ProxySubscription {
     def react(value: T) {
-      reactAll(f(value))
+      val event = try {
+        f(value)
+      } catch {
+        case t if isNonLethal(t) =>
+          exceptAll(t)
+          return
+      }
+      reactAll(event)
+    }
+    def except(t: Throwable) {
+      exceptAll(t)
     }
     def unreact() {
       unreactAll()
@@ -1486,10 +1544,14 @@ object Reactive {
         unreact()
       }
     }
+    def except(t: Throwable) {
+      exceptAll(t)
+    }
     def unreact() {
       if (!forwarded) {
         forwarded = true
         unreactAll()
+        subscription.unsubscribe()
       }
     }
     var subscription = Subscription.empty
@@ -1499,6 +1561,7 @@ object Reactive {
     (val self: Reactive[T])
   extends Reactive.Default[T] with Reactor[T] with Reactive.Subscription {
     def react(value: T) = reactAll(value)
+    def except(t: Throwable) = exceptAll(t)
     def unreact() {
       Iso.self.declarations -= this
       unreactAll()
@@ -1523,6 +1586,9 @@ object Reactive {
     private[reactive] var terminated = false
     def newReactor: Reactor[S] = new Reactor[S] {
       def react(value: S) = reactAll(value)
+      def except(t: Throwable) = {
+        exceptAll(t)
+      }
       def unreact() {
         currentSubscription = Subscription.empty
         checkUnreact()
@@ -1531,9 +1597,18 @@ object Reactive {
     def checkUnreact() =
       if (terminated && currentSubscription == Subscription.empty) unreactAll()
     def react(value: T) {
-      val nextReactive = evidence(value)
+      val nextReactive = try {
+        evidence(value)
+      } catch {
+        case t if isNonLethal(t) =>
+          exceptAll(t)
+          return
+      }
       currentSubscription.unsubscribe()
       currentSubscription = nextReactive observe newReactor
+    }
+    def except(t: Throwable) {
+      exceptAll(t)
     }
     def unreact() {
       terminated = true
@@ -1562,17 +1637,29 @@ object Reactive {
     def checkUnreact() = if (terminated && subscriptions.isEmpty) unreactAll()
     def newReactor(r: Reactive[S]) = new Reactor[S] {
       def react(value: S) = reactAll(value)
+      def except(t: Throwable) {
+        exceptAll(t)
+      }
       def unreact() = {
         subscriptions.remove(r)
         checkUnreact()
       }
     }
     def react(value: T) {
-      val nextReactive = evidence(value)
+      val nextReactive = try {
+        evidence(value)
+      } catch {
+        case t if isNonLethal(t) =>
+          exceptAll(t)
+          return
+      }
       if (!subscriptions.contains(nextReactive)) {
         val sub = nextReactive observe newReactor(nextReactive)
         subscriptions(nextReactive) = sub
       }
+    }
+    def except(t: Throwable) {
+      exceptAll(t)
     }
     def unreact() {
       terminated = true
@@ -1620,6 +1707,9 @@ object Reactive {
         if (entry.ready) reactAll(value)
         else entry.buffer.enqueue(value)
       }
+      def except(t: Throwable) {
+        exceptAll(t)
+      }
       def unreact() {
         if (entry.ready) {
           subscriptions.dequeue()
@@ -1628,11 +1718,20 @@ object Reactive {
       }
     }
     def react(value: T) {
-      val nextReactive = evidence(value)
+      val nextReactive = try {
+        evidence(value)
+      } catch {
+        case t if isNonLethal(t) =>
+          exceptAll(t)
+          return
+      }
       val entry = new ConcatEntry(null, new UnrolledBuffer[S], true)
       entry.subscription = nextReactive observe newReactor(entry)
       subscriptions.enqueue(entry)
       if (!subscriptions.head.ready) moveToNext()
+    }
+    def except(t: Throwable) {
+      exceptAll(t)
     }
     def unreact() {
       terminated = true
@@ -1660,6 +1759,7 @@ object Reactive {
       Subscription.empty
     }
     def reactAll(value: T) {}
+    def exceptAll(t: Throwable) {}
     def unreactAll() {}
   }
 
@@ -1810,6 +1910,20 @@ object Reactive {
           tableReactAll(wht, value)
       }
     }
+    def exceptAll(t: Throwable) {
+      demux match {
+        case null =>
+          // no need to inform anybody
+        case w: WeakRef[Reactor[T] @unchecked] =>
+          val r = w.get
+          if (r != null) r.except(t)
+          else demux = null
+        case wb: WeakBuffer[Reactor[T] @unchecked] =>
+          bufferExceptAll(wb, t)
+        case wht: WeakHashTable[Reactor[T] @unchecked] =>
+          tableExceptAll(wht, t)
+      }
+    }
     def unreactAll() {
       unreacted = true
       demux match {
@@ -1840,6 +1954,23 @@ object Reactive {
         val r = ref.get
         if (r ne null) {
           r.react(value)
+          i += 1
+        } else {
+          wb.removeEntryAt(i)
+          until -= 1
+        }
+      }
+      checkBuffer(wb)
+    }
+    private def bufferExceptAll(wb: WeakBuffer[Reactor[T]], t: Throwable) {
+      val array = wb.array
+      var until = wb.size
+      var i = 0
+      while (i < until) {
+        val ref = array(i)
+        val r = ref.get
+        if (r ne null) {
+          r.except(t)
           i += 1
         } else {
           wb.removeEntryAt(i)
@@ -1921,6 +2052,20 @@ object Reactive {
       cleanHashTable(wht)
       checkHashTable(wht)
     }
+    private def tableExceptAll(wht: WeakHashTable[Reactor[T]], t: Throwable) {
+      val table = wht.table
+      var i = 0
+      while (i < table.length) {
+        val ref = table(i)
+        if (ref ne null) {
+          val r = ref.get
+          if (r ne null) r.except(t)
+        }
+        i += 1
+      }
+      cleanHashTable(wht)
+      checkHashTable(wht)
+    }
     private def tableUnreactAll(wht: WeakHashTable[Reactor[T]]) {
       val table = wht.table
       var i = 0
@@ -1981,8 +2126,7 @@ object Reactive {
    *  @tparam T     the type of events in the bind emitter
    */
   class BindEmitter[@spec(Int, Long, Double) T]
-  extends Reactive[T] with Default[T] with EventSource
-  with ReactMutable.Subscriptions {
+  extends Reactive[T] with Default[T] with EventSource {
     private var live = true
     def react(value: T) {
       if (live) reactAll(value)
@@ -2008,7 +2152,9 @@ object Reactive {
           try {
             f()
           } catch {
-            case t if isNonLethal(t) => exceptAll(t)
+            case t if isNonLethal(t) =>
+              exceptAll(t)
+              return
           }
         }
         reactAll(event)
@@ -2020,7 +2166,7 @@ object Reactive {
     }
   }
 
-  /** A reactive value that can be either completed or closed at most once.
+  /** A reactive value that can be either completed or unreacted at most once.
    *
    *  Assigning a value propagates an event to all the subscribers,
    *  and then propagates an unreaction.
@@ -2032,12 +2178,12 @@ object Reactive {
    *  assert(iv() == 5)
    *  }}}
    *
-   *  To close an ivar without assigning a value:
+   *  To unreact (i.e. seal, or close) an ivar without assigning a value:
    *
    *  {{{
    *  val iv = new Reactive.Ivar[Int]
-   *  iv.close()
-   *  assert(iv.isClosed)
+   *  iv.unreact()
+   *  assert(iv.isUnreacted)
    *  }}}
    *  
    *  @tparam T          type of the value in the `Ivar`
@@ -2053,7 +2199,7 @@ object Reactive {
 
     /** Returns `true` iff the ivar has been closed.
      */
-    def isClosed: Boolean = state == -1
+    def isUnreacted: Boolean = state == -1
 
     /** Returns `true` iff the ivar is unassigned.
      */

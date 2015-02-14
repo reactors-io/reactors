@@ -30,7 +30,7 @@ trait EventSource {
 
   /** Closes the event source, disallowing it from emitting any further events.
    */
-  def close(): Unit
+  def unreact(): Unit
 
   /** Invoked when the event source is closed.
    */

@@ -224,16 +224,28 @@ package object reactive {
     extends Reactive.ProxySubscription {
       val m1 = new Reactor[T] {
         def react(value: T) {
-          f(tuple._1(), tuple._2())
-          mutable.onMutated()
+          try f(tuple._1(), tuple._2())
+          catch {
+            case t if isNonLethal(t) => except(t)
+          }
+          mutable.react()
+        }
+        def except(t: Throwable) {
+          mutable.except(t)
         }
         def unreact() {
         }
       }
       val m2 = new Reactor[S] {
         def react(value: S) {
-          f(tuple._1(), tuple._2())
-          mutable.onMutated()
+          try f(tuple._1(), tuple._2())
+          catch {
+            case t if isNonLethal(t) => except(t)
+          }
+          mutable.react()
+        }
+        def except(t: Throwable) {
+          mutable.except(t)
         }
         def unreact() {
         }
@@ -261,24 +273,42 @@ package object reactive {
     extends Reactive.ProxySubscription {
       val m1 = new Reactor[T] {
         def react(value: T) {
-          f(tuple._1(), tuple._2(), tuple._3())
-          mutable.onMutated()
+          try f(tuple._1(), tuple._2(), tuple._3())
+          catch {
+            case t if isNonLethal(t) => except(t)
+          }
+          mutable.react()
+        }
+        def except(t: Throwable) {
+          mutable.except(t)
         }
         def unreact() {
         }
       }
       val m2 = new Reactor[S] {
         def react(value: S) {
-          f(tuple._1(), tuple._2(), tuple._3())
-          mutable.onMutated()
+          try f(tuple._1(), tuple._2(), tuple._3())
+          catch {
+            case t if isNonLethal(t) => except(t)
+          }
+          mutable.react()
+        }
+        def except(t: Throwable) {
+          mutable.except(t)
         }
         def unreact() {
         }
       }
       val m3 = new Reactor[U] {
         def react(value: U) {
-          f(tuple._1(), tuple._2(), tuple._3())
-          mutable.onMutated()
+          try f(tuple._1(), tuple._2(), tuple._3())
+          catch {
+            case t if isNonLethal(t) => except(t)
+          }
+          mutable.react()
+        }
+        def except(t: Throwable) {
+          mutable.except(t)
         }
         def unreact() {
         }

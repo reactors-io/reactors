@@ -6,7 +6,8 @@ import collection._
 
 
 
-/** Describes reactives that are either mutable, or contain and emit events that are themselves mutable.
+/** Describes reactives that are either mutable, or contain and emit events that
+ *  are themselves mutable.
  */
 trait ReactMutable {
 
@@ -14,9 +15,12 @@ trait ReactMutable {
    */
   def bindSubscription(s: Reactive.Subscription): Reactive.Subscription = s
 
-  /** Called internally - when the mutable reactive or its internal value has been mutated.
+  /** Called internally - when the mutable reactive or its internal value has
+   *  been mutated.
    */
-  def onMutated(): Unit = {}
+  def react(): Unit
+
+  def except(t: Throwable): Unit
 
 }
 

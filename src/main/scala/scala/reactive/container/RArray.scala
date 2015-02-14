@@ -27,7 +27,7 @@ extends RContainer[T] {
     
     array(len) = value
     len += 1
-    inserts += value
+    inserts.react(value)
 
     true
   }

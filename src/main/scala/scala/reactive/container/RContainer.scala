@@ -194,10 +194,10 @@ object RContainer {
     val removes = new Reactive.BindEmitter[T]
     var countSignal: Signal.Mutable[Union.Count[T]] = new Signal.Mutable(count)
     var insertSubscription = (self.inserts union that.inserts).mutate(countSignal, inserts) { x =>
-      if (count.inc(x)) inserts += x
+      if (count.inc(x)) inserts.react(x)
     }
     var removeSubscription = (self.removes union that.removes).mutate(countSignal, removes) { x =>
-      if (count.dec(x)) removes += x
+      if (count.dec(x)) removes.react(x)
     }
     def computeUnion = {
       val s = RHashSet[T]

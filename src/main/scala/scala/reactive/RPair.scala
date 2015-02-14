@@ -42,11 +42,14 @@ trait RPair[@spec(Int, Long, Double) P, Q <: AnyRef] {
         if (p(_1)) {
           r._1 = _1
           r._2 = _2
-          r.changes += ()
+          r.changes.react(())
         }
       }
+      def except(t: Throwable) {
+        r.changes.except(t)
+      }
       def unreact() {
-        r.changes.close()
+        r.changes.unreact()
       }
     })
     r
@@ -59,11 +62,14 @@ trait RPair[@spec(Int, Long, Double) P, Q <: AnyRef] {
         if (p(_2)) {
           r._1 = _1
           r._2 = _2
-          r.changes += ()
+          r.changes.react(())
         }
       }
+      def except(t: Throwable) {
+        r.changes.except(t)
+      }
       def unreact() {
-        r.changes.close()
+        r.changes.unreact()
       }
     })
     r
@@ -75,10 +81,13 @@ trait RPair[@spec(Int, Long, Double) P, Q <: AnyRef] {
       def react(u: Unit) {
         r._1 = f(_1)
         r._2 = _2
-        r.changes += ()
+        r.changes.react(())
+      }
+      def except(t: Throwable) {
+        r.changes.except(t)
       }
       def unreact() {
-        r.changes.close()
+        r.changes.unreact()
       }
     })
     r
@@ -90,10 +99,13 @@ trait RPair[@spec(Int, Long, Double) P, Q <: AnyRef] {
       def react(u: Unit) {
         r._1 = _1
         r._2 = f(_2)
-        r.changes += ()
+        r.changes.react(())
+      }
+      def except(t: Throwable) {
+        r.changes.except(t)
       }
       def unreact() {
-        r.changes.close()
+        r.changes.unreact()
       }
     })
     r
@@ -106,11 +118,14 @@ trait RPair[@spec(Int, Long, Double) P, Q <: AnyRef] {
         if (pf.isDefinedAt(_2)) {
           r._1 = _1
           r._2 = pf(_2)
-          r.changes += ()
+          r.changes.react(())
         }
       }
+      def except(t: Throwable) {
+        r.changes.except(t)
+      }
       def unreact() {
-        r.changes.close()
+        r.changes.unreact()
       }
     })
     r
@@ -125,10 +140,13 @@ trait RPair[@spec(Int, Long, Double) P, Q <: AnyRef] {
       def react(u: Unit) {
         r._1 = e(_1)
         r._2 = f(_2)
-        r.changes += ()
+        r.changes.react(())
+      }
+      def except(t: Throwable) {
+        r.changes.except(t)
       }
       def unreact() {
-        r.changes.close()
+        r.changes.unreact()
       }
     })
     r
@@ -141,10 +159,13 @@ trait RPair[@spec(Int, Long, Double) P, Q <: AnyRef] {
       def react(u: Unit) {
         r._1 = f(_1, _2)
         r._2 = _2
-        r.changes += ()
+        r.changes.react(())
+      }
+      def except(t: Throwable) {
+        r.changes.except(t)
       }
       def unreact() {
-        r.changes.close()
+        r.changes.unreact()
       }
     })
     r
@@ -153,16 +174,20 @@ trait RPair[@spec(Int, Long, Double) P, Q <: AnyRef] {
   def mutate[M <: ReactMutable](mutable: M)
     (mutation: RPair.Signal[P, Q] => Unit): Reactive.Subscription = {
     changes foreach { _ =>
-      mutation(asSignal)
-      mutable.onMutated()
+      try mutation(asSignal)
+      catch {
+        case t if isNonLethal(t) =>
+          mutable.except(t)
+      }
+      mutable.react()
     }
   }
 
-  def to1: Reactive[P] with Reactive.Subscription = {
+  def fst: Reactive[P] with Reactive.Subscription = {
     changes.map(_ => _1)
   }
 
-  def to2: Reactive[Q] with Reactive.Subscription = {
+  def snd: Reactive[Q] with Reactive.Subscription = {
     changes.map(_ => _2)
   }
 
@@ -179,13 +204,16 @@ object RPair {
 
   class Emitter[@spec(Int, Long, Double) P, Q <: AnyRef]
   extends RPair[P, Q] with EventSource {
-    def emit(p: P, q: Q) {
+    def react(p: P, q: Q) {
       _1 = p
       _2 = q
-      changes += ()
+      changes.react(())
     }
-    def close() {
-      changes.close()
+    def except(t: Throwable) {
+      changes.except(t)
+    }
+    def unreact() {
+      changes.unreact()
     }
   }
   

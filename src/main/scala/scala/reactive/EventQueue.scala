@@ -110,7 +110,7 @@ object EventQueue {
     class Dequeuer[@spec(Int, Long, Double) Q](q: SingleSubscriberSyncedUnrolledRing[Q])
     extends scala.reactive.Dequeuer[Q] {
       val events = new Reactive.Emitter[Q]
-      def dequeue() = events += q.dequeue()
+      def dequeue() = events.react(q.dequeue())
       def isEmpty = q.isEmpty
       def size = q.size
     }

@@ -83,8 +83,8 @@ class RHashSet[@spec(Int, Long, Double) T](
     table(pos) = k
     val added = curr == nil
     if (added) sz += 1
-    else removesEmitter += k
-    if (notify) insertsEmitter += k
+    else removesEmitter.react(k)
+    if (notify) insertsEmitter.react(k)
 
     added
   }
@@ -114,7 +114,7 @@ class RHashSet[@spec(Int, Long, Double) T](
 
       table(h0) = arrayable.nil
       sz -= 1
-      removesEmitter += k
+      removesEmitter.react(k)
 
       true
     }
@@ -167,7 +167,7 @@ class RHashSet[@spec(Int, Long, Double) T](
       if (elem != nil) {
         table(pos) = arrayable.nil
         sz -= 1
-        removesEmitter += elem
+        removesEmitter.react(elem)
       }
 
       pos += 1

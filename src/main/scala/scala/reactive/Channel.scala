@@ -111,8 +111,8 @@ trait Channel[@spec(Int, Long, Double) T] {
   def <<(x: T): Channel[T] = {
     val e = new Reactive.Emitter[T]
     this.attach(e)
-    e += x
-    e.close()
+    e.react(x)
+    e.unreact()
     this
   }
 

@@ -38,7 +38,7 @@ extends RCatamorph[T, S] with RBuilder[S, AbelianCatamorph[T, S]] {
       val x = get(v)
       elements(v) = x
       value := op(value(), x)
-      insertsEmitter += v
+      insertsEmitter.react(v)
       true
     } else false
   }
@@ -48,7 +48,7 @@ extends RCatamorph[T, S] with RBuilder[S, AbelianCatamorph[T, S]] {
       val y = elements(v)
       elements.remove(v)
       value := inv(value(), y)
-      removesEmitter += v
+      removesEmitter.react(v)
       true
     } else false
   }

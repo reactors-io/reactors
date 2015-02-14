@@ -38,7 +38,7 @@ extends RCatamorph[T, S] with RBuilder[S, CommuteCatamorph[T, S]] {
       leaves(v) = leaf
       root = root.insert(leaf, op)
       rootValue := root.value
-      insertsEmitter += v
+      insertsEmitter.react(v)
       true
     } else false
   }
@@ -49,7 +49,7 @@ extends RCatamorph[T, S] with RBuilder[S, CommuteCatamorph[T, S]] {
       root = leaf.remove(zero, op)
       leaves.remove(v)
       rootValue := root.value
-      removesEmitter += v
+      removesEmitter.react(v)
       true
     } else false
   }
