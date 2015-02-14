@@ -427,8 +427,8 @@ trait Reactive[@spec(Int, Long, Double) +T] {
     rm
   }
 
-  private def mutablesCompositeSubscription[M <: ReactMutable](
-    mutables: Seq[M], selfsub: Reactive.Subscription) = {
+  private def mutablesCompositeSubscription[M <: ReactMutable]
+    (mutables: Seq[M], selfsub: Reactive.Subscription) = {
     for (m <- mutables) yield m.bindSubscription(selfsub)
   }
 
@@ -1248,10 +1248,10 @@ object Reactive {
           except(t)
           // note: still need to mutate, just in case
       }
-      mutable.react()
+      mutable.mutation()
     }
     def except(t: Throwable) {
-      mutable.except(t)
+      mutable.exception(t)
     }
     def unreact() {}
     var subscription = Subscription.empty
@@ -1266,13 +1266,13 @@ object Reactive {
         mutation(value)
       } catch {
         case t if isNonLethal(t) =>
-          except(t)
+          exception(t)
           // note: still need to mutate, just in case
       }
-      for (m <- mutables) m.react()
+      for (m <- mutables) m.mutation()
     }
     def except(t: Throwable) {
-      for (m <- mutables) m.except(t)
+      for (m <- mutables) m.exception(t)
     }
     def unreact() {}
     var subscription = Subscription.empty

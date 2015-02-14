@@ -20,7 +20,7 @@ class ReactiveGCSpec extends FlatSpec with ShouldMatchers {
 
     sys.runtime.gc()
 
-    emitter += 1
+    emitter react 1
 
     for (i <- 0 until num) signsOfLife(i) should equal (false)
     afterCheck(emitter) should equal (true)
@@ -55,7 +55,7 @@ class ReactiveGCSpec extends FlatSpec with ShouldMatchers {
 
     sys.runtime.gc()
 
-    emitter += 1
+    emitter react 1
 
     for (i <- 0 until num) signsOfLife(i) should equal (true)
     afterCheck(emitter) should equal (true)
@@ -88,7 +88,7 @@ class ReactiveGCSpec extends FlatSpec with ShouldMatchers {
 
     sys.runtime.gc()
 
-    emitter += 1
+    emitter react 1
 
     for (i <- 0 until num) signsOfLife(i) should equal (true)
     afterCheck(emitter) should equal (true)
@@ -124,7 +124,7 @@ class ReactiveGCSpec extends FlatSpec with ShouldMatchers {
 
     sys.runtime.gc()
 
-    emitter += 1
+    emitter react 1
 
     for (i <- 0 until num / 2) signsOfLife(i) should equal (true)
     for (i <- num / 2 until num) signsOfLife(i) should equal (false)

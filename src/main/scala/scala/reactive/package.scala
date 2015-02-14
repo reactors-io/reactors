@@ -228,10 +228,10 @@ package object reactive {
           catch {
             case t if isNonLethal(t) => except(t)
           }
-          mutable.react()
+          mutable.mutation()
         }
         def except(t: Throwable) {
-          mutable.except(t)
+          mutable.exception(t)
         }
         def unreact() {
         }
@@ -242,10 +242,10 @@ package object reactive {
           catch {
             case t if isNonLethal(t) => except(t)
           }
-          mutable.react()
+          mutable.mutation()
         }
         def except(t: Throwable) {
-          mutable.except(t)
+          mutable.exception(t)
         }
         def unreact() {
         }
@@ -277,10 +277,10 @@ package object reactive {
           catch {
             case t if isNonLethal(t) => except(t)
           }
-          mutable.react()
+          mutable.mutation()
         }
         def except(t: Throwable) {
-          mutable.except(t)
+          mutable.exception(t)
         }
         def unreact() {
         }
@@ -291,10 +291,10 @@ package object reactive {
           catch {
             case t if isNonLethal(t) => except(t)
           }
-          mutable.react()
+          mutable.mutation()
         }
         def except(t: Throwable) {
-          mutable.except(t)
+          mutable.exception(t)
         }
         def unreact() {
         }
@@ -305,10 +305,10 @@ package object reactive {
           catch {
             case t if isNonLethal(t) => except(t)
           }
-          mutable.react()
+          mutable.mutation()
         }
         def except(t: Throwable) {
-          mutable.except(t)
+          mutable.exception(t)
         }
         def unreact() {
         }

@@ -128,7 +128,7 @@ extends RMap[K, V] with RBuilder[(K, V), RHashMap[K, V]] with PairBuilder[K, V, 
   private def emitRemoves(k: K, previousValue: V) {
     keysContainer.removes.react(k)
     valuesContainer.removes.react(previousValue)
-    entriesContainer.removes.emit(k, previousValue)
+    entriesContainer.removes.react(k, previousValue)
     if (removesEmitter.hasSubscriptions)
       removesEmitter.react((k, previousValue))
   }
@@ -162,7 +162,7 @@ extends RMap[K, V] with RBuilder[(K, V), RHashMap[K, V]] with PairBuilder[K, V, 
     {
       keysContainer.inserts.react(k)
       valuesContainer.inserts.react(v)
-      entriesContainer.inserts.emit(k, v)
+      entriesContainer.inserts.react(k, v)
       if (insertsEmitter.hasSubscriptions) insertsEmitter.react((k, v))
     }
     

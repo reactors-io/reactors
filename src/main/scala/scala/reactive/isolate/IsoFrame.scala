@@ -23,7 +23,7 @@ final class IsoFrame(
   val isolateState = new AtomicReference[IsoFrame.IsoState](IsoFrame.Created)
   val counter = new AtomicLong(0L)
   val errorHandling: PartialFunction[Throwable, Unit] = {
-    case NonFatal(t) => isolate.failureEmitter += t
+    case NonFatal(t) => isolate.failureEmitter.react(t)
   }
   val schedulerInfo: Scheduler.Info = scheduler.newInfo(this)
   val isolateSourceConnector: Connector[_] = newSourceConnector(this)
@@ -81,21 +81,22 @@ final class IsoFrame(
   @tailrec private def checkCreated() {
     import IsoFrame._
     if (isolateState.get == Created) {
-      if (isolateState.compareAndSet(Created, Running)) isolate.systemEmitter += IsoStarted
+      if (isolateState.compareAndSet(Created, Running))
+        isolate.systemEmitter.react(IsoStarted)
       else checkCreated()
     }
   }
 
   private def checkEmptyQueue() {
-    if (multiplexer.areEmpty) isolate.systemEmitter += IsoEmptyQueue
+    if (multiplexer.areEmpty) isolate.systemEmitter.react(IsoEmptyQueue)
   }
 
   @tailrec private def checkTerminated() {
     import IsoFrame._
     if (multiplexer.isTerminated && isolateState.get == Running) {
       if (isolateState.compareAndSet(Running, Terminated)) {
-        try isolate.systemEmitter += IsoTerminated
-        finally try for (es <- isolate.eventSources) es.close()
+        try isolate.systemEmitter.react(IsoTerminated)
+        finally try for (es <- isolate.eventSources) es.unreact()
         finally isolateSystem.releaseNames(name)
       } else checkTerminated()
     }

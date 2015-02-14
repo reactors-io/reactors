@@ -40,7 +40,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
       assert(x == 2)
     }
 
-    e += 1
+    e react 1
   }
 
   it should "emit once" in {
@@ -49,9 +49,9 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     val check = mutable.Buffer[Int]()
     val adds = s.foreach(check += _)
 
-    e += 1
-    e += 2
-    e += 3
+    e react 1
+    e react 2
+    e react 3
 
     assert(check == Seq(1))
   }
@@ -61,9 +61,9 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     val buffer = mutable.Buffer[Int]()
     val s = e.foreach(buffer += _)
 
-    e += 1
-    e += 2
-    e += 3
+    e react 1
+    e react 2
+    e react 3
 
     buffer should equal (Seq(1, 2, 3))
   }
@@ -90,16 +90,16 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     val buffer = mutable.Buffer[Int]()
     val s = (e after start) foreach { case x => buffer += x }
 
-    e += 1
-    e += 2
-    e += 3
-    start += true
-    e += 4
-    e += 5
-    e += 6
-    start += false
-    e += 7
-    e += 8
+    e react 1
+    e react 2
+    e react 3
+    start react true
+    e react 4
+    e react 5
+    e react 6
+    start react false
+    e react 7
+    e react 8
     buffer should equal (Seq(4, 5, 6, 7, 8))
   }
 
@@ -109,9 +109,9 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     val buffer = mutable.Buffer[Int]()
     val s = (e after start) foreach { case x => buffer += x }
 
-    e += 1
-    e += 2
-    e += 3
+    e react 1
+    e react 2
+    e react 3
     buffer should equal (Seq())
   }
 
@@ -121,12 +121,12 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     val buffer = mutable.Buffer[Int]()
     val s = (e until end) foreach { x => buffer += x }
 
-    e += 1
-    e += 2
-    end += true
-    e += 3
-    end += false
-    e += 4
+    e react 1
+    e react 2
+    end react true
+    e react 3
+    end react false
+    e react 4
     buffer should equal (Seq(1, 2))
   }
 
@@ -136,12 +136,12 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     val buffer = mutable.Buffer[Int]()
     val s = (xs union ys) foreach { case x => buffer += x }
 
-    xs += 1
-    ys += 11
-    xs += 2
-    ys += 12
-    ys += 15
-    xs += 7
+    xs react 1
+    ys react 11
+    xs react 2
+    ys react 12
+    ys react 15
+    xs react 7
     buffer should equal (Seq(1, 11, 2, 12, 15, 7))
   }
 
@@ -153,13 +153,13 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     val buffer = mutable.Buffer[Int]()
     val s = ((xs until closeXs) concat ys) foreach { case x => buffer += x }
 
-    xs += 1
-    ys += 11
-    xs += 2
-    ys += 12
-    ys += 15
-    xs += 7
-    closeXs += ()
+    xs react 1
+    ys react 11
+    xs react 2
+    ys react 12
+    ys react 15
+    xs react 7
+    closeXs react ()
     buffer should equal (Seq(1, 2, 7, 11, 12, 15))
   }
 
@@ -171,8 +171,8 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     val buffer = mutable.Buffer[Int]()
     val s = synced foreach { case x => buffer += x }
 
-    for (i <- 0 until 200) xs += i
-    for (j <- 200 to 51 by -1) ys += j
+    for (i <- 0 until 200) xs react i
+    for (j <- 200 to 51 by -1) ys react j
     buffer.size should equal (150)
     for (x <- buffer) x should equal (200)
   }
@@ -205,19 +205,19 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
 
     assert(ints() == 0, ints())
     cell := e1
-    e1 += 10
+    e1 react 10
     assert(ints() == 10, ints())
-    e1 += 20
+    e1 react 20
     assert(ints() == 20, ints())
-    e2 += 30
+    e2 react 30
     assert(ints() == 20, ints())
     cell := e2
     assert(ints() == 20, ints())
-    e2 += 40
+    e2 react 40
     assert(ints() == 40, ints())
-    e1 += 50
+    e1 react 50
     assert(ints() == 40, ints())
-    e2 += 60
+    e2 react 60
     assert(ints() == 60, ints())
   }
 
@@ -231,31 +231,31 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     val buffer = mutable.Buffer[Int]()
     val s = cell.union() foreach { case x => buffer += x }
 
-    e1 += -1
-    e2 += -2
-    e3 += -3
+    e1 react -1
+    e2 react -2
+    e3 react -3
 
     cell := e1
-    e1 += 1
-    e1 += 11
-    e2 += -22
-    e3 += -33
+    e1 react 1
+    e1 react 11
+    e2 react -22
+    e3 react -33
     cell := e2
-    e1 += 111
-    e2 += 2
-    e3 += -333
+    e1 react 111
+    e2 react 2
+    e3 react -333
     cell := e3
-    e1 += 1111
-    e2 += 22
-    e3 += 3
+    e1 react 1111
+    e2 react 22
+    e3 react 3
     cell := e1
-    e1 += 11111
-    e2 += 222
-    e3 += 33
+    e1 react 11111
+    e2 react 222
+    e3 react 33
     cell := (e4 until closeE4)
-    e4 += 4
-    closeE4 += ()
-    e4 += -44
+    e4 react 4
+    closeE4 react ()
+    e4 react -44
     buffer should equal (Seq(1, 11, 111, 2, 1111, 22, 3, 11111, 222, 33, 4))
   }
 
@@ -272,32 +272,32 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     val buffer = mutable.Buffer[Int]()
     val s = cell.concat() foreach { x => buffer += x }
 
-    e1 += -1
-    e2 += -2
-    e3 += -3
+    e1 react -1
+    e2 react -2
+    e3 react -3
 
     cell := e1 until closeE1
-    e1 += 1
-    e1 += 11
-    e2 += -22
-    e3 += -33
+    e1 react 1
+    e1 react 11
+    e2 react -22
+    e3 react -33
     cell := e2 until closeE2
-    e1 += 111
-    e2 += 2
-    e3 += -333
+    e1 react 111
+    e2 react 2
+    e3 react -333
     cell := e3 until closeE3
-    e1 += 1111
-    e2 += 22
-    e3 += 3
-    closeE1 += ()
-    closeE2 += ()
-    e1 += -11111
-    e2 += -222
-    e3 += 33
-    closeE3 += ()
-    e3 += -333
+    e1 react 1111
+    e2 react 22
+    e3 react 3
+    closeE1 react ()
+    closeE2 react ()
+    e1 react -11111
+    e2 react -222
+    e3 react 33
+    closeE3 react ()
+    e3 react -333
     cell := e4
-    e4 += 4
+    e4 react 4
 
     buffer should equal (Seq(1, 11, 111, 1111, 2, 22, 3, 33, 4))
   }
@@ -310,7 +310,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     val observed = mutable.Buffer[String]()
     val emitSub = evens.foreach(observed += _)
 
-    for (i <- 0 until 100) e += i.toString
+    for (i <- 0 until 100) e react i.toString
 
     observed should equal ((0 until 100 by 2).map(_.toString))
   }

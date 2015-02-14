@@ -6,7 +6,8 @@ package container
 
 
 
-trait RContainer[@spec(Int, Long, Double) T] extends ReactMutable.Subscriptions {
+trait RContainer[@spec(Int, Long, Double) T]
+extends ReactMutable.Subscriptions {
   self =>
 
   def inserts: Reactive[T]
@@ -18,6 +19,14 @@ trait RContainer[@spec(Int, Long, Double) T] extends ReactMutable.Subscriptions 
   def foreach(f: T => Unit): Unit
 
   def size: Int
+
+  /** By default, containers do not propagate mutation events.
+   */
+  def mutation() {}
+
+  /** By default, containers ignore exceptions that occur during their mutation.
+   */
+  def exception(t: Throwable) {}
 
   def count(p: T => Boolean): Int = {
     var num = 0
@@ -41,13 +50,18 @@ trait RContainer[@spec(Int, Long, Double) T] extends ReactMutable.Subscriptions 
   def filter(p: T => Boolean): RContainer[T] =
     new RContainer.Filter(this, p)
 
-  def collect[S <: AnyRef](pf: PartialFunction[T, S])(implicit e: T <:< AnyRef): RContainer[S] =
+  def collect[S <: AnyRef](pf: PartialFunction[T, S])(implicit e: T <:< AnyRef):
+    RContainer[S] =
     new RContainer.Collect(this, pf)
 
-  def union(that: RContainer[T])(implicit count: RContainer.Union.Count[T], a: Arrayable[T], b: CanBeBuffered): RContainer[T] =
-    new RContainer.Union(this, that, count)
+  def union(that: RContainer[T])(implicit
+    count: RContainer.Union.Count[T],
+    a: Arrayable[T],
+    b: CanBeBuffered
+  ): RContainer[T] = new RContainer.Union(this, that, count)
 
-  def to[That <: RContainer[T]](implicit factory: RBuilder.Factory[T, That]): That = {
+  def to[That <: RContainer[T]]
+    (implicit factory: RBuilder.Factory[T, That]): That = {
     val builder = factory()
     for (x <- this) builder += x
     builder.container
@@ -71,20 +85,29 @@ object RContainer {
         private[reactive] var value = container.count(p)
         def apply() = value
         val subscription = Reactive.CompositeSubscription(
-          container.inserts foreach { x => if (p(x)) { value += 1; reactAll(value) } },
-          container.removes foreach { x => if (p(x)) { value -= 1; reactAll(value) } }
+          container.inserts foreach { x =>
+            if (p(x)) { value += 1; reactAll(value) }
+          },
+          container.removes foreach { x =>
+            if (p(x)) { value -= 1; reactAll(value) }
+          }
         )
       }
 
-    def exists(p: T => Boolean): Signal[Boolean] with Reactive.Subscription = count(p).map(_ > 0)
+    def exists(p: T => Boolean): Signal[Boolean] with Reactive.Subscription =
+      count(p).map(_ > 0)
 
     def forall(p: T => Boolean): Signal[Boolean] with Reactive.Subscription =
       new Signal.Default[Boolean] with Reactive.ProxySubscription {
         private[reactive] var value = container.count(p)
         def apply() = value == container.size
         val subscription = Reactive.CompositeSubscription(
-          container.inserts foreach { x => if (p(x)) value += 1; reactAll(value == container.size) },
-          container.removes foreach { x => if (p(x)) value -= 1; reactAll(value == container.size) }
+          container.inserts foreach { x =>
+            if (p(x)) value += 1; reactAll(value == container.size)
+          },
+          container.removes foreach { x =>
+            if (p(x)) value -= 1; reactAll(value == container.size)
+          }
         )
       }
 
@@ -188,17 +211,20 @@ object RContainer {
   }
 
   class Union[@spec(Int, Long, Double) T]
-    (self: RContainer[T], that: RContainer[T], count: Union.Count[T])(implicit at: Arrayable[T])
+    (self: RContainer[T], that: RContainer[T], count: Union.Count[T])
+    (implicit at: Arrayable[T])
   extends RContainer.Default[T] {
-    val inserts = new Reactive.BindEmitter[T]
-    val removes = new Reactive.BindEmitter[T]
+    val inserts = new Reactive.Emitter[T]
+    val removes = new Reactive.Emitter[T]
     var countSignal: Signal.Mutable[Union.Count[T]] = new Signal.Mutable(count)
-    var insertSubscription = (self.inserts union that.inserts).mutate(countSignal, inserts) { x =>
-      if (count.inc(x)) inserts.react(x)
-    }
-    var removeSubscription = (self.removes union that.removes).mutate(countSignal, removes) { x =>
-      if (count.dec(x)) removes.react(x)
-    }
+    var insertSubscription =
+      (self.inserts union that.inserts).mutate(countSignal) { x =>
+        if (count.inc(x)) inserts.react(x)
+      }
+    var removeSubscription =
+      (self.removes union that.removes).mutate(countSignal) { x =>
+        if (count.dec(x)) removes.react(x)
+      }
     def computeUnion = {
       val s = RHashSet[T]
       for (v <- self) s += v
@@ -215,7 +241,9 @@ object RContainer {
       def dec(x: T): Boolean
     }
 
-    class PrimitiveCount[@spec(Int, Long, Double) T](implicit val at: Arrayable[T]) extends Count[T] {
+    class PrimitiveCount
+      [@spec(Int, Long, Double) T](implicit val at: Arrayable[T])
+    extends Count[T] {
       val table = RHashValMap[T, Int](at, Arrayable.nonZeroInt)
       def inc(x: T) = {
         val curr = table.applyOrNil(x)
@@ -279,7 +307,8 @@ object RContainer {
 
     implicit def doubleCount = new PrimitiveCount[Double]
 
-    implicit def refCount[T >: Null <: AnyRef](implicit at: Arrayable[T]) = new RefCount[T]
+    implicit def refCount[T >: Null <: AnyRef](implicit at: Arrayable[T]) =
+      new RefCount[T]
 
   }
 

@@ -39,14 +39,14 @@ extends RQueue[T] {
 
   def enqueue(elem: T) {
     ring.enqueue(elem)
-    insertsEmitter += elem
-    if (size == 1) headEmitter += ring.head
+    insertsEmitter.react(elem)
+    if (size == 1) headEmitter.react(ring.head)
   }
 
   def dequeue(): T = {
     val elem = ring.dequeue()
-    removesEmitter += elem
-    if (size > 0) headEmitter += ring.head
+    removesEmitter.react(elem)
+    if (size > 0) headEmitter.react(ring.head)
     elem
   }
 

@@ -37,6 +37,9 @@ extends RCatamorph[T, Signal[T]] with RBuilder[Signal[T], SignalCatamorph[T]] {
           catamorph.push(s)
           defaultSignal.reactAll(catamorph.signal())
         }
+        def except(t: Throwable) {
+          defaultSignal.exceptAll(t)
+        }
         def unreact() {}
       })
       defaultSignal.reactAll(catamorph.signal())

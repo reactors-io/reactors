@@ -18,9 +18,12 @@ trait ReactMutable {
   /** Called internally - when the mutable reactive or its internal value has
    *  been mutated.
    */
-  def react(): Unit
+  def mutation(): Unit
 
-  def except(t: Throwable): Unit
+  /** Called when an exception occurs during mutation.
+   *  Some reactive mutables may propagate the exception further.
+   */
+  def exception(t: Throwable): Unit
 
 }
 

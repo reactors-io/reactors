@@ -105,8 +105,8 @@ class RHashValMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
     
     val keyAdded = curr == nil
     if (keyAdded) sz += 1
-    else if (notify && removesEmitter.hasSubscriptions) removesEmitter += (k, previousValue)
-    if (notify && insertsEmitter.hasSubscriptions) insertsEmitter += (k, v)
+    else if (notify && removesEmitter.hasSubscriptions) removesEmitter.react((k, previousValue))
+    if (notify && insertsEmitter.hasSubscriptions) insertsEmitter.react((k, v))
 
     previousValue
   }
@@ -140,7 +140,7 @@ class RHashValMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
       keytable(h0) = emptyKey.nil
       valtable(h0) = emptyVal.nil
       sz -= 1
-      if (removesEmitter.hasSubscriptions) removesEmitter += (k, previousValue)
+      if (removesEmitter.hasSubscriptions) removesEmitter.react((k, previousValue))
 
       previousValue
     } else emptyVal.nil
@@ -219,7 +219,7 @@ class RHashValMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
         keytable(pos) = emptyKey.nil
         valtable(pos) = emptyVal.nil
         sz -= 1
-        if (removesEmitter.hasSubscriptions) removesEmitter += ((k, v))
+        if (removesEmitter.hasSubscriptions) removesEmitter.react((k, v))
       }
 
       pos += 1

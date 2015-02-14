@@ -133,9 +133,9 @@ trait RValPair[@spec(Int, Long, Double) P, @spec(Int, Long, Double) Q] {
       try mutation(asSignal)
       catch {
         case t if isNonLethal(t) =>
-          mutable.except(t)
+          mutable.exception(t)
       }
-      mutable.react()
+      mutable.mutation()
     }
   }
 

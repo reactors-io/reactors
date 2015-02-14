@@ -139,19 +139,19 @@ class RTileMap[@spec(Int, Long, Double) T: ClassTag](
     else if (!prevDefault && currDefault) sz -= 1
 
     if (!prevDefault) {
-      valueContainer.removes += prevelem
+      valueContainer.removes.react(prevelem)
       if (removesEmitter.hasSubscriptions) {
-        removesEmitter += (x, y, prevelem)
+        removesEmitter.react((x, y, prevelem))
       }
     }
 
     if (!currDefault) {
-      valueContainer.inserts += elem
+      valueContainer.inserts.react(elem)
       if (insertsEmitter.hasSubscriptions) {
-        insertsEmitter += (x, y, elem)
+        insertsEmitter.react((x, y, elem))
       }
     }
-    updatesEmitter += XY(x, y)
+    updatesEmitter.react(XY(x, y))
   }
 
   def updateSafe(x: Int, y: Int, elem: T): Unit = {
@@ -185,8 +185,8 @@ class RTileMap[@spec(Int, Long, Double) T: ClassTag](
     if (removesEmitter.hasSubscriptions) {
       oldroot.foreachTile(0, 0, dim, dim, 0, 0, dim, dflt, true)(new Applier[T] {
         def apply(x: Int, y: Int, elem: T) = {
-          valueContainer.removes += elem
-          removesEmitter += (x, y, elem)
+          valueContainer.removes.react(elem)
+          removesEmitter.react((x, y, elem))
         }
       })
     }
@@ -225,7 +225,7 @@ class RTileMap[@spec(Int, Long, Double) T: ClassTag](
     pow2size = npow2size
     root = nroot
 
-    dimensionsEmitter += ndim
+    dimensionsEmitter.react(ndim)
 
     if (ndim < olddim && removesEmitter.hasSubscriptions) {
       var x, y = 0
@@ -233,7 +233,7 @@ class RTileMap[@spec(Int, Long, Double) T: ClassTag](
         while (x < olddim) {
           if (x >= ndim || y >= ndim) {
             val elem = oldroot.apply(x, y, oldpow2size)
-            if (elem != dflt) removesEmitter += (x, y, elem)
+            if (elem != dflt) removesEmitter.react((x, y, elem))
           }
           x += 1
         }

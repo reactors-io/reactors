@@ -34,7 +34,8 @@ extends Reactive[T] {
    *  @param f        mapping function for the events in `this` signal
    *  @return         a subscription and a signal with the mapped events
    */
-  override def map[@spec(Int, Long, Double) S](f: T => S): Signal[S] with Reactive.Subscription = {
+  override def map[@spec(Int, Long, Double) S](f: T => S):
+    Signal[S] with Reactive.Subscription = {
     val sm = new Signal.Map(self, f)
     sm.subscription = self observe sm
     sm
@@ -70,7 +71,8 @@ extends Reactive[T] {
     sc
   }
 
-  /** A signal that produces difference events between the current and previous value of `this` signal.
+  /** A signal that produces difference events between the current and previous
+   *  value of `this` signal.
    *
    *  {{{
    *  time ---------------->
@@ -80,10 +82,12 @@ extends Reactive[T] {
    *  
    *  @tparam S       the type of the difference event
    *  @param z        the initial value for the difference
-   *  @param op       the operator that computes the difference between consecutive events
+   *  @param op       the operator that computes the difference between
+   *                  consecutive events
    *  @return         a subscription and a signal with the difference value
    */
-  def diffPast[@spec(Int, Long, Double) S](z: S)(op: (T, T) => S): Signal[S] with Reactive.Subscription = {
+  def diffPast[@spec(Int, Long, Double) S](z: S)(op: (T, T) => S):
+    Signal[S] with Reactive.Subscription = {
     val initial = this()
     val sd = new Signal.DiffPast(self, initial, z, op)
     sd.subscription = self observe sd
@@ -92,9 +96,10 @@ extends Reactive[T] {
 
   /** Zips values of `this` and `that` signal using the specified function `f`.
    *
-   *  Whenever either of the two signals change the resulting signal also changes.
-   *  When `this` emits an event, the current value of `that` is used to produce a signal on `that`,
-   *  and vice versa.
+   *  Whenever either of the two signals change the resulting signal also
+   *  changes.
+   *  When `this` emits an event, the current value of `that` is used to produce
+   *  a signal on `that`, and vice versa.
    *
    *  {{{
    *  time --------------------------------->
@@ -123,10 +128,12 @@ extends Reactive[T] {
    *  @tparam S        the type of `that` signal
    *  @tparam R        the type of the resulting signal
    *  @param that      the signal to zip `this` with
-   *  @param f         the function that maps a tuple of values into an outgoing event
+   *  @param f         the function that maps a tuple of values into an outgoing
+   *                   event
    *  @return          a subscription and the reactive that emits zipped events
    */
-  def zip[@spec(Int, Long, Double) S, @spec(Int, Long, Double) R](that: Signal[S])(f: (T, S) => R): Signal[R] with Reactive.Subscription = {
+  def zip[@spec(Int, Long, Double) S, @spec(Int, Long, Double) R]
+    (that: Signal[S])(f: (T, S) => R): Signal[R] with Reactive.Subscription = {
     val sz = new Signal.Zip(self, that, f)
     sz.subscription = Reactive.CompositeSubscription(
       self observe sz.selfReactor,
@@ -137,11 +144,11 @@ extends Reactive[T] {
 
   /* higher order */
 
-  /** Creates a signal that uses the current signal nested in `this` signal to compute the resulting value,
-   *  in effect multiplexing the nested signals.
+  /** Creates a signal that uses the current signal nested in `this` signal to
+   *  compute the resulting value, in effect multiplexing the nested signals.
    *
-   *  Whenever the nested signal changes, or the value of the nested signal changes,
-   *  an event with the current nested signal value is emitted
+   *  Whenever the nested signal changes, or the value of the nested signal
+   *  changes, an event with the current nested signal value is emitted
    *  and stored as the value of the resulting signal.
    *
    *  Unreacts when both `this` and the last nested signal unreact.
@@ -154,8 +161,9 @@ extends Reactive[T] {
    *  muxSignal 1--2--3--0--0--0---1--2---4--8-->
    *  }}}
    *  
-   *  This is similar to `mux`, but emits the initial value of the signal as an event too --
-   *  this is because `mux` does not require the nested reactive to be a signal.
+   *  This is similar to `mux`, but emits the initial value of the signal as an
+   *  event too -- this is because `mux` does not require the nested reactive to
+   *  be a signal.
    *
    *  '''Use case:'''
    *
@@ -164,10 +172,13 @@ extends Reactive[T] {
    *  }}}
    *
    *  @tparam S         type of the nested signal
-   *  @param evidence   evidence that the type of `this` signal `T` is a signal of type `S`
+   *  @param evidence   evidence that the type of `this` signal `T` is a signal
+   *                    of type `S`
    *  @return           a subscription and a signal with the multiplexed values.
    */
-  def muxSignal[@spec(Int, Long, Double) S]()(implicit evidence: T <:< Signal[S]): Signal[S] with Reactive.Subscription = {
+  def muxSignal[@spec(Int, Long, Double) S]()
+    (implicit evidence: T <:< Signal[S]):
+    Signal[S] with Reactive.Subscription = {
     new Signal.Mux[T, S](this, evidence)
   }
 
@@ -203,21 +214,28 @@ object Signal {
      *  }}}
      *
      *  @param init     the initial previous value, `i` in the diagram above
-     *  @return         a subscription and a signal of tuples of the current and last event
+     *  @return         a subscription and a signal of tuples of the current and
+     *                  last event
      */
     def past2(init: T) = self.scanPast((init, self())) {
       (t, x) => (t._2, x)
     }
   }
 
-  private[reactive] class Map[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
+  private[reactive] class Map
+    [@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
     (val self: Signal[T], val f: T => S)
   extends Signal.Default[S] with Reactor[T] with Reactive.ProxySubscription {
     private var cached = f(self.apply)
     def apply() = cached
     def react(value: T) {
-      cached = f(value)
+      cached = try {
+        f(value)
+      } catch { case t if isNonLethal(t) => exceptAll(t); return }
       reactAll(cached)
+    }
+    def except(t: Throwable) {
+      exceptAll(t)
     }
     def unreact() {
       unreactAll()
@@ -231,8 +249,15 @@ object Signal {
     private var cached = initial
     def apply() = cached
     def react(value: T) {
-      cached = op(cached, value)
+      cached = try {
+        op(cached, value)
+      } catch {
+        case t if isNonLethal(t) => exceptAll(t); return
+      }
       reactAll(cached)
+    }
+    def except(t: Throwable) {
+      exceptAll(t)
     }
     def unreact() {
       unreactAll()
@@ -250,20 +275,31 @@ object Signal {
         reactAll(cached)
       }
     }
+    def except(t: Throwable) {
+      exceptAll(t)
+    }
     def unreact() {
       unreactAll()
     }
     var subscription = Reactive.Subscription.empty
   }
 
-  private[reactive] class DiffPast[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
+  private[reactive] class DiffPast
+    [@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
     (val self: Signal[T], var last: T, var cached: S, val op: (T, T) => S)
   extends Signal.Default[S] with Reactor[T] with Reactive.ProxySubscription {
     def apply() = cached
     def react(value: T) {
-      cached = op(value, last)
+      cached = try {
+        op(value, last)
+      } catch {
+        case t if isNonLethal(t) => exceptAll(t); return
+      }
       last = value
       reactAll(cached)
+    }
+    def except(t: Throwable) {
+      exceptAll(t)
     }
     def unreact() {
       unreactAll()
@@ -271,8 +307,11 @@ object Signal {
     var subscription = Reactive.Subscription.empty
   }
 
-  private[reactive] class Zip[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S, @spec(Int, Long, Double) R]
-    (val self: Signal[T], val that: Signal[S], val f: (T, S) => R)
+  private[reactive] class Zip[
+    @spec(Int, Long, Double) T,
+    @spec(Int, Long, Double) S,
+    @spec(Int, Long, Double) R
+  ](val self: Signal[T], val that: Signal[S], val f: (T, S) => R)
   extends Signal.Default[R] with Reactive.ProxySubscription {
     zipped =>
     private[reactive] var cached = f(self(), that())
@@ -283,15 +322,29 @@ object Signal {
     }
     private[reactive] val selfReactor = new Reactor[T] {
       def react(value: T) {
-        cached = f(value, that())
+        cached = try {
+          f(value, that())
+        } catch {
+          case t if isNonLethal(t) => except(t); return
+        }
         zipped.reactAll(cached)
+      }
+      def except(t: Throwable) {
+        zipped.exceptAll(t)
       }
       def unreact() = zipped.unreact()
     }
     private[reactive] val thatReactor = new Reactor[S] {
       def react(value: S) {
-        cached = f(self(), value)
+        cached = try {
+          f(self(), value)
+        } catch {
+          case t if isNonLethal(t) => except(t); return
+        }
         zipped.reactAll(cached)
+      }
+      def except(t: Throwable) {
+        zipped.exceptAll(t)
       }
       def unreact() = zipped.unreact()
     }
@@ -305,9 +358,11 @@ object Signal {
    *
    *  @tparam T         the type of this signal
    */
-  trait Default[@spec(Int, Long, Double) T] extends Signal[T] with Reactive.Default[T]
+  trait Default[@spec(Int, Long, Double) T]
+  extends Signal[T] with Reactive.Default[T]
 
-  private[reactive] class Constant[@spec(Int, Long, Double) T](private val value: T)
+  private[reactive] class Constant[@spec(Int, Long, Double) T]
+    (private val value: T)
   extends Signal[T] with Reactive.Never[T] {
     def apply() = value
   }
@@ -358,8 +413,8 @@ object Signal {
    *  systemMessages += "New message arrived!" // log() now contains the message
    *  }}}
    *
-   *  The `mutate` combinator ensures that the value is never mutated concurrently
-   *  by different threads.
+   *  The `mutate` combinator ensures that the value is never mutated
+   *  concurrently by different threads.
    *  In fact, as long as there are no feedback loops in the dataflow graph,
    *  the same thread will never modify the mutable signal at the same time.
    *  See the `mutate` method on `Reactive`s for more information.
@@ -371,7 +426,8 @@ object Signal {
   final class Mutable[T <: AnyRef](private val m: T)
   extends Signal.Default[T] with ReactMutable.Subscriptions {
     def apply() = m
-    override def onMutated() = reactAll(m)
+    def mutation() = reactAll(m)
+    def exception(t: Throwable) = exceptAll(t)
   }
 
   /** Creates a mutable signal.
@@ -383,9 +439,10 @@ object Signal {
    */
   def Mutable[T <: AnyRef](v: T) = new Mutable[T](v)
 
-  private[reactive] class Aggregate[@spec(Int, Long, Double) T]
-    (private val root: Signal[T] with Reactive.Subscription, private val subscriptions: Seq[Reactive.Subscription])
-  extends Signal.Default[T] with Reactive.Subscription {
+  private[reactive] class Aggregate[@spec(Int, Long, Double) T](
+    private val root: Signal[T] with Reactive.Subscription,
+    private val subscriptions: Seq[Reactive.Subscription]
+  ) extends Signal.Default[T] with Reactive.Subscription {
     def apply() = root()
     def unsubscribe() {
       for (s <- subscriptions) s.unsubscribe()
@@ -422,7 +479,8 @@ object Signal {
    *  @param signals     signals for the aggregation
    *  @param op          the aggregation operator, must be associative
    */
-  def Aggregate[@spec(Int, Long, Double) T](signals: Signal[T]*)(op: (T, T) => T) = {
+  def Aggregate[@spec(Int, Long, Double) T](signals: Signal[T]*)
+    (op: (T, T) => T) = {
     require(signals.length > 0)
     val leaves = signals.map(_.renewed)
     var ss = leaves
@@ -451,18 +509,25 @@ object Signal {
         value = v
         reactAll(value)
       }
+      def except(t: Throwable) {
+        exceptAll(t)
+      }
       def unreact() {
         currentSubscription = Subscription.empty
         checkUnreact()
       }
     }
-    def checkUnreact() = if (terminated && currentSubscription == Subscription.empty) unreactAll()
+    def checkUnreact() =
+      if (terminated && currentSubscription == Subscription.empty) unreactAll()
     def react(v: T) {
       val nextSignal = evidence(v)
       currentSubscription.unsubscribe()
       value = nextSignal()
       currentSubscription = nextSignal observe newReactor
       reactAll(value)
+    }
+    def except(t: Throwable) {
+      exceptAll(t)
     }
     def unreact() {
       terminated = true

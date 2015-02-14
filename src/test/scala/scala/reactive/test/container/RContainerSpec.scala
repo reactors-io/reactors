@@ -58,7 +58,9 @@ class RContainerSpec extends FlatSpec with ShouldMatchers {
     val ys = new RHashSet[Int]
     val both = (xs union ys).react.to[RHashSet[Int]]
     def check(nums: Int*) {
-      for (n <- nums) both(n) should equal (true)
+      for (n <- nums)
+        assert(both(n) == true,
+          s"(not true for $n in ${nums.mkString(", ")})")
     }
 
     sys.runtime.gc()

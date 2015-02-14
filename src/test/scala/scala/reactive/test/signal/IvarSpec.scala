@@ -18,15 +18,15 @@ class IvarSpec extends FlatSpec with ShouldMatchers {
     assert(iv.isAssigned)
   }
 
-  it should "be closed" in {
+  it should "be unreacted" in {
     val iv = new Reactive.Ivar[Int]
-    iv.close()
-    assert(iv.isClosed)
+    iv.unreact()
+    assert(iv.isUnreacted)
   }
 
   it should "throw" in {
     val iv = new Reactive.Ivar[Int]
-    iv.close()
+    iv.unreact()
     intercept[RuntimeException] {
       iv()
     }

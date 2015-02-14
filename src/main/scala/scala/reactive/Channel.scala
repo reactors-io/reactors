@@ -64,7 +64,8 @@ trait Channel[@spec(Int, Long, Double) T] {
 
   /** Checks if this channel was terminated.
    *
-   *  A channel is terminated if it is sealed and all its reactives are unreacted.
+   *  A channel is terminated if it is sealed and all its reactives are
+   *  unreacted.
    *
    *  @return        `true` if the channel is terminated, `false` otherwise
    */
@@ -72,13 +73,16 @@ trait Channel[@spec(Int, Long, Double) T] {
 
   /** Composes this channel with a custom mapping function for the input events.
    *  
-   *  Events from reactives passed to this channel are mapped inside their isolates.
+   *  Events from reactives passed to this channel are mapped inside their
+   *  isolates.
    *
    *  @tparam S      type of the events the new channel will accept
-   *  @param f       maps events in the resulting channel to events of the original channel
+   *  @param f       maps events in the resulting channel to events of the
+   *                 original channel
    *  @return        the new channel accepting events of type `S`
    */
-  def compose[@spec(Int, Long, Double) S](f: S => T) = new Channel.Composed(this, f)
+  def compose[@spec(Int, Long, Double) S](f: S => T) =
+    new Channel.Composed(this, f)
 
   /** Creates and attaches a reactive emitter to the channel.
    *
@@ -141,7 +145,8 @@ trait Channel[@spec(Int, Long, Double) T] {
  */
 object Channel {
 
-  private[reactive] class Composed[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
+  private[reactive] class Composed
+    [@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
     (val self: Channel[T], val f: S => T)
   extends Channel[S] {
     def attach(r: Reactive[S]): Channel[S] = {
@@ -164,7 +169,8 @@ object Channel {
    *  @param reactor   the reactor notified of this channel's events
    *  @param monitor   private monitor object used for synchronization
    */
-  class Synced[@spec(Int, Long, Double) T](val reactor: Reactor[T], val monitor: util.Monitor)
+  class Synced[@spec(Int, Long, Double) T]
+    (val reactor: Reactor[T], val monitor: util.Monitor)
   extends Channel[T] {
     private var sealedChannel = false
     private val reactives = mutable.Map[Reactive[T], Reactive.Subscription]()
@@ -172,6 +178,7 @@ object Channel {
       if (!sealedChannel) {
         if (!reactives.contains(r)) reactives(r) = r.observe(new Reactor[T] {
           def react(event: T) = reactor.react(event)
+          def except(t: Throwable) = reactor.except(t)
           def unreact() {
             monitor.synchronized { reactives.remove(r) }
             checkTerminated()

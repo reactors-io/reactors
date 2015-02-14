@@ -73,6 +73,7 @@ object Connector {
       connector.queue enqueue event
       multiplexer.reacted(connector)
     }
+    def except(t: Throwable) {}
     def unreact() = {
       multiplexer.unreacted(connector)
       connector.frame.isolateSystem.channels.removeIsolate(connector.name)

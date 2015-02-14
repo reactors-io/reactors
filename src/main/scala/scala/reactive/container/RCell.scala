@@ -33,6 +33,17 @@ extends Signal.Default[T] with ReactMutable {
     reactAll(v)
   }
 
+  /** Assigning to the reactive cell already emits an event, so `mutation` does
+   *  nothing.
+   */
+  def mutation() {}
+
+  /** Propagates the exception to all the reactors.
+   */
+  def exception(t: Throwable) {
+    exceptAll(t)
+  }
+
   override def toString = s"RCell($value)"
 }
 

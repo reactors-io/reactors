@@ -135,8 +135,8 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
     val emitter = new Reactive.Emitter[String]
     val proto = Proto[OneIso](sv)
     val c = isoSystem.isolate(proto).attach(emitter).seal()
-    emitter += "test event"
-    emitter.close()
+    emitter react "test event"
+    emitter.unreact()
 
     sv.take() should equal ("test event")
   }
@@ -147,8 +147,8 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
     val emitter = new Reactive.Emitter[Int]
     val proto = Proto[ManyIso](many, sv)
     val c = isoSystem.isolate(proto).attach(emitter).seal()
-    for (i <- 0 until many) emitter += i
-    emitter.close()
+    for (i <- 0 until many) emitter react i
+    emitter.unreact()
 
     val expected = (0 until many).reverse
     assert(sv.get == expected, "${sv.get} vs $expected")
@@ -167,8 +167,8 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
     val proto = Proto[SelfIso](sv)
     val c = isoSystem.isolate(proto).attach(emitter).seal()
 
-    emitter += 7
-    emitter.close()
+    emitter react 7
+    emitter.unreact()
 
     sv.get should equal (true)
   }
@@ -181,8 +181,8 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
     val proto = Proto[CustomIso](sv).withEventQueue(EventQueue.DevNull.factory)
     val c = isoSystem.isolate(proto).attach(emitter).seal()
 
-    emitter += 7
-    emitter.close()
+    emitter react 7
+    emitter.unreact()
 
     sv.get should equal (true)
   }

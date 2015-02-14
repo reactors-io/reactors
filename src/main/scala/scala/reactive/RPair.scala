@@ -177,9 +177,9 @@ trait RPair[@spec(Int, Long, Double) P, Q <: AnyRef] {
       try mutation(asSignal)
       catch {
         case t if isNonLethal(t) =>
-          mutable.except(t)
+          mutable.exception(t)
       }
-      mutable.react()
+      mutable.mutation()
     }
   }
 

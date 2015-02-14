@@ -13,34 +13,42 @@ import scala.collection._
  *
  *  A multiplexer must always be *consistently used*.
  *  *Consistency* means that the `+=` and `dequeueEvent` methods
- *  are never called during the execution of the `isTerminated`, `areEmpty` and `totalSize`.
- *  It is the task of the scheduler/isolate system combination to use the multiplexer consistently
- *  (that is, only calls the above-mentioned methods from within isolate context, ensuring their serializibility).
- *  By contrast, methods `reacted` and `unreacted` (and `enqueue` on associated event queues)
- *  can be called whenever by whichever thread.
+ *  are never called during the execution of the `isTerminated`, `areEmpty` and
+ *  `totalSize`.
+ *  It is the task of the scheduler/isolate system combination to use the
+ *  multiplexer consistently
+ *  (that is, only calls the above-mentioned methods from within isolate
+ *  context, ensuring their serializibility).
+ *  By contrast, methods `reacted` and `unreacted` (and `enqueue` on associated
+ *  event queues) can be called whenever by whichever thread.
  */
 trait Multiplexer {
 
-  /** Quiescently checks if all the event queues associated with the connectors are empty.
+  /** Quiescently checks if all the event queues associated with the connectors
+   *  are empty.
    *
    *  Assumes consistent use.
    *  Under this assumption, the method is quiescently consistent.
    *  Moreover, if it returns `false`, then the execution is atomic.
    *  
-   *  @return             `true` if all the event queues are empty, `false` otherwise
+   *  @return             `true` if all the event queues are empty, `false`
+   *                      otherwise
    */
   def areEmpty: Boolean
 
-  /** *Atomically* checks if all the channels are terminated, and all the event queues are empty.
+  /** *Atomically* checks if all the channels are terminated, and all the event
+   *  queues are empty.
    *
    *  Assumes consistent use.
    *  Under this assumption, the method is always atomic.
    *  
-   *  @return             `true` if the multiplexer's connectors are terminated, `false` otherwise
+   *  @return             `true` if the multiplexer's connectors are terminated,
+   *                      `false` otherwise
    */
   def isTerminated: Boolean
 
-  /** Under-estimated total size of the event queues associated with the connectors.
+  /** Under-estimated total size of the event queues associated with the
+   *  connectors.
    *
    *  Assumes consistent use.
    *  Under this assumption, the method is quiescently consistent,
@@ -66,7 +74,8 @@ trait Multiplexer {
    */
   def reacted(connector: Connector[_]): Unit
 
-  /** Signals that a channel associated with the connector has terminated, and will not add more events to the event queue.
+  /** Signals that a channel associated with the connector has terminated,
+   *  and will not add more events to the event queue.
    *  
    *  @param connector    the connector that unreacted
    */
@@ -79,11 +88,15 @@ object Multiplexer {
 
   /** The default multiplexer implementation.
    *
-   *  Heuristically picks the connector with most events when `dequeueEvent` is called.
-   *  The connector with the largest event queue is eventually chosen and flushed.
-   *  Simultaneously, the multiplexer strives to be fair and eventually choose every connector.
+   *  Heuristically picks the connector with most events when `dequeueEvent` is
+   *  called.
+   *  The connector with the largest event queue is eventually chosen and
+   *  flushed.
+   *  Simultaneously, the multiplexer strives to be fair and eventually choose
+   *  every connector.
    *
-   *  In this implementation, the `totalSize` method is `O(n)`, where `n` is the **number of event queues**.
+   *  In this implementation, the `totalSize` method is `O(n)`, where `n` is the
+   *  **number of event queues**.
    */
   class Default extends Multiplexer {
     private val minUpdateFrequency = 200
@@ -154,10 +167,13 @@ object Multiplexer {
       }
     }
 
-    private def check(connector: Connector[_], bumpDown: Boolean): Unit = if (connector != null) {
-      val d = desc(connector)
-      val count = if (bumpDown) d.countdown.decrementAndGet() else d.countdown.get
-      if (count <= 0 || connector.dequeuer.isEmpty) bookkeep()
+    private def check(connector: Connector[_], bumpDown: Boolean): Unit = {
+      if (connector != null) {
+        val d = desc(connector)
+        val count =
+          if (bumpDown) d.countdown.decrementAndGet() else d.countdown.get
+        if (count <= 0 || connector.dequeuer.isEmpty) bookkeep()
+      }
     }
 
     @tailrec final def dequeueEvent() = {

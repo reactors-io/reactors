@@ -17,7 +17,7 @@ class ReactRandomSpec extends FlatSpec with ShouldMatchers {
     val changes = random.react.int() foreach { v =>
       x = Some(v)
     }
-    random.emit()
+    random.generate()
 
     assert(x.isInstanceOf[Some[_]])
   }
