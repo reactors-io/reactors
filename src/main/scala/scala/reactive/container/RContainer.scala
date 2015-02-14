@@ -116,17 +116,26 @@ object RContainer {
       container.inserts.foreach(f)
     }
     
-    def monoidFold(implicit m: Monoid[T]): Signal[T] with Reactive.Subscription = new Aggregate(container, MonoidCatamorph[T])
+    def monoidFold(implicit m: Monoid[T]):
+      Signal[T] with Reactive.Subscription =
+      new Aggregate(container, MonoidCatamorph[T])
 
-    def commuteFold(implicit c: Commutoid[T]): Signal[T] with Reactive.Subscription = new Aggregate(container, CommuteCatamorph[T])
+    def commuteFold(implicit c: Commutoid[T]):
+      Signal[T] with Reactive.Subscription =
+      new Aggregate(container, CommuteCatamorph[T])
 
-    def abelianFold(implicit ab: Abelian[T], a: Arrayable[T]): Signal[T] with Reactive.Subscription = new Aggregate(container, AbelianCatamorph[T])
+    def abelianFold(implicit ab: Abelian[T], a: Arrayable[T]):
+      Signal[T] with Reactive.Subscription =
+      new Aggregate(container, AbelianCatamorph[T])
 
-    def mutate(m: ReactMutable)(insert: T => Unit)(remove: T => Unit): Reactive.Subscription = new Mutate(container, insert, remove)
+    def mutate(m: ReactMutable)(insert: T => Unit)(remove: T => Unit):
+      Reactive.Subscription =
+      new Mutate(container, insert, remove)
 
     /* transformers */
   
-    def to[That <: RContainer[T]](implicit factory: RBuilder.Factory[T, That]): That = {
+    def to[That <: RContainer[T]](implicit factory: RBuilder.Factory[T, That]):
+      That = {
       val builder = factory()
       val result = builder.container
   
@@ -178,7 +187,8 @@ object RContainer {
     )
   }
 
-  class Mutate[@spec(Int, Long, Double) T](self: RContainer[T], insert: T => Unit, remove: T => Unit)
+  class Mutate[@spec(Int, Long, Double) T]
+    (self: RContainer[T], insert: T => Unit, remove: T => Unit)
   extends Reactive.ProxySubscription {
     val subscription = Reactive.CompositeSubscription(
       self.inserts.mutate(self)(insert),
@@ -186,7 +196,8 @@ object RContainer {
     )
   }
 
-  class Map[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](self: RContainer[T], f: T => S)
+  class Map[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
+    (self: RContainer[T], f: T => S)
   extends RContainer.Default[S] {
     val inserts = self.inserts.map(f)
     val removes = self.removes.map(f)
@@ -202,27 +213,30 @@ object RContainer {
     def foreach(f: T => Unit) = self.foreach(x => if (p(x)) f(x))
   }
 
-  class Collect[T, S <: AnyRef](self: RContainer[T], pf: PartialFunction[T, S])(implicit e: T <:< AnyRef)
+  class Collect[T, S <: AnyRef]
+    (self: RContainer[T], pf: PartialFunction[T, S])
+    (implicit e: T <:< AnyRef)
   extends RContainer.Default[S] {
     val inserts = self.inserts.collect(pf)
     val removes = self.removes.collect(pf)
     def size = self.count(pf.isDefinedAt)
-    def foreach(f: S => Unit) = self.foreach(x => if (pf.isDefinedAt(x)) f(pf(x)))
+    def foreach(f: S => Unit) =
+      self.foreach(x => if (pf.isDefinedAt(x)) f(pf(x)))
   }
 
   class Union[@spec(Int, Long, Double) T]
     (self: RContainer[T], that: RContainer[T], count: Union.Count[T])
     (implicit at: Arrayable[T])
   extends RContainer.Default[T] {
-    val inserts = new Reactive.Emitter[T]
-    val removes = new Reactive.Emitter[T]
+    val inserts = new Reactive.BindEmitter[T]
+    val removes = new Reactive.BindEmitter[T]
     var countSignal: Signal.Mutable[Union.Count[T]] = new Signal.Mutable(count)
     var insertSubscription =
-      (self.inserts union that.inserts).mutate(countSignal) { x =>
+      (self.inserts union that.inserts).mutate(countSignal, inserts) { x =>
         if (count.inc(x)) inserts.react(x)
       }
     var removeSubscription =
-      (self.removes union that.removes).mutate(countSignal) { x =>
+      (self.removes union that.removes).mutate(countSignal, removes) { x =>
         if (count.dec(x)) removes.react(x)
       }
     def computeUnion = {

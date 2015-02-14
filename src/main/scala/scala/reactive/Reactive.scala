@@ -2126,7 +2126,8 @@ object Reactive {
    *  @tparam T     the type of events in the bind emitter
    */
   class BindEmitter[@spec(Int, Long, Double) T]
-  extends Reactive[T] with Default[T] with EventSource {
+  extends Reactive[T] with Default[T] with EventSource
+  with ReactMutable.Subscriptions {
     private var live = true
     def react(value: T) {
       if (live) reactAll(value)
@@ -2134,6 +2135,8 @@ object Reactive {
     def except(t: Throwable) {
       if (live) exceptAll(t)
     }
+    def mutation() {}
+    def exception(t: Throwable) = except(t)
     def unreact(): Unit = if (live) {
       live = false
       unreactAll()
