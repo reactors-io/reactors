@@ -31,6 +31,35 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     rt.x := 2
   }
 
+  def assertExceptionPropagated[S](create: Reactive[Int] => Reactive[S]) {
+    val e = new Reactive.Emitter[Int]
+    val s = create(e)
+    
+    var handled = false
+    var onExcepted = false
+
+    val h = s handle {
+      case e: RuntimeException => handled = true
+    }
+
+    implicit val canLeak = CanLeak.newCanLeak
+    val o = s onExcept {
+      case e: IllegalArgumentException => onExcepted = true
+    }
+
+    e.react(1)
+    e.react(2)
+    e.except(new RuntimeException)
+    e.except(new IllegalArgumentException)
+
+    assert(handled)
+    assert(onExcepted)
+  }
+
+  it should "propagate the exception when filtered" in {
+    assertExceptionPropagated(_.filter(_ % 2 == 0))
+  }
+
   it should "be mapped" in {
     val e = new Reactive.Emitter[Int]
     val s = e.map {
@@ -41,6 +70,10 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     }
 
     e react 1
+  }
+
+  it should "propagate the exception when mapped" in {
+    assertExceptionPropagated(_.map(_ + 1))
   }
 
   it should "emit once" in {
@@ -54,6 +87,21 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     e react 3
 
     assert(check == Seq(1))
+  }
+
+  it should "not propagate exceptions after it emitted once" in {
+    val e = new Reactive.Emitter[Int]
+    val s = e.once
+    var exceptions = 0
+    val h = s.handle(_ => exceptions += 1)
+
+    e.except(new RuntimeException)
+    assert(exceptions == 1)
+    e.except(new RuntimeException)
+    assert(exceptions == 2)
+    e.react(1)
+    e.except(new RuntimeException)
+    assert(exceptions == 2)
   }
 
   it should "be traversed with foreach" in {

@@ -1545,7 +1545,9 @@ object Reactive {
       }
     }
     def except(t: Throwable) {
-      exceptAll(t)
+      if (!forwarded) {
+        exceptAll(t)
+      }
     }
     def unreact() {
       if (!forwarded) {
