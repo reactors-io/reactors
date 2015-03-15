@@ -31,33 +31,41 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     rt.x := 2
   }
 
-  def assertExceptionPropagated[S](create: Reactive[Int] => Reactive[S]) {
+  def assertExceptionPropagated[S](create: Reactive[Int] => Reactive[S], effect: () => Unit) {
     val e = new Reactive.Emitter[Int]
     val s = create(e)
     
-    var handled = false
-    var onExcepted = false
+    var nullptr = false
+    var state = false
+    var argument = false
 
+    println(noEffect.getClass)
     val h = s handle {
-      case e: RuntimeException => handled = true
+      case e: IllegalStateException => state = true
+      case e: NullPointerException => nullptr = true
     }
 
     implicit val canLeak = CanLeak.newCanLeak
     val o = s onExcept {
-      case e: IllegalArgumentException => onExcepted = true
+      case e: IllegalArgumentException => argument = true
     }
 
+    e.except(new NullPointerException)
     e.react(1)
     e.react(2)
-    e.except(new RuntimeException)
+    e.except(new IllegalStateException)
+    effect()
     e.except(new IllegalArgumentException)
 
-    assert(handled)
-    assert(onExcepted)
+    assert(nullptr)
+    assert(state)
+    assert(argument)
   }
 
+  val noEffect = () => ()
+
   it should "propagate the exception when filtered" in {
-    assertExceptionPropagated(_.filter(_ % 2 == 0))
+    assertExceptionPropagated(_.filter(_ % 2 == 0), noEffect)
   }
 
   it should "be mapped" in {
@@ -73,7 +81,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "propagate the exception when mapped" in {
-    assertExceptionPropagated(_.map(_ + 1))
+    assertExceptionPropagated(_.map(_ + 1), noEffect)
   }
 
   it should "emit once" in {
@@ -116,6 +124,10 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     buffer should equal (Seq(1, 2, 3))
   }
 
+  it should "propagate the exception when traversed" in {
+    assertExceptionPropagated(_.foreach(x => ()), noEffect)
+  }
+
   it should "be scanned past" in {
     val cell = RCell(0)
     val s = cell.scanPast(List[Int]()) { (acc, x) =>
@@ -130,6 +142,10 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     cell := 3
     cell := 4
     cell := 5
+  }
+
+  it should "propagate the exception when scanned past" in {
+    assertExceptionPropagated(_.scanPast(0)(_ + _), noEffect)
   }
 
   it should "come after" in {
@@ -149,6 +165,30 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     e react 7
     e react 8
     buffer should equal (Seq(4, 5, 6, 7, 8))
+  }
+
+  it should "propagate exceptions even before the first event" in {
+    val start = new Reactive.Emitter[Unit]
+    assertExceptionPropagated(_ after start, () => start.react(()))
+  }
+
+  it should "not propagate exceptions from that after the first event" in {
+    val start = new Reactive.Emitter[Unit]
+    val exceptor = new Reactive.Emitter[Unit]
+    val a = exceptor after start
+
+    var state = false
+    var arg = false
+    val h = a handle {
+      case e: IllegalStateException => state = true
+      case e: IllegalArgumentException => arg = true
+    }
+
+    start.except(new IllegalStateException)
+    assert(state)
+    start.react(())
+    start.except(new IllegalArgumentException)
+    assert(!arg)
   }
 
   it should "never come after" in {

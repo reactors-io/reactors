@@ -1293,7 +1293,7 @@ object Reactive {
         if (started) reactAll(value)
       }
       def except(t: Throwable) {
-        if (started) exceptAll(t)
+        exceptAll(t)
       }
       def unreact() = unreactBoth()
     }
