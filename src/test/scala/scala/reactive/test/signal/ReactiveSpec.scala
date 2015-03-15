@@ -203,6 +203,26 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     buffer should equal (Seq())
   }
 
+  it should "propagate exceptions until the end event" in {
+    val end = new Reactive.Emitter[Unit]
+    val e = new Reactive.Emitter[Int]
+    val s = e.until(end)
+    var exceptions = 0
+    val h = s.handle(_ => exceptions += 1)
+
+    e.except(new RuntimeException)
+    assert(exceptions == 1)
+    end.except(new RuntimeException)
+    assert(exceptions == 2)
+    e.except(new RuntimeException)
+    assert(exceptions == 3)
+    end.react(())
+    e.except(new RuntimeException)
+    assert(exceptions == 3)
+    end.except(new RuntimeException)
+    assert(exceptions == 3)
+  }
+
   it should "occur until" in {
     val e = new Reactive.Emitter[Int]
     val end = new Reactive.Emitter[Boolean]
