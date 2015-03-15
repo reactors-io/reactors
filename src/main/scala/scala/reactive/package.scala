@@ -151,15 +151,6 @@ package object reactive {
     "Import the value `Permission.canBuffer` to allow buffering operations.")
   sealed trait CanBeBuffered
 
-  /** Explicitly importing this object permits calling various methods.
-   */
-  object Permission {
-    /** Importing this value permits calling reactive combinators
-     *  that can potentially unboundedly buffer events.
-     */
-    implicit val canBuffer = new CanBeBuffered {}
-  }
-
   @implicitNotFound("Calling on* methods can result in time and memory leaks " +
     "when the reference to the corresponding Subscription object is lost. " +
     "If you are sure you want to risk this, import " +
@@ -170,7 +161,13 @@ package object reactive {
     val eventSinks = mutable.Set[EventSink]()
   }
 
-  object CanLeak {
+  /** Explicitly importing this object permits calling various methods.
+   */
+  object Permission {
+    /** Importing this value permits calling reactive combinators
+     *  that can potentially unboundedly buffer events.
+     */
+    implicit val canBuffer = new CanBeBuffered {}
     def newCanLeak: CanLeak = new CanLeak {}
   }
 

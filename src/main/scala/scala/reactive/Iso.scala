@@ -189,7 +189,7 @@ object Iso {
   def of[@specialized(Int, Long, Double) T]: Iso[T] = Iso.self[Iso[T]]
 
   class Implicits {
-    implicit val canLeak: CanLeak = CanLeak.newCanLeak
+    implicit val canLeak: CanLeak = Permission.newCanLeak
   }
 
   def canLeak: CanLeak = selfIso.get match {

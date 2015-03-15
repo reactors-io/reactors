@@ -45,7 +45,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
       case e: NullPointerException => nullptr = true
     }
 
-    implicit val canLeak = CanLeak.newCanLeak
+    implicit val canLeak = Permission.newCanLeak
     val o = s onExcept {
       case e: IllegalArgumentException => argument = true
     }
@@ -253,6 +253,24 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     buffer should equal (Seq(1, 11, 2, 12, 15, 7))
   }
 
+  it should "propagate both exceptions to union" in {
+    val xs = new Reactive.Emitter[Int]
+    val ys = new Reactive.Emitter[Int]
+    val zs = xs union ys
+
+    var state = false
+    var arg = false
+    val h = zs handle {
+      case e: IllegalStateException => state = true
+      case e: IllegalArgumentException => arg = true
+    }
+
+    xs.except(new IllegalStateException)
+    assert(state)
+    ys.except(new IllegalArgumentException)
+    assert(arg)
+  }
+
   it should "be concat" in {
     import Permission.canBuffer
     val xs = new Reactive.Emitter[Int]
@@ -269,6 +287,26 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     xs react 7
     closeXs react ()
     buffer should equal (Seq(1, 2, 7, 11, 12, 15))
+  }
+
+
+  it should "propagate both exceptions to concat" in {
+    import Permission.canBuffer
+    val xs = new Reactive.Emitter[Int]
+    val ys = new Reactive.Emitter[Int]
+    val zs = xs concat ys
+
+    var state = false
+    var arg = false
+    val h = zs handle {
+      case e: IllegalStateException => state = true
+      case e: IllegalArgumentException => arg = true
+    }
+
+    xs.except(new IllegalStateException)
+    assert(state)
+    ys.except(new IllegalArgumentException)
+    assert(arg)
   }
 
   def testSynced() {

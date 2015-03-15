@@ -45,7 +45,7 @@ class ReactiveGCSpec extends FlatSpec with ShouldMatchers {
   }
 
   def testOnX(num: Int)(afterCheck: Reactive.Emitter[Int] => Boolean) {
-    implicit val canLeak = CanLeak.newCanLeak
+    implicit val canLeak = Permission.newCanLeak
 
     var signsOfLife = Array.fill(num)(false)
     val emitter = new Reactive.Emitter[Int]
