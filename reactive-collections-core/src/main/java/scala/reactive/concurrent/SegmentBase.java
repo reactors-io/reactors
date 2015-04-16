@@ -1,14 +1,14 @@
-package scala.reactive.concurrent;
+package scala.reactive.core.concurrent;
 
 
 
-import static scala.reactive.concurrent.unsafe.instance;
+import static scala.reactive.core.concurrent.unsafe.instance;
 
 
 
 class SegmentBase<T> {
 
-  protected final static Object EMPTY = new Object();
+  protected final static Object EMPTY = null;
 
   protected final static Object FROZEN = new Object();
 
@@ -22,11 +22,11 @@ class SegmentBase<T> {
   protected final static long ARRAY_SCALE =
     instance.arrayIndexScale(Object[].class);
 
-  protected static long HEAD_OFFSET;
+  protected final static long HEAD_OFFSET;
 
-  protected static long LAST_OFFSET;
+  protected final static long LAST_OFFSET;
 
-  {
+  static {
     Class<?> cls = SegmentBase.class;
     try {
       HEAD_OFFSET = instance.objectFieldOffset(cls.getDeclaredField("head"));
@@ -71,15 +71,15 @@ class SegmentBase<T> {
   }
 
   protected final Object READ_ARRAY(int i) {
-    return instance.getObject(this, ARRAY_OFFSET + ARRAY_SCALE * i);
+    return instance.getObject(array, ARRAY_OFFSET + ARRAY_SCALE * i);
   }
 
   protected final void WRITE_ARRAY(int i, Object newValue) {
-    instance.putObject(this, ARRAY_OFFSET + ARRAY_SCALE * i, newValue);
+    instance.putObject(array, ARRAY_OFFSET + ARRAY_SCALE * i, newValue);
   }
 
   protected final boolean CAS_ARRAY(int i, Object oldValue, Object newValue) {
-    return instance.compareAndSwapObject(this, ARRAY_OFFSET + ARRAY_SCALE * i,
+    return instance.compareAndSwapObject(array, ARRAY_OFFSET + ARRAY_SCALE * i,
       oldValue, newValue);
   }
 

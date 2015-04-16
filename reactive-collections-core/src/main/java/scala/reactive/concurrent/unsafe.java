@@ -1,4 +1,4 @@
-package scala.reactive.concurrent;
+package scala.reactive.core.concurrent;
 
 
 
@@ -10,9 +10,9 @@ import java.lang.reflect.Field;
 
 public class unsafe {
 
-  static Unsafe instance;
+  final static Unsafe instance;
 
-  {
+  static {
     try {
       Field f = Unsafe.class.getDeclaredField("theUnsafe");
       f.setAccessible(true);

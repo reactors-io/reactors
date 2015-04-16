@@ -1,4 +1,5 @@
 package scala.reactive
+package core
 package concurrent
 
 
@@ -18,9 +19,11 @@ object SnapQueue {
   extends SegmentBase[T](length) {
     import SegmentBase._
 
+    def capacity: Int = array.length
+
     @tailrec
     def enq(p: Int, x: AnyRef): Boolean = {
-      if (p < array.length) {
+      if (p >= 0 && p < array.length) {
         if (CAS_ARRAY(p, EMPTY, x)) {
           WRITE_LAST(p + 1)
           true
@@ -33,6 +36,7 @@ object SnapQueue {
       val x = READ_ARRAY(p)
       if (x == EMPTY) p
       else if (x == FROZEN) array.length
+      else if (p + 1 == array.length) p + 1
       else findLast(p + 1)
     }
 
@@ -61,6 +65,8 @@ object SnapQueue {
     }
 
     def freezeLast() = enq(READ_LAST(), FROZEN)
+
+    override def toString = s"Segment(len: $capacity)"
   }
 
 }
