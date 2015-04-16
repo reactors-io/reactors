@@ -107,13 +107,18 @@ object SnapQueueCheck extends Properties("SnapQueue") {
     }
 
     val consumer = Future {
+      var waits = 0
+      var maxwaits = 0
       val buffer = mutable.Buffer[String]()
       while (buffer.size != seg.capacity) {
         val x = seg.deq()
         if (x != SegmentBase.NONE) {
+          maxwaits = math.max(waits, maxwaits)
+          waits = 0
           buffer += x.asInstanceOf[String]
-        }
+        } else waits += 1
       }
+      //println(s"for delay $delay, maxwaits = $maxwaits")
       s"dequeued correctly: $buffer vs ${input.toSeq}" |: buffer == input.toSeq
     }
 
