@@ -38,9 +38,9 @@ class SegmentBase<T> {
 
   protected volatile int head;
 
-  protected volatile int last;
-
   protected Object[] array;
+
+  protected volatile int last;
 
   protected SegmentBase(int length) {
     array = new Object[length];

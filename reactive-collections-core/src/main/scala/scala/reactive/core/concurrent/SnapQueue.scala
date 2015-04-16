@@ -53,7 +53,7 @@ object SnapQueue {
 
     def freeze() {
       freezeHead()
-      freezeLast()
+      freezeLast(READ_LAST())
     }
 
     @tailrec
@@ -64,9 +64,14 @@ object SnapQueue {
       }
     }
 
-    def freezeLast() = enq(READ_LAST(), FROZEN)
+    @tailrec
+    def freezeLast(p: Int) {
+      if (p >= 0 && p < array.length)
+        if (!CAS_ARRAY(p, EMPTY, FROZEN))
+          freezeLast(findLast(p))
+    }
 
-    override def toString = s"Segment(len: $capacity)"
+    override def toString = s"Segment(${array.mkString(", ")})"
   }
 
 }
