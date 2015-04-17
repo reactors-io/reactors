@@ -6,7 +6,7 @@ import static scala.reactive.core.concurrent.unsafe.instance;
 
 
 
-class SegmentBase<T> {
+abstract class SegmentBase<T> {
 
   protected final static Object EMPTY = null;
 
@@ -14,7 +14,7 @@ class SegmentBase<T> {
 
   protected final static Object NONE = new Object();
 
-  protected final static Object RETRY = new Object();
+  protected final static Object REPEAT = new Object();
 
   protected final static long ARRAY_OFFSET =
     instance.arrayBaseOffset(Object[].class);
@@ -38,7 +38,7 @@ class SegmentBase<T> {
 
   protected volatile int head;
 
-  protected Object[] array;
+  protected final Object[] array;
 
   protected volatile int last;
 

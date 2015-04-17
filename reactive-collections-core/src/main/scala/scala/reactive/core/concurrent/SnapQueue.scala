@@ -8,18 +8,37 @@ import annotation.tailrec
 
 
 
-class SnapQueue[T] {
+class SnapQueue[T] extends SnapQueueBase[T] {
 
 }
 
 
 object SnapQueue {
 
-  final class Segment[T <: AnyRef](length: Int)
-  extends SegmentBase[T](length) {
+  final class Segment[T](length: Int)
+  extends SegmentBase[T](length) with RootOrSegmentOrFrozen[T] {
     import SegmentBase._
 
     def capacity: Int = array.length
+
+    def enqueue(x: T): Boolean = {
+      val p = READ_LAST()
+      if (enq(p, x.asInstanceOf[AnyRef])) true
+      else {
+        if (READ_HEAD() < 0) false // frozen
+        else { // full
+          // TODO transition(this, expand)
+          false
+        }
+      }
+    }
+
+    def dequeue(): AnyRef = {
+      val x = deq()
+      if (x != NONE) x
+      else if (READ_HEAD() < 0) REPEAT // frozen
+      else NONE // empty
+    }
 
     @tailrec
     def enq(p: Int, x: AnyRef): Boolean = {
