@@ -128,7 +128,7 @@ object SnapQueueCheck extends Properties("SnapQueue") {
     Await.result(done, Duration.Inf)
   }
 
-  property("Consumer frozen midway") = forAllNoShrink(sizes, delays) {
+  property("Consumer sees prefix when frozen") = forAllNoShrink(sizes, delays) {
     (sz, delay) =>
     val seg = new SnapQueue.Segment[String](sz)
     fillSegment(seg)
@@ -160,6 +160,22 @@ object SnapQueueCheck extends Properties("SnapQueue") {
         prefix == (0 until seg.capacity).map(_.toString).take(prefix.length)
     }
     Await.result(done, Duration.Inf)
+  }
+
+  property("Freezing full disallows enqueue") = forAllNoShrink(sizes, delays) {
+    (sz, delay) =>
+    val seg = new SnapQueue.Segment[String](sz)
+    fillSegment(seg)
+    seg.freeze()
+    seg.enq(0, "") == false && seg.enq(seg.READ_LAST(), "") == false
+  }
+
+  property("Freezing full disallows dequeue") = forAllNoShrink(sizes, delays) {
+    (sz, delay) =>
+    val seg = new SnapQueue.Segment[String](sz)
+    fillSegment(seg)
+    seg.freeze()
+    seg.deq() == SegmentBase.NONE
   }
 
 }
