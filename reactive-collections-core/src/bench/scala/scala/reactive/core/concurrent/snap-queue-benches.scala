@@ -17,6 +17,12 @@ class SnapQueueBenches extends PerformanceTest.OfflineReport {
     new SnapQueue.Segment[String](sz)
   }
 
+  def fullSegs(from: Int, until: Int) = for (sz <- sizes(from, until)) yield {
+    val seg = new SnapQueue.Segment[String](sz)
+    fillStringSegment(seg)
+    seg
+  }
+
   val opts = Context(
     exec.minWarmupRuns -> 45,
     exec.maxWarmupRuns -> 90,
@@ -27,6 +33,7 @@ class SnapQueueBenches extends PerformanceTest.OfflineReport {
   performance of "enq-1-thread" config(opts) in {
     val from = 100000
     val until = 200000
+
     using(emptySegs(from, until)) curve("Segment") in { seg =>
       var i = 0
       while (i < seg.capacity) {
@@ -40,6 +47,19 @@ class SnapQueueBenches extends PerformanceTest.OfflineReport {
       var i = 0
       while (i < sz) {
         queue.add("")
+        i += 1
+      }
+    }
+  }
+
+  performance of "deq-1-thread" config(opts) in {
+    val from = 100000
+    val until = 200000
+
+    using(fullSegs(from, until)) curve("Segment") in { seg =>
+      var i = 0
+      while (i < seg.capacity) {
+        seg.deq()
         i += 1
       }
     }

@@ -56,13 +56,9 @@ object SnapQueueCheck extends Properties("SnapQueue") {
       enqAfterFreezeFails
   }
 
-  def fillSegment(seg: SnapQueue.Segment[String]) {
-    for (i <- 0 until seg.capacity) seg.enq(seg.READ_LAST(), i.toString)
-  }
-
   property("Segment.deq empties the segment") = forAllNoShrink(sizes) { sz =>
     val seg = new SnapQueue.Segment[String](sz)
-    fillSegment(seg)
+    fillStringSegment(seg)
     val removesDone = for (i <- 0 until seg.capacity) yield {
       s"remove at $i" |: seg.deq() == i.toString
     }
@@ -74,7 +70,7 @@ object SnapQueueCheck extends Properties("SnapQueue") {
 
   property("Segment.deq empties half, frozen") = forAllNoShrink(sizes) { sz =>
     val seg = new SnapQueue.Segment[String](sz)
-    fillSegment(seg)
+    fillStringSegment(seg)
     val removesDone = for (i <- 0 until seg.capacity / 2) yield {
       s"remove at $i" |: seg.deq() == i.toString
     }
@@ -131,7 +127,7 @@ object SnapQueueCheck extends Properties("SnapQueue") {
   property("Consumer sees prefix when frozen") = forAllNoShrink(sizes, delays) {
     (sz, delay) =>
     val seg = new SnapQueue.Segment[String](sz)
-    fillSegment(seg)
+    fillStringSegment(seg)
 
     val consumer = Future {
       def spin(): Boolean = {
@@ -165,7 +161,7 @@ object SnapQueueCheck extends Properties("SnapQueue") {
   property("Freezing full disallows enqueue") = forAllNoShrink(sizes, delays) {
     (sz, delay) =>
     val seg = new SnapQueue.Segment[String](sz)
-    fillSegment(seg)
+    fillStringSegment(seg)
     seg.freeze()
     seg.enq(0, "") == false && seg.enq(seg.READ_LAST(), "") == false
   }
@@ -173,7 +169,7 @@ object SnapQueueCheck extends Properties("SnapQueue") {
   property("Freezing full disallows dequeue") = forAllNoShrink(sizes, delays) {
     (sz, delay) =>
     val seg = new SnapQueue.Segment[String](sz)
-    fillSegment(seg)
+    fillStringSegment(seg)
     seg.freeze()
     seg.deq() == SegmentBase.NONE
   }
