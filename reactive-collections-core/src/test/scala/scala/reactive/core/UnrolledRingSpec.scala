@@ -1,9 +1,7 @@
 package scala.reactive.core
-package test
 
 
 
-import scala.reactive.core.UnrolledRing
 import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers
 

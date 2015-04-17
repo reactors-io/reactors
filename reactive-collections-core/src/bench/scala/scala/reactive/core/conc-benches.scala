@@ -1,5 +1,4 @@
 package scala.reactive.core
-package bench
 
 
 
@@ -9,7 +8,7 @@ import org.scalameter.api._
 
 
 
-trait ConcTest extends PerformanceTest.OfflineReport {
+trait ConcUtils extends PerformanceTest.OfflineReport {
 
   override def historian = org.scalameter.reporting.RegressionReporter.Historian.Complete()
 
@@ -58,7 +57,7 @@ trait ConcTest extends PerformanceTest.OfflineReport {
 }
 
 
-class ConcTimeBenches extends ConcTest {
+class ConcTimeBenches extends ConcUtils {
   val opts = Context(
     exec.minWarmupRuns -> 60,
     exec.maxWarmupRuns -> 120,
@@ -310,7 +309,7 @@ class ConcTimeBenches extends ConcTest {
 }
 
 
-class ConcMemoryBenches extends ConcTest {
+class ConcMemoryBenches extends ConcUtils {
 
   override def measurer = new Executor.Measurer.MemoryFootprint
 

@@ -1,5 +1,4 @@
 package scala.reactive.core
-package test
 
 
 

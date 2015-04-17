@@ -37,7 +37,7 @@ object ReactiveCollectionsBuild extends MechaRepoBuild {
     scalaVersion <<= reactiveCollectionsScalaVersion,
     crossScalaVersions <<= reactiveCollectionsCrossScalaVersions,
     libraryDependencies <++= (scalaVersion)(sv => dependencies(sv)),
-    //testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
+    testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
     parallelExecution in Test := false,
     scalacOptions in (Compile, doc) ++= Seq(
       "-implicits"
@@ -108,7 +108,7 @@ object ReactiveCollectionsBuild extends MechaRepoBuild {
     scalaVersion <<= reactiveCollectionsScalaVersion,
     crossScalaVersions <<= reactiveCollectionsCrossScalaVersions,
     libraryDependencies <++= (scalaVersion)(sv => coreDependencies(sv)),
-    //testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
+    testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
     parallelExecution in Test := false,
     fork in Test := true,
     scalacOptions in (Compile, doc) ++= Seq(
@@ -159,29 +159,35 @@ object ReactiveCollectionsBuild extends MechaRepoBuild {
     case Some((2, major)) if major >= 11 => Seq(
       "org.scalatest" % "scalatest_2.11" % "2.1.7" % "test",
       "org.scalacheck" %% "scalacheck" % "1.11.4" % "test",
-      "com.storm-enroute" %% "scalameter" % "0.6" % "test",
+      "com.storm-enroute" %% "scalameter" % "0.6" % "bench",
       "org.scala-lang" % "scala-reflect" % "2.11.1",
       "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.1"
     )
     case Some((2, 10)) => Seq(
       "org.scalatest" % "scalatest_2.10" % "1.9.1" % "test",
       "org.scalacheck" %% "scalacheck" % "1.11.4" % "test",
-      "com.storm-enroute" %% "scalameter" % "0.6" % "test"
+      "com.storm-enroute" %% "scalameter" % "0.6" % "bench"
     )
     case _ => Nil
   }
+
+  lazy val Benchmarks = config("bench") extend (Test)
 
   lazy val reactiveCollectionsCore = Project(
     "reactive-collections-core",
     file("reactive-collections-core"),
     settings = reactiveCollectionsCoreSettings
+  ) configs(
+    Benchmarks
+  ) settings(
+    inConfig(Benchmarks)(Defaults.testSettings): _*
   )
 
   lazy val reactiveCollections: Project = Project(
     "reactive-collections",
     file("."),
     settings = reactiveCollectionsSettings
-  ) dependsOn (
+  ) dependsOn(
     reactiveCollectionsCore
   )
 
