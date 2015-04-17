@@ -32,7 +32,7 @@ class SnapQueueBenches extends PerformanceTest.OfflineReport {
 
   performance of "enq-1-thread" config(opts) in {
     val from = 100000
-    val until = 200000
+    val until = 500000
 
     using(emptySegs(from, until)) curve("Segment") in { seg =>
       var i = 0
@@ -54,7 +54,7 @@ class SnapQueueBenches extends PerformanceTest.OfflineReport {
 
   performance of "deq-1-thread" config(opts) in {
     val from = 100000
-    val until = 200000
+    val until = 500000
 
     using(fullSegs(from, until)) curve("Segment") in { seg =>
       var i = 0
