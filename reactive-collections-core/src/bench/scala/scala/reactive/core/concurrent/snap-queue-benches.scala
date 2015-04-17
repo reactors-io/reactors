@@ -23,6 +23,12 @@ class SnapQueueBenches extends PerformanceTest.OfflineReport {
     seg
   }
 
+  def linkedQueues(from: Int, unt: Int) = for (sz <- sizes(from, unt)) yield {
+    val q = new ConcurrentLinkedQueue[String]()
+    for (i <- 0 until sz) q.add("")
+    (q, sz)
+  }
+
   val opts = Context(
     exec.minWarmupRuns -> 45,
     exec.maxWarmupRuns -> 90,
@@ -60,6 +66,15 @@ class SnapQueueBenches extends PerformanceTest.OfflineReport {
       var i = 0
       while (i < seg.capacity) {
         seg.deq()
+        i += 1
+      }
+    }
+
+    using(linkedQueues(from, until)) curve("ConcurrentLinkedQueue") in {
+      case (queue, sz) =>
+      var i = 0
+      while (i < sz) {
+        queue.poll()
         i += 1
       }
     }
