@@ -96,7 +96,7 @@ object SnapQueueCheck extends Properties("SnapQueue") {
       def spin() = {
         var i = 0
         while (i < delay) {
-          if (seg.READ_LAST() < 0) sys.error("frozen!")
+          if (seg.READ_HEAD() < 0) sys.error("frozen!")
           i += 1
         }
       }
@@ -124,6 +124,40 @@ object SnapQueueCheck extends Properties("SnapQueue") {
 
     val done = for (insertsDone <- producer; bufferGood <- consumer) yield {
       insertsDone.foldLeft("zero" |: true)(_ && _) && bufferGood
+    }
+    Await.result(done, Duration.Inf)
+  }
+
+  property("Consumer frozen midway") = forAllNoShrink(sizes, delays) {
+    (sz, delay) =>
+    val seg = new SnapQueue.Segment[String](sz)
+    fillSegment(seg)
+
+    val consumer = Future {
+      def spin(): Boolean = {
+        var i = 0
+        var frozen = false
+        do {
+          if (seg.READ_HEAD() < 0) frozen = true
+          i += 1
+        } while (i < delay)
+        frozen
+      }
+      val buffer = mutable.Buffer[String]()
+      while (!spin() && buffer.size < seg.capacity) {
+        val x = seg.deq()
+        if (x != SegmentBase.NONE) buffer += x.asInstanceOf[String]
+      }
+      buffer
+    }
+
+    val freezer = Future {
+      seg.freeze()
+    }
+
+    val done = for (_ <- freezer; prefix <- consumer) yield {
+      s"seen some prefix: $prefix" |:
+        prefix == (0 until seg.capacity).map(_.toString).take(prefix.length)
     }
     Await.result(done, Duration.Inf)
   }
