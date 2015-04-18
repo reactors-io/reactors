@@ -22,33 +22,33 @@ abstract class RootBase<T> extends RootOrSegmentOrFrozen<T> {
     }
   }
 
-  protected volatile RootOrSegmentOrFrozen left;
+  protected volatile SideBase<T> left;
 
-  protected volatile RootOrSegmentOrFrozen right;
+  protected volatile SideBase<T> right;
 
-  protected final RootOrSegmentOrFrozen READ_LEFT() {
-    return (RootOrSegmentOrFrozen) instance.getObject(this, LEFT_OFFSET);
+  protected final SideBase<T> READ_LEFT() {
+    return (SideBase<T>) instance.getObject(this, LEFT_OFFSET);
   }
 
-  protected final void WRITE_LEFT(RootOrSegmentOrFrozen obj) {
+  protected final void WRITE_LEFT(SideBase<T> obj) {
     instance.putObject(this, LEFT_OFFSET, obj);
   }
 
-  protected final boolean CAS_LEFT(RootOrSegmentOrFrozen oldValue,
-    RootOrSegmentOrFrozen newValue) {
+  protected final boolean CAS_LEFT(SideBase<T> oldValue,
+    SideBase<T> newValue) {
     return instance.compareAndSwapObject(this, LEFT_OFFSET, oldValue, newValue);
   }
 
-  protected final RootOrSegmentOrFrozen READ_RIGHT() {
-    return (RootOrSegmentOrFrozen) instance.getObject(this, RIGHT_OFFSET);
+  protected final SideBase<T> READ_RIGHT() {
+    return (SideBase<T>) instance.getObject(this, RIGHT_OFFSET);
   }
 
-  protected final void WRITE_RIGHT(RootOrSegmentOrFrozen obj) {
+  protected final void WRITE_RIGHT(SideBase<T> obj) {
     instance.putObject(this, RIGHT_OFFSET, obj);
   }
 
-  protected final boolean CAS_RIGHT(RootOrSegmentOrFrozen oldValue,
-    RootOrSegmentOrFrozen newValue) {
+  protected final boolean CAS_RIGHT(SideBase<T> oldValue,
+    SideBase<T> newValue) {
     return instance.compareAndSwapObject(this, RIGHT_OFFSET, oldValue,
       newValue);
   }

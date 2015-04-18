@@ -13,13 +13,15 @@ class SnapQueueBenches extends PerformanceTest.OfflineReport {
   def sizes(from: Int, until: Int) =
     Gen.range("size")(from, until, (until - from) / 4)
 
+  val stringSnapQueue = new SnapQueue[String]
+
   def emptySegs(from: Int, until: Int) = for (sz <- sizes(from, until)) yield {
-    new SnapQueue.Segment[String](sz)
+    new stringSnapQueue.Segment(sz)
   }
 
   def fullSegs(from: Int, until: Int) = for (sz <- sizes(from, until)) yield {
-    val seg = new SnapQueue.Segment[String](sz)
-    fillStringSegment(seg)
+    val seg = new stringSnapQueue.Segment(sz)
+    fillStringSegment(stringSnapQueue)(seg)
     seg
   }
 

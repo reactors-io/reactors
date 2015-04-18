@@ -5,30 +5,56 @@ package concurrent
 
 
 import annotation.tailrec
+import annotation.unchecked
 
 
 
-class SnapQueue[T] extends SnapQueueBase[T] {
+class SnapQueue[T](val L: Int = 128)
+  (implicit val supportOps: SnapQueue.SupportOps[T])
+extends SnapQueueBase[T] {
+  import SnapQueue.Trans
 
-}
+  private[concurrent] def transition(r: RootOrSegmentOrFrozen[T],
+    f: Trans[T]): RootOrSegmentOrFrozen[T] = {
+    ???
+  }
 
+  def expand[T](r: RootOrSegmentOrFrozen[T]): RootOrSegmentOrFrozen[T] = {
+    (r: @unchecked) match {
+      case s: Segment =>
+        // val head = s.locateHead
+        // val last = s.locateLast
+        // if (last - head < s.array.length / 2) {
+        //   copy(s)
+        // } else {
+        //   val left = new Side(false, unfreeze(s), supportOps.create())
+        //   val right = new Side(false, new Segment(L))
+        //   new Root(left, right)
+        // }
+        ???
+    }
+  }
 
-object SnapQueue {
-
-  type Trans[T] = RootOrSegmentOrFrozen[T] => RootOrSegmentOrFrozen[T]
-
-  final class Frozen[T](val f: Trans[T], val root: RootOrSegmentOrFrozen[T])
+  final class Frozen(val f: Trans[T], val root: RootOrSegmentOrFrozen[T])
   extends RootOrSegmentOrFrozen[T] {
     def enqueue(x: T): Boolean = ???
     def dequeue(): Object = ???
   }
 
-  final class Root[T] extends RootBase[T] {
+  final class Root(l: Side, r: Side) extends RootBase[T] {
+    WRITE_LEFT(l)
+    WRITE_RIGHT(r)
     def enqueue(x: T): Boolean = ???
     def dequeue(): Object = ???
   }
 
-  final class Segment[T](length: Int)
+  final class Side(
+    val isFrozen: Boolean,
+    val segment: Segment,
+    val support: AnyRef
+  ) extends SideBase[T]
+
+  final class Segment(length: Int)
   extends SegmentBase[T](length) {
     import SegmentBase._
 
@@ -40,7 +66,7 @@ object SnapQueue {
       else {
         if (READ_HEAD() < 0) false // frozen
         else { // full
-          // TODO transition(this, expand)
+          SnapQueue.this.transition(this, expand)
           false
         }
       }
@@ -105,5 +131,28 @@ object SnapQueue {
 
     override def toString = s"Segment(${array.mkString(", ")})"
   }
+
+}
+
+
+object SnapQueue {
+
+  trait SupportOps[T] {
+    type Support
+    def pushr(xs: Support, x: Array[T]): Support
+    def popl(xs: Support): (Array[T], Support)
+    def nonEmpty(xs: Support): Boolean
+    def create(): Support
+  }
+
+  implicit def concTreeSupportOps[T] = new SupportOps[T] {
+    type Support = Conc[Array[T]]
+    def pushr(xs: Support, x: Array[T]) = ???
+    def popl(xs: Support): (Array[T], Support) = ???
+    def nonEmpty(xs: Support): Boolean = ???
+    def create(): Support = ???
+  }
+
+  type Trans[T] = RootOrSegmentOrFrozen[T] => RootOrSegmentOrFrozen[T]
 
 }
