@@ -60,7 +60,7 @@ object SnapQueueCheck extends Properties("SnapQueue") {
 
   property("Segment.deq empties the segment") = forAllNoShrink(sizes) { sz =>
     val seg = new dummySnapQueue.Segment(sz)
-    fillStringSegment(dummySnapQueue)(seg)
+    Util.fillStringSegment(dummySnapQueue)(seg)
     val removesDone = for (i <- 0 until seg.capacity) yield {
       s"remove at $i" |: seg.deq() == i.toString
     }
@@ -72,7 +72,7 @@ object SnapQueueCheck extends Properties("SnapQueue") {
 
   property("Segment.deq empties half, frozen") = forAllNoShrink(sizes) { sz =>
     val seg = new dummySnapQueue.Segment(sz)
-    fillStringSegment(dummySnapQueue)(seg)
+    Util.fillStringSegment(dummySnapQueue)(seg)
     val removesDone = for (i <- 0 until seg.capacity / 2) yield {
       s"remove at $i" |: seg.deq() == i.toString
     }
@@ -129,7 +129,7 @@ object SnapQueueCheck extends Properties("SnapQueue") {
   property("Consumer sees prefix when frozen") = forAllNoShrink(sizes, delays) {
     (sz, delay) =>
     val seg = new dummySnapQueue.Segment(sz)
-    fillStringSegment(dummySnapQueue)(seg)
+    Util.fillStringSegment(dummySnapQueue)(seg)
 
     val consumer = Future {
       def spin(): Boolean = {
@@ -163,7 +163,7 @@ object SnapQueueCheck extends Properties("SnapQueue") {
   property("Freezing full disallows enqueue") = forAllNoShrink(sizes, delays) {
     (sz, delay) =>
     val seg = new dummySnapQueue.Segment(sz)
-    fillStringSegment(dummySnapQueue)(seg)
+    Util.fillStringSegment(dummySnapQueue)(seg)
     seg.freeze()
     seg.enq(0, "") == false && seg.enq(seg.READ_LAST(), "") == false
   }
@@ -171,9 +171,20 @@ object SnapQueueCheck extends Properties("SnapQueue") {
   property("Freezing full disallows dequeue") = forAllNoShrink(sizes, delays) {
     (sz, delay) =>
     val seg = new dummySnapQueue.Segment(sz)
-    fillStringSegment(dummySnapQueue)(seg)
+    Util.fillStringSegment(dummySnapQueue)(seg)
     seg.freeze()
     seg.deq() == SegmentBase.NONE
+  }
+
+  property("locateHead after freeze") = forAllNoShrink(sizes, choose(0.0, 1.0)) {
+    (sz, fill) =>
+    val seg = new dummySnapQueue.Segment(sz)
+    Util.fillStringSegment(dummySnapQueue)(seg)
+    val total = (sz * fill).toInt
+    for (i <- 0 until total) seg.deq()
+    seg.freeze()
+    val locatedHead = seg.locateHead
+    s"$locatedHead vs $total" |: locatedHead == total
   }
 
 }

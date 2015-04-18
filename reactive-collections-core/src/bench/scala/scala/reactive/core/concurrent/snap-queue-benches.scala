@@ -21,7 +21,7 @@ class SnapQueueBenches extends PerformanceTest.OfflineReport {
 
   def fullSegs(from: Int, until: Int) = for (sz <- sizes(from, until)) yield {
     val seg = new stringSnapQueue.Segment(sz)
-    fillStringSegment(stringSnapQueue)(seg)
+    Util.fillStringSegment(stringSnapQueue)(seg)
     seg
   }
 
