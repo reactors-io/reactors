@@ -18,7 +18,7 @@ object SnapQueueCheck extends Properties("SnapQueue") {
 
   val maxSegmentSize = 2048
 
-  val sizes = choose(0, maxSegmentSize)
+  val sizes = oneOf(value(0), value(1), choose(0, maxSegmentSize))
 
   val dummySnapQueue = new SnapQueue[String]
 
@@ -176,7 +176,9 @@ object SnapQueueCheck extends Properties("SnapQueue") {
     seg.deq() == SegmentBase.NONE
   }
 
-  property("locateHead after freeze") = forAllNoShrink(sizes, choose(0.0, 1.0)) {
+  val fillRate = choose(0.0, 1.0)
+
+  property("locateHead after freeze") = forAllNoShrink(sizes, fillRate) {
     (sz, fill) =>
     val seg = new dummySnapQueue.Segment(sz)
     Util.fillStringSegment(dummySnapQueue)(seg)
@@ -185,6 +187,40 @@ object SnapQueueCheck extends Properties("SnapQueue") {
     seg.freeze()
     val locatedHead = seg.locateHead
     s"$locatedHead vs $total" |: locatedHead == total
+  }
+
+  property("locateLast after freeze") = forAllNoShrink(sizes, fillRate) {
+    (sz, fill) =>
+    val seg = new dummySnapQueue.Segment(sz)
+    val total = (sz * fill).toInt
+    for (i <- 0 until total) seg.enq(seg.READ_LAST(), i.toString)
+    seg.freeze()
+    val locatedLast = seg.locateLast
+    s"$locatedLast vs $total" |: locatedLast == total
+  }
+
+  property("locateLast after stale freeze") = forAllNoShrink(sizes, fillRate) {
+    (sz, fill) =>
+    val seg = new dummySnapQueue.Segment(sz)
+    val total = (sz * fill).toInt
+    for (i <- 0 until total) seg.enq(seg.READ_LAST(), i.toString)
+    seg.freeze()
+    seg.WRITE_LAST(0)
+    val locatedLast = seg.locateLast
+    s"$locatedLast vs $total" |: locatedLast == total
+  }
+
+  property("copyShift correct") = forAllNoShrink(sizes, fillRate) {
+    (sz, fill) =>
+    val seg = new dummySnapQueue.Segment(sz)
+    Util.fillStringSegment(dummySnapQueue)(seg)
+    val total = (sz * fill).toInt
+    for (i <- 0 until total) seg.deq()
+    seg.freeze()
+    val nseg = seg.copyShift()
+    val extracted = Util.extractStringSegment(dummySnapQueue)(nseg)
+    s"should contain from $total until $sz: $nseg" |:
+      extracted == (total until sz).map(_.toString)
   }
 
 }
