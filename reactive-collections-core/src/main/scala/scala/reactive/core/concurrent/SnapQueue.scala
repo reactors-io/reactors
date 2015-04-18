@@ -15,8 +15,21 @@ class SnapQueue[T] extends SnapQueueBase[T] {
 
 object SnapQueue {
 
+  type Trans[T] = RootOrSegmentOrFrozen[T] => RootOrSegmentOrFrozen[T]
+
+  final class Frozen[T](val f: Trans[T], val root: RootOrSegmentOrFrozen[T])
+  extends RootOrSegmentOrFrozen[T] {
+    def enqueue(x: T): Boolean = ???
+    def dequeue(): Object = ???
+  }
+
+  final class Root[T] extends RootBase[T] {
+    def enqueue(x: T): Boolean = ???
+    def dequeue(): Object = ???
+  }
+
   final class Segment[T](length: Int)
-  extends SegmentBase[T](length) with RootOrSegmentOrFrozen[T] {
+  extends SegmentBase[T](length) {
     import SegmentBase._
 
     def capacity: Int = array.length

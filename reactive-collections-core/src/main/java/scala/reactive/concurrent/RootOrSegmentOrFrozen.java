@@ -6,10 +6,10 @@ import static scala.reactive.core.concurrent.unsafe.instance;
 
 
 
-interface RootOrSegmentOrFrozen<T> {
+abstract class RootOrSegmentOrFrozen<T> {
 
-  boolean enqueue(T x);
+  public abstract boolean enqueue(T x);
 
-  Object dequeue();
+  public abstract Object dequeue();
 
 }

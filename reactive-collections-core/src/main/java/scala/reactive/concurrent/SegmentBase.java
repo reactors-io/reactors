@@ -6,7 +6,7 @@ import static scala.reactive.core.concurrent.unsafe.instance;
 
 
 
-abstract class SegmentBase<T> {
+abstract class SegmentBase<T> extends RootOrSegmentOrFrozen<T> {
 
   protected final static Object EMPTY = null;
 
