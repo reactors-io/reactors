@@ -16,7 +16,48 @@ extends SnapQueueBase[T] with Serializable {
 
   private def transition(r: RootOrSegmentOrFrozen[T], f: Trans[T]):
     RootOrSegmentOrFrozen[T] = {
-    ???
+    val fr = freeze(r, f)
+    if (fr == null) null
+    else {
+      completeTransition(fr)
+      fr.root
+    }
+  }
+
+  private def completeTransition(fr: Frozen) {
+    val nr = fr.f(fr.root)
+    while (READ_ROOT() == fr) CAS(root, fr, nr)
+  }
+
+  private def helpTransition() {
+    READ_ROOT() match {
+      case fr: Frozen =>
+        completeFreeze(fr.root)
+        completeTransition(fr)
+      case _ => // not frozen -- do nothing
+    }
+  }
+
+  @tailrec
+  def freeze(r: RootOrSegmentOrFrozen[T], f: Trans): Frozen = {
+    val fr = new Frozen(f, r)
+    if (READ_ROOT() ne r) null
+    else if (CAS_ROOT(r, fr)) {
+      completeFreeze(fr.root)
+      fr
+    } else freeze(r, f)
+  }
+
+  def completeFreeze(r: RootOrSegmentOrFrozen[T]) {
+    r match {
+      case s: Segment =>
+        s.freeze()
+      case r: Root =>
+        r.freezeLeft()
+        r.freezeRight()
+        r.left.segment.freeze()
+        r.right.segment.freeze()
+    }
   }
 
   private def expand[T](r: RootOrSegmentOrFrozen[T]):
@@ -46,6 +87,26 @@ extends SnapQueueBase[T] with Serializable {
     WRITE_RIGHT(r)
     def enqueue(x: T): Boolean = ???
     def dequeue(): Object = ???
+
+    @tailrec
+    private def freezeLeft() {
+      val l = READ_LEFT()
+      if (l.isFrozen) {}
+      else {
+        val nl = new Side(true, l.segment, l.support)
+        if (!CAS_LEFT(l, nl)) freezeLeft()
+      }
+    }
+  
+    @tailrec
+    private def freezeRight() {
+      val r = READ_RIGHT()
+      if (r.isFrozen) {}
+      else {
+        val nr = new Side(true, r.segment, r.support)
+        if (!CAS_RIGHT(r, nr)) freezeRight()
+      }
+    }
   }
 
   final class Side(
@@ -74,7 +135,7 @@ extends SnapQueueBase[T] with Serializable {
 
     def dequeue(): AnyRef = {
       val x = deq()
-      if (x != NONE) x
+      if (x ne NONE) x
       else if (READ_HEAD() < 0) REPEAT // frozen
       else NONE // empty
     }
