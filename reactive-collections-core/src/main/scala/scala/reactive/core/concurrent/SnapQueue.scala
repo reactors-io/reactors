@@ -110,7 +110,7 @@ extends SnapQueueBase[T] with Serializable {
       locate(READ_LAST())
     }
 
-    /** Given a frozen segment, copies it into a freshly allocated one,
+    /** Given a frozen, full segment, copies it into a freshly allocated one,
      *  which can be used for subsequent update operations.
      *
      *  The are shifted to the left of the segment as far as possible.
@@ -128,12 +128,16 @@ extends SnapQueueBase[T] with Serializable {
     /** Given a frozen, full segment, constructs a new segment around the same
      *  underlying array.
      *
-     *  Does not shift any elements.
+     *  May shrink the array to avoid having empty elements at the beginning.
      *
      *  Note: undefined behavior for non-frozen segments.
      */
     def unfreeze(): Segment = {
-      ???
+      val head = locateHead()
+      val last = locateLast()
+      val nseg = new Segment(last - head)
+      System.arraycopy(array, head, nseg.array, 0, last - head)
+      nseg
     }
 
     @tailrec
