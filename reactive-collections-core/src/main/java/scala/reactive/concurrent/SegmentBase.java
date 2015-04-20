@@ -42,8 +42,8 @@ abstract class SegmentBase<T> extends RootOrSegmentOrFrozen<T> {
 
   protected volatile int last;
 
-  protected SegmentBase(int length) {
-    array = new Object[length];
+  protected SegmentBase(Object[] a) {
+    array = a;
   }
 
   protected final int READ_HEAD() {

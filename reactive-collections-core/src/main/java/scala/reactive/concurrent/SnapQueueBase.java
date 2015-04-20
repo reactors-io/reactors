@@ -19,18 +19,18 @@ abstract class SnapQueueBase<T> {
     }
   }
 
-  protected volatile RootOrSegmentOrFrozen root;
+  protected volatile RootOrSegmentOrFrozen<T> root;
 
-  protected final RootOrSegmentOrFrozen READ_ROOT() {
-    return (RootOrSegmentOrFrozen) instance.getObject(this, ROOT_OFFSET);
+  protected final RootOrSegmentOrFrozen<T> READ_ROOT() {
+    return (RootOrSegmentOrFrozen<T>) instance.getObject(this, ROOT_OFFSET);
   }
 
-  protected final void WRITE_ROOT(RootOrSegmentOrFrozen r) {
+  protected final void WRITE_ROOT(RootOrSegmentOrFrozen<T> r) {
     instance.putObject(this, ROOT_OFFSET, r);
   }
 
-  protected final boolean CAS_ROOT(RootOrSegmentOrFrozen oldValue,
-    RootOrSegmentOrFrozen newValue) {
+  protected final boolean CAS_ROOT(RootOrSegmentOrFrozen<T> oldValue,
+    RootOrSegmentOrFrozen<T> newValue) {
     return instance.compareAndSwapObject(this, ROOT_OFFSET, oldValue, newValue);
   }
 

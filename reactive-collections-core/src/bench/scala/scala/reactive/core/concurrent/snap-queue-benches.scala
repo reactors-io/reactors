@@ -32,20 +32,53 @@ class SnapQueueBenches extends PerformanceTest.OfflineReport {
   }
 
   val opts = Context(
-    exec.minWarmupRuns -> 45,
-    exec.maxWarmupRuns -> 90,
+    exec.minWarmupRuns -> 50,
+    exec.maxWarmupRuns -> 100,
     exec.benchRuns -> 60,
-    exec.independentSamples -> 3
+    exec.independentSamples -> 4
   )
 
-  performance of "enq-1-thread" config(opts) in {
+  performance of "enqueue-1-thread" config(opts) in {
     val from = 100000
     val until = 500000
 
-    using(emptySegs(from, until)) curve("Segment") in { seg =>
+    using(emptySegs(from, until)) curve("Segment.enq") setUp {
+      seg => seg.reinitialize()
+    } in { seg =>
       var i = 0
       while (i < seg.capacity) {
         seg.enq(seg.READ_LAST(), "")
+        i += 1
+      }
+    }
+
+    using(emptySegs(from, until)) curve("Segment.enqueue") setUp {
+      seg => seg.reinitialize()
+    } in { seg =>
+      var i = 0
+      while (i < seg.capacity) {
+        seg.enqueue("")
+        i += 1
+      }
+    }
+
+    using(emptySegs(from, until)) curve("SnapQueue.enqueue") setUp {
+      seg => seg.reinitialize()
+    } in { seg =>
+      stringSnapQueue.WRITE_ROOT(seg)
+      var i = 0
+      while (i < seg.capacity) {
+        stringSnapQueue.enqueue("")
+        i += 1
+      }
+    }
+
+    using(sizes(from, until)) curve("SnapQueue.alloc+enqueue") in { sz =>
+      val seg = new stringSnapQueue.Segment(sz)
+      stringSnapQueue.WRITE_ROOT(seg)
+      var i = 0
+      while (i < seg.capacity) {
+        stringSnapQueue.enqueue("")
         i += 1
       }
     }
@@ -60,11 +93,13 @@ class SnapQueueBenches extends PerformanceTest.OfflineReport {
     }
   }
 
-  performance of "deq-1-thread" config(opts) in {
+  performance of "dequeue-1-thread" config(opts) in {
     val from = 100000
     val until = 500000
 
-    using(fullSegs(from, until)) curve("Segment") in { seg =>
+    using(fullSegs(from, until)) curve("Segment.deq") setUp {
+      seg => seg.WRITE_HEAD(0)
+    } in { seg =>
       var i = 0
       while (i < seg.capacity) {
         seg.deq()
@@ -72,7 +107,11 @@ class SnapQueueBenches extends PerformanceTest.OfflineReport {
       }
     }
 
-    using(linkedQueues(from, until)) curve("ConcurrentLinkedQueue") in {
+    using(linkedQueues(from, until)) curve("ConcurrentLinkedQueue") setUp {
+      case (queue, sz) =>
+      queue.clear()
+      for (i <- 0 until sz) queue.add("")
+    } in {
       case (queue, sz) =>
       var i = 0
       while (i < sz) {

@@ -13,6 +13,7 @@ class SnapQueue[T](val L: Int = 128)
   (implicit val supportOps: SnapQueue.SupportOps[T])
 extends SnapQueueBase[T] with Serializable {
   import SnapQueue.Trans
+  import SegmentBase.{EMPTY, FROZEN, NONE, REPEAT}
 
   private def transition(r: RootOrSegmentOrFrozen[T], f: Trans[T]):
     RootOrSegmentOrFrozen[T] = {
@@ -26,7 +27,7 @@ extends SnapQueueBase[T] with Serializable {
 
   private def completeTransition(fr: Frozen) {
     val nr = fr.f(fr.root)
-    while (READ_ROOT() == fr) CAS(root, fr, nr)
+    while (READ_ROOT() == fr) CAS_ROOT(fr, nr)
   }
 
   private def helpTransition() {
@@ -39,7 +40,7 @@ extends SnapQueueBase[T] with Serializable {
   }
 
   @tailrec
-  def freeze(r: RootOrSegmentOrFrozen[T], f: Trans): Frozen = {
+  final def freeze(r: RootOrSegmentOrFrozen[T], f: Trans[T]): Frozen = {
     val fr = new Frozen(f, r)
     if (READ_ROOT() ne r) null
     else if (CAS_ROOT(r, fr)) {
@@ -55,12 +56,12 @@ extends SnapQueueBase[T] with Serializable {
       case r: Root =>
         r.freezeLeft()
         r.freezeRight()
-        r.left.segment.freeze()
-        r.right.segment.freeze()
+        r.READ_LEFT().asInstanceOf[Side].segment.freeze()
+        r.READ_RIGHT().asInstanceOf[Side].segment.freeze()
     }
   }
 
-  private def expand[T](r: RootOrSegmentOrFrozen[T]):
+  private def expand(r: RootOrSegmentOrFrozen[T]):
     RootOrSegmentOrFrozen[T] = {
     (r: @unchecked) match {
       case s: Segment =>
@@ -76,21 +77,96 @@ extends SnapQueueBase[T] with Serializable {
     }
   }
 
+  private def transfer(r: RootOrSegmentOrFrozen[T]):
+    RootOrSegmentOrFrozen[T] = {
+    (r: @unchecked) match {
+      case r: Root =>
+        val ls = r.READ_LEFT().asInstanceOf[Side]
+        val rs = r.READ_RIGHT().asInstanceOf[Side]
+        if (supportOps.nonEmpty(rs.support)) {
+          val (arr, sup) = supportOps.popl(rs.support)
+          val seg = new Segment(arr.asInstanceOf[Array[AnyRef]])
+          val nls = new Side(false, seg, sup)
+          val nrs = new Side(false, rs.segment.copyShift(), supportOps.create())
+          new Root(nls, nrs)
+        } else {
+          rs.segment.copyShift()
+        }
+    }
+  }
+
+  @tailrec
+  final def enqueue(x: T): Unit = {
+    if (!READ_ROOT().enqueue(x)) enqueue(x)
+  }
+
+  @tailrec
+  final def dequeue(): T = {
+    val r = READ_ROOT()
+    val x = r.dequeue()
+    if (x eq REPEAT) dequeue()
+    else x.asInstanceOf[T]
+  }
+
   final class Frozen(val f: Trans[T], val root: RootOrSegmentOrFrozen[T])
   extends RootOrSegmentOrFrozen[T] {
-    def enqueue(x: T): Boolean = ???
-    def dequeue(): Object = ???
+    def enqueue(x: T): Boolean = {
+      helpTransition()
+      false
+    }
+    def dequeue(): AnyRef = {
+      helpTransition()
+      REPEAT
+    }
   }
 
   final class Root(l: Side, r: Side) extends RootBase[T] {
     WRITE_LEFT(l)
     WRITE_RIGHT(r)
-    def enqueue(x: T): Boolean = ???
-    def dequeue(): Object = ???
 
     @tailrec
-    private def freezeLeft() {
-      val l = READ_LEFT()
+    def enqueue(x: T): Boolean = {
+      val r = READ_RIGHT().asInstanceOf[Side]
+      val p = r.segment.READ_LAST()
+      if (r.segment.enq(p, x.asInstanceOf[AnyRef])) true
+      else { // full or frozen
+        if (r.segment.READ_HEAD() < 0) false
+        else { // full
+          val seg = new Segment(r.segment.capacity)
+          val array = r.segment.array.asInstanceOf[Array[T]]
+          val sup = supportOps.pushr(r.support, array)
+          val nr = new Side(false, seg, sup)
+          CAS_RIGHT(r, nr)
+          enqueue(x)
+        }
+      }
+    }
+
+    @tailrec
+    def dequeue(): AnyRef = {
+      val l = READ_LEFT().asInstanceOf[Side]
+      val x = l.segment.deq()
+      if (x ne NONE) x
+      else { // empty or frozen
+        if (l.segment.READ_HEAD() < 0) REPEAT
+        else { // empty
+          if (supportOps.nonEmpty(l.support)) {
+            val (array, sup) = supportOps.popl(l.support)
+            val seg = new Segment(array.asInstanceOf[Array[AnyRef]])
+            val nl = new Side(false, seg, sup)
+            CAS_LEFT(l, nl)
+            dequeue()
+          } else {
+            transition(this, transfer)
+            REPEAT
+          }
+        }
+      }
+    }
+
+    @tailrec
+    def freezeLeft() {
+      val l = READ_LEFT().asInstanceOf[Side]
       if (l.isFrozen) {}
       else {
         val nl = new Side(true, l.segment, l.support)
@@ -99,8 +175,8 @@ extends SnapQueueBase[T] with Serializable {
     }
   
     @tailrec
-    private def freezeRight() {
-      val r = READ_RIGHT()
+    def freezeRight() {
+      val r = READ_RIGHT().asInstanceOf[Side]
       if (r.isFrozen) {}
       else {
         val nr = new Side(true, r.segment, r.support)
@@ -115,9 +191,9 @@ extends SnapQueueBase[T] with Serializable {
     val support: supportOps.Support
   ) extends SideBase[T]
 
-  final class Segment(length: Int)
-  extends SegmentBase[T](length) {
-    import SegmentBase._
+  final class Segment(a: Array[AnyRef])
+  extends SegmentBase[T](a) {
+    def this(cap: Int) = this(new Array[AnyRef](cap))
 
     def capacity: Int = array.length
 
@@ -174,14 +250,14 @@ extends SnapQueueBase[T] with Serializable {
     /** Given a frozen, full segment, copies it into a freshly allocated one,
      *  which can be used for subsequent update operations.
      *
-     *  The are shifted to the left of the segment as far as possible.
+     *  The elements are shifted to the left of the segment as far as possible.
      *
      *  Note: undefined behavior for non-frozen segments.
      */
     def copyShift(): Segment = {
       val head = locateHead()
       val last = locateLast()
-      val nseg = new Segment(capacity)
+      val nseg = new Segment(L) // note: this.capacity == L in this call!
       System.arraycopy(array, head, nseg.array, 0, last - head)
       nseg
     }
@@ -249,6 +325,18 @@ extends SnapQueueBase[T] with Serializable {
       if (p >= 0 && p < array.length)
         if (!CAS_ARRAY(p, EMPTY, FROZEN))
           freezeLast(findLast(p))
+    }
+
+    /** Only used for testing.
+     */
+    private[concurrent] def reinitialize() {
+      WRITE_HEAD(0)
+      WRITE_LAST(0)
+      var i = 0
+      while (i < array.length) {
+        WRITE_ARRAY(i, EMPTY)
+        i += 1
+      }
     }
 
     override def toString = s"Segment(${array.mkString(", ")})"
