@@ -359,4 +359,16 @@ object SnapQueueCheck extends Properties("SnapQueue") with SnapQueueUtils {
     }
   }
 
+  property("dequeue empties segment") = forAllNoShrink(sizes) { sz =>
+    stackTraced {
+      val snapq = new SnapQueue[String](sz)
+      snapq.READ_ROOT() match {
+        case s: snapq.Segment => Util.fillStringSegment(snapq)(s)
+      }
+      val buffer = mutable.Buffer[String]()
+      for (i <- 0 until sz) buffer += snapq.dequeue()
+      s"contains input: $buffer" |: buffer == (0 until sz).map(_.toString)
+    }
+  }
+
 }
