@@ -14,26 +14,41 @@ import org.scalacheck.Prop._
 
 
 
-object SnapQueueCheck extends Properties("SnapQueue") {
-
-  val maxSegmentSize = 2048
+trait SnapQueueUtils {
+  val maxSegmentSize = 3250
 
   val sizes = oneOf(value(0), value(1), choose(0, maxSegmentSize))
 
   val dummySnapQueue = new SnapQueue[String]
 
-  property("Segment.enq fills the segment") = forAllNoShrink(sizes) { sz =>
-    val seg = new dummySnapQueue.Segment(sz)
-    val insertsDone = for (i <- 0 until seg.capacity) yield {
-      s"insert at $i" |: seg.enq(seg.READ_LAST(), i.toString)
+  def stackTraced[T](p: =>T): T = {
+    try {
+      p
+    } catch {
+      case t: Throwable =>
+        t.printStackTrace()
+        throw t
     }
-    val isFull = seg.READ_LAST() == seg.capacity
-    val lastEnqFails = seg.enq(0, "failed") == false
+  }
+}
 
-    insertsDone.foldLeft("zero" |: true)(_ && _) && isFull && lastEnqFails
+
+object SegmentCheck extends Properties("Segment") with SnapQueueUtils {
+
+  property("enq fills the segment") = forAllNoShrink(sizes) { sz =>
+    stackTraced {
+      val seg = new dummySnapQueue.Segment(sz)
+      val insertsDone = for (i <- 0 until seg.capacity) yield {
+        s"insert at $i" |: seg.enq(seg.READ_LAST(), i.toString)
+      }
+      val isFull = seg.READ_LAST() == seg.capacity
+      val lastEnqFails = seg.enq(0, "failed") == false
+  
+      insertsDone.foldLeft("zero" |: true)(_ && _) && isFull && lastEnqFails
+    }
   }
 
-  property("Segment.enq fills, stale 'last'") = forAllNoShrink(sizes) { sz =>
+  property("enq fills, stale 'last'") = forAllNoShrink(sizes) { sz =>
     val seg = new dummySnapQueue.Segment(sz)
     val insertsDone = for (i <- 0 until seg.capacity) yield {
       s"insert at $i" |: seg.enq(math.max(0, seg.READ_LAST() - 50), i.toString)
@@ -44,7 +59,7 @@ object SnapQueueCheck extends Properties("SnapQueue") {
     insertsDone.foldLeft("zero" |: true)(_ && _) && isFull && lastEnqFails
   }
 
-  property("Segment.enq fills half, frozen") = forAllNoShrink(sizes) { sz =>
+  property("enq fills half, frozen") = forAllNoShrink(sizes) { sz =>
     val seg = new dummySnapQueue.Segment(sz)
     val insertsDone = for (i <- 0 until seg.capacity / 2) yield {
       s"insert at $i" |: seg.enq(seg.READ_LAST(), i.toString)
@@ -58,7 +73,7 @@ object SnapQueueCheck extends Properties("SnapQueue") {
       enqAfterFreezeFails
   }
 
-  property("Segment.deq empties the segment") = forAllNoShrink(sizes) { sz =>
+  property("deq empties the segment") = forAllNoShrink(sizes) { sz =>
     val seg = new dummySnapQueue.Segment(sz)
     Util.fillStringSegment(dummySnapQueue)(seg)
     val removesDone = for (i <- 0 until seg.capacity) yield {
@@ -70,7 +85,7 @@ object SnapQueueCheck extends Properties("SnapQueue") {
     removesDone.foldLeft("zero" |: true)(_ && _) && isEmpty && lastDeqFails
   }
 
-  property("Segment.deq empties half, frozen") = forAllNoShrink(sizes) { sz =>
+  property("deq empties half, frozen") = forAllNoShrink(sizes) { sz =>
     val seg = new dummySnapQueue.Segment(sz)
     Util.fillStringSegment(dummySnapQueue)(seg)
     val removesDone = for (i <- 0 until seg.capacity / 2) yield {
@@ -176,9 +191,9 @@ object SnapQueueCheck extends Properties("SnapQueue") {
     seg.deq() == SegmentBase.NONE
   }
 
-  val fillRate = choose(0.0, 1.0)
+  val fillRates = choose(0.0, 1.0)
 
-  property("locateHead after freeze") = forAllNoShrink(sizes, fillRate) {
+  property("locateHead after freeze") = forAllNoShrink(sizes, fillRates) {
     (sz, fill) =>
     val seg = new dummySnapQueue.Segment(sz)
     Util.fillStringSegment(dummySnapQueue)(seg)
@@ -189,7 +204,7 @@ object SnapQueueCheck extends Properties("SnapQueue") {
     s"$locatedHead vs $total" |: locatedHead == total
   }
 
-  property("locateLast after freeze") = forAllNoShrink(sizes, fillRate) {
+  property("locateLast after freeze") = forAllNoShrink(sizes, fillRates) {
     (sz, fill) =>
     val seg = new dummySnapQueue.Segment(sz)
     val total = (sz * fill).toInt
@@ -199,7 +214,7 @@ object SnapQueueCheck extends Properties("SnapQueue") {
     s"$locatedLast vs $total" |: locatedLast == total
   }
 
-  property("locateLast after stale freeze") = forAllNoShrink(sizes, fillRate) {
+  property("locateLast after stale freeze") = forAllNoShrink(sizes, fillRates) {
     (sz, fill) =>
     val seg = new dummySnapQueue.Segment(sz)
     val total = (sz * fill).toInt
@@ -210,17 +225,114 @@ object SnapQueueCheck extends Properties("SnapQueue") {
     s"$locatedLast vs $total" |: locatedLast == total
   }
 
-  property("copyShift correct") = forAllNoShrink(sizes, fillRate) {
+  property("copyShift after deq") = forAllNoShrink(sizes, fillRates) {
+    (sz, fill) =>
+    stackTraced {
+      val seg = new dummySnapQueue.Segment(sz)
+      Util.fillStringSegment(dummySnapQueue)(seg)
+      val total = (sz * fill).toInt
+      for (i <- 0 until total) seg.deq()
+      seg.freeze()
+      val nseg = seg.copyShift()
+      val extracted = Util.extractStringSegment(dummySnapQueue)(nseg)
+      s"should contain from $total until $sz: $nseg" |:
+        extracted == (total until sz).map(_.toString)
+    }
+  }
+
+  property("copyShift after enq") = forAllNoShrink(sizes, fillRates) {
+    (sz, fill) =>
+    val seg = new dummySnapQueue.Segment(sz)
+    val total = (sz * fill).toInt
+    for (i <- 0 until total) seg.enq(seg.READ_LAST(), i.toString)
+    seg.freeze()
+    val nseg = seg.copyShift()
+    val extracted = Util.extractStringSegment(dummySnapQueue)(nseg)
+    s"should contain from 0 until $total: $nseg" |:
+      extracted == (0 until total).map(_.toString)
+  }
+
+  property("unfreeze after deq") = forAllNoShrink(sizes, fillRates) {
     (sz, fill) =>
     val seg = new dummySnapQueue.Segment(sz)
     Util.fillStringSegment(dummySnapQueue)(seg)
     val total = (sz * fill).toInt
     for (i <- 0 until total) seg.deq()
     seg.freeze()
-    val nseg = seg.copyShift()
+    val nseg = seg.unfreeze()
     val extracted = Util.extractStringSegment(dummySnapQueue)(nseg)
     s"should contain from $total until $sz: $nseg" |:
       extracted == (total until sz).map(_.toString)
   }
+
+  property("unfreeze after enq") = forAllNoShrink(sizes, fillRates) {
+    (sz, fill) =>
+    val seg = new dummySnapQueue.Segment(sz)
+    val total = (sz * fill).toInt
+    for (i <- 0 until total) seg.enq(seg.READ_LAST(), i.toString)
+    seg.freeze()
+    val nseg = seg.unfreeze()
+    val extracted = Util.extractStringSegment(dummySnapQueue)(nseg)
+    s"should contain from 0 until $total: $nseg" |:
+      extracted == (0 until total).map(_.toString)
+  }
+
+  val numThreads = choose(2, 8)
+
+  val coarseSizes = choose(16, 9000)
+
+  property("N threads can enqueue") = forAllNoShrink(coarseSizes, numThreads) {
+    (sz, n) =>
+    val inputs = (0 until sz).map(_.toString)
+    val seg = new dummySnapQueue.Segment(sz)
+    val buckets = inputs.grouped(sz / n).toSeq
+    val workers = for (bucket <- buckets) yield Future {
+      stackTraced {
+        var i = 0
+        var failing = -1
+        for (x <- bucket) {
+          if (!seg.enqueue(x)) failing = i
+          i += 1
+        }
+        failing
+      }
+    }
+    val failures = Await.result(Future.sequence(workers), Duration.Inf).toList
+    val extracted = Util.extractStringSegment(dummySnapQueue)(seg)
+    s"no failures: $failures" |: failures.forall(_ == -1) &&
+      extracted.toSet == inputs.toSet
+  }
+
+  property("N threads can dequeue") = forAllNoShrink(coarseSizes, numThreads) {
+    (sz, n) =>
+    val seg = new dummySnapQueue.Segment(sz)
+    Util.fillStringSegment(dummySnapQueue)(seg)
+    val inputs = (0 until sz).map(_.toString)
+    val workers = for (i <- 0 until n) yield Future {
+      stackTraced {
+        val buffer = mutable.Buffer[String]()
+        var stop = false
+        do {
+          val x = seg.deq()
+          if (x != SegmentBase.NONE) buffer += x.asInstanceOf[String]
+          else stop = true
+        } while (!stop)
+        buffer
+      }
+    }
+    val buffers = Await.result(Future.sequence(workers), Duration.Inf).toList
+    val obtained = buffers.foldLeft(Seq[String]())(_ ++ _)
+    (s"lengths: ${obtained.length}, expected: $sz" |: obtained.length == sz) &&
+      (s"$buffers: $obtained; size $sz" |: obtained.toSet == inputs.toSet)
+  }
+
+}
+
+
+object SnapQueueCheck extends Properties("SnapQueue") with SnapQueueUtils {
+
+  // property("can enqueue until ") = forAllNoShrink(sizes) {
+
+  // }
 
 }

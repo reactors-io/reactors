@@ -257,7 +257,7 @@ extends SnapQueueBase[T] with Serializable {
     def copyShift(): Segment = {
       val head = locateHead()
       val last = locateLast()
-      val nseg = new Segment(L) // note: this.capacity == L in this call!
+      val nseg = new Segment(capacity) // note: this.capacity == L in this call!
       System.arraycopy(array, head, nseg.array, 0, last - head)
       nseg
     }
