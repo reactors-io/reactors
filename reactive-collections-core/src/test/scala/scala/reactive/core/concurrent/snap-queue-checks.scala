@@ -174,7 +174,7 @@ object SegmentCheck extends Properties("Segment") with SnapQueueUtils {
     Await.result(done, Duration.Inf)
   }
 
-  property("Freezing full disallows enqueue") = forAllNoShrink(sizes, delays) {
+  property("freezing full disallows enqueue") = forAllNoShrink(sizes, delays) {
     (sz, delay) =>
     val seg = new dummySnapQueue.Segment(sz)
     Util.fillStringSegment(dummySnapQueue)(seg)
@@ -182,7 +182,7 @@ object SegmentCheck extends Properties("Segment") with SnapQueueUtils {
     seg.enq(0, "") == false && seg.enq(seg.READ_LAST(), "") == false
   }
 
-  property("Freezing full disallows dequeue") = forAllNoShrink(sizes, delays) {
+  property("freezing full disallows dequeue") = forAllNoShrink(sizes, delays) {
     (sz, delay) =>
     val seg = new dummySnapQueue.Segment(sz)
     Util.fillStringSegment(dummySnapQueue)(seg)
