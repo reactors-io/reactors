@@ -15,12 +15,6 @@ import org.scalacheck.Prop._
 
 
 trait SnapQueueUtils {
-  val maxSegmentSize = 3250
-
-  val sizes = oneOf(value(0), value(1), choose(0, maxSegmentSize))
-
-  val dummySnapQueue = new SnapQueue[String]
-
   def stackTraced[T](p: =>T): T = {
     try {
       p
@@ -34,6 +28,11 @@ trait SnapQueueUtils {
 
 
 object SegmentCheck extends Properties("Segment") with SnapQueueUtils {
+  val maxSegmentSize = 3250
+
+  val sizes = oneOf(value(0), value(1), choose(0, maxSegmentSize))
+
+  val dummySnapQueue = new SnapQueue[String]
 
   property("enq fills the segment") = forAllNoShrink(sizes) { sz =>
     stackTraced {
@@ -330,9 +329,34 @@ object SegmentCheck extends Properties("Segment") with SnapQueueUtils {
 
 
 object SnapQueueCheck extends Properties("SnapQueue") with SnapQueueUtils {
+  val sizes = choose(0, 100000)
 
-  // property("can enqueue until ") = forAllNoShrink(sizes) {
+  val fillRates = choose(0.0, 1.0)
 
-  // }
+  property("enqueue fills segment") = forAllNoShrink(sizes) { sz =>
+    stackTraced {
+      val snapq = new SnapQueue[String](sz)
+      for (i <- 0 until sz) snapq.enqueue(i.toString)
+      snapq.READ_ROOT() match {
+        case s: snapq.Segment =>
+          Util.extractStringSegment(snapq)(s) == (0 until sz).map(_.toString)
+      }
+    }
+  }
+
+  property("freeze freezes segment") = forAllNoShrink(sizes, fillRates) {
+    (sz, fillRate) =>
+    stackTraced {
+      val snapq = new SnapQueue[String](sz)
+      val total = (sz * fillRate).toInt
+      for (i <- 0 until total) snapq.enqueue(i.toString)
+      assert(snapq.freeze(snapq.READ_ROOT(), null) != null)
+      snapq.READ_ROOT() match {
+        case f: snapq.Frozen => f.root match {
+          case s: snapq.Segment => s.READ_HEAD() < 0
+        }
+      }
+    }
+  }
 
 }

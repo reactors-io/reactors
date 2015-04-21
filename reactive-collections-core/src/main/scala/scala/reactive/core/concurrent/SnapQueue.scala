@@ -15,6 +15,8 @@ extends SnapQueueBase[T] with Serializable {
   import SnapQueue.Trans
   import SegmentBase.{EMPTY, FROZEN, NONE, REPEAT}
 
+  WRITE_ROOT(new Segment(new Array[AnyRef](L)))
+
   private def transition(r: RootOrSegmentOrFrozen[T], f: Trans[T]):
     RootOrSegmentOrFrozen[T] = {
     val fr = freeze(r, f)
