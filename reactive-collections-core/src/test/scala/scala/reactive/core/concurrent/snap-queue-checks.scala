@@ -371,7 +371,7 @@ object SnapQueueCheck extends Properties("SnapQueue") with SnapQueueUtils {
     }
   }
 
-  property("enqueue on full transitions to Root") = forAllNoShrink(sizes) {
+  property("enqueue on full creates Root") = forAllNoShrink(sizes) {
     sz =>
     stackTraced {
       val snapq = new SnapQueue[String](sz)
@@ -384,7 +384,23 @@ object SnapQueueCheck extends Properties("SnapQueue") with SnapQueueUtils {
           val left = Util.extractStringSegment(snapq)(lseg)
           val right = Util.extractStringSegment(snapq)(rseg)
           val extracted = left ++ right
-          val expected =((0 until sz).map(_.toString) :+ "final")
+          val expected = (0 until sz).map(_.toString) :+ "final"
+          s"got: $extracted" |: extracted == expected
+      }
+    }
+  }
+
+  property("enqueue on half-full creates Segment") = forAllNoShrink(sizes) {
+    sz =>
+    stackTraced {
+      val snapq = new SnapQueue[String](sz)
+      for (i <- 0 until sz) snapq.enqueue(i.toString)
+      for (i <- 0 until (sz / 2 + 2)) snapq.dequeue()
+      snapq.enqueue("final")
+      snapq.READ_ROOT() match {
+        case s: snapq.Segment =>
+          val extracted = Util.extractStringSegment(snapq)(s)
+          val expected = ((sz / 2 + 2) until sz).map(_.toString) :+ "final"
           s"got: $extracted" |: extracted == expected
       }
     }
