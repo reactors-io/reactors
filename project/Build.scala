@@ -128,8 +128,11 @@ object ReactiveCollectionsBuild extends MechaRepoBuild {
       else
         Some("releases"  at nexus + "service/local/staging/deploy/maven2")
     },
-    testOptions in Test +=
-      Tests.Argument(TestFrameworks.ScalaCheck, "-verbosity", "2"),
+    testOptions in Test += Tests.Argument(
+      TestFrameworks.ScalaCheck,
+      "-minSuccessfulTests", "450",
+      "-workers", "1",
+      "-verbosity", "2"),
     publishArtifact in Test := false,
     pomIncludeRepository := { _ => false },
     pomExtra :=

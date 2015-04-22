@@ -15,6 +15,33 @@ import org.scalacheck.Prop._
 
 
 trait SnapQueueUtils {
+  val deterministicRandom = new scala.util.Random(24)
+
+  def detChoose(low: Int, high: Int): Gen[Int] = {
+    if (low > high) fail
+    else {
+      def draw() = {
+        low + math.abs(deterministicRandom.nextInt()) % (1L + high - low)
+      }
+      value(0).map(_ => math.max(low, math.min(high, draw().toInt)))
+    }
+  }
+
+  def detChoose(low: Double, high: Double): Gen[Double] = {
+    if (low > high) fail
+    else {
+      def draw() = {
+        low + deterministicRandom.nextDouble() * (high - low)
+      }
+      value(0).map(_ => math.max(low, math.min(high, draw())))
+    }
+  }
+
+  def detOneOf[T](gens: Gen[T]*): Gen[T] = for {
+    i <- detChoose(0, gens.length - 1)
+    x <- gens(i)
+  } yield x
+
   def stackTraced[T](p: =>T): T = {
     try {
       p
@@ -30,7 +57,7 @@ trait SnapQueueUtils {
 object SegmentCheck extends Properties("Segment") with SnapQueueUtils {
   val maxSegmentSize = 3250
 
-  val sizes = oneOf(value(0), value(1), choose(0, maxSegmentSize))
+  val sizes = detOneOf(value(0), value(1), detChoose(0, maxSegmentSize))
 
   val dummySnapQueue = new SnapQueue[String]
 
@@ -98,7 +125,7 @@ object SegmentCheck extends Properties("Segment") with SnapQueueUtils {
       deqAfterFreezeFailes
   }
 
-  val delays = choose(0, 10)
+  val delays = detChoose(0, 10)
 
   property("Producer-consumer, varying speed") = forAllNoShrink(sizes, delays) {
     (sz, delay) =>
@@ -190,7 +217,7 @@ object SegmentCheck extends Properties("Segment") with SnapQueueUtils {
     seg.deq() == SegmentBase.NONE
   }
 
-  val fillRates = choose(0.0, 1.0)
+  val fillRates = detChoose(0.0, 1.0)
 
   property("locateHead after freeze") = forAllNoShrink(sizes, fillRates) {
     (sz, fill) =>
@@ -276,9 +303,9 @@ object SegmentCheck extends Properties("Segment") with SnapQueueUtils {
       extracted == (0 until total).map(_.toString)
   }
 
-  val numThreads = choose(2, 8)
+  val numThreads = detChoose(2, 8)
 
-  val coarseSizes = choose(16, 9000)
+  val coarseSizes = detChoose(16, 9000)
 
   property("N threads can enqueue") = forAllNoShrink(coarseSizes, numThreads) {
     (sz, n) =>
@@ -329,9 +356,9 @@ object SegmentCheck extends Properties("Segment") with SnapQueueUtils {
 
 
 object SnapQueueCheck extends Properties("SnapQueue") with SnapQueueUtils {
-  val sizes = choose(0, 100000)
+  val sizes = detChoose(0, 100000)
 
-  val fillRates = choose(0.0, 1.0)
+  val fillRates = detChoose(0.0, 1.0)
 
   property("enqueue fills segment") = forAllNoShrink(sizes) { sz =>
     stackTraced {
@@ -406,7 +433,7 @@ object SnapQueueCheck extends Properties("SnapQueue") with SnapQueueUtils {
     }
   }
 
-  val lengths = choose(1, 512)
+  val lengths = detChoose(1, 512)
 
   property("enqueue on full works") = forAllNoShrink(sizes, lengths) {
     (sz, len) =>
@@ -417,5 +444,7 @@ object SnapQueueCheck extends Properties("SnapQueue") with SnapQueueUtils {
       s"got: $extracted" |: extracted == (0 until sz).map(_.toString)
     }
   }
+
+  // property("enqueue on ")
 
 }
