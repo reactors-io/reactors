@@ -355,6 +355,7 @@ object SnapQueue {
     def popl(xs: Support): (Array[T], Support)
     def nonEmpty(xs: Support): Boolean
     def create(): Support
+    def foreach[U](xs: Support, f: T => U): Unit
   }
 
   implicit def concTreeSupportOps[T] = new SupportOps[T] with Serializable {
@@ -370,6 +371,15 @@ object SnapQueue {
     }
     def create(): Support = {
       Conc.Empty
+    }
+    def foreach[U](xs: Support, f: T => U) = {
+      ConcUtils.foreach(xs, (a: Array[T]) => {
+        var i = 0
+        while (i < a.length) {
+          f(a(i))
+          i += 1
+        }
+      })
     }
   }
 

@@ -406,4 +406,16 @@ object SnapQueueCheck extends Properties("SnapQueue") with SnapQueueUtils {
     }
   }
 
+  val lengths = choose(1, 512)
+
+  property("enqueue on full works") = forAllNoShrink(sizes, lengths) {
+    (sz, len) =>
+    stackTraced {
+      val snapq = new SnapQueue[String](len)
+      for (i <- 0 until sz) snapq.enqueue(i.toString)
+      val extracted = Util.extractStringSnapQueue(snapq)
+      s"got: $extracted" |: extracted == (0 until sz).map(_.toString)
+    }
+  }
+
 }

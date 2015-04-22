@@ -257,7 +257,10 @@ object ConcUtils {
     case xs => xs <> ys
   }
 
-  def foreach[@specialized(Byte, Char, Int, Long, Float, Double) T, @specialized(Byte, Char, Int, Long, Float, Double) U](xs: Conc[T], f: T => U): Unit = (xs: @unchecked) match {
+  def foreach[
+    @specialized(Byte, Char, Int, Long, Float, Double) T,
+    @specialized(Byte, Char, Int, Long, Float, Double) U
+  ](xs: Conc[T], f: T => U): Unit = (xs: @unchecked) match {
     case left <> right =>
       foreach(left, f)
       foreach(right, f)

@@ -24,4 +24,29 @@ object Util {
     ???
   }
 
+  def extractStringSupport(snapq: SnapQueue[String])
+    (sup: snapq.supportOps.Support): Seq[String] = {
+    val buffer = mutable.Buffer[String]()
+    snapq.supportOps.foreach(sup, x => buffer += x)
+    buffer
+  }
+
+  def extractStringSnapQueue(snapq: SnapQueue[String]): Seq[String] = {
+    snapq.READ_ROOT() match {
+      case s: snapq.Segment =>
+        Util.extractStringSegment(snapq)(s)
+      case r: snapq.Root =>
+        val buffer = mutable.Buffer[String]()
+        val lseg = r.READ_LEFT().asInstanceOf[snapq.Side].segment
+        val lsup = r.READ_LEFT().asInstanceOf[snapq.Side].support
+        buffer ++= Util.extractStringSegment(snapq)(lseg)
+        buffer ++= Util.extractStringSupport(snapq)(lsup)
+        val rseg = r.READ_RIGHT().asInstanceOf[snapq.Side].segment
+        val rsup = r.READ_RIGHT().asInstanceOf[snapq.Side].support
+        buffer ++= Util.extractStringSupport(snapq)(rsup)
+        buffer ++= Util.extractStringSegment(snapq)(rseg)
+        buffer
+    }
+  }
+
 }
