@@ -55,13 +55,68 @@ sealed abstract class ConcRope[+T] extends Conc[T]
 
 
 object ConcRope {
+  import Conc._
 
   case class Append[+T](left: Conc[T], right: Conc[T]) extends ConcRope[T] {
     val level = 1 + math.max(left.level, right.level)
     val size = left.size + right.size
-    override def normalized = ConcUtils.wrap(this, Conc.Empty)
+    override def normalized = wrapAppend(this, Conc.Empty)
   }
-  
+
+  @tailrec
+  def wrapAppend[T](xs: Conc[T], ys: Conc[T]): Conc[T] = {
+    (xs: @unchecked) match {
+      case Append(ws, zs) => wrapAppend(ws, zs <> ys)
+      case xs => xs <> ys
+    }
+  }
+
+  def appendTop[T](xs: Conc[T], ys: Leaf[T]): Conc[T] = (xs: @unchecked) match {
+    case xs: Append[T] => append(xs, ys)
+    case _ <> _ => new Append(xs, ys)
+    case Empty => ys
+    case xs: Leaf[T] => new <>(xs, ys)
+  }
+
+  @tailrec
+  private def append[T](xs: Append[T], ys: Conc[T]): Conc[T] = {
+    if (xs.right.level > ys.level) new Append(xs, ys)
+    else {
+      val zs = new <>(xs.right, ys)
+      xs.left match {
+        case ws @ Append(_, _) => append(ws, zs)
+        case ws if ws.level <= zs.level => ws <> zs
+        case ws => new Append(ws, zs)
+      }
+    }
+  }
+
+  case class Prepend[+T](left: Conc[T], right: Conc[T]) extends ConcRope[T] {
+    val level = 1 + math.max(left.level, right.level)
+    val size = left.size + right.size
+    override def normalized = wrapPrepend(Conc.Empty, this)
+  }
+
+  @tailrec
+  def wrapPrepend[T](xs: Conc[T], ys: Conc[T]): Conc[T] = {
+    (ys: @unchecked) match {
+      case Prepend(zs, ws) => wrapPrepend(xs <> zs, ws)
+      case ys => xs <> ys
+    }
+  }
+
+  def unprependTop[T](xs: Conc[T]): (T, Conc[T]) = (xs: @unchecked) match {
+    case Prepend(zs: Single[T], ws) =>
+      (zs.x, ws)
+    case Prepend(zs: Chunk[T], ws) =>
+      if (zs.size > 1) {
+        (zs.array(0), new Chunk(zs.array.tail, zs.size - 1, zs.k) <> ws)
+      } else {
+        (zs.array(0), ws)
+      }
+    case _ => ??? // TODO
+  }
+
 }
 
 
@@ -250,11 +305,6 @@ object ConcUtils {
 
     traverse(0, spacing, conq)
     buffer.toString
-  }
-
-  def wrap[T](xs: Conc[T], ys: Conc[T]): Conc[T] = (xs: @unchecked) match {
-    case Append(ws, zs) => wrap(ws, zs <> ys)
-    case xs => xs <> ys
   }
 
   def foreach[
@@ -560,25 +610,6 @@ object ConcUtils {
       new Single(y)
     case _ =>
       invalid("undefined for conqueues.")
-  }
-
-  def appendTop[T](xs: Conc[T], ys: Leaf[T]): Conc[T] = (xs: @unchecked) match {
-    case xs: Append[T] => append(xs, ys)
-    case _ <> _ => new Append(xs, ys)
-    case Empty => ys
-    case xs: Leaf[T] => new <>(xs, ys)
-  }
-
-  @tailrec private def append[T](xs: Append[T], ys: Conc[T]): Conc[T] = {
-    if (xs.right.level > ys.level) new Append(xs, ys)
-    else {
-      val zs = new <>(xs.right, ys)
-      xs.left match {
-        case ws @ Append(_, _) => append(ws, zs)
-        case ws if ws.level <= zs.level => ws <> zs
-        case ws => new Append(ws, zs)
-      }
-    }
   }
 
   def shakeLeft[T](xs: Conc[T]): Conc[T] = {

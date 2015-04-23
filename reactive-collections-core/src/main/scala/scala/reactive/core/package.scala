@@ -61,7 +61,9 @@ package object core {
     def toConqueue: Conqueue[T] = ConcUtils.toConqueue(self)
   }
 
-  implicit class ConcModificationOps[@specialized(Byte, Char, Int, Long, Float, Double) T: ClassTag](val self: Conc[T]) {
+  implicit class ConcModificationOps[
+    @specialized(Byte, Char, Int, Long, Float, Double) T: ClassTag
+  ](val self: Conc[T]) {
     def update(i: Int, y: T) = {
       require(i >= 0 && i < self.size)
       ConcUtils.update(self, i, y)
@@ -76,7 +78,7 @@ package object core {
       val left = ConcUtils.split(self, n, right)
       (left, right.elem)
     }
-    def rappend(y: T) = ConcUtils.appendTop(self, new Conc.Single(y))
+    def rappend(y: T) = ConcRope.appendTop(self, new Conc.Single(y))
   }
 
   implicit class ConqueueOps[T: ClassTag](@specialized(Byte, Char, Int, Long, Float, Double) val self: Conqueue[T]) {
