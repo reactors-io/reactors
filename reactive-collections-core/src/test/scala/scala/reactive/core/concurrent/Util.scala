@@ -16,8 +16,9 @@ object Util {
   def extractStringSegment(dummy: SnapQueue[String])(seg: dummy.Segment):
     Seq[String] = {
     val buffer = mutable.Buffer[String]()
+    val unfrozen = if (seg.READ_HEAD() < 0) seg.unfreeze() else seg
     do {
-      val x = seg.deq()
+      val x = unfrozen.deq()
       if (x != SegmentBase.NONE) buffer += x.asInstanceOf[String]
       else return buffer
     } while (true)
@@ -32,7 +33,9 @@ object Util {
   }
 
   def extractStringSnapQueue(snapq: SnapQueue[String]): Seq[String] = {
-    snapq.READ_ROOT() match {
+    def extract(r: RootOrSegmentOrFrozen[String]): Seq[String] = r match {
+      case f: snapq.Frozen =>
+        extract(f.root)
       case s: snapq.Segment =>
         Util.extractStringSegment(snapq)(s)
       case r: snapq.Root =>
@@ -47,6 +50,8 @@ object Util {
         buffer ++= Util.extractStringSegment(snapq)(rseg)
         buffer
     }
+    val r = snapq.READ_ROOT()
+    extract(r)
   }
 
 }

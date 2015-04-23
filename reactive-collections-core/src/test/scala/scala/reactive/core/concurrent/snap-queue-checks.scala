@@ -4,6 +4,7 @@ package concurrent
 
 
 
+import scala.annotation.tailrec
 import scala.collection._
 import scala.concurrent._
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -157,7 +158,7 @@ object SegmentCheck extends Properties("Segment") with SnapQueueUtils {
           buffer += x.asInstanceOf[String]
         } else waits += 1
       }
-      //println(s"for delay $delay, maxwaits = $maxwaits")
+      // println(s"for delay $delay, maxwaits = $maxwaits")
       s"dequeued correctly: $buffer vs ${input.toSeq}" |: buffer == input.toSeq
     }
 
@@ -445,6 +446,45 @@ object SnapQueueCheck extends Properties("SnapQueue") with SnapQueueUtils {
     }
   }
 
-  // property("enqueue on ")
+  val delays = detChoose(0, 10)
+
+  property("atomic enqueue+freeze") = forAllNoShrink(sizes, lengths, delays) {
+    (sz, len, delay) =>
+    stackTraced {
+      val buf = mutable.Queue[String]() ++= ((0 until sz).map(_.toString))
+      val snapq = new SnapQueue[String](len)
+
+      val producer = Future {
+        while (buf.nonEmpty && !snapq.READ_ROOT().isInstanceOf[snapq.Frozen]) {
+          val x = buf.dequeue()
+          try snapq.enqueue(x)
+          catch {
+            case e: RuntimeException =>
+              // add back to queue
+              x +=: buf
+          }
+        }
+      }
+
+      if (len > 0) Thread.sleep(delay)
+
+      @tailrec
+      def ensureFrozen(): Unit = {
+        snapq.READ_ROOT() match {
+          case f: snapq.Frozen => ensureFrozen()
+          case r =>
+            val fr = snapq.freeze(r, t => sys.error("no transition for test"))
+            if (fr == null) ensureFrozen()
+        }
+      }
+      ensureFrozen()
+
+      Await.result(producer, 5.seconds)
+
+      val extracted = Util.extractStringSnapQueue(snapq)
+      val observed = extracted ++ buf
+      s"got: $observed" |: observed == (0 until sz).map(_.toString)
+    }
+  }
 
 }
