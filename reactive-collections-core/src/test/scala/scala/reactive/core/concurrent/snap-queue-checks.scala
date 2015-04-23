@@ -446,7 +446,7 @@ object SnapQueueCheck extends Properties("SnapQueue") with SnapQueueUtils {
     }
   }
 
-  val delays = detChoose(0, 10)
+  val delays = detChoose(0, 20)
 
   property("atomic enqueue+freeze") = forAllNoShrink(sizes, lengths, delays) {
     (sz, len, delay) =>
