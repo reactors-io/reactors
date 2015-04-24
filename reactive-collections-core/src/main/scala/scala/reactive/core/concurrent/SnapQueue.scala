@@ -107,7 +107,8 @@ extends SnapQueueBase[T] with Serializable {
     val r = READ_ROOT()
     val x = r.dequeue()
     if (x eq REPEAT) dequeue()
-    else x.asInstanceOf[T]
+    else if (x ne NONE) x.asInstanceOf[T]
+    else null.asInstanceOf[T]
   }
 
   final class Frozen(val f: Trans[T], val root: RootOrSegmentOrFrozen[T])
@@ -367,7 +368,7 @@ object SnapQueue {
       ConcRope.unprepend(xs)
     }
     def nonEmpty(xs: Support): Boolean = {
-      xs.size == 0
+      xs.size != 0
     }
     def create(): Support = {
       Conc.Empty

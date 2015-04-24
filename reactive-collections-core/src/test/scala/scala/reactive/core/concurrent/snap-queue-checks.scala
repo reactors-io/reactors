@@ -448,4 +448,23 @@ object SnapQueueCheck extends Properties("SnapQueue") with ExtendedProperties {
     }
   }
 
+  property("dequeue on full works") = forAllNoShrink(sizes, lengths) {
+    (sz, len) =>
+    stackTraced {
+      val snapq = new SnapQueue[String](len)
+      for (i <- 0 until sz) snapq.enqueue(i.toString)
+      val extracted = mutable.Buffer[String]()
+      @tailrec def extract() {
+        val x = snapq.dequeue()
+        if (x != null) {
+          extracted += x
+          extract()
+        }
+      }
+      extract()
+
+      s"got: $extracted" |: extracted == (0 until sz).map(_.toString)
+    }
+  }
+
 }
