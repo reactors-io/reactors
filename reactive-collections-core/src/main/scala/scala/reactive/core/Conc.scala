@@ -71,20 +71,21 @@ object ConcRope {
     }
   }
 
-  def appendTop[T](xs: Conc[T], ys: Leaf[T]): Conc[T] = (xs: @unchecked) match {
-    case xs: Append[T] => append(xs, ys)
+  def append[T](xs: Conc[T], ys: Leaf[T]): Conc[T] = (xs: @unchecked) match {
+    case xs: Append[T] => appendRec(xs, ys)
     case _ <> _ => new Append(xs, ys)
     case Empty => ys
     case xs: Leaf[T] => new <>(xs, ys)
+    case xs: Prepend[T] => append(xs.normalized, ys)
   }
 
   @tailrec
-  private def append[T](xs: Append[T], ys: Conc[T]): Conc[T] = {
+  private def appendRec[T](xs: Append[T], ys: Conc[T]): Conc[T] = {
     if (xs.right.level > ys.level) new Append(xs, ys)
     else {
       val zs = new <>(xs.right, ys)
       xs.left match {
-        case ws @ Append(_, _) => append(ws, zs)
+        case ws @ Append(_, _) => appendRec(ws, zs)
         case ws if ws.level <= zs.level => ws <> zs
         case ws => new Append(ws, zs)
       }
@@ -105,16 +106,75 @@ object ConcRope {
     }
   }
 
-  def unprependTop[T](xs: Conc[T]): (T, Conc[T]) = (xs: @unchecked) match {
-    case Prepend(zs: Single[T], ws) =>
-      (zs.x, ws)
-    case Prepend(zs: Chunk[T], ws) =>
-      if (zs.size > 1) {
-        (zs.array(0), new Chunk(zs.array.tail, zs.size - 1, zs.k) <> ws)
-      } else {
-        (zs.array(0), ws)
+  def unprepend[T](xs: Conc[T]): (T, Conc[T]) = {
+    def unwind(left: Conc[T], acc: Conc[T]): (T, Conc[T]) = {
+      (left: @unchecked) match {
+        case zs: Single[T] =>
+          (zs.x, acc)
+        case zs: Chunk[T] =>
+          if (zs.size > 1) {
+            val nxs = Prepend(new Chunk(zs.array.tail, zs.size - 1, zs.k), acc)
+            (zs.array(0), nxs)
+          } else {
+            (zs.array(0), acc)
+          }
+        case zs: <>[T] =>
+          val left <> right = ConcUtils.shakeRight(zs)
+          unwind(left, Prepend(right, acc))
       }
-    case _ => ??? // TODO
+    }
+    (xs: @unchecked) match {
+      case Prepend(zs, ws) =>
+        unwind(zs, ws)
+      case xs: <>[T] =>
+        val left <> acc = ConcUtils.shakeRight(xs)
+        unwind(left, acc)
+      case Empty =>
+        throw new UnsupportedOperationException("Cannot unprepend on Empty.")
+      case xs: Single[T] =>
+        (xs.x, Empty)
+      case xs: Chunk[T] =>
+        if (xs.size > 1) {
+          val nxs = new Chunk(xs.array.tail, xs.size - 1, xs.k)
+          (xs.array(0), nxs)
+        } else {
+          (xs.array(0), Empty)
+        }
+      case xs: Append[T] =>
+        unprepend(xs.normalized)
+    }
+  }
+
+  private def isNormalized[T](xs: Conc[T]): Boolean = (xs: @unchecked) match {
+    case left <> right => isNormalized(left) && isNormalized(right)
+    case xs: Leaf[T] => true
+    case _ => false
+  }
+
+  @tailrec
+  private def isAppendList[T](xs: Conc[T]): Boolean = (xs: @unchecked) match {
+    case Prepend(_, _) =>
+      false
+    case Append(zs @ Append(_, ws), ys) =>
+      ys.level < ws.level && isNormalized(ys) && isAppendList(zs)
+    case Append(zs, ys) =>
+      ys.level < zs.level && isNormalized(ys) && isNormalized(zs)
+  }
+
+  @tailrec
+  private def isPrependList[T](xs: Conc[T]): Boolean = (xs: @unchecked) match {
+    case Append(_, _) =>
+      false
+    case Prepend(ys, zs @ Prepend(ws, _)) =>
+      ys.level < ws.level && isNormalized(ys) && isPrependList(zs)
+    case Prepend(ys, zs) =>
+      ys.level < zs.level && isNormalized(ys) && isNormalized(zs)
+  }
+
+  def invariant[T](xs: Conc[T]) = (xs: @unchecked) match {
+    case Append(_, _) => isAppendList(xs)
+    case Prepend(_, _) => isPrependList(xs)
+    case _ => isNormalized(xs)
   }
 
 }
@@ -123,7 +183,7 @@ object ConcRope {
 sealed abstract class Conqueue[+T] extends Conc[T] {
   def evaluated: Boolean
   def rear: Conqueue[T]
-  def addIfUnevaluated[U >: T](stack: List[Conqueue.Spine[U]]): List[Conqueue.Spine[U]] = stack
+  def addIfUnevaluated[U >: T](stack: List[Conqueue.Spine[U]]) = stack
 }
 
 

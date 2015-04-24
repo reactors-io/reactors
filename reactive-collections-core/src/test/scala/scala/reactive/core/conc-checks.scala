@@ -2,46 +2,48 @@ package scala.reactive.core
 
 
 
+import scala.annotation.tailrec
 import scala.collection._
 import org.scalacheck._
 import org.scalacheck.Prop._
-import org.scalacheck.Gen._
+import org.testx._
 import Conc._
 import ConcRope._
 import Conqueue._
 
 
 
-object ConcChecks extends Properties("Conc") with ConcSnippets {
+object ConcChecks extends Properties("Conc") with ConcSnippets
+  with ExtendedProperties {
 
   /* conc tree */
 
-  val genLeaf = for (n <- choose(0, 500)) yield new Conc.Single(n)
+  val genLeaf = for (n <- detChoose(0, 500)) yield new Conc.Single(n)
 
   def genTree(level: Int): Gen[Conc[Int]] = if (level <= 0) genLeaf else for {
-    tp <- oneOf(0, 1, 2)
+    tp <- detOneOf(0, 1, 2)
     left <- if (tp == 0) genTree(level - 2) else genTree(level - 1)
     right <- if (tp == 2) genTree(level - 2) else genTree(level - 1)
   } yield new <>(left, right)
 
   def trees(maxlevel: Int) = for {
-    level <- choose(0, maxlevel + 1)
+    level <- detChoose(0, maxlevel + 1)
     tree <- genTree(level)
   } yield tree
 
-  property("<> correctness") = forAll(choose(0, 1024), choose(0, 1024)) {
+  property("<> correctness") = forAll(detChoose(0, 1024), detChoose(0, 1024)) {
     testConcatCorrectness
   }
 
-  property("<> balance") = forAll(choose(0, 1024), choose(0, 1024)) {
+  property("<> balance") = forAll(detChoose(0, 1024), detChoose(0, 1024)) {
     testConcatBalance
   }
 
-  property("apply correctness") = forAll(choose(1, 1024)) {
+  property("apply correctness") = forAll(detChoose(1, 1024)) {
     testApply
   }
 
-  property("update correctness") = forAll(choose(1, 2048)) { n =>
+  property("update correctness") = forAll(detChoose(1, 2048)) { n =>
     testUpdate(n)
     testRopeUpdate(n)
     testConqueueUpdate(1)
@@ -49,13 +51,14 @@ object ConcChecks extends Properties("Conc") with ConcSnippets {
     testConqueueUpdate(n)
   }
 
-  property("insert correctness") = forAll(choose(0, 1024), choose(0, 20), choose(0, 1024)) {
+  property("insert correctness") = forAll(detChoose(0, 1024), detChoose(0, 20),
+    detChoose(0, 1024)) {
     testInsert
   }
 
   property("split correctness") = forAll(for {
-    sz <- choose(0, 4096)
-    at <- choose(0, sz)
+    sz <- detChoose(0, 4096)
+    at <- detChoose(0, sz)
   } yield (sz, at)) { case (sz, at) =>
     testSplit(concList(0 until sz), at)
     testSplit(concChunkRope(0 until sz, 32), at)
@@ -69,7 +72,8 @@ object ConcChecks extends Properties("Conc") with ConcSnippets {
     val shaken = ConcUtils.shakeLeft(tree)
     all(
       s"invariants: $shaken" |: checkInvs(shaken),
-      s"leaning left: $shaken" |: (shaken.level <= 1 || shaken.level < tree.level || shaken.left.level >= shaken.right.level)
+      s"leaning left: $shaken" |: (shaken.level <= 1 ||
+          shaken.level < tree.level || shaken.left.level >= shaken.right.level)
     )
   }
 
@@ -77,25 +81,42 @@ object ConcChecks extends Properties("Conc") with ConcSnippets {
     val shaken = ConcUtils.shakeRight(tree)
     all(
       s"invariants: $shaken" |: checkInvs(shaken),
-      s"leaning right: $shaken" |: (shaken.level <= 1 || shaken.level < tree.level || shaken.left.level <= shaken.right.level)
+      s"leaning right: $shaken" |: (shaken.level <= 1 ||
+        shaken.level < tree.level || shaken.left.level <= shaken.right.level)
     )
   }
 
   /* conc rope */
 
-  property("append correctness") = forAll(choose(1, 1000), choose(1, 5000)) {
+  property("append correctness") = forAll(detChoose(1, 1000),
+    detChoose(1, 5000)) {
     testAppendCorrectness
   }
 
-  property("append balance") = forAll(choose(1, 1000), choose(1, 5000)) {
+  property("append balance") = forAll(detChoose(1, 1000), detChoose(1, 5000)) {
     testAppendBalance
+  }
+
+  property("unprepend correctness") = forAll(trees(14)) { tree =>
+    val expected = mutable.Buffer[Int]()
+    for (x <- tree) expected += x
+    val observed = mutable.Buffer[Int]()
+    @tailrec def extract(xs: Conc[Int]): Unit = if (xs != Empty) {
+      val (head, tail) = ConcRope.unprepend(xs)
+      observed += head
+      assert(ConcRope.invariant(tree))
+      extract(tail)
+    }
+    extract(tree)
+
+    s"want: $expected, got: $observed" |: expected == observed
   }
 
   /* conqueue */
 
   def genSequence[T](length: Int, g: Gen[T]): Gen[Seq[T]] = for {
     head <- g
-    tail <- if (length <= 1) oneOf(Nil, Nil) else genSequence(length - 1, g)
+    tail <- if (length <= 1) detOneOf(Nil, Nil) else genSequence(length - 1, g)
   } yield head +: tail
 
   def genNum(num: Int, rank: Int) = for {
@@ -109,13 +130,13 @@ object ConcChecks extends Properties("Conc") with ConcSnippets {
   }
 
   def genTip(rank: Int) = for {
-    num <- oneOf(2, 3)
+    num <- detOneOf(2, 3)
     xs <- genNum(num, rank)
   } yield Tip(xs)
 
   def genSpine(rank: Int, maxRank: Int): Gen[Spine[Int]] = for {
-    leftNum <- oneOf(2, 3)
-    rightNum <- oneOf(2, 3)
+    leftNum <- detOneOf(2, 3)
+    rightNum <- detOneOf(2, 3)
     leftWing <- genNum(leftNum, rank)
     rightWing <- genNum(rightNum, rank)
     tail <- genConqueue(rank + 1, maxRank)
@@ -126,7 +147,7 @@ object ConcChecks extends Properties("Conc") with ConcSnippets {
   } yield conqueue
 
   def queues(rankLimit: Int) = for {
-    maxRank <- choose(0, rankLimit)
+    maxRank <- detChoose(0, rankLimit)
     conqueue <- genConqueue(0, maxRank)
   } yield conqueue
 
@@ -147,7 +168,9 @@ object ConcChecks extends Properties("Conc") with ConcSnippets {
   property("last correctness") = forAll(queues(5)) { conq =>
     val buffer = mutable.Buffer[Int]()
     for (x <- conq) buffer += x
-    s"${ConcUtils.queueString(conq)}\n: ${buffer.last} vs ${ConcUtils.last(conq)}" |: buffer.last == ConcUtils.last(conq).asInstanceOf[Single[Int]].x
+    val queueStr = ConcUtils.queueString(conq)
+    s"$queueStr\n: ${buffer.last} vs ${ConcUtils.last(conq)}" |:
+      buffer.last == ConcUtils.last(conq).asInstanceOf[Single[Int]].x
   }
 
   property("conqueue pushHeadTop") = forAll(queues(9)) { conq =>
@@ -157,13 +180,15 @@ object ConcChecks extends Properties("Conc") with ConcSnippets {
     //println(ConcUtils.queueString(pushed))
     //println("--------------")
     all(
-      s"Head is the value just pushed." |: ConcUtils.head(pushed).asInstanceOf[Single[Int]].x == -1,
+      s"Head is the value just pushed." |:
+        ConcUtils.head(pushed).asInstanceOf[Single[Int]].x == -1,
       s"Invariants are met." |: checkConqueueInvs(pushed, 0),
       s"Correctly prepended." |: toSeq(pushed) == (-1 +: toSeq(conq))
     )
   }
 
-  property("conqueue pushHeadTop many times") = forAll(queues(9), choose(1, 10000)) { (conq, n) =>
+  property("conqueue pushHeadTop many times") = forAll(queues(9),
+    detChoose(1, 10000)) { (conq, n) =>
     var pushed = conq
     for (i <- 0 until n) {
       var units = 0
@@ -177,7 +202,8 @@ object ConcChecks extends Properties("Conc") with ConcSnippets {
     //println("--------------")
     all(
       s"Invariants are met." |: checkConqueueInvs(pushed, 0),
-      s"Correctly prepended." |: toSeq(pushed) == ((0 until n).map(-_).reverse ++ toSeq(conq))
+      s"Correctly prepended." |:
+        toSeq(pushed) == ((0 until n).map(-_).reverse ++ toSeq(conq))
     )
   }
 
@@ -188,13 +214,15 @@ object ConcChecks extends Properties("Conc") with ConcSnippets {
     //println(ConcUtils.queueString(pushed))
     //println("--------------")
     all(
-      s"Last is the value just pushed." |: ConcUtils.last(pushed).asInstanceOf[Single[Int]].x == -1,
+      s"Last is the value just pushed." |:
+        ConcUtils.last(pushed).asInstanceOf[Single[Int]].x == -1,
       s"Invariants are met." |: checkConqueueInvs(pushed, 0),
       s"Correctly appended." |: toSeq(pushed) == (toSeq(conq) :+ -1)
     )
   }
 
-  property("conqueue pushLastTop many times") = forAll(queues(9), choose(1, 10000)) { (conq, n) =>
+  property("conqueue pushLastTop many times") = forAll(queues(9),
+    detChoose(1, 10000)) { (conq, n) =>
     var pushed = conq
     for (i <- 0 until n) {
       var units = 0
@@ -208,11 +236,13 @@ object ConcChecks extends Properties("Conc") with ConcSnippets {
     //println("--------------")
     all(
       s"Invariants are met." |: checkConqueueInvs(pushed, 0),
-      s"Correctly appended." |: toSeq(pushed) == (toSeq(conq) ++ (0 until n).map(-_))
+      s"Correctly appended." |:
+        toSeq(pushed) == (toSeq(conq) ++ (0 until n).map(-_))
     )
   }
 
-  property("lazy conqueue pushHeadTop constant work") = forAll(lazyQueues(9), choose(1, 10000)) { (lazyq, n) =>
+  property("lazy conqueue pushHeadTop constant work") = forAll(lazyQueues(9),
+    detChoose(1, 10000)) { (lazyq, n) =>
     var pushed: Conqueue[Int] = lazyq
     val workHistory = for (i <- 0 until n) yield {
       var units = 0
@@ -223,11 +253,13 @@ object ConcChecks extends Properties("Conc") with ConcSnippets {
     all(
       s"Most work ever done <= 4: $mostWork" |: mostWork <= 4,
       s"Invariants are met." |: checkConqueueInvs(pushed, 0),
-      s"Correctly prepended." |: toSeq(pushed) == ((0 until n).map(-_).reverse ++ toSeq(lazyq))
+      s"Correctly prepended." |:
+        toSeq(pushed) == ((0 until n).map(-_).reverse ++ toSeq(lazyq))
     )
   }
 
-  property("lazy conqueue pushLastTop constant work") = forAll(lazyQueues(9), choose(1, 10000)) { (lazyq, n) =>
+  property("lazy conqueue pushLastTop constant work") = forAll(lazyQueues(9),
+    detChoose(1, 10000)) { (lazyq, n) =>
     var pushed: Conqueue[Int] = lazyq
     val workHistory = for (i <- 0 until n) yield {
       var units = 0
@@ -238,32 +270,37 @@ object ConcChecks extends Properties("Conc") with ConcSnippets {
     all(
       s"Most work ever done <= 4: $mostWork" |: mostWork <= 4,
       s"Invariants are met." |: checkConqueueInvs(pushed, 0),
-      s"Correctly appended." |: toSeq(pushed) == (toSeq(lazyq) ++ (0 until n).map(-_))
+      s"Correctly appended." |:
+        toSeq(pushed) == (toSeq(lazyq) ++ (0 until n).map(-_))
     )
   }
 
-  property("lazy conqueue alternating pushHeadTop/pushLastTop constant work") = forAll(lazyQueues(9), choose(1, 10000), choose(1, 1000)) { (lazyq, n, seed) =>
-    val random = new scala.util.Random(seed)
-    var buffer = toSeq(lazyq)
-    var pushed: Conqueue[Int] = lazyq
-    val workHistory = for (i <- 0 until n) yield {
-      var units = 0
-      if (random.nextBoolean()) {
-        pushed = ConcUtils.pushHeadTop(pushed, new Single(-i), () => units += 1)
-        buffer = -i +: buffer
-      } else {
-        pushed = ConcUtils.pushLastTop(pushed, new Single(-i), () => units += 1)
-        buffer = buffer :+ -i
+  property("lazy conqueue alternating pushHeadTop/pushLastTop constant work") =
+    forAll(lazyQueues(9), detChoose(1, 10000), detChoose(1, 1000)) {
+      (lazyq, n, seed) =>
+      val random = new scala.util.Random(seed)
+      var buffer = toSeq(lazyq)
+      var pushed: Conqueue[Int] = lazyq
+      val workHistory = for (i <- 0 until n) yield {
+        var units = 0
+        if (random.nextBoolean()) {
+          pushed = ConcUtils.pushHeadTop(pushed,
+            new Single(-i), () => units += 1)
+          buffer = -i +: buffer
+        } else {
+          pushed = ConcUtils.pushLastTop(pushed, new Single(-i),
+            () => units += 1)
+          buffer = buffer :+ -i
+        }
+        units
       }
-      units
+      val mostWork = workHistory.max
+      all(
+        s"Most work ever done <= 4: $mostWork" |: mostWork <= 4,
+        s"Invariants are met." |: checkConqueueInvs(pushed, 0),
+        s"Correctly appended." |: toSeq(pushed) == buffer
+      )
     }
-    val mostWork = workHistory.max
-    all(
-      s"Most work ever done <= 4: $mostWork" |: mostWork <= 4,
-      s"Invariants are met." |: checkConqueueInvs(pushed, 0),
-      s"Correctly appended." |: toSeq(pushed) == buffer
-    )
-  }
 
   property("conqueue popHeadTop") = forAll(queues(9)) { conq =>
     var popped = conq
@@ -347,35 +384,36 @@ object ConcChecks extends Properties("Conc") with ConcSnippets {
     )
   }
 
-  property("lazy conqueue constant amount of work for any operation") = forAll(lazyQueues(15), choose(1, 1000000)) { (conq, seed) =>
-    var modified: Conqueue[Int] = conq
-    val random = new scala.util.Random(seed)
-    val workHistory = mutable.Buffer[Int]()
-    for (i <- 0 until 10000) {
-      var units = 0
-      val ops = modified match {
-        case Lazy(Nil, Tip(Zero), Nil) => 2
-        case _ => 4
+  property("lazy conqueue constant amount of work for any operation") =
+    forAll(lazyQueues(15), detChoose(1, 1000000)) { (conq, seed) =>
+      var modified: Conqueue[Int] = conq
+      val random = new scala.util.Random(seed)
+      val workHistory = mutable.Buffer[Int]()
+      for (i <- 0 until 10000) {
+        var units = 0
+        val ops = modified match {
+          case Lazy(Nil, Tip(Zero), Nil) => 2
+          case _ => 4
+        }
+        random.nextInt(ops) match {
+          case 0 =>
+            modified = ConcUtils.pushHeadTop(modified, new Single(i), () => units += 1)
+          case 1 =>
+            modified = ConcUtils.pushLastTop(modified, new Single(i), () => units += 1)
+          case 2 =>
+            modified = ConcUtils.popHeadTop(modified, () => units += 1)
+          case 3 =>
+            modified = ConcUtils.popLastTop(modified, () => units += 1)
+        }
+        workHistory += units
       }
-      random.nextInt(ops) match {
-        case 0 =>
-          modified = ConcUtils.pushHeadTop(modified, new Single(i), () => units += 1)
-        case 1 =>
-          modified = ConcUtils.pushLastTop(modified, new Single(i), () => units += 1)
-        case 2 =>
-          modified = ConcUtils.popHeadTop(modified, () => units += 1)
-        case 3 =>
-          modified = ConcUtils.popLastTop(modified, () => units += 1)
-      }
-      workHistory += units
+      val mostWork = workHistory.max
+      all(
+        s"Most work ever done <= 4: $mostWork in $workHistory" |: mostWork <= 4
+      )
     }
-    val mostWork = workHistory.max
-    all(
-      s"Most work ever done <= 4: $mostWork in $workHistory" |: mostWork <= 4
-    )
-  }
 
-  property("conqueue normalized") = forAll(queues(15), choose(1, 1000000), choose(1, 10000)) { (conq, seed, numops) =>
+  property("conqueue normalized") = forAll(queues(15), detChoose(1, 1000000), detChoose(1, 10000)) { (conq, seed, numops) =>
     var modified: Conqueue[Int] = conq
     val random = new scala.util.Random(seed)
     for (i <- 0 until numops) {
@@ -466,14 +504,14 @@ object ConcChecks extends Properties("Conc") with ConcSnippets {
     }
   }
 
-  property("conc buffer correct") = forAll(choose(1, 10000)) { num =>
+  property("conc buffer correct") = forAll(detChoose(1, 10000)) { num =>
     val cb = new ConcBuffer[Int](32)
     for (i <- 0 until num) cb += i
     val conc = cb.extractConc()
     s"Conc buffer contains correct elements:\n$conc\n${toSeq(conc)}\n---- vs ----\n${0 until num}" |: toSeq(conc) == (0 until num)
   }
 
-  property("conqueue buffer correct pushLast") = forAll(choose(1, 10000)) { num =>
+  property("conqueue buffer correct pushLast") = forAll(detChoose(1, 10000)) { num =>
     noExceptions(s"num = $num") {
       val cb = new ConqueueBuffer[Int](32)
       for (i <- 0 until num) cb.pushLast(i)
@@ -482,7 +520,7 @@ object ConcChecks extends Properties("Conc") with ConcSnippets {
     }
   }
 
-  property("conqueue buffer correct pushHead") = forAll(choose(1, 10000)) { num =>
+  property("conqueue buffer correct pushHead") = forAll(detChoose(1, 10000)) { num =>
     noExceptions(s"num = $num") {
       val cb = new ConqueueBuffer[Int](32)
       for (i <- 0 until num) cb.pushHead(i)
@@ -491,7 +529,7 @@ object ConcChecks extends Properties("Conc") with ConcSnippets {
     }
   }
 
-  property("conqueue buffer correct popLast") = forAll(choose(1, 10000)) { num =>
+  property("conqueue buffer correct popLast") = forAll(detChoose(1, 10000)) { num =>
     noExceptions(s"num = $num") {
       val cb = new ConqueueBuffer[Int](32)
       for (i <- 0 until num) cb.pushLast(i)
@@ -501,7 +539,7 @@ object ConcChecks extends Properties("Conc") with ConcSnippets {
     }
   }
 
-  property("conqueue buffer correct popHead") = forAll(choose(1, 10000)) { num =>
+  property("conqueue buffer correct popHead") = forAll(detChoose(1, 10000)) { num =>
     noExceptions(s"num = $num") {
       val cb = new ConqueueBuffer[Int](32)
       for (i <- 0 until num) cb.pushLast(i)
@@ -511,9 +549,9 @@ object ConcChecks extends Properties("Conc") with ConcSnippets {
     }
   }
 
-  property("conqueue buffer all combinations of operations correct") = forAll(choose(1, 64), choose(1, 64), choose(1, 10000), choose(1, 1000000)) { (prehead, prelast, numops, seed) =>
-    //forAll(oneOf(0, 0), oneOf(0, 0), oneOf(2659, 2659), oneOf(0, 0)) { (prehead, prelast, numops, seed) =>
-    //forAll(oneOf(0, 0), oneOf(0, 0), oneOf(1770, 1770), oneOf(0, 0)) { (prehead, prelast, numops, seed) =>
+  property("conqueue buffer all combinations of operations correct") = forAll(detChoose(1, 64), detChoose(1, 64), detChoose(1, 10000), detChoose(1, 1000000)) { (prehead, prelast, numops, seed) =>
+    //forAll(detOneOf(0, 0), detOneOf(0, 0), detOneOf(2659, 2659), detOneOf(0, 0)) { (prehead, prelast, numops, seed) =>
+    //forAll(detOneOf(0, 0), detOneOf(0, 0), detOneOf(1770, 1770), detOneOf(0, 0)) { (prehead, prelast, numops, seed) =>
     noExceptions(s"$prehead, $prelast, $numops, $seed") {
       val cb = new ConqueueBuffer[Int](32)
       var v = Vector[Int]()
@@ -568,9 +606,3 @@ object ConcChecks extends Properties("Conc") with ConcSnippets {
   }
 
 }
-
-
-
-
-
-

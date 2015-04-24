@@ -361,10 +361,10 @@ object SnapQueue {
   implicit def concTreeSupportOps[T] = new SupportOps[T] with Serializable {
     type Support = Conc[Array[T]]
     def pushr(xs: Support, x: Array[T]) = {
-      ConcRope.appendTop(xs, new Conc.Single(x))
+      ConcRope.append(xs, new Conc.Single(x))
     }
     def popl(xs: Support): (Array[T], Support) = {
-      ConcRope.unprependTop(xs)
+      ConcRope.unprepend(xs)
     }
     def nonEmpty(xs: Support): Boolean = {
       xs.size == 0

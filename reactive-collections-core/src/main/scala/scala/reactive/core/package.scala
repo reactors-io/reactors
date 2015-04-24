@@ -78,7 +78,7 @@ package object core {
       val left = ConcUtils.split(self, n, right)
       (left, right.elem)
     }
-    def rappend(y: T) = ConcRope.appendTop(self, new Conc.Single(y))
+    def rappend(y: T) = ConcRope.append(self, new Conc.Single(y))
   }
 
   implicit class ConqueueOps[T: ClassTag](@specialized(Byte, Char, Int, Long, Float, Double) val self: Conqueue[T]) {
