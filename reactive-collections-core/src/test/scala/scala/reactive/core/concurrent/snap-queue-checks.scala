@@ -89,7 +89,7 @@ object SegmentCheck extends Properties("Segment") with ExtendedProperties {
 
   val delays = detChoose(0, 10)
 
-  property("Producer-consumer, varying speed") = forAllNoShrink(sizes, delays) {
+  property("producer-consumer, varying speed") = forAllNoShrink(sizes, delays) {
     (sz, delay) =>
     val seg = new dummySnapQueue.Segment(sz)
     val input = (0 until seg.capacity).map(_.toString).toArray
@@ -322,6 +322,12 @@ object SnapQueueCheck extends Properties("SnapQueue") with ExtendedProperties {
 
   val fillRates = detChoose(0.0, 1.0)
 
+  val lengths = detChoose(1, 512)
+
+  val delays = detOneOf(value(1), detChoose(0, 16))
+
+  val numThreads = detChoose(1, 8)
+
   property("enqueue fills segment") = forAllNoShrink(sizes) { sz =>
     stackTraced {
       val snapq = new SnapQueue[String](sz)
@@ -395,8 +401,6 @@ object SnapQueueCheck extends Properties("SnapQueue") with ExtendedProperties {
     }
   }
 
-  val lengths = detChoose(1, 512)
-
   property("enqueue on full works") = forAllNoShrink(sizes, lengths) {
     (sz, len) =>
     stackTraced {
@@ -406,8 +410,6 @@ object SnapQueueCheck extends Properties("SnapQueue") with ExtendedProperties {
       s"got: $extracted" |: extracted == (0 until sz).map(_.toString)
     }
   }
-
-  val delays = detOneOf(value(1), detChoose(0, 16))
 
   @tailrec
   def ensureFrozen(snapq: SnapQueue[String]): Unit = {
@@ -447,8 +449,6 @@ object SnapQueueCheck extends Properties("SnapQueue") with ExtendedProperties {
       s"got: $observed" |: observed == (0 until sz).map(_.toString)
     }
   }
-
-  val numThreads = detChoose(1, 8)
 
   def subsequenceOf[T](xs: Seq[T], ys: Seq[T]): Boolean = {
     if (xs.length == 0) true
@@ -568,6 +568,37 @@ object SnapQueueCheck extends Properties("SnapQueue") with ExtendedProperties {
         s"is subsequence: $b" |: subsequenceOf(b, inputs)
       }).foldLeft("zero" |: true)(_ && _)
       allPresent && allOrdered
+    }
+  }
+
+  property("producer-consumer, with delays") = forAllNoShrink(sizes, lengths, delays) {
+    (sz, len, delay) =>
+    stackTraced {
+      val snapq = new SnapQueue[String](len)
+
+      val producer = Future {
+        for (i <- 0 until sz) snapq.enqueue(i.toString)
+      }
+
+      val consumer = Future {
+        def spin() {
+          var i = 0
+          while (i < delay) {
+            snapq.READ_ROOT()
+            i += 1
+          }
+        }
+        val extracted = mutable.Buffer[String]()
+        while (extracted.size != sz) {
+          spin()
+          val x = snapq.dequeue()
+          if (x != null) extracted += x
+        }
+        extracted
+      }
+
+      val extracted = Await.result(consumer, 3.seconds)
+      s"got: $extracted" |: extracted == (0 until sz).map(_.toString)
     }
   }
 

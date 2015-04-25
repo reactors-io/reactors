@@ -10,11 +10,26 @@ abstract class SegmentBase<T> extends RootOrSegmentOrFrozen<T> {
 
   protected final static Object EMPTY = null;
 
-  protected final static Object FROZEN = new Object();
+  protected final static Object FROZEN = new Object() {
+    @Override
+    public String toString() {
+      return "FROZEN";
+    }
+  };
 
-  protected final static Object NONE = new Object();
+  protected final static Object NONE = new Object() {
+    @Override
+    public String toString() {
+      return "NONE";
+    }
+  };
 
-  protected final static Object REPEAT = new Object();
+  protected final static Object REPEAT = new Object() {
+    @Override
+    public String toString() {
+      return "REPEAT";
+    }
+  };
 
   protected final static long ARRAY_OFFSET =
     instance.arrayBaseOffset(Object[].class);

@@ -133,7 +133,7 @@ extends SnapQueueBase[T] with Serializable {
       val p = r.segment.READ_LAST()
       if (r.segment.enq(p, x.asInstanceOf[AnyRef])) true
       else { // full or frozen
-        if (r.segment.READ_HEAD() < 0) false
+        if (r.isFrozen) false
         else { // full
           val seg = new Segment(r.segment.capacity)
           val array = r.segment.array.asInstanceOf[Array[T]]
@@ -151,7 +151,7 @@ extends SnapQueueBase[T] with Serializable {
       val x = l.segment.deq()
       if (x ne NONE) x
       else { // empty or frozen
-        if (l.segment.READ_HEAD() < 0) REPEAT
+        if (l.isFrozen) REPEAT
         else { // empty
           if (supportOps.nonEmpty(l.support)) {
             val (array, sup) = supportOps.popl(l.support)
@@ -243,8 +243,14 @@ extends SnapQueueBase[T] with Serializable {
         if (p == array.length) { WRITE_LAST(p); p }
         else {
           val x = READ_ARRAY(p)
-          if (x eq EMPTY) sys.error("cannot be called on non-frozen segments")
-          else if (x eq FROZEN) { WRITE_LAST(p); p }
+          if (x eq EMPTY) {
+            sys.error(s"""locate on non-frozen
+              p = $p,
+              x = $x,
+              array(p) = ${READ_ARRAY(p)},
+              frozenBy = $frozenBy vs currentThread = ${Thread.currentThread}
+              $this""")
+          } else if (x eq FROZEN) { WRITE_LAST(p); p }
           else locate(p + 1)
         }
       locate(READ_LAST())
@@ -323,11 +329,13 @@ extends SnapQueueBase[T] with Serializable {
       }
     }
 
+    private var frozenBy: Thread = null
     @tailrec
     def freezeLast(p: Int) {
       if (p >= 0 && p < array.length)
         if (!CAS_ARRAY(p, EMPTY, FROZEN))
           freezeLast(findLast(p))
+        else {frozenBy = Thread.currentThread}
     }
 
     /** Only used for testing.
@@ -342,7 +350,8 @@ extends SnapQueueBase[T] with Serializable {
       }
     }
 
-    override def toString = s"Segment(${array.mkString(", ")})"
+    override def toString =
+      s"Segment(head: ${READ_HEAD()}; last: ${READ_LAST()}; ${array.mkString(", ")})"
   }
 
 }
