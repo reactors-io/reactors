@@ -388,6 +388,9 @@ object ConcUtils {
     case Append(left, right) =>
       foreach(left, f)
       foreach(right, f)
+    case Prepend(left, right) =>
+      foreach(left, f)
+      foreach(right, f)
     case Zero =>
     case One(_1) =>
       foreach(_1, f)
@@ -492,6 +495,10 @@ object ConcUtils {
       apply(left, i)
     case Append(left, right) =>
       apply(right, i - left.size)
+    case Prepend(left, right) if i < left.size =>
+      apply(left, i)
+    case Prepend(left, right) =>
+      apply(right, i - left.size)
     case One(_1) =>
       apply(_1, i)
     case Two(_1, _2) =>
@@ -528,7 +535,7 @@ object ConcUtils {
       new Single(y)
     case c: Chunk[T] =>
       new Chunk(updatedArray(c.array, i, y, c.size), c.size, c.k)
-    case Append(left, right) if i < left.size =>
+    case Append(left, right) if i < left.size => // TODO: see if this should be removed.
       new Append(update(left, i, y), right)
     case Append(left, right) =>
       new Append(left, update(right, i - left.size, y))

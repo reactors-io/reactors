@@ -407,7 +407,17 @@ object SnapQueueCheck extends Properties("SnapQueue") with ExtendedProperties {
     }
   }
 
-  val delays = detChoose(0, 20)
+  val delays = detChoose(0, 16)
+
+  @tailrec
+  def ensureFrozen(snapq: SnapQueue[String]): Unit = {
+    snapq.READ_ROOT() match {
+      case f: snapq.Frozen => ensureFrozen(snapq)
+      case r =>
+        val fr = snapq.freeze(r, t => sys.error("no transition for test"))
+        if (fr == null) ensureFrozen(snapq)
+    }
+  }
 
   property("atomic enqueue+freeze") = forAllNoShrink(sizes, lengths, delays) {
     (sz, len, delay) =>
@@ -428,17 +438,7 @@ object SnapQueueCheck extends Properties("SnapQueue") with ExtendedProperties {
       }
 
       if (len > 0) Thread.sleep(delay)
-
-      @tailrec
-      def ensureFrozen(): Unit = {
-        snapq.READ_ROOT() match {
-          case f: snapq.Frozen => ensureFrozen()
-          case r =>
-            val fr = snapq.freeze(r, t => sys.error("no transition for test"))
-            if (fr == null) ensureFrozen()
-        }
-      }
-      ensureFrozen()
+      ensureFrozen(snapq)
 
       Await.result(producer, 5.seconds)
 
@@ -464,6 +464,39 @@ object SnapQueueCheck extends Properties("SnapQueue") with ExtendedProperties {
       extract()
 
       s"got: $extracted" |: extracted == (0 until sz).map(_.toString)
+    }
+  }
+
+  property("atomic dequeue+freeze") = forAllNoShrink(sizes, lengths, delays) {
+    (sz, len, delay) =>
+    stackTraced {
+      val snapq = new SnapQueue[String](len)
+      for (i <- 0 until sz) snapq.enqueue(i.toString)
+
+      val consumer = Future {
+        val extracted = mutable.Buffer[String]()
+        @tailrec def extract() {
+          val x = try {
+            snapq.dequeue()
+          } catch {
+            case e: RuntimeException => null
+          }
+          if (x != null) {
+            extracted += x.asInstanceOf[String]
+            extract()
+          }
+        }
+        extract()
+        extracted
+      }
+
+      if (delay > 0) Thread.sleep(delay)
+      ensureFrozen(snapq)
+
+      val extracted = Await.result(consumer, 5.seconds)
+      val leftover = Util.extractStringSnapQueue(snapq)
+      val observed = extracted ++ leftover
+      s"got: $observed" |: observed == (0 until sz).map(_.toString)
     }
   }
 
