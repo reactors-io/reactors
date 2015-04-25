@@ -539,4 +539,36 @@ object SnapQueueCheck extends Properties("SnapQueue") with ExtendedProperties {
     }
   }
 
+  property("N threads can dequeue") = forAllNoShrink(sizes, lengths, numThreads) {
+    (sz, len, n) =>
+    stackTraced {
+      val inputs = (0 until sz).map(_.toString)
+      val snapq = new SnapQueue[String](len)
+      for (x <- inputs) snapq.enqueue(x)
+      val workers = for (i <- 0 until n) yield Future {
+        val extracted = mutable.Buffer[String]()
+        @tailrec def extract() {
+          val x = snapq.dequeue()
+          if (x != null) {
+            extracted += x
+            extract()
+          }
+        }
+        extract()
+        extracted
+      }
+      val buffers = Await.result(Future.sequence(workers), 5.seconds)
+      val extracted = buffers.foldLeft(Seq[String]())(_ ++ _)
+      val extractedSet = extracted.toSet
+      val inputSet = inputs.toSet
+      val presenceLabel =
+        s"diff: ${extractedSet diff inputSet}; -diff: ${inputSet diff extractedSet}"
+      val allPresent = presenceLabel |: extractedSet == inputSet
+      val allOrdered = (for (b <- buffers) yield {
+        s"is subsequence: $b" |: subsequenceOf(b, inputs)
+      }).foldLeft("zero" |: true)(_ && _)
+      allPresent && allOrdered
+    }
+  }
+
 }
