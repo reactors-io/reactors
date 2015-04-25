@@ -407,7 +407,7 @@ object SnapQueueCheck extends Properties("SnapQueue") with ExtendedProperties {
     }
   }
 
-  val delays = detChoose(0, 16)
+  val delays = detOneOf(value(1), detChoose(0, 16))
 
   @tailrec
   def ensureFrozen(snapq: SnapQueue[String]): Unit = {
@@ -445,6 +445,45 @@ object SnapQueueCheck extends Properties("SnapQueue") with ExtendedProperties {
       val extracted = Util.extractStringSnapQueue(snapq)
       val observed = extracted ++ buf
       s"got: $observed" |: observed == (0 until sz).map(_.toString)
+    }
+  }
+
+  val numThreads = detChoose(1, 8)
+
+  def subsequenceOf[T](xs: Seq[T], ys: Seq[T]): Boolean = {
+    if (xs.length == 0) true
+    else {
+      var pos = 0
+      var i = 0
+      while (i < ys.length) {
+        if (ys(i) == xs(pos)) pos += 1
+        if (pos == xs.length) return true
+        i += 1
+      }
+      false
+    }
+  }
+
+  property("N threads can enqueue") = forAllNoShrink(sizes, lengths, numThreads) {
+    (sz, len, n) =>
+    stackTraced {
+      val inputs = (0 until sz).map(_.toString)
+      val snapq = new SnapQueue[String](len)
+      val buckets = inputs.grouped(sz / n).toSeq
+      val workers = for (b <- buckets) yield Future {
+        for (x <- b) snapq.enqueue(x)
+      }
+      Await.result(Future.sequence(workers), 5.seconds)
+      val extracted = Util.extractStringSnapQueue(snapq)
+      val extractedSet = extracted.toSet
+      val inputSet = inputs.toSet
+      val presenceLabel =
+        s"diff: ${extractedSet diff inputSet}; -diff: ${inputSet diff extractedSet}"
+      val allPresent = presenceLabel |: extractedSet == inputSet
+      val allOrdered = (for (b <- buckets) yield {
+        s"is subsequence: $b" |: subsequenceOf(b, extracted)
+      }).foldLeft("zero" |: true)(_ && _)
+      allPresent && allOrdered
     }
   }
 
