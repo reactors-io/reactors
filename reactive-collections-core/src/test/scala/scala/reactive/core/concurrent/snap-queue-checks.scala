@@ -9,7 +9,6 @@ import java.util.concurrent.atomic.AtomicInteger
 import scala.annotation.tailrec
 import scala.collection._
 import scala.concurrent._
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import org.scalacheck._
 import org.scalacheck.Gen._
@@ -19,6 +18,10 @@ import org.testx._
 
 
 object SegmentCheck extends Properties("Segment") with ExtendedProperties {
+  val unbounded = Executors.newCachedThreadPool()
+
+  implicit val unboundedExecutorContext = ExecutionContext.fromExecutor(unbounded)
+
   val maxSegmentSize = 3250
 
   val sizes = detOneOf(value(0), value(1), detChoose(0, maxSegmentSize))
@@ -316,18 +319,16 @@ object SegmentCheck extends Properties("Segment") with ExtendedProperties {
       (s"from $buffers, got: $obtained; expected $sz" |: obtained.toSet == inputs.toSet)
   }
 
-  property("N producers and M consumers") =
+  property("N producers, M consumers") =
     forAllNoShrink(coarseSizes, numThreads, numThreads) {
       (sz, n, m) =>
       stackTraced {
-        val unbounded = Executors.newCachedThreadPool()
-        implicit val unboundedExecutorContext = ExecutionContext.fromExecutor(unbounded)
         val inputs = for (i <- 0 until sz) yield i.toString
         val seg = new dummySnapQueue.Segment(sz)
         val buckets = inputs.grouped(sz / n).toSeq
         val producers = for (b <- buckets) yield Future {
           for (x <- b) seg.enq(seg.READ_LAST(), x)
-        } (unboundedExecutorContext)
+        }
         val counter = new AtomicInteger(0)
         val consumers = for (i <- 0 until m) yield Future {
           val buffer = mutable.Buffer[String]()
@@ -339,11 +340,9 @@ object SegmentCheck extends Properties("Segment") with ExtendedProperties {
             }
           } while (counter.get < sz)
           buffer
-        } (unboundedExecutorContext)
-        Await.ready(Future.sequence(producers)
-          (implicitly, unboundedExecutorContext), 5.seconds)
-        val buffers = Await.result(Future.sequence(consumers)
-          (implicitly, unboundedExecutorContext), 5.seconds).toList
+        }
+        Await.ready(Future.sequence(producers), 5.seconds)
+        val buffers = Await.result(Future.sequence(consumers), 5.seconds).toList
         val obtained = buffers.foldLeft(Seq[String]())(_ ++ _)
         (s"length: ${obtained.length}, expected: $sz" |: obtained.length == sz) &&
           (s"$buffers, got: $obtained; expected $sz" |: obtained.toSet == inputs.toSet)
@@ -354,6 +353,10 @@ object SegmentCheck extends Properties("Segment") with ExtendedProperties {
 
 
 object SnapQueueCheck extends Properties("SnapQueue") with ExtendedProperties {
+  val unbounded = Executors.newCachedThreadPool()
+
+  implicit val unboundedExecutorContext = ExecutionContext.fromExecutor(unbounded)
+
   val sizes = detChoose(0, 100000)
 
   val fillRates = detChoose(0.0, 1.0)
@@ -501,8 +504,9 @@ object SnapQueueCheck extends Properties("SnapQueue") with ExtendedProperties {
   }
 
   property("N threads can enqueue") = forAllNoShrink(sizes, lengths, numThreads) {
-    (sz, len, n) =>
+    (origsz, len, n) =>
     stackTraced {
+      val sz = math.max(n, origsz)
       val inputs = (0 until sz).map(_.toString)
       val snapq = new SnapQueue[String](len)
       val buckets = inputs.grouped(sz / n).toSeq
@@ -638,8 +642,40 @@ object SnapQueueCheck extends Properties("SnapQueue") with ExtendedProperties {
     }
   }
 
-  // property("N producer-consumers") = forAllNoShrink(sizes, lengths) {
+  property("N producer, M consumers") =
+    forAllNoShrink(sizes, lengths, numThreads, numThreads) {
+      (origsz, len, n, m) =>
+      stackTraced {
+        val sz = math.max(n, origsz)
+        val inputs = for (i <- 0 until sz) yield i.toString
+        val snapq = new SnapQueue[String](len)
+        val buckets = inputs.grouped(sz / n).toSeq
+  
+        val producers = for (b <- buckets) yield Future {
+          for (x <- b) snapq.enqueue(x)
+        }
+  
+        val counter = new AtomicInteger(0)
+  
+        val consumers = for (i <- 0 until m) yield Future {
+          val buffer = mutable.Buffer[String]()
+          do {
+            val x = snapq.dequeue()
+            if (x != null) {
+              buffer += x.asInstanceOf[String]
+              counter.incrementAndGet()
+            }
+          } while (counter.get < sz)
+          buffer
+        }
 
-  // }
+        Await.ready(Future.sequence(producers), 5.seconds)
+        val buffers = Await.result(Future.sequence(consumers), 5.seconds).toList
+        val obtained = buffers.foldLeft(Seq[String]())(_ ++ _)
+          
+        (s"length: ${obtained.length}, expected: $sz" |: obtained.length == sz) &&
+          (s"$buffers, got: $obtained; expected $sz" |: obtained.toSet == inputs.toSet)
+      }
+    }
 
 }
