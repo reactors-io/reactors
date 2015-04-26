@@ -88,7 +88,10 @@ final class IsoFrame(
   }
 
   private def checkEmptyQueue() {
-    if (multiplexer.areEmpty) isolate.systemEmitter.react(IsoEmptyQueue)
+    if (multiplexer.areEmpty) {
+      assert(isolate != null)
+      isolate.systemEmitter.react(IsoEmptyQueue)
+    }
   }
 
   @tailrec private def checkTerminated() {
