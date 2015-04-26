@@ -114,8 +114,13 @@ abstract class IsoSystem {
    *  Then, the isolate frame is created.
    *  Then, the isolate object (concrete user implementation) is instantiated.
    *  Then, the isolate frame is assigned the isolate object.
-   *  Finally, the `initiate` method is called on the scheduler, and the isolate is returned.
    *  See the source code of the default implementation of this method for more details.
+   *
+   *  Note that the `createFrame` caller (i.e. then `isolate` method of an iso-system
+   *  implementation) must:
+   *  - first, update its state
+   *  - then, call `frame.scheduler.initiate(frame)`
+   *  - finally, call `frame.wake()`
    *
    *  @tparam T         the type of the events for the isolate
    *  @param proto      prototype for the isolate
@@ -150,7 +155,6 @@ abstract class IsoSystem {
       createAndResetIso(proto)
     }
     frame.isolate = isolate
-    scheduler.initiate(frame)
     isolate
   }
 
