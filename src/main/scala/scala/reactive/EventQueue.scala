@@ -116,7 +116,8 @@ object EventQueue {
     }
 
     class Factory extends EventQueue.Factory {
-      def create[@specialized(Int, Long, Double) Q: Arrayable] = new SingleSubscriberSyncedUnrolledRing[Q](new util.Monitor)
+      def create[@specialized(Int, Long, Double) Q: Arrayable] =
+        new SingleSubscriberSyncedUnrolledRing[Q](new util.Monitor)
     }
 
     val factory = new Factory

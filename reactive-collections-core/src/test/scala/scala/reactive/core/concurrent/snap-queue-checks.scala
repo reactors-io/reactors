@@ -22,7 +22,7 @@ object SegmentCheck extends Properties("Segment") with ExtendedProperties {
 
   implicit val unboundedExecutorContext = ExecutionContext.fromExecutor(unbounded)
 
-  val maxSegmentSize = 3250
+  val maxSegmentSize = 2000
 
   val sizes = detOneOf(value(0), value(1), detChoose(0, maxSegmentSize))
 
