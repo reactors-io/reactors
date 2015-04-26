@@ -130,7 +130,7 @@ object ReactiveCollectionsBuild extends MechaRepoBuild {
     },
     testOptions in Test += Tests.Argument(
       TestFrameworks.ScalaCheck,
-      "-minSuccessfulTests", "900",
+      "-minSuccessfulTests", "150",
       "-workers", "1",
       "-verbosity", "2"),
     publishArtifact in Test := false,
