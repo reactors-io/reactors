@@ -4,6 +4,8 @@ package concurrent
 
 
 
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
 import scala.annotation.tailrec
 import scala.collection._
 import scala.concurrent._
@@ -22,6 +24,14 @@ object SegmentCheck extends Properties("Segment") with ExtendedProperties {
   val sizes = detOneOf(value(0), value(1), detChoose(0, maxSegmentSize))
 
   val dummySnapQueue = new SnapQueue[String]
+
+  val delays = detChoose(0, 10)
+
+  val numThreads = detChoose(2, 8)
+
+  val coarseSizes = detChoose(16, 9000)
+
+  val fillRates = detChoose(0.0, 1.0)
 
   property("enq fills the segment") = forAllNoShrink(sizes) { sz =>
     stackTraced {
@@ -86,8 +96,6 @@ object SegmentCheck extends Properties("Segment") with ExtendedProperties {
     removesDone.foldLeft("zero" |: true)(_ && _) && isFrozen &&
       deqAfterFreezeFailes
   }
-
-  val delays = detChoose(0, 10)
 
   property("producer-consumer, varying speed") = forAllNoShrink(sizes, delays) {
     (sz, delay) =>
@@ -179,8 +187,6 @@ object SegmentCheck extends Properties("Segment") with ExtendedProperties {
     seg.deq() == SegmentBase.NONE
   }
 
-  val fillRates = detChoose(0.0, 1.0)
-
   property("locateHead after freeze") = forAllNoShrink(sizes, fillRates) {
     (sz, fill) =>
     val seg = new dummySnapQueue.Segment(sz)
@@ -265,10 +271,6 @@ object SegmentCheck extends Properties("Segment") with ExtendedProperties {
       extracted == (0 until total).map(_.toString)
   }
 
-  val numThreads = detChoose(2, 8)
-
-  val coarseSizes = detChoose(16, 9000)
-
   property("N threads can enqueue") = forAllNoShrink(coarseSizes, numThreads) {
     (sz, n) =>
     val inputs = (0 until sz).map(_.toString)
@@ -308,11 +310,44 @@ object SegmentCheck extends Properties("Segment") with ExtendedProperties {
         buffer
       }
     }
-    val buffers = Await.result(Future.sequence(workers), Duration.Inf).toList
+    val buffers = Await.result(Future.sequence(workers), 5.seconds).toList
     val obtained = buffers.foldLeft(Seq[String]())(_ ++ _)
-    (s"lengths: ${obtained.length}, expected: $sz" |: obtained.length == sz) &&
-      (s"$buffers: $obtained; size $sz" |: obtained.toSet == inputs.toSet)
+    (s"length: ${obtained.length}, expected: $sz" |: obtained.length == sz) &&
+      (s"from $buffers, got: $obtained; expected $sz" |: obtained.toSet == inputs.toSet)
   }
+
+  property("N producers and M consumers") =
+    forAllNoShrink(coarseSizes, numThreads, numThreads) {
+      (sz, n, m) =>
+      stackTraced {
+        val unbounded = Executors.newCachedThreadPool()
+        implicit val unboundedExecutorContext = ExecutionContext.fromExecutor(unbounded)
+        val inputs = for (i <- 0 until sz) yield i.toString
+        val seg = new dummySnapQueue.Segment(sz)
+        val buckets = inputs.grouped(sz / n).toSeq
+        val producers = for (b <- buckets) yield Future {
+          for (x <- b) seg.enq(seg.READ_LAST(), x)
+        } (unboundedExecutorContext)
+        val counter = new AtomicInteger(0)
+        val consumers = for (i <- 0 until m) yield Future {
+          val buffer = mutable.Buffer[String]()
+          do {
+            val x = seg.deq()
+            if (x != SegmentBase.NONE) {
+              buffer += x.asInstanceOf[String]
+              counter.incrementAndGet()
+            }
+          } while (counter.get < sz)
+          buffer
+        } (unboundedExecutorContext)
+        implicit def foo[A](implicit x: A): A = x
+        Await.ready(Future.sequence(producers)(foo, unboundedExecutorContext), 5.seconds)
+        val buffers = Await.result(Future.sequence(consumers)(foo, unboundedExecutorContext), 5.seconds).toList
+        val obtained = buffers.foldLeft(Seq[String]())(_ ++ _)
+        (s"length: ${obtained.length}, expected: $sz" |: obtained.length == sz) &&
+          (s"$buffers, got: $obtained; expected $sz" |: obtained.toSet == inputs.toSet)
+      }
+    }
 
 }
 
@@ -601,5 +636,9 @@ object SnapQueueCheck extends Properties("SnapQueue") with ExtendedProperties {
       s"got: $extracted" |: extracted == (0 until sz).map(_.toString)
     }
   }
+
+  // property("N producer-consumers") = forAllNoShrink(sizes, lengths) {
+
+  // }
 
 }
