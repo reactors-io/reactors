@@ -88,11 +88,13 @@ trait Iso[@spec(Int, Long, Double) T] extends ReactRecord {
       case null => illegal()
       case eq => eq.asInstanceOf[IsoFrame]
     }
+    frame.isolate = this
     eventSources = mutable.Set[EventSource]()
     systemEmitter = new Reactive.Emitter[SysEvent]
     failureEmitter = new Reactive.Emitter[Throwable]
-
     Iso.selfIso.set(this)
+    frame.isolateSourceConnector = frame.newSourceConnector(frame)
+    frame.isolateInternalConnector = frame.newInternalConnector(frame)
   }
 
   init(this)

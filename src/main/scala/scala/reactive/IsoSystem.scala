@@ -109,11 +109,17 @@ abstract class IsoSystem {
 
   /** Creates an isolate frame.
    *
-   *  Should only be overridden if the default isolate initialization order needs to change.
-   *  The multiplexer, unique name and unique id are created for an isolate first.
-   *  Then, the isolate frame is created.
-   *  Then, the isolate object (concrete user implementation) is instantiated.
-   *  Then, the isolate frame is assigned the isolate object.
+   *  Should only be overridden if the default isolate initialization order needs to
+   *  change.
+   *  
+   *  - The multiplexer, unique name and unique id are created for an isolate first.
+   *  - Then, the isolate frame (`IsoFrame`) is created.
+   *  - Then, the isolate object (concrete user implementation) is instantiated.
+   *    - The base `Iso` constructor sets the remaining fields on the `IsoFrame` (e.g.
+   *      the `isolate` field, since `Iso` object exists at this point)
+   *    - The base `Iso` constructor creates (and publishes) the default channels.
+   *    - The user-defined `Iso` subclass constructor is invoked.
+   *  
    *  See the source code of the default implementation of this method for more details.
    *
    *  Note that the `createFrame` caller (i.e. then `isolate` method of an iso-system
@@ -154,7 +160,6 @@ abstract class IsoSystem {
     val isolate = Iso.argFrame.withValue(frame) {
       createAndResetIso(proto)
     }
-    frame.isolate = isolate
     isolate
   }
 

@@ -26,8 +26,8 @@ final class IsoFrame(
     case NonFatal(t) => isolate.failureEmitter.react(t)
   }
   val schedulerInfo: Scheduler.Info = scheduler.newInfo(this)
-  val isolateSourceConnector: Connector[_] = newSourceConnector(this)
-  val isolateInternalConnector: Connector[_] = newInternalConnector(this)
+  @volatile var isolateSourceConnector: Connector[_] = _
+  @volatile var isolateInternalConnector: Connector[_] = _
   @volatile private[reactive] var isolate: Iso[_] = _
 
   def isTerminated = isolateState.get == IsoFrame.Terminated
