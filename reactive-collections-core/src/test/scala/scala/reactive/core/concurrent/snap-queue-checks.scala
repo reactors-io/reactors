@@ -340,9 +340,10 @@ object SegmentCheck extends Properties("Segment") with ExtendedProperties {
           } while (counter.get < sz)
           buffer
         } (unboundedExecutorContext)
-        implicit def foo[A](implicit x: A): A = x
-        Await.ready(Future.sequence(producers)(foo, unboundedExecutorContext), 5.seconds)
-        val buffers = Await.result(Future.sequence(consumers)(foo, unboundedExecutorContext), 5.seconds).toList
+        Await.ready(Future.sequence(producers)
+          (implicitly, unboundedExecutorContext), 5.seconds)
+        val buffers = Await.result(Future.sequence(consumers)
+          (implicitly, unboundedExecutorContext), 5.seconds).toList
         val obtained = buffers.foldLeft(Seq[String]())(_ ++ _)
         (s"length: ${obtained.length}, expected: $sz" |: obtained.length == sz) &&
           (s"$buffers, got: $obtained; expected $sz" |: obtained.toSet == inputs.toSet)
