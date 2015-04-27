@@ -39,6 +39,7 @@ object ReactiveCollectionsBuild extends MechaRepoBuild {
     libraryDependencies <++= (scalaVersion)(sv => dependencies(sv)),
     testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
     parallelExecution in Test := false,
+    fork in Test := true,
     scalacOptions in (Compile, doc) ++= Seq(
       "-implicits"
     ),

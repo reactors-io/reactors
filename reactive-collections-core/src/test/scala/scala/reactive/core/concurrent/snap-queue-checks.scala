@@ -22,7 +22,7 @@ object SegmentCheck extends Properties("Segment") with ExtendedProperties {
 
   implicit val unboundedExecutorContext = ExecutionContext.fromExecutor(unbounded)
 
-  val maxSegmentSize = 2000
+  val maxSegmentSize = 9000
 
   val sizes = detOneOf(value(0), value(1), detChoose(0, maxSegmentSize))
 
@@ -39,65 +39,68 @@ object SegmentCheck extends Properties("Segment") with ExtendedProperties {
   property("enq fills the segment") = forAllNoShrink(sizes) { sz =>
     stackTraced {
       val seg = new dummySnapQueue.Segment(sz)
-      val insertsDone = for (i <- 0 until seg.capacity) yield {
-        s"insert at $i" |: seg.enq(seg.READ_LAST(), i.toString)
+      val insertsOk = for (i <- 0 until seg.capacity) yield {
+        seg.enq(seg.READ_LAST(), i.toString)
       }
+      val allInsertsGood = s"inserts ok: $insertsOk" |: insertsOk.foldLeft(true)(_ && _)
       val isFull = seg.READ_LAST() == seg.capacity
       val lastEnqFails = seg.enq(0, "failed") == false
   
-      insertsDone.foldLeft("zero" |: true)(_ && _) && isFull && lastEnqFails
+      allInsertsGood && isFull && lastEnqFails
     }
   }
 
   property("enq fills, stale 'last'") = forAllNoShrink(sizes) { sz =>
     val seg = new dummySnapQueue.Segment(sz)
-    val insertsDone = for (i <- 0 until seg.capacity) yield {
-      s"insert at $i" |: seg.enq(math.max(0, seg.READ_LAST() - 50), i.toString)
+    val insertsOk = for (i <- 0 until seg.capacity) yield {
+      seg.enq(math.max(0, seg.READ_LAST() - 50), i.toString)
     }
+    val allInsertsGood = s"inserts ok: $insertsOk" |: insertsOk.foldLeft(true)(_ && _)
     val isFull = "full" |: seg.READ_LAST() == seg.capacity
     val lastEnqFails = "last enq" |: seg.enq(0, "failed") == false
 
-    insertsDone.foldLeft("zero" |: true)(_ && _) && isFull && lastEnqFails
+    allInsertsGood && isFull && lastEnqFails
   }
 
   property("enq fills half, frozen") = forAllNoShrink(sizes) { sz =>
     val seg = new dummySnapQueue.Segment(sz)
-    val insertsDone = for (i <- 0 until seg.capacity / 2) yield {
-      s"insert at $i" |: seg.enq(seg.READ_LAST(), i.toString)
+    val insertsOk = for (i <- 0 until seg.capacity / 2) yield {
+      seg.enq(seg.READ_LAST(), i.toString)
     }
     seg.freeze()
+    val allInsertsGood = s"inserts ok: $insertsOk" |: insertsOk.foldLeft(true)(_ && _)
     val enqAfterFreezeFails =
       s"last enq: $seg" |: seg.enq(seg.READ_LAST(), ":(") == false
     val isFrozen = "frozen" |: seg.READ_HEAD() < 0
 
-    insertsDone.foldLeft("zero" |: true)(_ && _) && isFrozen &&
-      enqAfterFreezeFails
+    allInsertsGood && isFrozen && enqAfterFreezeFails
   }
 
   property("deq empties the segment") = forAllNoShrink(sizes) { sz =>
     val seg = new dummySnapQueue.Segment(sz)
     Util.fillStringSegment(dummySnapQueue)(seg)
-    val removesDone = for (i <- 0 until seg.capacity) yield {
-      s"remove at $i" |: seg.deq() == i.toString
+    val removesOk = for (i <- 0 until seg.capacity) yield {
+      seg.deq() == i.toString
     }
+    val allRemovesGood = s"removes ok: $removesOk" |: removesOk.foldLeft(true)(_ && _)
     val isEmpty = seg.READ_HEAD() == seg.capacity
     val lastDeqFails = seg.deq() == SegmentBase.NONE
 
-    removesDone.foldLeft("zero" |: true)(_ && _) && isEmpty && lastDeqFails
+    allRemovesGood && isEmpty && lastDeqFails
   }
 
   property("deq empties half, frozen") = forAllNoShrink(sizes) { sz =>
     val seg = new dummySnapQueue.Segment(sz)
     Util.fillStringSegment(dummySnapQueue)(seg)
-    val removesDone = for (i <- 0 until seg.capacity / 2) yield {
-      s"remove at $i" |: seg.deq() == i.toString
+    val removesOk = for (i <- 0 until seg.capacity / 2) yield {
+      seg.deq() == i.toString
     }
     seg.freeze()
+    val allRemovesGood = removesOk.foldLeft(true)(_ && _)
     val deqAfterFreezeFailes = "last deq" |: seg.deq() == SegmentBase.NONE
     val isFrozen = "frozen" |: seg.READ_HEAD() < 0
 
-    removesDone.foldLeft("zero" |: true)(_ && _) && isFrozen &&
-      deqAfterFreezeFailes
+    allRemovesGood && isFrozen && deqAfterFreezeFailes
   }
 
   property("producer-consumer, varying speed") = forAllNoShrink(sizes, delays) {
@@ -114,7 +117,7 @@ object SegmentCheck extends Properties("Segment") with ExtendedProperties {
       }
       for (i <- 0 until seg.capacity) yield {
         spin()
-        s"insert at $i" |: seg.enq(seg.READ_LAST(), input(i))
+        seg.enq(seg.READ_LAST(), input(i))
       }
     }
 
@@ -134,8 +137,9 @@ object SegmentCheck extends Properties("Segment") with ExtendedProperties {
       s"dequeued correctly: $buffer vs ${input.toSeq}" |: buffer == input.toSeq
     }
 
-    val done = for (insertsDone <- producer; bufferGood <- consumer) yield {
-      insertsDone.foldLeft("zero" |: true)(_ && _) && bufferGood
+    val done = for (insertsOk <- producer; bufferGood <- consumer) yield {
+      val allInsertsGood = s"inserts ok: $insertsOk" |: insertsOk.foldLeft(true)(_ && _)
+      allInsertsGood && bufferGood
     }
     Await.result(done, Duration.Inf)
   }
