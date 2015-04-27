@@ -422,6 +422,7 @@ object ConcUtils {
     case leaf: Leaf[T] =>
       f(leaf)
     case Append(left, right) =>
+      // TODO: investigate if this case is necessary here.
       foreachLeafLeft(left)(f)
       foreachLeafLeft(right)(f)
     case Zero =>
@@ -455,6 +456,7 @@ object ConcUtils {
     case leaf: Leaf[T] =>
       f(leaf)
     case Append(left, right) =>
+      // TODO: investigate if this case is necessary here.
       foreachLeafRight(right)(f)
       foreachLeafRight(left)(f)
     case Zero =>
