@@ -99,8 +99,14 @@ final class IsoFrame(
     if (multiplexer.isTerminated && isolateState.get == Running) {
       if (isolateState.compareAndSet(Running, Terminated)) {
         try isolate.systemEmitter.react(IsoTerminated)
-        finally try for (es <- isolate.eventSources) es.unreact()
-        finally isolateSystem.releaseNames(name)
+        finally {
+          try {
+            val copiedEventSources = isolate.eventSources.toList
+            for (es <- copiedEventSources) {
+              es.unreact()
+            }
+          } finally isolateSystem.releaseNames(name)
+        }
       } else checkTerminated()
     }
   }
