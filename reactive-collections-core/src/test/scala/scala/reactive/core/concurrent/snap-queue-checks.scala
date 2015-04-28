@@ -141,7 +141,7 @@ object SegmentCheck extends Properties("Segment") with ExtendedProperties {
       val allInsertsGood = s"inserts ok: $insertsOk" |: insertsOk.foldLeft(true)(_ && _)
       allInsertsGood && bufferGood
     }
-    Await.result(done, Duration.Inf)
+    Await.result(done, 5.seconds)
   }
 
   property("Consumer sees prefix when frozen") = forAllNoShrink(sizes, delays) {
@@ -175,7 +175,7 @@ object SegmentCheck extends Properties("Segment") with ExtendedProperties {
       s"seen some prefix: $prefix" |:
         prefix == (0 until seg.capacity).map(_.toString).take(prefix.length)
     }
-    Await.result(done, Duration.Inf)
+    Await.result(done, 5.seconds)
   }
 
   property("freezing full disallows enqueue") = forAllNoShrink(sizes, delays) {
@@ -294,7 +294,7 @@ object SegmentCheck extends Properties("Segment") with ExtendedProperties {
         failing
       }
     }
-    val failures = Await.result(Future.sequence(workers), Duration.Inf).toList
+    val failures = Await.result(Future.sequence(workers), 5.seconds).toList
     val extracted = Util.extractStringSegment(dummySnapQueue)(seg)
     s"no failures: $failures" |: failures.forall(_ == -1) &&
       extracted.toSet == inputs.toSet
