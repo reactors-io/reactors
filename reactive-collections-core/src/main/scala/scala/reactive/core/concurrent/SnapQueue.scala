@@ -100,9 +100,11 @@ extends SnapQueueBase[T] with Serializable {
       case s: Segment =>
         s.copyShift()
       case r: Root =>
+        val lside = r.left.asInstanceOf[Side]
+        val rside = r.right.asInstanceOf[Side]
         new Root(
-          new Side(false, r.left.segment.unfreeze(), r.left.support),
-          new Side(false, r.right.segment.copyShift(), r.right.support))
+          new Side(false, lside.segment.unfreeze(), lside.support),
+          new Side(false, rside.segment.copyShift(), rside.support))
     }
   }
 
