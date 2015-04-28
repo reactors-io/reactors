@@ -63,8 +63,7 @@ extends SnapQueueBase[T] with Serializable {
     }
   }
 
-  private def expand(r: RootOrSegmentOrFrozen[T]):
-    RootOrSegmentOrFrozen[T] = {
+  private def expand(r: RootOrSegmentOrFrozen[T]): RootOrSegmentOrFrozen[T] = {
     (r: @unchecked) match {
       case s: Segment =>
         val head = s.locateHead
@@ -79,8 +78,7 @@ extends SnapQueueBase[T] with Serializable {
     }
   }
 
-  private def transfer(r: RootOrSegmentOrFrozen[T]):
-    RootOrSegmentOrFrozen[T] = {
+  private def transfer(r: RootOrSegmentOrFrozen[T]): RootOrSegmentOrFrozen[T] = {
     (r: @unchecked) match {
       case r: Root =>
         val ls = r.READ_LEFT().asInstanceOf[Side]
@@ -94,6 +92,17 @@ extends SnapQueueBase[T] with Serializable {
         } else {
           rs.segment.copyShift()
         }
+    }
+  }
+
+  private def id(r: RootOrSegmentOrFrozen[T]): RootOrSegmentOrFrozen[T] = {
+    (r: @unchecked) match {
+      case s: Segment =>
+        s.copyShift()
+      case r: Root =>
+        new Root(
+          new Side(false, r.left.segment.unfreeze(), r.left.support),
+          new Side(false, r.right.segment.copyShift(), r.right.support))
     }
   }
 
