@@ -9,13 +9,15 @@ import scala.annotation.unchecked
 
 
 
-class SnapQueue[T](val L: Int = 128)
+class SnapQueue[T](val L: Int = 128, val initialized: Boolean = true)
   (implicit val supportOps: SnapQueue.SupportOps[T])
 extends SnapQueueBase[T] with Serializable {
   import SnapQueue.Trans
   import SegmentBase.{EMPTY, FROZEN, NONE, REPEAT}
 
-  WRITE_ROOT(new Segment(new Array[AnyRef](L)))
+  def this(L: Int)(implicit ops: SnapQueue.SupportOps[T]) = this(L, true)
+
+  if (initialized) WRITE_ROOT(new Segment(new Array[AnyRef](L)))
 
   private def transition(r: RootOrSegmentOrFrozen[T], f: Trans[T]):
     RootOrSegmentOrFrozen[T] = {
@@ -105,6 +107,21 @@ extends SnapQueueBase[T] with Serializable {
         new Root(
           new Side(false, lside.segment.unfreeze(), lside.support),
           new Side(false, rside.segment.copyShift(), rside.support))
+    }
+  }
+
+  @tailrec
+  final def snapshot(): SnapQueue[T] = {
+    val r = READ_ROOT()
+    val nr = transition(r, id)
+    if (nr == null) {
+      helpTransition()
+      snapshot()
+    } else {
+      val ur = id(nr)
+      val snapq = new SnapQueue(L, false)
+      snapq.WRITE_ROOT(ur)
+      snapq
     }
   }
 
