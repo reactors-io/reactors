@@ -21,11 +21,17 @@ extends SnapQueueBase[T] with Serializable {
 
   private def transition(r: RootOrSegmentOrFrozen[T], f: Trans[T]):
     RootOrSegmentOrFrozen[T] = {
-    val fr = freeze(r, f)
-    if (fr == null) null
-    else {
-      completeTransition(fr)
-      fr.root
+    r match {
+      case f: Frozen =>
+        completeTransition(f)
+        null
+      case r =>
+        val fr = freeze(r, f)
+        if (fr == null) null
+        else {
+          completeTransition(fr)
+          fr.root
+        }
     }
   }
 

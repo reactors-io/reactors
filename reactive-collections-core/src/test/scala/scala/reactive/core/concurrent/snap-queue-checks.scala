@@ -654,13 +654,13 @@ object SnapQueueCheck extends Properties("SnapQueue") with ExtendedProperties {
         val inputs = for (i <- 0 until sz) yield i.toString
         val snapq = new SnapQueue[String](len)
         val buckets = inputs.grouped(sz / n).toSeq
-  
+
         val producers = for (b <- buckets) yield Future {
           for (x <- b) snapq.enqueue(x)
         }
-  
+
         val counter = new AtomicInteger(0)
-  
+
         val consumers = for (i <- 0 until m) yield Future {
           val buffer = mutable.Buffer[String]()
           do {
@@ -681,5 +681,34 @@ object SnapQueueCheck extends Properties("SnapQueue") with ExtendedProperties {
           (s"$buffers, got: $obtained; expected $sz" |: obtained.toSet == inputs.toSet)
       }
     }
+
+  property("snapshot consistency: m-1 <= size <= m") = forAllNoShrink(sizes, lengths) {
+    (origsz, len) =>
+    stackTraced {
+      val m = math.max(1, origsz)
+      val inputs = (0 until m).map(_.toString)
+      val inputSet = inputs.toSet
+      val snapq = new SnapQueue[String](len)
+      for (i <- inputs) snapq.enqueue(i)
+
+      val rotator = Future {
+        for (i <- 0 until m) {
+          val x = snapq.dequeue()
+          snapq.enqueue(x)
+        }
+      }
+
+      val snapshots = mutable.Buffer[Seq[String]]()
+      while (!rotator.isCompleted) {
+        snapshots += Util.extractStringSnapQueue(snapq.snapshot())
+      }
+
+      val sizesOk = s"snapshots have consistent size" |:
+        snapshots.take(15).forall(xs => xs.size >= m - 1 && xs.size <= m)
+      val elementsPresent = s"all elements except at most one are present" |:
+        snapshots.take(15).forall(xs => (inputSet diff xs.toSet).size <= 1)
+      sizesOk && elementsPresent
+    }
+  }
 
 }
