@@ -407,7 +407,7 @@ class SnapQueue[T](
     def copyShift(): Segment = {
       val head = locateHead()
       val last = locateLast()
-      val nseg = new Segment(L)
+      val nseg = new Segment(capacity)
       System.arraycopy(array, head, nseg.array, 0, last - head)
       nseg
     }
