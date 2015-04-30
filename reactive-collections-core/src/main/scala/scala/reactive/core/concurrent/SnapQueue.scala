@@ -163,19 +163,41 @@ class SnapQueue[T](
       if (nr != null) p
       else this.concatInternalPromise(that)
     } else {
-      ???
+      val r = that.READ_ROOT()
+      val nr = transition(r, rthat => {
+        if (!p.isCompleted) {
+          val rthis = this.snapshotInternalFrozen()
+          p.trySuccess((rthis, rthat))
+        }
+        id(rthat)
+      })
+      if (nr != null) p
+      else this.concatInternalPromise(that)
     }
+  }
+
+  private def mergeSegments(xs: Segment, ys: Segment): Segment = {
+    new Segment(xs.copyShift().array ++ ys.copyShift().array)
   }
 
   private def concatInternal(that: SnapQueue[T]): RootOrSegmentOrFrozen[T] = {
     val p = this.concatInternalPromise(that)
     p.future.value.get.get match {
       case (rthis: Root, rthat: Root) =>
+        ???
       case (rthis: Segment, rthat: Root) =>
+        ???
       case (rthis: Root, rthat: Segment) =>
+        ???
       case (rthis: Segment, rthat: Segment) =>
+        if (rthis.locateSize() + rthat.locateSize() <= L / 2) {
+          mergeSegments(rthis, rthat)
+        } else {
+          new Root(
+            new Side(false, rthis.copyShift(), supportOps.create()),
+            new Side(false, rthat.copyShift(), supportOps.create()))
+        }
     }
-    ???
   }
 
   final def concat(that: SnapQueue[T]): SnapQueue[T] = {
@@ -344,6 +366,10 @@ class SnapQueue[T](
         }
       locate(READ_LAST())
     }
+
+    /** Using the locateHead and locateLast methods, computes the frozen segment size.
+     */
+    def locateSize(): Int = locateLast() - locateHead()
 
     /** Given a frozen, full segment, copies it into a freshly allocated one,
      *  which can be used for subsequent update operations.
