@@ -189,7 +189,7 @@ class SnapQueue[T](
         val rthatl = rthat.READ_LEFT().asInstanceOf[Side]
         val rthatr = rthat.READ_RIGHT().asInstanceOf[Side]
         val rthisrnsup = supportOps.pushr(
-          supportOps.pushr(rthisr.support, rthisl.segment.unfreeze().arrayT),
+          supportOps.pushr(rthisr.support, rthisr.segment.unfreeze().arrayT),
           rthatl.segment.unfreeze().arrayT)
         val nlsup = supportOps.concat(
           supportOps.concat(rthisl.support, rthisrnsup),

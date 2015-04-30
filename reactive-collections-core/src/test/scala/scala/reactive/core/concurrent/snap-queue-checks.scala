@@ -735,4 +735,40 @@ object SnapQueueCheck extends Properties("SnapQueue") with ExtendedProperties {
     }
   }
 
+  property("concat consistency: M-1 <= size <= M") = forAllNoShrink(sizes, lengths) {
+    (sz, len) =>
+    stackTraced {
+      val m = math.max(1, sz)
+      val inputs = (0 until m).map(_.toString)
+      val inputSet = inputs.toSet
+      val source = new SnapQueue[String](len)
+      for (i <- inputs) source.enqueue(i)
+      val destination = new SnapQueue[String](len)
+
+      val transfer = Future {
+        @tailrec
+        def extract() {
+          val x = source.dequeue()
+          if (x != null) {
+            destination.enqueue(x)
+            extract()
+          }
+        }
+        extract()
+      }
+
+      val snapshots = mutable.Buffer[Seq[String]]()
+      while (!transfer.isCompleted) {
+        snapshots += Util.extractStringSnapQueue(source.concat(destination))
+      }
+
+      val sizes = snapshots.map(_.size)
+      val sizesOk = s"snapshots have consistent size: $sizes" |:
+        snapshots.take(15).forall(xs => xs.size >= m - 1 && xs.size <= m)
+      val elementsPresent = s"all elements except at most one are present" |:
+        snapshots.take(15).forall(xs => (inputSet diff xs.toSet).size <= 1)
+      sizesOk && elementsPresent
+    }
+  }
+
 }
