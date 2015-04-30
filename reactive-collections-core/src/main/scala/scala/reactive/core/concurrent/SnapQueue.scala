@@ -177,24 +177,48 @@ class SnapQueue[T](
   }
 
   private def mergeSegments(xs: Segment, ys: Segment): Segment = {
-    new Segment(xs.copyShift().array ++ ys.copyShift().array)
+    new Segment(xs.unfreeze().array ++ ys.unfreeze().array)
   }
 
   private def concatInternal(that: SnapQueue[T]): RootOrSegmentOrFrozen[T] = {
     val p = this.concatInternalPromise(that)
     p.future.value.get.get match {
       case (rthis: Root, rthat: Root) =>
-        ???
+        val rthisl = rthis.READ_LEFT().asInstanceOf[Side]
+        val rthisr = rthis.READ_RIGHT().asInstanceOf[Side]
+        val rthatl = rthat.READ_LEFT().asInstanceOf[Side]
+        val rthatr = rthat.READ_RIGHT().asInstanceOf[Side]
+        val rthisrnsup = supportOps.pushr(
+          supportOps.pushr(rthisr.support, rthisl.segment.unfreeze().arrayT),
+          rthatl.segment.unfreeze().arrayT)
+        val nlsup = supportOps.concat(
+          supportOps.concat(rthisl.support, rthisrnsup),
+          rthatl.support)
+        new Root(
+          new Side(false, rthisl.segment.unfreeze(), nlsup),
+          new Side(false, rthatr.segment.copyShift(), rthatr.support))
       case (rthis: Segment, rthat: Root) =>
-        ???
+        val rthatl = rthat.READ_LEFT().asInstanceOf[Side]
+        val rthatr = rthat.READ_RIGHT().asInstanceOf[Side]
+        val nlsup = supportOps.concat(
+          supportOps.pushr(supportOps.create(), rthatl.segment.unfreeze().arrayT),
+          rthatl.support)
+        new Root(
+          new Side(false, rthis.unfreeze(), nlsup),
+          new Side(false, rthatr.segment.copyShift(), rthatr.support))
       case (rthis: Root, rthat: Segment) =>
-        ???
+        val rthisl = rthis.READ_LEFT().asInstanceOf[Side]
+        val rthisr = rthis.READ_RIGHT().asInstanceOf[Side]
+        val nrsup = supportOps.pushr(rthisr.support, rthisr.segment.unfreeze().arrayT)
+        new Root(
+          new Side(false, rthisl.segment.unfreeze(), rthisl.support),
+          new Side(false, rthat.copyShift(), nrsup))
       case (rthis: Segment, rthat: Segment) =>
         if (rthis.locateSize() + rthat.locateSize() <= L / 2) {
           mergeSegments(rthis, rthat)
         } else {
           new Root(
-            new Side(false, rthis.copyShift(), supportOps.create()),
+            new Side(false, rthis.unfreeze(), supportOps.create()),
             new Side(false, rthat.copyShift(), supportOps.create()))
         }
     }
@@ -329,6 +353,8 @@ class SnapQueue[T](
       else NONE // empty
     }
 
+    def arrayT: Array[T] = array.asInstanceOf[Array[T]]
+
     /** Given a frozen segment, locates the head position, that is, the position
      *  of the first non-dequeued element in the array.
      *
@@ -381,13 +407,12 @@ class SnapQueue[T](
     def copyShift(): Segment = {
       val head = locateHead()
       val last = locateLast()
-      val nseg = new Segment(capacity) // note: this.capacity == L in this call!
+      val nseg = new Segment(L)
       System.arraycopy(array, head, nseg.array, 0, last - head)
       nseg
     }
 
-    /** Given a frozen, full segment, constructs a new segment around the same
-     *  underlying array.
+    /** Given a frozen, full segment, constructs a new segment with a new array.
      *
      *  May shrink the array to avoid having empty elements at the beginning.
      *
