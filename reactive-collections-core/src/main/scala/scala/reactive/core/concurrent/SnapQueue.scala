@@ -32,8 +32,9 @@ class SnapQueue[T](
   private def transition(r: RootOrSegmentOrFrozen[T], f: Trans[T]):
     RootOrSegmentOrFrozen[T] = {
     r match {
-      case f: Frozen =>
-        completeTransition(f)
+      case fr: Frozen =>
+        completeFreeze(fr.root)
+        completeTransition(fr)
         null
       case r =>
         val fr = freeze(r, f)
@@ -312,8 +313,8 @@ class SnapQueue[T](
      *  Note: throws an exception for non-frozen segments.
      */
     def locateHead(): Int = {
-      assert(p >= 0)
       val p = READ_HEAD()
+      assert(p < 0)
       -p - 1
     }
 
