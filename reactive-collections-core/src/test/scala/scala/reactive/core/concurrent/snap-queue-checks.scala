@@ -711,4 +711,28 @@ object SnapQueueCheck extends Properties("SnapQueue") with ExtendedProperties {
     }
   }
 
+  property("snapshot consistency: sz1 <= sz2 <= ...") = forAllNoShrink(sizes, lengths) {
+    (sz, len) =>
+    stackTraced {
+      val m = math.max(1, sz)
+      val inputs = (0 until m).map(_.toString)
+      val snapq = new SnapQueue[String](len)
+
+      val producer = Future {
+        for (i <- inputs) snapq.enqueue(i)
+      }
+
+      val snapshots = mutable.Buffer[Seq[String]]()
+      while (!producer.isCompleted) {
+        snapshots += Util.extractStringSnapQueue(snapq.snapshot())
+      }
+
+      val sizes = snapshots.map(_.size)
+      val sizesGrowing = s"snapshot sizes are growing: $sizes" |: sizes == sizes.sorted
+      val snapshotsSorted = s"snapshots are sorted $snapshots" |:
+        snapshots.map(_.map(_.toInt)).forall(xs => xs == xs.sorted)
+      sizesGrowing && snapshotsSorted
+    }
+  }
+
 }
