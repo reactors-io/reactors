@@ -371,316 +371,316 @@ object SnapQueueCheck extends Properties("SnapQueue") with ExtendedProperties {
 
   val numThreads = detChoose(1, 8)
 
-  property("enqueue fills segment") = forAllNoShrink(sizes) { sz =>
-    stackTraced {
-      val snapq = new SnapQueue[String](sz)
-      for (i <- 0 until sz) snapq.enqueue(i.toString)
-      snapq.READ_ROOT() match {
-        case s: snapq.Segment =>
-          Util.extractStringSegment(snapq)(s) == (0 until sz).map(_.toString)
-      }
-    }
-  }
+  // property("enqueue fills segment") = forAllNoShrink(sizes) { sz =>
+  //   stackTraced {
+  //     val snapq = new SnapQueue[String](sz)
+  //     for (i <- 0 until sz) snapq.enqueue(i.toString)
+  //     snapq.READ_ROOT() match {
+  //       case s: snapq.Segment =>
+  //         Util.extractStringSegment(snapq)(s) == (0 until sz).map(_.toString)
+  //     }
+  //   }
+  // }
 
-  property("freeze freezes segment") = forAllNoShrink(sizes, fillRates) {
-    (sz, fillRate) =>
-    stackTraced {
-      val snapq = new SnapQueue[String](sz)
-      val total = (sz * fillRate).toInt
-      for (i <- 0 until total) snapq.enqueue(i.toString)
-      assert(snapq.freeze(snapq.READ_ROOT(), null) != null)
-      snapq.READ_ROOT() match {
-        case f: snapq.Frozen => f.root match {
-          case s: snapq.Segment => s.READ_HEAD() < 0
-        }
-      }
-    }
-  }
+  // property("freeze freezes segment") = forAllNoShrink(sizes, fillRates) {
+  //   (sz, fillRate) =>
+  //   stackTraced {
+  //     val snapq = new SnapQueue[String](sz)
+  //     val total = (sz * fillRate).toInt
+  //     for (i <- 0 until total) snapq.enqueue(i.toString)
+  //     assert(snapq.freeze(snapq.READ_ROOT(), null) != null)
+  //     snapq.READ_ROOT() match {
+  //       case f: snapq.Frozen => f.root match {
+  //         case s: snapq.Segment => s.READ_HEAD() < 0
+  //       }
+  //     }
+  //   }
+  // }
 
-  property("dequeue empties segment") = forAllNoShrink(sizes) { sz =>
-    stackTraced {
-      val snapq = new SnapQueue[String](sz)
-      snapq.READ_ROOT() match {
-        case s: snapq.Segment => Util.fillStringSegment(snapq)(s)
-      }
-      val buffer = mutable.Buffer[String]()
-      for (i <- 0 until sz) buffer += snapq.dequeue()
-      s"contains input: $buffer" |: buffer == (0 until sz).map(_.toString)
-    }
-  }
+  // property("dequeue empties segment") = forAllNoShrink(sizes) { sz =>
+  //   stackTraced {
+  //     val snapq = new SnapQueue[String](sz)
+  //     snapq.READ_ROOT() match {
+  //       case s: snapq.Segment => Util.fillStringSegment(snapq)(s)
+  //     }
+  //     val buffer = mutable.Buffer[String]()
+  //     for (i <- 0 until sz) buffer += snapq.dequeue()
+  //     s"contains input: $buffer" |: buffer == (0 until sz).map(_.toString)
+  //   }
+  // }
 
-  property("enqueue on full creates Root") = forAllNoShrink(sizes) {
-    sz =>
-    stackTraced {
-      val snapq = new SnapQueue[String](sz)
-      for (i <- 0 until sz) snapq.enqueue(i.toString)
-      snapq.enqueue("final")
-      snapq.READ_ROOT() match {
-        case r: snapq.Root =>
-          val lseg = r.READ_LEFT().asInstanceOf[snapq.Side].segment
-          val rseg = r.READ_RIGHT().asInstanceOf[snapq.Side].segment
-          val left = Util.extractStringSegment(snapq)(lseg)
-          val right = Util.extractStringSegment(snapq)(rseg)
-          val extracted = left ++ right
-          val expected = (0 until sz).map(_.toString) :+ "final"
-          s"got: $extracted" |: extracted == expected
-      }
-    }
-  }
+  // property("enqueue on full creates Root") = forAllNoShrink(sizes) {
+  //   sz =>
+  //   stackTraced {
+  //     val snapq = new SnapQueue[String](sz)
+  //     for (i <- 0 until sz) snapq.enqueue(i.toString)
+  //     snapq.enqueue("final")
+  //     snapq.READ_ROOT() match {
+  //       case r: snapq.Root =>
+  //         val lseg = r.READ_LEFT().asInstanceOf[snapq.Side].segment
+  //         val rseg = r.READ_RIGHT().asInstanceOf[snapq.Side].segment
+  //         val left = Util.extractStringSegment(snapq)(lseg)
+  //         val right = Util.extractStringSegment(snapq)(rseg)
+  //         val extracted = left ++ right
+  //         val expected = (0 until sz).map(_.toString) :+ "final"
+  //         s"got: $extracted" |: extracted == expected
+  //     }
+  //   }
+  // }
 
-  property("enqueue on half-full creates Segment") = forAllNoShrink(sizes) {
-    sz =>
-    stackTraced {
-      val snapq = new SnapQueue[String](sz)
-      for (i <- 0 until sz) snapq.enqueue(i.toString)
-      for (i <- 0 until (sz / 2 + 2)) snapq.dequeue()
-      snapq.enqueue("final")
-      snapq.READ_ROOT() match {
-        case s: snapq.Segment =>
-          val extracted = Util.extractStringSegment(snapq)(s)
-          val expected = ((sz / 2 + 2) until sz).map(_.toString) :+ "final"
-          s"got: $extracted" |: extracted == expected
-      }
-    }
-  }
+  // property("enqueue on half-full creates Segment") = forAllNoShrink(sizes) {
+  //   sz =>
+  //   stackTraced {
+  //     val snapq = new SnapQueue[String](sz)
+  //     for (i <- 0 until sz) snapq.enqueue(i.toString)
+  //     for (i <- 0 until (sz / 2 + 2)) snapq.dequeue()
+  //     snapq.enqueue("final")
+  //     snapq.READ_ROOT() match {
+  //       case s: snapq.Segment =>
+  //         val extracted = Util.extractStringSegment(snapq)(s)
+  //         val expected = ((sz / 2 + 2) until sz).map(_.toString) :+ "final"
+  //         s"got: $extracted" |: extracted == expected
+  //     }
+  //   }
+  // }
 
-  property("enqueue on full works") = forAllNoShrink(sizes, lengths) {
-    (sz, len) =>
-    stackTraced {
-      val snapq = new SnapQueue[String](len)
-      for (i <- 0 until sz) snapq.enqueue(i.toString)
-      val extracted = Util.extractStringSnapQueue(snapq)
-      s"got: $extracted" |: extracted == (0 until sz).map(_.toString)
-    }
-  }
+  // property("enqueue on full works") = forAllNoShrink(sizes, lengths) {
+  //   (sz, len) =>
+  //   stackTraced {
+  //     val snapq = new SnapQueue[String](len)
+  //     for (i <- 0 until sz) snapq.enqueue(i.toString)
+  //     val extracted = Util.extractStringSnapQueue(snapq)
+  //     s"got: $extracted" |: extracted == (0 until sz).map(_.toString)
+  //   }
+  // }
 
-  @tailrec
-  def ensureFrozen(snapq: SnapQueue[String]): Unit = {
-    snapq.READ_ROOT() match {
-      case f: snapq.Frozen => ensureFrozen(snapq)
-      case r =>
-        val fr = snapq.freeze(r, t => sys.error("no transition for test"))
-        if (fr == null) ensureFrozen(snapq)
-    }
-  }
+  // @tailrec
+  // def ensureFrozen(snapq: SnapQueue[String]): Unit = {
+  //   snapq.READ_ROOT() match {
+  //     case f: snapq.Frozen => ensureFrozen(snapq)
+  //     case r =>
+  //       val fr = snapq.freeze(r, t => sys.error("no transition for test"))
+  //       if (fr == null) ensureFrozen(snapq)
+  //   }
+  // }
 
-  property("atomic enqueue+freeze") = forAllNoShrink(sizes, lengths, delays) {
-    (sz, len, delay) =>
-    stackTraced {
-      val buf = mutable.Queue[String]() ++= ((0 until sz).map(_.toString))
-      val snapq = new SnapQueue[String](len)
+  // property("atomic enqueue+freeze") = forAllNoShrink(sizes, lengths, delays) {
+  //   (sz, len, delay) =>
+  //   stackTraced {
+  //     val buf = mutable.Queue[String]() ++= ((0 until sz).map(_.toString))
+  //     val snapq = new SnapQueue[String](len)
 
-      val producer = Future {
-        while (buf.nonEmpty && !snapq.READ_ROOT().isInstanceOf[snapq.Frozen]) {
-          val x = buf.dequeue()
-          try snapq.enqueue(x)
-          catch {
-            case e: RuntimeException =>
-              // add back to queue
-              x +=: buf
-          }
-        }
-      }
+  //     val producer = Future {
+  //       while (buf.nonEmpty && !snapq.READ_ROOT().isInstanceOf[snapq.Frozen]) {
+  //         val x = buf.dequeue()
+  //         try snapq.enqueue(x)
+  //         catch {
+  //           case e: RuntimeException =>
+  //             // add back to queue
+  //             x +=: buf
+  //         }
+  //       }
+  //     }
 
-      if (len > 0) Thread.sleep(delay)
-      ensureFrozen(snapq)
+  //     if (len > 0) Thread.sleep(delay)
+  //     ensureFrozen(snapq)
 
-      Await.result(producer, 5.seconds)
+  //     Await.result(producer, 5.seconds)
 
-      val extracted = Util.extractStringSnapQueue(snapq)
-      val observed = extracted ++ buf
-      s"got: $observed" |: observed == (0 until sz).map(_.toString)
-    }
-  }
+  //     val extracted = Util.extractStringSnapQueue(snapq)
+  //     val observed = extracted ++ buf
+  //     s"got: $observed" |: observed == (0 until sz).map(_.toString)
+  //   }
+  // }
 
-  def subsequenceOf[T](xs: Seq[T], ys: Seq[T]): Boolean = {
-    if (xs.length == 0) true
-    else {
-      var pos = 0
-      var i = 0
-      while (i < ys.length) {
-        if (ys(i) == xs(pos)) pos += 1
-        if (pos == xs.length) return true
-        i += 1
-      }
-      false
-    }
-  }
+  // def subsequenceOf[T](xs: Seq[T], ys: Seq[T]): Boolean = {
+  //   if (xs.length == 0) true
+  //   else {
+  //     var pos = 0
+  //     var i = 0
+  //     while (i < ys.length) {
+  //       if (ys(i) == xs(pos)) pos += 1
+  //       if (pos == xs.length) return true
+  //       i += 1
+  //     }
+  //     false
+  //   }
+  // }
 
-  property("N threads can enqueue") = forAllNoShrink(sizes, lengths, numThreads) {
-    (origsz, len, n) =>
-    stackTraced {
-      val sz = math.max(n, origsz)
-      val inputs = (0 until sz).map(_.toString)
-      val snapq = new SnapQueue[String](len)
-      val buckets = inputs.grouped(sz / n).toSeq
-      val workers = for (b <- buckets) yield Future {
-        for (x <- b) snapq.enqueue(x)
-      }
-      Await.result(Future.sequence(workers), 5.seconds)
-      val extracted = Util.extractStringSnapQueue(snapq)
-      val extractedSet = extracted.toSet
-      val inputSet = inputs.toSet
-      val presenceLabel =
-        s"diff: ${extractedSet diff inputSet}; -diff: ${inputSet diff extractedSet}"
-      val allPresent = presenceLabel |: extractedSet == inputSet
-      val allOrdered = (for (b <- buckets) yield {
-        s"is subsequence: $b" |: subsequenceOf(b, extracted)
-      }).foldLeft("zero" |: true)(_ && _)
-      allPresent && allOrdered
-    }
-  }
+  // property("N threads can enqueue") = forAllNoShrink(sizes, lengths, numThreads) {
+  //   (origsz, len, n) =>
+  //   stackTraced {
+  //     val sz = math.max(n, origsz)
+  //     val inputs = (0 until sz).map(_.toString)
+  //     val snapq = new SnapQueue[String](len)
+  //     val buckets = inputs.grouped(sz / n).toSeq
+  //     val workers = for (b <- buckets) yield Future {
+  //       for (x <- b) snapq.enqueue(x)
+  //     }
+  //     Await.result(Future.sequence(workers), 5.seconds)
+  //     val extracted = Util.extractStringSnapQueue(snapq)
+  //     val extractedSet = extracted.toSet
+  //     val inputSet = inputs.toSet
+  //     val presenceLabel =
+  //       s"diff: ${extractedSet diff inputSet}; -diff: ${inputSet diff extractedSet}"
+  //     val allPresent = presenceLabel |: extractedSet == inputSet
+  //     val allOrdered = (for (b <- buckets) yield {
+  //       s"is subsequence: $b" |: subsequenceOf(b, extracted)
+  //     }).foldLeft("zero" |: true)(_ && _)
+  //     allPresent && allOrdered
+  //   }
+  // }
 
-  property("dequeue on full works") = forAllNoShrink(sizes, lengths) {
-    (sz, len) =>
-    stackTraced {
-      val snapq = new SnapQueue[String](len)
-      for (i <- 0 until sz) snapq.enqueue(i.toString)
-      val extracted = mutable.Buffer[String]()
-      @tailrec def extract() {
-        val x = snapq.dequeue()
-        if (x != null) {
-          extracted += x
-          extract()
-        }
-      }
-      extract()
+  // property("dequeue on full works") = forAllNoShrink(sizes, lengths) {
+  //   (sz, len) =>
+  //   stackTraced {
+  //     val snapq = new SnapQueue[String](len)
+  //     for (i <- 0 until sz) snapq.enqueue(i.toString)
+  //     val extracted = mutable.Buffer[String]()
+  //     @tailrec def extract() {
+  //       val x = snapq.dequeue()
+  //       if (x != null) {
+  //         extracted += x
+  //         extract()
+  //       }
+  //     }
+  //     extract()
 
-      s"got: $extracted" |: extracted == (0 until sz).map(_.toString)
-    }
-  }
+  //     s"got: $extracted" |: extracted == (0 until sz).map(_.toString)
+  //   }
+  // }
 
-  property("atomic dequeue+freeze") = forAllNoShrink(sizes, lengths, delays) {
-    (sz, len, delay) =>
-    stackTraced {
-      val snapq = new SnapQueue[String](len)
-      for (i <- 0 until sz) snapq.enqueue(i.toString)
+  // property("atomic dequeue+freeze") = forAllNoShrink(sizes, lengths, delays) {
+  //   (sz, len, delay) =>
+  //   stackTraced {
+  //     val snapq = new SnapQueue[String](len)
+  //     for (i <- 0 until sz) snapq.enqueue(i.toString)
 
-      val consumer = Future {
-        val extracted = mutable.Buffer[String]()
-        @tailrec def extract() {
-          val x = try {
-            snapq.dequeue()
-          } catch {
-            case e: RuntimeException => null
-          }
-          if (x != null) {
-            extracted += x.asInstanceOf[String]
-            extract()
-          }
-        }
-        extract()
-        extracted
-      }
+  //     val consumer = Future {
+  //       val extracted = mutable.Buffer[String]()
+  //       @tailrec def extract() {
+  //         val x = try {
+  //           snapq.dequeue()
+  //         } catch {
+  //           case e: RuntimeException => null
+  //         }
+  //         if (x != null) {
+  //           extracted += x.asInstanceOf[String]
+  //           extract()
+  //         }
+  //       }
+  //       extract()
+  //       extracted
+  //     }
 
-      if (delay > 0) Thread.sleep(delay)
-      ensureFrozen(snapq)
+  //     if (delay > 0) Thread.sleep(delay)
+  //     ensureFrozen(snapq)
 
-      val extracted = Await.result(consumer, 5.seconds)
-      val leftover = Util.extractStringSnapQueue(snapq)
-      val observed = extracted ++ leftover
-      s"got: $observed" |: observed == (0 until sz).map(_.toString)
-    }
-  }
+  //     val extracted = Await.result(consumer, 5.seconds)
+  //     val leftover = Util.extractStringSnapQueue(snapq)
+  //     val observed = extracted ++ leftover
+  //     s"got: $observed" |: observed == (0 until sz).map(_.toString)
+  //   }
+  // }
 
-  property("N threads can dequeue") = forAllNoShrink(sizes, lengths, numThreads) {
-    (sz, len, n) =>
-    stackTraced {
-      val inputs = (0 until sz).map(_.toString)
-      val snapq = new SnapQueue[String](len)
-      for (x <- inputs) snapq.enqueue(x)
-      val workers = for (i <- 0 until n) yield Future {
-        val extracted = mutable.Buffer[String]()
-        @tailrec def extract() {
-          val x = snapq.dequeue()
-          if (x != null) {
-            extracted += x
-            extract()
-          }
-        }
-        extract()
-        extracted
-      }
-      val buffers = Await.result(Future.sequence(workers), 5.seconds)
-      val extracted = buffers.foldLeft(Seq[String]())(_ ++ _)
-      val extractedSet = extracted.toSet
-      val inputSet = inputs.toSet
-      val presenceLabel =
-        s"diff: ${extractedSet diff inputSet}; -diff: ${inputSet diff extractedSet}"
-      val allPresent = presenceLabel |: extractedSet == inputSet
-      val allOrdered = (for (b <- buffers) yield {
-        s"is subsequence: $b" |: subsequenceOf(b, inputs)
-      }).foldLeft("zero" |: true)(_ && _)
-      allPresent && allOrdered
-    }
-  }
+  // property("N threads can dequeue") = forAllNoShrink(sizes, lengths, numThreads) {
+  //   (sz, len, n) =>
+  //   stackTraced {
+  //     val inputs = (0 until sz).map(_.toString)
+  //     val snapq = new SnapQueue[String](len)
+  //     for (x <- inputs) snapq.enqueue(x)
+  //     val workers = for (i <- 0 until n) yield Future {
+  //       val extracted = mutable.Buffer[String]()
+  //       @tailrec def extract() {
+  //         val x = snapq.dequeue()
+  //         if (x != null) {
+  //           extracted += x
+  //           extract()
+  //         }
+  //       }
+  //       extract()
+  //       extracted
+  //     }
+  //     val buffers = Await.result(Future.sequence(workers), 5.seconds)
+  //     val extracted = buffers.foldLeft(Seq[String]())(_ ++ _)
+  //     val extractedSet = extracted.toSet
+  //     val inputSet = inputs.toSet
+  //     val presenceLabel =
+  //       s"diff: ${extractedSet diff inputSet}; -diff: ${inputSet diff extractedSet}"
+  //     val allPresent = presenceLabel |: extractedSet == inputSet
+  //     val allOrdered = (for (b <- buffers) yield {
+  //       s"is subsequence: $b" |: subsequenceOf(b, inputs)
+  //     }).foldLeft("zero" |: true)(_ && _)
+  //     allPresent && allOrdered
+  //   }
+  // }
 
-  property("producer-consumer, with delays") = forAllNoShrink(sizes, lengths, delays) {
-    (sz, len, delay) =>
-    stackTraced {
-      val snapq = new SnapQueue[String](len)
+  // property("producer-consumer, with delays") = forAllNoShrink(sizes, lengths, delays) {
+  //   (sz, len, delay) =>
+  //   stackTraced {
+  //     val snapq = new SnapQueue[String](len)
 
-      val producer = Future {
-        for (i <- 0 until sz) snapq.enqueue(i.toString)
-      }
+  //     val producer = Future {
+  //       for (i <- 0 until sz) snapq.enqueue(i.toString)
+  //     }
 
-      val consumer = Future {
-        def spin() {
-          var i = 0
-          while (i < delay) {
-            snapq.READ_ROOT()
-            i += 1
-          }
-        }
-        val extracted = mutable.Buffer[String]()
-        while (extracted.size != sz) {
-          spin()
-          val x = snapq.dequeue()
-          if (x != null) extracted += x
-        }
-        extracted
-      }
+  //     val consumer = Future {
+  //       def spin() {
+  //         var i = 0
+  //         while (i < delay) {
+  //           snapq.READ_ROOT()
+  //           i += 1
+  //         }
+  //       }
+  //       val extracted = mutable.Buffer[String]()
+  //       while (extracted.size != sz) {
+  //         spin()
+  //         val x = snapq.dequeue()
+  //         if (x != null) extracted += x
+  //       }
+  //       extracted
+  //     }
 
-      val extracted = Await.result(consumer, 3.seconds)
-      s"got: $extracted" |: extracted == (0 until sz).map(_.toString)
-    }
-  }
+  //     val extracted = Await.result(consumer, 3.seconds)
+  //     s"got: $extracted" |: extracted == (0 until sz).map(_.toString)
+  //   }
+  // }
 
-  property("N producer, M consumers") =
-    forAllNoShrink(sizes, lengths, numThreads, numThreads) {
-      (origsz, len, n, m) =>
-      stackTraced {
-        val sz = math.max(n, origsz)
-        val inputs = for (i <- 0 until sz) yield i.toString
-        val snapq = new SnapQueue[String](len)
-        val buckets = inputs.grouped(sz / n).toSeq
+  // property("N producer, M consumers") =
+  //   forAllNoShrink(sizes, lengths, numThreads, numThreads) {
+  //     (origsz, len, n, m) =>
+  //     stackTraced {
+  //       val sz = math.max(n, origsz)
+  //       val inputs = for (i <- 0 until sz) yield i.toString
+  //       val snapq = new SnapQueue[String](len)
+  //       val buckets = inputs.grouped(sz / n).toSeq
 
-        val producers = for (b <- buckets) yield Future {
-          for (x <- b) snapq.enqueue(x)
-        }
+  //       val producers = for (b <- buckets) yield Future {
+  //         for (x <- b) snapq.enqueue(x)
+  //       }
 
-        val counter = new AtomicInteger(0)
+  //       val counter = new AtomicInteger(0)
 
-        val consumers = for (i <- 0 until m) yield Future {
-          val buffer = mutable.Buffer[String]()
-          do {
-            val x = snapq.dequeue()
-            if (x != null) {
-              buffer += x.asInstanceOf[String]
-              counter.incrementAndGet()
-            }
-          } while (counter.get < sz)
-          buffer
-        }
+  //       val consumers = for (i <- 0 until m) yield Future {
+  //         val buffer = mutable.Buffer[String]()
+  //         do {
+  //           val x = snapq.dequeue()
+  //           if (x != null) {
+  //             buffer += x.asInstanceOf[String]
+  //             counter.incrementAndGet()
+  //           }
+  //         } while (counter.get < sz)
+  //         buffer
+  //       }
 
-        Await.ready(Future.sequence(producers), 5.seconds)
-        val buffers = Await.result(Future.sequence(consumers), 5.seconds).toList
-        val obtained = buffers.foldLeft(Seq[String]())(_ ++ _)
+  //       Await.ready(Future.sequence(producers), 5.seconds)
+  //       val buffers = Await.result(Future.sequence(consumers), 5.seconds).toList
+  //       val obtained = buffers.foldLeft(Seq[String]())(_ ++ _)
           
-        (s"length: ${obtained.length}, expected: $sz" |: obtained.length == sz) &&
-          (s"$buffers, got: $obtained; expected $sz" |: obtained.toSet == inputs.toSet)
-      }
-    }
+  //       (s"length: ${obtained.length}, expected: $sz" |: obtained.length == sz) &&
+  //         (s"$buffers, got: $obtained; expected $sz" |: obtained.toSet == inputs.toSet)
+  //     }
+  //   }
 
   property("snapshot consistency: m-1 <= size <= m") = forAllNoShrink(sizes, lengths) {
     (origsz, len) =>

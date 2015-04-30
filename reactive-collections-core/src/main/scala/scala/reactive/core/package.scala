@@ -57,7 +57,7 @@ package object core {
 
   implicit class ConcOps[T](val self: Conc[T]) extends AnyVal {
     def foreach[U](f: T => U) = ConcUtils.foreach(self, f)
-    def <>(that: Conc[T]) = ConcUtils.concatTop(self.normalized, that.normalized)
+    def <>(that: Conc[T]) = ConcUtils.concat(self.normalized, that.normalized)
     def toConqueue: Conqueue[T] = ConcUtils.toConqueue(self)
   }
 

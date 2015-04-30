@@ -580,25 +580,25 @@ object ConcUtils {
       foreachLeafLeft(ys)(leaf => nxs = pushLastTop(nxs,leaf))
       nxs
     } else {
-      toConqueue(concatTop(xs.normalized, ys.normalized))
+      toConqueue(concat(xs.normalized, ys.normalized))
     }
   }
 
-  def concatTop[T](xs: Conc[T], ys: Conc[T]) = {
+  def concat[T](xs: Conc[T], ys: Conc[T]) = {
     if (xs == Empty) ys
     else if (ys == Empty) xs
-    else concat(xs, ys)
+    else concatRec(xs, ys)
   }
 
-  private def concat[T](xs: Conc[T], ys: Conc[T]): Conc[T] = {
+  private def concatRec[T](xs: Conc[T], ys: Conc[T]): Conc[T] = {
     val diff = ys.level - xs.level
     if (diff >= -1 && diff <= 1) new <>(xs, ys)
     else if (diff < -1) {
       if (xs.left.level >= xs.right.level) {
-        val nr = concat(xs.right, ys)
+        val nr = concatRec(xs.right, ys)
         new <>(xs.left, nr)
       } else {
-        val nrr = concat(xs.right.right, ys)
+        val nrr = concatRec(xs.right.right, ys)
         if (nrr.level == xs.level - 3) {
           val nl = xs.left
           val nr = new <>(xs.right.left, nrr)
@@ -611,10 +611,10 @@ object ConcUtils {
       }
     } else {
       if (ys.right.level >= ys.left.level) {
-        val nl = concat(xs, ys.left)
+        val nl = concatRec(xs, ys.left)
         new <>(nl, ys.right)
       } else {
-        val nll = concat(xs, ys.left.left)
+        val nll = concatRec(xs, ys.left.left)
         if (nll.level == ys.level - 3) {
           val nl = new <>(nll, ys.left.right)
           val nr = ys.right

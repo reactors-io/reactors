@@ -4,18 +4,28 @@ package concurrent
 
 
 
+import java.util.concurrent.atomic.AtomicLong
 import scala.annotation.tailrec
 import scala.annotation.unchecked
+import scala.concurrent._
+import scala.concurrent.duration._
 
 
 
-class SnapQueue[T](val L: Int = 128, val initialized: Boolean = true)
-  (implicit val supportOps: SnapQueue.SupportOps[T])
-extends SnapQueueBase[T] with Serializable {
+class SnapQueue[T](
+  val L: Int = 128,
+  val stamper: SnapQueue.Stamper = SnapQueue.defaultStamper,
+  val initialized: Boolean = true
+)(
+  implicit val supportOps: SnapQueue.SupportOps[T]
+) extends SnapQueueBase[T] with Serializable {
   import SnapQueue.Trans
   import SegmentBase.{EMPTY, FROZEN, NONE, REPEAT}
 
-  def this(L: Int)(implicit ops: SnapQueue.SupportOps[T]) = this(L, true)
+  val stamp = stamper.stamp(this)
+
+  def this(L: Int)(implicit ops: SnapQueue.SupportOps[T]) =
+    this(L, SnapQueue.defaultStamper, true)
 
   if (initialized) WRITE_ROOT(new Segment(new Array[AnyRef](L)))
 
@@ -117,18 +127,61 @@ extends SnapQueueBase[T] with Serializable {
   }
 
   @tailrec
-  final def snapshot(): SnapQueue[T] = {
+  private def snapshotInternalFrozen(): RootOrSegmentOrFrozen[T] = {
     val r = READ_ROOT()
     val nr = transition(r, id)
     if (nr == null) {
       helpTransition()
-      snapshot()
+      snapshotInternalFrozen()
+    } else nr
+  }
+
+  final def snapshot(): SnapQueue[T] = {
+    val nr = snapshotInternalFrozen()
+    val ur = id(nr)
+    val snapq = new SnapQueue(L, stamper, false)
+    snapq.WRITE_ROOT(ur)
+    snapq
+  }
+
+  @tailrec
+  private def concatInternalPromise(that: SnapQueue[T]):
+    Promise[(RootOrSegmentOrFrozen[T], RootOrSegmentOrFrozen[T])] = {
+    val p = Promise[(RootOrSegmentOrFrozen[T], RootOrSegmentOrFrozen[T])]()
+
+    // capture root tuple
+    if (this.stamp < that.stamp) {
+      val r = this.READ_ROOT()
+      val nr = transition(r, rthis => {
+        if (!p.isCompleted) {
+          val rthat = that.snapshotInternalFrozen()
+          p.trySuccess((rthis, rthat))
+        }
+        id(rthis)
+      })
+      if (nr != null) p
+      else this.concatInternalPromise(that)
     } else {
-      val ur = id(nr)
-      val snapq = new SnapQueue(L, false)
-      snapq.WRITE_ROOT(ur)
-      snapq
+      ???
     }
+  }
+
+  private def concatInternal(that: SnapQueue[T]): RootOrSegmentOrFrozen[T] = {
+    val p = this.concatInternalPromise(that)
+    p.future.value.get.get match {
+      case (rthis: Root, rthat: Root) =>
+      case (rthis: Segment, rthat: Root) =>
+      case (rthis: Root, rthat: Segment) =>
+      case (rthis: Segment, rthat: Segment) =>
+    }
+    ???
+  }
+
+  final def concat(that: SnapQueue[T]): SnapQueue[T] = {
+    val nr = this.concatInternal(that)
+    val snapq = new SnapQueue(L, stamper, false)
+    snapq.WRITE_ROOT(nr)
+    snapq
   }
 
   @tailrec
@@ -256,9 +309,10 @@ extends SnapQueueBase[T] with Serializable {
     /** Given a frozen segment, locates the head position, that is, the position
      *  of the first non-dequeued element in the array.
      *
-     *  Note: undefined behavior for non-frozen segments.
+     *  Note: throws an exception for non-frozen segments.
      */
     def locateHead(): Int = {
+      assert(p >= 0)
       val p = READ_HEAD()
       -p - 1
     }
@@ -398,6 +452,7 @@ object SnapQueue {
     def pushr(xs: Support, x: Array[T]): Support
     def popl(xs: Support): (Array[T], Support)
     def nonEmpty(xs: Support): Boolean
+    def concat(xs: Support, ys: Support): Support
     def create(): Support
     def foreach[U](xs: Support, f: T => U): Unit
   }
@@ -416,6 +471,9 @@ object SnapQueue {
     def create(): Support = {
       Conc.Empty
     }
+    def concat(xs: Support, ys: Support): Support = {
+      ConcUtils.concat(xs, ys)
+    }
     def foreach[U](xs: Support, f: T => U) = {
       ConcUtils.foreach(xs, (a: Array[T]) => {
         var i = 0
@@ -426,6 +484,17 @@ object SnapQueue {
       })
     }
   }
+
+  trait Stamper {
+    def stamp[T](xs: SnapQueue[T]): Long
+  }
+
+  class AtomicLongStamper extends Stamper {
+    val counter = new AtomicLong(0L)
+    def stamp[T](xs: SnapQueue[T]): Long = counter.getAndIncrement()
+  }
+
+  val defaultStamper = new AtomicLongStamper
 
   type Trans[T] = RootOrSegmentOrFrozen[T] => RootOrSegmentOrFrozen[T]
 
