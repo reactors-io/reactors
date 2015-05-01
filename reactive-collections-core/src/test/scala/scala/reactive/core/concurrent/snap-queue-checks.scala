@@ -771,4 +771,48 @@ object SnapQueueCheck extends Properties("SnapQueue") with ExtendedProperties {
     }
   }
 
+  property("concat consistency: sz1 <= sz2 <= ...") = forAllNoShrink(sizes, lengths) {
+    (sz, len) =>
+    stackTraced {
+      val m = math.max(1, sz)
+      val inputs = (0 until m).map(_.toString)
+      val q1 = new SnapQueue[String](len)
+      val q2 = new SnapQueue[String](len)
+
+      val inserter = Future {
+        for (i <- inputs) {
+          if (i(0) % 2 == 0) q1.enqueue(i)
+          else q2.enqueue(i)
+        }
+      }
+
+      val snapshots = mutable.Buffer[Seq[String]]()
+      while (!inserter.isCompleted) {
+        snapshots += Util.extractStringSnapQueue(q1.concat(q2))
+      }
+
+      val sizes = snapshots.map(_.size)
+      val sizesOk = s"snapshots have consistent size: $sizes" |: sizes == sizes.sorted
+      val numberSnapshots = snapshots.take(20).map(_.map(_.toInt))
+      val invariantViolation = numberSnapshots.find(xs => {
+        if (xs.size < 3) xs != Seq(1, 2) && xs != Seq(1) && xs != Seq()
+        else {
+          val Some((_, limit)) = xs.zipWithIndex.find({
+            case (x, i) => i > 0 && xs(i - 1) > x
+          })
+          val (ys, zs) = xs.splitAt(limit)
+          val invariant =
+            ys == ys.sorted &&
+            zs == zs.sorted &&
+            ys.size - zs.size <= 1 &&
+            (ys.toSet intersect zs.toSet).isEmpty
+          !invariant
+        }
+      })
+      val queueInvariant = s"no subsequence invariant violation: $invariantViolation" |:
+        invariantViolation == None
+      sizesOk && queueInvariant
+    }
+  }
+
 }
