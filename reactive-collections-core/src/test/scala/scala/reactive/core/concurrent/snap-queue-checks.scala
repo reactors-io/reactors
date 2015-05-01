@@ -797,7 +797,7 @@ object SnapQueueCheck extends Properties("SnapQueue") with ExtendedProperties {
       val sizesOk = s"snapshots have consistent size: $sizes" |: sizes == sizes.sorted
       val numberSnapshots = snapshots.take(20).map(_.map(_.toInt))
       val invariantViolation = numberSnapshots.find(xs => {
-        if (xs.size < 3) xs != Seq(0, 1) && xs != Seq(1) && xs != Seq()
+        if (xs.size < 3) xs != Seq(0, 1) && xs != Seq(0) && xs != Seq()
         else {
           val Some((_, limit)) = xs.zipWithIndex.find({
             case (x, i) => i > 0 && xs(i - 1) > x
