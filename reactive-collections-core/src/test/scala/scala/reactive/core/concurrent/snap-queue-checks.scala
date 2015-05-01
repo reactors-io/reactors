@@ -851,4 +851,44 @@ object SnapQueueCheck extends Properties("SnapQueue") with ExtendedProperties {
     }
   }
 
+  property("2 concatenators, 2 producers") =
+    forAllNoShrink(sizes, lengths) {
+      (origsz, len) =>
+      stackTraced {
+        val sz = math.max(16, origsz)
+        val q1 = new SnapQueue[String]()
+        val q2 = new SnapQueue[String]()
+        val inputs = (0 until sz).map(_.toString)
+
+        val p1 = Future {
+          for (x <- inputs) {
+            if (x(0) % 2 == 0) q1.enqueue(x) else q2.enqueue(x)
+          }
+        }
+
+        val p2 = Future {
+          for (x <- inputs) {
+            if (x(0) % 2 == 0) q1.enqueue(x) else q2.enqueue(x)
+          }
+        }
+
+        val concatenators = for (i <- 0 until 2) yield Future {
+          val snapshots = mutable.Buffer[Seq[String]]()
+          while (!(p1.isCompleted && p2.isCompleted)) {
+            snapshots += Util.extractStringSnapQueue(q1.concat(q2))
+          }
+          snapshots
+        }
+
+        Await.ready(p1, 3.seconds)
+        Await.ready(p2, 3.seconds)
+        val results = Await.result(Future.sequence(concatenators), 3.seconds)
+
+        s"sizes must be growing" |: results.forall(snapshots => {
+          val sizes = snapshots.map(_.size)
+          sizes == sizes.sorted
+        })
+      }
+    }
+
 }
