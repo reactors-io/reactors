@@ -14,7 +14,6 @@ import scala.concurrent.duration._
 
 class SnapQueue[T](
   val L: Int = 128,
-  val stamper: SnapQueue.Stamper = SnapQueue.defaultStamper,
   val initialized: Boolean = true
 )(
   implicit val supportOps: SnapQueue.SupportOps[T]
@@ -22,10 +21,9 @@ class SnapQueue[T](
   import SnapQueue.Trans
   import SegmentBase.{EMPTY, FROZEN, NONE, REPEAT}
 
-  val stamp = stamper.stamp(this)
+  val stamp = SnapQueue.stamp(this)
 
-  def this(L: Int)(implicit ops: SnapQueue.SupportOps[T]) =
-    this(L, SnapQueue.defaultStamper, true)
+  def this(L: Int)(implicit ops: SnapQueue.SupportOps[T]) = this(L, true)
 
   if (initialized) WRITE_ROOT(new Segment(new Array[AnyRef](L)))
 
@@ -140,7 +138,7 @@ class SnapQueue[T](
   final def snapshot(): SnapQueue[T] = {
     val nr = snapshotInternalFrozen()
     val ur = id(nr)
-    val snapq = new SnapQueue(L, stamper, false)
+    val snapq = new SnapQueue(L, false)
     snapq.WRITE_ROOT(ur)
     snapq
   }
@@ -151,6 +149,7 @@ class SnapQueue[T](
     val p = Promise[(RootOrSegmentOrFrozen[T], RootOrSegmentOrFrozen[T])]()
 
     // capture root tuple
+    import scala.math.Ordering.Implicits._
     if (this.stamp < that.stamp) {
       val r = this.READ_ROOT()
       val nr = transition(r, rthis => {
@@ -226,7 +225,7 @@ class SnapQueue[T](
 
   final def concat(that: SnapQueue[T]): SnapQueue[T] = {
     val nr = this.concatInternal(that)
-    val snapq = new SnapQueue(L, stamper, false)
+    val snapq = new SnapQueue(L, false)
     snapq.WRITE_ROOT(nr)
     snapq
   }
@@ -537,16 +536,14 @@ object SnapQueue {
     }
   }
 
-  trait Stamper {
-    def stamp[T](xs: SnapQueue[T]): Long
-  }
-
-  class AtomicLongStamper extends Stamper {
+  object AtomicLongStamper {
     val counter = new AtomicLong(0L)
     def stamp[T](xs: SnapQueue[T]): Long = counter.getAndIncrement()
   }
 
-  val defaultStamper = new AtomicLongStamper
+  private val machineId: String = scala.util.Random.nextString(64)
+
+  def stamp[T](q: SnapQueue[T]) = (AtomicLongStamper.stamp(q), machineId)
 
   type Trans[T] = RootOrSegmentOrFrozen[T] => RootOrSegmentOrFrozen[T]
 
