@@ -363,6 +363,8 @@ object SnapQueueCheck extends Properties("SnapQueue") with ExtendedProperties {
 
   val sizes = detChoose(0, 100000)
 
+  val smallSizes = detChoose(0, 1000)
+
   val fillRates = detChoose(0.0, 1.0)
 
   val lengths = detChoose(1, 512)
@@ -812,6 +814,40 @@ object SnapQueueCheck extends Properties("SnapQueue") with ExtendedProperties {
       val queueInvariant = s"no subsequence invariant violation: $invariantViolation" |:
         invariantViolation == None
       sizesOk && queueInvariant
+    }
+  }
+
+  property("concat on small queues") = forAllNoShrink(smallSizes, lengths) {
+    (sz, len) =>
+    stackTraced {
+      val m = math.max(1, sz)
+      val inputs = (0 until m).map(_.toString)
+      val q1 = new SnapQueue[String]()
+      for (i <- inputs) q1.enqueue(i)
+      val q2 = new SnapQueue[String]()
+
+      val rotator = Future {
+        for (i <- 0 until 20) {
+          for (i <- 0 until m) {
+            val x = q1.dequeue()
+            q2.enqueue(x)
+          }
+          for (i <- 0 until m) {
+            val x = q2.dequeue()
+            q1.enqueue(x)
+          }
+        }
+      }
+
+      val snapshots = mutable.Buffer[Seq[String]]()
+      while (!rotator.isCompleted) {
+        snapshots += Util.extractStringSnapQueue(q1.concat(q2))
+      }
+
+      val sizes = snapshots.map(_.size)
+      val sizesOk = s"snapshot size between m-1 and m: $sizes" |:
+        sizes.forall(n => m - 1 <= n && n <= m)
+      sizesOk
     }
   }
 
