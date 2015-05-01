@@ -35,7 +35,7 @@ class SnapQueueBenches extends PerformanceTest.OfflineReport {
     exec.minWarmupRuns -> 50,
     exec.maxWarmupRuns -> 100,
     exec.benchRuns -> 60,
-    exec.independentSamples -> 4
+    exec.independentSamples -> 8
   )
 
   performance of "enqueue-1-thread" config(opts) in {
@@ -62,7 +62,7 @@ class SnapQueueBenches extends PerformanceTest.OfflineReport {
       }
     }
 
-    using(emptySegs(from, until)) curve("SnapQueue.enqueue") setUp {
+    using(emptySegs(from, until)) curve("SnapQueue.Segment.enqueue") setUp {
       seg => seg.reinitialize()
     } in { seg =>
       stringSnapQueue.WRITE_ROOT(seg)
@@ -73,12 +73,21 @@ class SnapQueueBenches extends PerformanceTest.OfflineReport {
       }
     }
 
-    using(sizes(from, until)) curve("SnapQueue.alloc+enqueue") in { sz =>
+    using(sizes(from, until)) curve("SnapQueue.Segment.alloc+enqueue") in { sz =>
       val seg = new stringSnapQueue.Segment(sz)
       stringSnapQueue.WRITE_ROOT(seg)
       var i = 0
       while (i < seg.capacity) {
         stringSnapQueue.enqueue("")
+        i += 1
+      }
+    }
+
+    using(sizes(from, until)) curve("SnapQueue(64).enqueue") in { sz =>
+      val snapq = new SnapQueue[String](64)
+      var i = 0
+      while (i < sz) {
+        snapq.enqueue("")
         i += 1
       }
     }
