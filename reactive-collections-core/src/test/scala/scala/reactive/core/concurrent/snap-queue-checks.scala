@@ -648,7 +648,7 @@ object SnapQueueCheck extends Properties("SnapQueue") with ExtendedProperties {
     }
   }
 
-  property("N producer, M consumers") =
+  property("N producers, M consumers") =
     forAllNoShrink(sizes, lengths, numThreads, numThreads) {
       (origsz, len, n, m) =>
       stackTraced {
