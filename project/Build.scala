@@ -43,6 +43,11 @@ object ReactiveCollectionsBuild extends MechaRepoBuild {
     scalacOptions in (Compile, doc) ++= Seq(
       "-implicits"
     ),
+    testOptions in Test += Tests.Argument(
+      TestFrameworks.ScalaCheck,
+      "-minSuccessfulTests", "150",
+      "-workers", "1",
+      "-verbosity", "2"),
     resolvers ++= Seq(
       "Sonatype OSS Snapshots" at
         "https://oss.sonatype.org/content/repositories/snapshots",
@@ -115,6 +120,11 @@ object ReactiveCollectionsBuild extends MechaRepoBuild {
     scalacOptions in (Compile, doc) ++= Seq(
       "-implicits"
     ),
+    testOptions in Test += Tests.Argument(
+      TestFrameworks.ScalaCheck,
+      "-minSuccessfulTests", "150",
+      "-workers", "1",
+      "-verbosity", "2"),
     resolvers ++= Seq(
       "Sonatype OSS Snapshots" at
         "https://oss.sonatype.org/content/repositories/snapshots",
@@ -129,11 +139,6 @@ object ReactiveCollectionsBuild extends MechaRepoBuild {
       else
         Some("releases"  at nexus + "service/local/staging/deploy/maven2")
     },
-    testOptions in Test += Tests.Argument(
-      TestFrameworks.ScalaCheck,
-      "-minSuccessfulTests", "150",
-      "-workers", "1",
-      "-verbosity", "2"),
     publishArtifact in Test := false,
     pomIncludeRepository := { _ => false },
     pomExtra :=
