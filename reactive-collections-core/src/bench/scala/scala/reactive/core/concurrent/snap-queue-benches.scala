@@ -32,8 +32,8 @@ class SnapQueueBenches extends PerformanceTest.OfflineReport {
   }
 
   val opts = Context(
-    exec.minWarmupRuns -> 50,
-    exec.maxWarmupRuns -> 100,
+    exec.minWarmupRuns -> 100,
+    exec.maxWarmupRuns -> 200,
     exec.benchRuns -> 60,
     exec.independentSamples -> 8
   )
