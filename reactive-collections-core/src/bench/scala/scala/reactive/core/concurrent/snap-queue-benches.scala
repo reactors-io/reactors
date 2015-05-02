@@ -25,6 +25,9 @@ class SnapQueueBenches extends PerformanceTest.OfflineReport {
     seg
   }
 
+  def emptySnapQueue(len: Int, from: Int, until: Int) =
+    for (sz <- sizes(from, until)) yield (new SnapQueue[String](), sz)
+
   def linkedQueues(from: Int, unt: Int) = for (sz <- sizes(from, unt)) yield {
     val q = new ConcurrentLinkedQueue[String]()
     for (i <- 0 until sz) q.add("")
@@ -112,6 +115,17 @@ class SnapQueueBenches extends PerformanceTest.OfflineReport {
       var i = 0
       while (i < seg.capacity) {
         seg.deq()
+        i += 1
+      }
+    }
+
+    using(emptySnapQueue(64, from, until)) curve("SnapQueue(64).deq") setUp {
+      case (q, sz) => for (i <- 0 until sz) q.enqueue("")
+    } in {
+      case (q, sz) =>
+      var i = 0
+      while (i < sz) {
+        q.dequeue()
         i += 1
       }
     }
