@@ -107,13 +107,13 @@ class ReactiveGCSpec extends FlatSpec with ShouldMatchers {
     }
   }
 
-  it should "accurately reflect several dependency" in {
+  it should "accurately reflect several dependencies" in {
     testDep(6) {
       _.demux.isInstanceOf[WeakBuffer[_]]
     }
   }
 
-  it should "accurately reflect many dependency" in {
+  it should "accurately reflect many dependencies" in {
     testDep(32) {
       _.demux.isInstanceOf[WeakHashTable[_]]
     }
