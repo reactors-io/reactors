@@ -57,6 +57,8 @@ class ReactiveGCSpec extends FlatSpec with ShouldMatchers {
     }
 
     sys.runtime.gc()
+    sys.runtime.gc()
+    sys.runtime.gc()
 
     emitter react 1
 
@@ -89,6 +91,8 @@ class ReactiveGCSpec extends FlatSpec with ShouldMatchers {
       signsOfLife(i) = true
     }
 
+    sys.runtime.gc()
+    sys.runtime.gc()
     sys.runtime.gc()
 
     emitter react 1
@@ -125,6 +129,8 @@ class ReactiveGCSpec extends FlatSpec with ShouldMatchers {
       signsOfLife(i) = true
     }
 
+    sys.runtime.gc()
+    sys.runtime.gc()
     sys.runtime.gc()
 
     emitter react 1
