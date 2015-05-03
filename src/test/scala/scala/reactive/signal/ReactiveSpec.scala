@@ -1,11 +1,11 @@
 package scala.reactive
-package test.signal
+package signal
 
 
 
-import scala.collection._
 import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers
+import scala.collection._
 
 
 

@@ -1,5 +1,5 @@
 package scala.reactive
-package test.signal
+package signal
 
 
 

@@ -4,8 +4,8 @@ package scala.reactive
 
 import scala.annotation.tailrec
 import scala.collection._
-import scala.reactive.util._
 import scala.reactive.calc.RVFun
+import scala.reactive.util._
 
 
 
