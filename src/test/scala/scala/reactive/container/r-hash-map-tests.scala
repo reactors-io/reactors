@@ -3,11 +3,37 @@ package container
 
 
 
+import java.util.NoSuchElementException
 import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers
-import java.util.NoSuchElementException
+import org.scalacheck._
+import org.scalacheck.Gen._
+import org.scalacheck.Prop._
+import org.testx._
 import scala.collection._
 
+
+
+class RHashMapCheck extends Properties("RHashMap") with ExtendedProperties {
+  val sizes = detChoose(0, 1000)
+
+  property("contain elements") = forAllNoShrink(sizes) { sz =>
+    stackTraced {
+      val table = new RHashMap[Long, String]
+      for (i <- 0 until sz) table(i) = i.toString
+
+      assert(table.size == sz)
+      for (i <- 0 until sz) assert(table(i) == i.toString, table(i))
+      for (i <- 0 until sz / 2) assert(table.remove(i) == true)
+      for (i <- 0 until sz / 2) assert(table.get(i) == None)
+      for (i <- sz / 2 until sz) assert(table(i) == i.toString, table(i))
+      table.clear()
+      for (i <- 0 until sz) assert(table.get(i) == None)
+      assert(table.size == 0, s"size = ${table.size}")
+      true
+    }
+  }
+}
 
 
 class RHashMapSpec extends FlatSpec with ShouldMatchers {
@@ -65,25 +91,6 @@ class RHashMapSpec extends FlatSpec with ShouldMatchers {
     table.remove("c") should equal (true)
     table("a") should equal ("1")
     table("d") should equal ("4")
-  }
-
-  it should "contain many elements" in {
-    containManyElements()
-  }
-
-  def containManyElements() {
-    val many = 1024
-    val table = new RHashMap[Long, String]
-    for (i <- 0 until many) table(i) = i.toString
-
-    table.size should equal (many)
-    for (i <- 0 until many) table(i) should equal (i.toString)
-    for (i <- 0 until many / 2) table.remove(i) should equal (true)
-    for (i <- 0 until many / 2) table.get(i) should equal (None)
-    for (i <- many / 2 until many) table(i) should equal (i.toString)
-    table.clear()
-    for (i <- 0 until many) table.get(i) should equal (None)
-    table.size should equal (0)
   }
 
   it should "subscribe to a specific key" in {
@@ -172,7 +179,9 @@ class RHashMapSpec extends FlatSpec with ShouldMatchers {
     for (i <- 0 until size) table(i) = i.toString
 
     val check = mutable.Buffer[Int]()
-    for ((k, v) <- threeDigits) check += k
+    threeDigits foreach {
+      case (k, v) => check += k
+    }
 
     check.sorted should equal (100 until size)
   }
@@ -191,13 +200,11 @@ class RHashMapSpec extends FlatSpec with ShouldMatchers {
     table(-big) = math.BigInt(big)
 
     val check = mutable.Buffer[(Int, Int)]()
-    for ((k, v) <- lessThanBig) check += ((k, v))
+    lessThanBig foreach {
+      case (k, v) => check += ((k, v))
+    }
 
     check.sorted should equal ((0 until size).map(i => (i, -i)))
   }
 
 }
-
-
-
-
