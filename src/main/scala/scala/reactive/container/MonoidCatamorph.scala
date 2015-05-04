@@ -92,6 +92,7 @@ object MonoidCatamorph {
     def housekeep(op: (T, T) => T) {}
     def asInner = this.asInstanceOf[Inner[T]]
     override def toString = toString(0)
+    def localString: String
   }
 
   class Inner[@spec(Int, Long, Double) T](var height: Int, var left: Node[T], var right: Node[T], var parent: Inner[T])
@@ -195,7 +196,9 @@ object MonoidCatamorph {
       result
     }
     
-    def toString(indent: Int) = " " * indent + s"Inner($height, \n${left.toString(indent + 2)}, \n${right.toString(indent + 2)})"
+    def toString(indent: Int) = " " * indent +
+      s"Inner($height, \n${left.toString(indent + 2)}, \n${right.toString(indent + 2)})"
+    def localString = s"Inner(h = $height, l.h = ${left.height}, r.h = ${right.height})"
   }
 
   class Leaf[@spec(Int, Long, Double) T](val get: () => T, var parent: Inner[T]) extends Node[T] {
@@ -223,6 +226,7 @@ object MonoidCatamorph {
       }
     }
     def toString(indent: Int) = " " * indent + s"Leaf(${get()})"
+    def localString = s"Leaf(${get()})"
   }
 
   class Empty[@spec(Int, Long, Double) T](val value: T) extends Node[T] {
@@ -232,6 +236,7 @@ object MonoidCatamorph {
     def pushUp(op: (T, T) => T) {}
     def insert(leaf: Leaf[T], op: (T, T) => T) = leaf
     def toString(indent: Int) = " " * indent + s"Empty($value)"
+    def localString = s"Empty($value)"
   }
 
 }
