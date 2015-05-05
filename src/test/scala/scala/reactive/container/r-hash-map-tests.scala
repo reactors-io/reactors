@@ -33,6 +33,37 @@ class RHashMapCheck extends Properties("RHashMap") with ExtendedProperties {
       true
     }
   }
+
+  property("subscribe to many keys") = forAllNoShrink(sizes, sizes) { (sz, many) =>
+    stackTraced {
+      val table = new RHashMap[Int, String]
+      for (i <- 0 until many) table(i) = i.toString
+      val signals = for (i <- 0 until many) yield table.react(i)
+      for (i <- 0 until sz) table(i) = s"value$i"
+      for (i <- 0 until many)
+        assert(i >= sz || signals(i)() == s"value$i", signals(i)())
+      val moresignals = for (i <- many until sz) yield table.react(i)
+      for (i <- many until sz) assert(moresignals(i - many)() == s"value$i")
+      true
+    }
+  }
+
+  property("subscribe to non-existing") = forAllNoShrink(sizes, sizes) { (sz, many) =>
+    stackTraced {
+      val table = new RHashMap[Int, String]
+      val signsOfLife = Array.fill(many)(false)
+      val subs = for (i <- 0 until many) yield {
+        val values = table.react(i)
+        values foreach { _ =>
+          signsOfLife(i) = true
+        }
+      }
+
+      for (i <- 0 until sz) table(i) = "foobar"
+      for (i <- 0 until many) assert(i >= sz || signsOfLife(i) == true)
+      true
+    }
+  }
 }
 
 
@@ -101,38 +132,6 @@ class RHashMapSpec extends FlatSpec with ShouldMatchers {
 
     table(128) = "new value"
     specificKey() should equal ("new value")
-  }
-
-  it should "subscribe to many keys" in {
-    val size = 1024
-    val many = 512
-    val table = new RHashMap[Int, String]
-    for (i <- 0 until many) table(i) = i.toString
-    val signals = for (i <- 0 until many) yield table.react(i)
-    for (i <- 0 until size) table(i) = s"value$i"
-    for (i <- 0 until many) signals(i)() should equal (s"value$i")
-    val moresignals = for (i <- many until size) yield table.react(i)
-    for (i <- many until size) moresignals(i - many)() should equal (s"value$i")
-  }
-
-  it should "subscribe to non-existing keys" in {
-    testSubscribeNonexisting()
-  }
-
-  def testSubscribeNonexisting() {
-    val size = 256
-    val many = 128
-    val table = new RHashMap[Int, String]
-    val signsOfLife = Array.fill(many)(false)
-    val subs = for (i <- 0 until many) yield {
-      val values = table.react(i)
-      values foreach { _ =>
-        signsOfLife(i) = true
-      }
-    }
-
-    for (i <- 0 until size) table(i) = "foobar"
-    for (i <- 0 until many) signsOfLife(i) should equal (true)
   }
 
   it should "accurately GC key subscriptions no longer used" in {
