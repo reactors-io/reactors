@@ -64,6 +64,86 @@ class RHashMapCheck extends Properties("RHashMap") with ExtendedProperties {
       true
     }
   }
+
+  property("accurately GC stale key subscriptions") = forAllNoShrink(sizes, sizes) {
+    (size, many) =>
+    stackTraced {
+      val table = new RHashMap[Int, String]
+      val signsOfLife = Array.fill(many)(false)
+      for (i <- 0 until many) yield table.react(i)
+
+      sys.runtime.gc()
+
+      for (i <- 0 until size) table(i) = "foobar"
+      for (i <- 0 until many) assert(signsOfLife(i) == false)
+      true
+    }
+  }
+
+  property("contain the correct set of keys") = forAllNoShrink(sizes) { size =>
+    stackTraced {
+      val table = new RHashMap[Int, String]
+      val observed = mutable.Set[Int]()
+      val keys = table.keys
+      val insertSub = keys.inserts.foreach(observed += _)
+      for (i <- 0 until size) table(i) = i.toString
+
+      observed == ((0 until size).toSet)
+    }
+  }
+
+  property("contain the correct set of values") = forAllNoShrink(sizes) { size =>
+    stackTraced {
+      val table = new RHashMap[Int, String]
+      val observed = mutable.Set[String]()
+      val values = table.values
+      val insertSub = values.inserts.foreach(observed += _.toString)
+      for (i <- 0 until size) table(i) = i.toString
+
+      observed == ((0 until size).map(_.toString).toSet)
+    }
+  }
+
+  property("have a valid entries container") = forAllNoShrink(sizes) { size =>
+    stackTraced {
+      val table = new RHashMap[Int, String]
+      val threeDigits = table.entries.collect2({
+        case s if s.length > 2 => s
+      }).react.to[RHashMap[Int, String]]
+      for (i <- 0 until size) table(i) = i.toString
+
+      val check = mutable.Buffer[Int]()
+      threeDigits foreach {
+        case (k, v) => check += k
+      }
+
+      check.sorted == (100 until size)
+    }
+  }
+
+  property("have entries inverted and mapped") = forAllNoShrink(sizes) {
+    (size) =>
+    import scala.reactive.calc.RVFun
+    stackTraced {
+      val big = size * 4
+      val table = new RHashMap[Int, math.BigInt]
+      val bigIntToInt = new RVFun[math.BigInt, Int] { def apply(x: BigInt) = x.toInt }
+      val lessThanBig = table.entries.collect2({
+        case b if b < big => b
+      }).rvmap2(bigIntToInt).swap.react.to[RHashValMap[Int, Int]]
+    
+      for (i <- 0 until size) table(-i) = math.BigInt(i)
+      table(-big) = math.BigInt(big)
+
+      val check = mutable.Buffer[(Int, Int)]()
+      lessThanBig foreach {
+        case (k, v) => check += ((k, v))
+      }
+
+      check.sorted == (0 until size).map(i => (i, -i))
+    }
+  }
+
 }
 
 
@@ -132,78 +212,6 @@ class RHashMapSpec extends FlatSpec with ShouldMatchers {
 
     table(128) = "new value"
     specificKey() should equal ("new value")
-  }
-
-  it should "accurately GC key subscriptions no longer used" in {
-    val size = 256
-    val many = 128
-    val table = new RHashMap[Int, String]
-    val signsOfLife = Array.fill(many)(false)
-    for (i <- 0 until many) yield table.react(i)
-
-    sys.runtime.gc()
-
-    for (i <- 0 until size) table(i) = "foobar"
-    for (i <- 0 until many) signsOfLife(i) should equal (false)
-  }
-
-  it should "contain the correct set of keys" in {
-    val size = 256
-    val table = new RHashMap[Int, String]
-    val observed = mutable.Set[Int]()
-    val keys = table.keys
-    keys.inserts.foreach(observed += _)
-    for (i <- 0 until size) table(i) = i.toString
-
-    observed should equal ((0 until size).toSet)
-  }
-
-  it should "contain the correct set of values" in {
-    val size = 256
-    val table = new RHashMap[Int, String]
-    val observed = mutable.Set[Int]()
-    val keys = table.keys
-    val insertSub = keys.inserts.foreach(observed += _)
-    for (i <- 0 until size) table(i) = i.toString
-
-    observed should equal ((0 until size).toSet)
-  }
-
-  it should "have a valid entries container" in {
-    val size = 256
-    val table = new RHashMap[Int, String]
-    val threeDigits = table.entries.collect2({
-      case s if s.length > 2 => s
-    }).react.to[RHashMap[Int, String]]
-    for (i <- 0 until size) table(i) = i.toString
-
-    val check = mutable.Buffer[Int]()
-    threeDigits foreach {
-      case (k, v) => check += k
-    }
-
-    check.sorted should equal (100 until size)
-  }
-
-  it should "have its entries inverted and mapped into a value map" in {
-    import scala.reactive.calc.RVFun
-    val size = 256
-    val big = 1000
-    val table = new RHashMap[Int, math.BigInt]
-    val bigIntToInt = new RVFun[math.BigInt, Int] { def apply(x: BigInt) = x.toInt }
-    val lessThanBig = table.entries.collect2({
-      case b if b < big => b
-    }).rvmap2(bigIntToInt).swap.react.to[RHashValMap[Int, Int]]
-    
-    for (i <- 0 until size) table(-i) = math.BigInt(i)
-    table(-big) = math.BigInt(big)
-
-    val check = mutable.Buffer[(Int, Int)]()
-    lessThanBig foreach {
-      case (k, v) => check += ((k, v))
-    }
-
-    check.sorted should equal ((0 until size).map(i => (i, -i)))
   }
 
 }
