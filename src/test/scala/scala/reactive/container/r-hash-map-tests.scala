@@ -4,11 +4,11 @@ package container
 
 
 import java.util.NoSuchElementException
-import org.scalatest._
-import org.scalatest.matchers.ShouldMatchers
 import org.scalacheck._
 import org.scalacheck.Gen._
 import org.scalacheck.Prop._
+import org.scalatest._
+import org.scalatest.matchers.ShouldMatchers
 import org.testx._
 import scala.collection._
 

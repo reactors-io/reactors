@@ -3,9 +3,37 @@ package container
 
 
 
+import org.scalacheck._
+import org.scalacheck.Gen._
+import org.scalacheck.Prop._
+import org.testx._
 import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers
 
+
+
+class RHashValMapCheck extends Properties("RHashValMap") with ExtendedProperties {
+
+  val sizes = detChoose(0, 1000)
+
+  property("contain many elements") = forAllNoShrink(sizes) { size =>
+    stackTraced {
+      val table = new RHashValMap[Long, Int]
+      for (i <- 0 until size) table(i) = i.toInt
+
+      assert(table.size == size)
+      for (i <- 0 until size) assert(table(i) == i.toInt)
+      for (i <- 0 until size / 2) assert(table.remove(i) == true)
+      for (i <- 0 until size / 2) assert(table.get(i) == None)
+      for (i <- size / 2 until size) assert(table(i) == i.toInt)
+      table.clear()
+      for (i <- 0 until size) assert(table.get(i) == None)
+      assert(table.size == 0)
+      true
+    }
+  }
+
+}
 
 
 class RHashValMapSpec extends FlatSpec with ShouldMatchers {
@@ -59,21 +87,6 @@ class RHashValMapSpec extends FlatSpec with ShouldMatchers {
     table.remove(2) should equal (true)
     table(0) should equal (1)
     table(3) should equal (4)
-  }
-
-  it should "contain many elements" in {
-    val many = 1024
-    val table = new RHashValMap[Long, Int]
-    for (i <- 0 until many) table(i) = i.toInt
-
-    table.size should equal (many)
-    for (i <- 0 until many) table(i) should equal (i.toInt)
-    for (i <- 0 until many / 2) table.remove(i) should equal (true)
-    for (i <- 0 until many / 2) table.get(i) should equal (None)
-    for (i <- many / 2 until many) table(i) should equal (i.toInt)
-    table.clear()
-    for (i <- 0 until many) table.get(i) should equal (None)
-    table.size should equal (0)
   }
 
 }

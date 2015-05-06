@@ -3,10 +3,90 @@ package container
 
 
 
+import org.scalacheck._
+import org.scalacheck.Gen._
+import org.scalacheck.Prop._
+import org.testx._
 import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers
 import scala.collection._
 
+
+
+class RTileMapCheck extends Properties("RTileMap") with ExtendedProperties {
+
+  val sizes = detChoose(1, 1000)
+
+  def rects(size: Int): Gen[(Int, Int, Int, Int)] = for {
+    x <- detChoose(0, size - 1)
+    y <- detChoose(0, size - 1)
+    w <- detChoose(0, size - x - 1)
+    h <- detChoose(0, size - y - 1)
+  } yield (x, y, w, h)
+
+  val sizeAndRects = for {
+    sz <- sizes
+    r <- rects(sz)
+  } yield (sz, r)
+
+  property("contain random elements") = forAllNoShrink(sizes, sizes) {
+    (size, num) =>
+    stackTraced {
+      val table = new RTileMap[String](size, "")
+      val rng = new scala.util.Random(size)
+      val added = mutable.Map[(Int, Int), String]()
+      for (i <- 0 until num) {
+        val x = rng.nextInt(size)
+        val y = rng.nextInt(size)
+        if (!added.contains((x, y))) {
+          table(x, y) = i.toString
+          added((x, y)) = i.toString
+        }
+      }
+      for (((x, y), elem) <- added) assert(table(x, y) == elem,
+        s"at ($x, $y) = '${table(x, y)}' vs '$elem'")
+      true
+    }
+  }
+
+  property("contain a rectangle of elements") = forAllNoShrink(sizeAndRects) {
+    case (size, (x, y, w, h)) =>
+    stackTraced {
+      val table = new RTileMap[String](size, "")
+      val rng = new scala.util.Random(size)
+      val added = mutable.Map[(Int, Int), String]()
+      for (i <- x until (x + w); j <- y until (y + h)) {
+        table(x, y) = i.toString
+        added((x, y)) = i.toString
+      }
+      for (((x, y), elem) <- added)
+        assert(table(x, y) == elem, s"at ($x, $y) = '${table(x, y)}' vs '$elem'")
+      true
+    }
+  }
+
+  property("detect modifications") = forAllNoShrink(sizes, sizes) { (size, num) =>
+    stackTraced {
+      import scala.reactive._
+      val rng = new scala.util.Random(size)
+      val tilemap = new RTileMap[String](size, null)
+      val added = mutable.Map[(Int, Int), String]()
+      for (i <- 0 until num) {
+        val x = rng.nextInt(size)
+        val y = rng.nextInt(size)
+        if (!added.contains((x, y))) {
+          added((x, y)) = i.toString
+        }
+      }
+      val f = tilemap.updates foreach { case xy =>
+        assert(tilemap(xy.x, xy.y) == added((xy.x, xy.y)))
+      }
+      for (((x, y), elem) <- added) tilemap(x, y) = elem
+      true
+    }
+  }
+
+}
 
 
 class RTileMapSpec extends FlatSpec with ShouldMatchers {
