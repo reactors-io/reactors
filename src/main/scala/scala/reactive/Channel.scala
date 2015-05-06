@@ -71,19 +71,6 @@ trait Channel[@spec(Int, Long, Double) T] {
    */
   def isTerminated: Boolean
 
-  /** Composes this channel with a custom mapping function for the input events.
-   *  
-   *  Events from reactives passed to this channel are mapped inside their
-   *  isolates.
-   *
-   *  @tparam S      type of the events the new channel will accept
-   *  @param f       maps events in the resulting channel to events of the
-   *                 original channel
-   *  @return        the new channel accepting events of type `S`
-   */
-  def compose[@spec(Int, Long, Double) S](f: S => T) =
-    new Channel.Composed(this, f)
-
   /** Creates and attaches a reactive emitter to the channel.
    *
    *  The call `c.attachEmitter()` is equivalent to:
@@ -144,22 +131,6 @@ trait Channel[@spec(Int, Long, Double) T] {
 /** Channel implementations and creation methods.
  */
 object Channel {
-
-  private[reactive] class Composed
-    [@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
-    (val self: Channel[T], val f: S => T)
-  extends Channel[S] {
-    def attach(r: Reactive[S]): Channel[S] = {
-      self.attach(r.map(f))
-      this
-    }
-    def seal(): Channel[S] = {
-      self.seal()
-      this
-    }
-    def isSealed = self.isSealed
-    def isTerminated = self.isTerminated
-  }
 
   /** A synchronized channel.
    *
