@@ -55,8 +55,8 @@ object Reactor {
 
     def unreact() = {
       try {
-        unregisterEventSink(canLeak)
         underlying.unreact()
+        unregisterEventSink(canLeak)
       } catch ignoreNonLethal
     }
   }

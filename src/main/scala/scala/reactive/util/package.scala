@@ -12,7 +12,7 @@ package object util {
 
   val unsafe = scala.concurrent.util.Unsafe.instance
 
-  private val counterMap = concurrent.TrieMap[Class[_], AtomicLong]()
+  private val counterMap = scala.concurrent.TrieMap[Class[_], AtomicLong]()
 
   final def freshId[C: ClassTag]: Long = {
     val cls = implicitly[ClassTag[C]].erasure

@@ -56,7 +56,7 @@ class Connector[@spec(Int, Long, Double) T](
    *  
    *  @return            `true` if terminated, `false` otherwise
    */
-  def isTerminated = chan.isTerminated && dequeuer.isEmpty
+  def isTerminated = chan.isSealed && dequeuer.isEmpty
 
 }
 

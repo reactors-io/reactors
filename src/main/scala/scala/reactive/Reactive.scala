@@ -871,15 +871,6 @@ object Reactive {
       case _ => throw new UnsupportedOperationException("This is not a signal.")
     }
 
-    /** Pipes the events from this reactive to the specified channel.
-     *  
-     *  The call `r.pipe(c)` is equivalent to the following:
-     *  {{{
-     *  c.attach(r)
-     *  }}}
-     */
-    def pipe(c: Channel[T]): Unit = c.attach(self)
-
     /** Pipes the events from this reactive to the specified emitter.
      *
      *  @param em        emitter to forward the events to

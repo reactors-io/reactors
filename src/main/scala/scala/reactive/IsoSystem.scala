@@ -297,7 +297,7 @@ object IsoSystem {
      *  @param name       name of the channel
      *  @return           the ivar with the channel registered under the specified name
      */
-    def iget[@spec(Int, Long, Double) T](name: String): Reactive.Ivar[Channel[T]]
+    def iget[@spec(Int, Long, Double) T](name: String): Signal[Channel[T]]
 
     /** Eventually returns an *unsealed* channel under the specified name.
      *
@@ -337,13 +337,17 @@ object IsoSystem {
         else {
           val reqId = Iso.self.frame.counter.incrementAndGet()
           val sysChannel = Iso.self.sysChannel
-          val desiredChannels = channelMap.react(name).filter(pred).endure
-          desiredChannels.effect(_ => desiredChannels.unsubscribe()).map(ChannelRetrieved(reqId, _): InternalEvent).pipe(sysChannel)
-          Iso.self.internalEvents.collect(channelExtractor[T](reqId)).ivar
+          // val desiredChannels = channelMap.react(name).filter(pred).endure
+          // val desiredChannels.effect(_ => desiredChannels.unsubscribe())
+          //   .map(ChannelRetrieved(reqId, _): InternalEvent).foreach(x => sysChannel ! x)
+          // Iso.self.internalEvents.collect(channelExtractor[T](reqId)).ivar
+          ??? // TODO resolve with canLeak
         }
       }
-      def iget[@spec(Int, Long, Double) T](name: String) = getIvar(name, c => c != null)
-      def iunsealed[@spec(Int, Long, Double) T](name: String) = getIvar(name, c => c != null && !c.isSealed)
+      def iget[@spec(Int, Long, Double) T](name: String): Reactive[T] =
+        getIvar(name, c => c != null)
+      def iunsealed[@spec(Int, Long, Double) T](name: String) =
+        getIvar(name, c => c != null && !c.isSealed)
     }
 
   }
