@@ -33,8 +33,21 @@ trait SnapQueueBench extends PerformanceTest.OfflineReport {
 
   def linkedQueues(from: Int, unt: Int) = for (sz <- sizes(from, unt)) yield {
     val q = new ConcurrentLinkedQueue[String]()
-    for (i <- 0 until sz) q.add("")
     (q, sz)
+  }
+
+  def linkedQueueParallelisms(parFrom: Int, parUntil: Int) = {
+    for (p <- parallelisms(parFrom, parUntil)) yield {
+      val q = new ConcurrentLinkedQueue[String]()
+      (q, p)
+    }
+  }
+
+  def emptySnapQueueParallelisms(len: Int, parFrom: Int, parUntil: Int) = {
+    for (p <- parallelisms(parFrom, parUntil)) yield {
+      val q = new SnapQueue[String](len)
+      (q, p)
+    }
   }
 
   def opts = Context(
@@ -178,7 +191,7 @@ class SnapQueueConsumerBench extends SnapQueueBench {
       }
     }
 
-    using(emptySnapQueue(len, from, until)) curve(s"SnapQueue($len).deq") setUp {
+    using(emptySnapQueue(len, from, until)) curve(s"SnapQueue($len).dequeue") setUp {
       case (q, sz) => for (i <- 0 until sz) q.enqueue("")
     } in {
       case (q, sz) =>
@@ -200,6 +213,56 @@ class SnapQueueConsumerBench extends SnapQueueBench {
         queue.poll()
         i += 1
       }
+    }
+  }
+
+}
+
+
+class SnapQueueMultipleConsumerBench extends SnapQueueBench {
+
+  performance of "dequeue-N-threads" config(opts) in {
+    val size = 500000
+    val parFrom = 1
+    val parUntil = 8
+    val len = 64
+
+    using(linkedQueueParallelisms(parFrom, parUntil)).curve("ConcurrentLinkedQueue")
+      .setUp {
+      case (queue, _) =>
+      queue.clear()
+      for (i <- 0 until size) queue.add("")
+    } in { case (queue, par) =>
+      val batchSize = size / par
+      val threads = for (i <- 0 until par) yield new Thread {
+        override def run() {
+          var i = 0
+          while (i < batchSize) {
+            queue.poll()
+            i += 1
+          }
+        }
+      }
+      for (t <- threads) t.start()
+      for (t <- threads) t.join()
+    }
+
+    using(emptySnapQueueParallelisms(len, parFrom, parUntil))
+      .curve(s"SnapQueue($len).dequeue").setUp {
+      case (snapq, _) => for (i <- 0 until size) snapq.enqueue("")
+    } in { case (snapq, par) =>
+      val batchSize = size / par
+      val threads = for (i <- 0 until par) yield new Thread {
+        override def run() {
+          var i = 0
+          while (i < batchSize) {
+            snapq.dequeue()
+            i += 1
+          }
+        }
+      }
+      for (t <- threads) t.start()
+      for (t <- threads) t.join()
     }
   }
 
