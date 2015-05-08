@@ -8,10 +8,13 @@ import org.scalameter.api._
 
 
 
-class SnapQueueBenches extends PerformanceTest.OfflineReport {
+trait SnapQueueBench extends PerformanceTest.OfflineReport {
 
   def sizes(from: Int, until: Int) =
     Gen.range("size")(from, until, (until - from) / 4)
+
+  def parallelisms(from: Int, until: Int) =
+    Gen.range("parallelism")(from, until, 1)
 
   val stringSnapQueue = new SnapQueue[String]
 
@@ -34,16 +37,22 @@ class SnapQueueBenches extends PerformanceTest.OfflineReport {
     (q, sz)
   }
 
-  val opts = Context(
+  def opts = Context(
     exec.minWarmupRuns -> 100,
     exec.maxWarmupRuns -> 200,
     exec.benchRuns -> 60,
     exec.independentSamples -> 8
   )
 
+}
+
+
+class SnapQueueProducerBench extends SnapQueueBench {
+
   performance of "enqueue-1-thread" config(opts) in {
     val from = 100000
     val until = 500000
+    val len = 64
 
     using(emptySegs(from, until)) curve("Segment.enq") setUp {
       seg => seg.reinitialize()
@@ -86,8 +95,8 @@ class SnapQueueBenches extends PerformanceTest.OfflineReport {
       }
     }
 
-    using(sizes(from, until)) curve("SnapQueue(64).enqueue") in { sz =>
-      val snapq = new SnapQueue[String](64)
+    using(sizes(from, until)) curve(s"SnapQueue($len).enqueue") in { sz =>
+      val snapq = new SnapQueue[String](len)
       var i = 0
       while (i < sz) {
         snapq.enqueue("")
@@ -105,9 +114,59 @@ class SnapQueueBenches extends PerformanceTest.OfflineReport {
     }
   }
 
+}
+
+
+class SnapQueueMultipleProducerBench extends SnapQueueBench {
+
+  performance of "enqueue-N-threads" config(opts) in {
+    val size = 500000
+    val parFrom = 1
+    val parUntil = 8
+    val len = 64
+
+    using(parallelisms(parFrom, parUntil)) curve("ConcurrentLinkedQueue") in { par =>
+      val queue = new ConcurrentLinkedQueue[String]
+      val batchSize = size / par
+      val threads = for (i <- 0 until par) yield new Thread {
+        override def run() {
+          var i = 0
+          while (i < batchSize) {
+            queue.add("")
+            i += 1
+          }
+        }
+      }
+      for (t <- threads) t.start()
+      for (t <- threads) t.join()
+    }
+
+    using(parallelisms(parFrom, parUntil)) curve(s"SnapQueue($len)") in { par =>
+      val snapq = new SnapQueue[String](len)
+      val batchSize = size / par
+      val threads = for (i <- 0 until par) yield new Thread {
+        override def run() {
+          var i = 0
+          while (i < batchSize) {
+            snapq.enqueue("")
+            i += 1
+          }
+        }
+      }
+      for (t <- threads) t.start()
+      for (t <- threads) t.join()
+    }
+  }
+
+}
+
+
+class SnapQueueConsumerBench extends SnapQueueBench {
+
   performance of "dequeue-1-thread" config(opts) in {
     val from = 100000
     val until = 500000
+    val len = 64
 
     using(fullSegs(from, until)) curve("Segment.deq") setUp {
       seg => seg.WRITE_HEAD(0)
@@ -119,7 +178,7 @@ class SnapQueueBenches extends PerformanceTest.OfflineReport {
       }
     }
 
-    using(emptySnapQueue(64, from, until)) curve("SnapQueue(64).deq") setUp {
+    using(emptySnapQueue(len, from, until)) curve(s"SnapQueue($len).deq") setUp {
       case (q, sz) => for (i <- 0 until sz) q.enqueue("")
     } in {
       case (q, sz) =>
