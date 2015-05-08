@@ -51,10 +51,10 @@ trait SnapQueueBench extends PerformanceTest.OfflineReport {
   }
 
   def opts = Context(
-    exec.minWarmupRuns -> 100,
-    exec.maxWarmupRuns -> 200,
+    exec.minWarmupRuns -> 50,
+    exec.maxWarmupRuns -> 100,
     exec.benchRuns -> 60,
-    exec.independentSamples -> 8
+    exec.independentSamples -> 4
   )
 
 }
@@ -131,6 +131,13 @@ class SnapQueueProducerBench extends SnapQueueBench {
 
 
 class SnapQueueMultipleProducerBench extends SnapQueueBench {
+
+  override def opts = Context(
+    exec.minWarmupRuns -> 50,
+    exec.maxWarmupRuns -> 100,
+    exec.benchRuns -> 40,
+    exec.independentSamples -> 1
+  )
 
   performance of "enqueue-N-threads" config(opts) in {
     val size = 500000
@@ -221,6 +228,13 @@ class SnapQueueConsumerBench extends SnapQueueBench {
 
 class SnapQueueMultipleConsumerBench extends SnapQueueBench {
 
+  override def opts = Context(
+    exec.minWarmupRuns -> 40,
+    exec.maxWarmupRuns -> 80,
+    exec.benchRuns -> 40,
+    exec.independentSamples -> 1
+  )
+
   performance of "dequeue-N-threads" config(opts) in {
     val size = 500000
     val parFrom = 1
@@ -264,6 +278,81 @@ class SnapQueueMultipleConsumerBench extends SnapQueueBench {
       for (t <- threads) t.start()
       for (t <- threads) t.join()
     }
+  }
+
+}
+
+
+class SnapQueueProducerConsumerBench extends SnapQueueBench {
+
+  override def opts = Context(
+    exec.minWarmupRuns -> 30,
+    exec.maxWarmupRuns -> 60,
+    exec.benchRuns -> 40,
+    exec.independentSamples -> 1
+  )
+
+  performance of "1-producer-1-consumer" config(opts) in {
+    val from = 100000
+    val until = 500000
+    val len = 64
+
+    using(sizes(from, until)) curve("ConcurrentLinkedQueue") in { size =>
+      val queue = new ConcurrentLinkedQueue[String]
+      val producer = new Thread {
+        override def run() {
+          var i = 0
+          while (i < size) {
+            queue.add("")
+            i += 1
+          }
+        }
+      }
+      val consumer = new Thread {
+        override def run() {
+          var i = 0
+          while (i < size) {
+            val x = queue.poll()
+            if (x != null) {
+              i += 1
+            }
+          }
+        }
+      }
+      producer.start()
+      consumer.start()
+      producer.join()
+      consumer.join()
+    }
+
+    using(sizes(from, until)) curve(s"SnapQueue($len)") in { size =>
+      val snapq = new SnapQueue[String](len)
+      val producer = new Thread {
+        override def run() {
+          var i = 0
+          while (i < size) {
+            snapq.enqueue("")
+            i += 1
+          }
+        }
+      }
+      val consumer = new Thread {
+        override def run() {
+          var i = 0
+          while (i < size) {
+            val x = snapq.dequeue()
+            if (x != null) {
+              i += 1
+            }
+          }
+        }
+      }
+      producer.start()
+      consumer.start()
+      producer.join()
+      consumer.join()
+    }
+
   }
 
 }
