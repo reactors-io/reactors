@@ -31,6 +31,13 @@ abstract class SegmentBase<T> extends RootOrSegmentOrFrozen<T> {
     }
   };
 
+  protected final static Object REMOVED = new Object() {
+    @Override
+    public String toString() {
+      return "REMOVED";
+    }
+  };
+
   protected final static long ARRAY_OFFSET =
     instance.arrayBaseOffset(Object[].class);
 

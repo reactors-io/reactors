@@ -19,7 +19,7 @@ class SnapQueue[T](
   implicit val supportOps: SnapQueue.SupportOps[T]
 ) extends SnapQueueBase[T] with Serializable {
   import SnapQueue.Trans
-  import SegmentBase.{EMPTY, FROZEN, NONE, REPEAT}
+  import SegmentBase.{EMPTY, FROZEN, NONE, REPEAT, REMOVED}
 
   val stamp = SnapQueue.stamp(this)
 
@@ -448,10 +448,12 @@ class SnapQueue[T](
     def deq(): AnyRef = {
       val p = READ_HEAD()
       if (p >= 0 && p < array.length) {
-        val x = READ_ARRAY(p);
+        val x = READ_ARRAY(p)
         if ((x eq EMPTY) || (x eq FROZEN)) NONE
-        else if (CAS_HEAD(p, p + 1)) x
-        else deq()
+        else if (CAS_HEAD(p, p + 1)) {
+          WRITE_ARRAY(p, REMOVED)
+          x
+        } else deq()
       } else NONE
     }
 
@@ -514,7 +516,10 @@ object SnapQueue {
       ConcRope.append(xs, new Conc.Single(x))
     }
     def popl(xs: Support): (Array[T], Support) = {
-      ConcRope.unprepend(xs)
+      val (a, nxs) = ConcRope.unprepend(xs)
+      val na = new Array[AnyRef](a.length)
+      System.arraycopy(a, 0, na, 0, a.length)
+      (na.asInstanceOf[Array[T]], nxs)
     }
     def nonEmpty(xs: Support): Boolean = {
       xs.size != 0

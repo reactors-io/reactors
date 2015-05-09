@@ -694,9 +694,11 @@ object SnapQueueCheck extends Properties("SnapQueue") with ExtendedProperties {
       for (i <- inputs) snapq.enqueue(i)
 
       val rotator = Future {
-        for (i <- 0 until m) {
-          val x = snapq.dequeue()
-          snapq.enqueue(x)
+        stackTraced {
+          for (i <- 0 until m) {
+            val x = snapq.dequeue()
+            snapq.enqueue(x)
+          }
         }
       }
 
@@ -721,7 +723,9 @@ object SnapQueueCheck extends Properties("SnapQueue") with ExtendedProperties {
       val snapq = new SnapQueue[String](len)
 
       val producer = Future {
-        for (i <- inputs) snapq.enqueue(i)
+        stackTraced {
+          for (i <- inputs) snapq.enqueue(i)
+        }
       }
 
       val snapshots = mutable.Buffer[Seq[String]]()
