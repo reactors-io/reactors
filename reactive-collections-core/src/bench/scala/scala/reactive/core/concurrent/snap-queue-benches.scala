@@ -188,26 +188,26 @@ class SnapQueueConsumerBench extends SnapQueueBench {
     val until = 500000
     val len = 64
 
-    using(fullSegs(from, until)) curve("Segment.deq") setUp {
-      seg => seg.WRITE_HEAD(0)
-    } in { seg =>
-      var i = 0
-      while (i < seg.capacity) {
-        seg.deq()
-        i += 1
-      }
-    }
+    // using(fullSegs(from, until)) curve("Segment.deq") setUp {
+    //   seg => seg.WRITE_HEAD(0)
+    // } in { seg =>
+    //   var i = 0
+    //   while (i < seg.capacity) {
+    //     seg.deq()
+    //     i += 1
+    //   }
+    // }
 
-    using(emptySnapQueue(len, from, until)) curve(s"SnapQueue($len).dequeue") setUp {
-      case (q, sz) => for (i <- 0 until sz) q.enqueue("")
-    } in {
-      case (q, sz) =>
-      var i = 0
-      while (i < sz) {
-        q.dequeue()
-        i += 1
-      }
-    }
+    // using(emptySnapQueue(len, from, until)) curve(s"SnapQueue($len).dequeue") setUp {
+    //   case (q, sz) => for (i <- 0 until sz) q.enqueue("")
+    // } in {
+    //   case (q, sz) =>
+    //   var i = 0
+    //   while (i < sz) {
+    //     q.dequeue()
+    //     i += 1
+    //   }
+    // }
 
     using(linkedQueues(from, until)) curve("ConcurrentLinkedQueue") setUp {
       case (queue, sz) =>
@@ -219,6 +219,11 @@ class SnapQueueConsumerBench extends SnapQueueBench {
       while (i < sz) {
         queue.poll()
         i += 1
+        var j = 0
+        while (j < 25) {
+          java.util.concurrent.ThreadLocalRandom.current().nextInt()
+          j += 1
+        }
       }
     }
   }
@@ -229,10 +234,12 @@ class SnapQueueConsumerBench extends SnapQueueBench {
 class SnapQueueMultipleConsumerBench extends SnapQueueBench {
 
   override def opts = Context(
+    //exec.jvmflags -> "-XX:+UseCondCardmark",
+    exec.jvmflags -> "-XX:+UseG1GC",
     exec.minWarmupRuns -> 40,
     exec.maxWarmupRuns -> 80,
     exec.benchRuns -> 40,
-    exec.independentSamples -> 1
+    exec.independentSamples -> 6
   )
 
   performance of "dequeue-N-threads" config(opts) in {
@@ -289,7 +296,7 @@ class SnapQueueProducerConsumerBench extends SnapQueueBench {
     exec.minWarmupRuns -> 30,
     exec.maxWarmupRuns -> 60,
     exec.benchRuns -> 40,
-    exec.independentSamples -> 1
+    exec.independentSamples -> 8
   )
 
   performance of "1-producer-1-consumer" config(opts) in {
@@ -315,6 +322,11 @@ class SnapQueueProducerConsumerBench extends SnapQueueBench {
             val x = queue.poll()
             if (x != null) {
               i += 1
+            }
+            var j = 0
+            while (j < 25) {
+              java.util.concurrent.ThreadLocalRandom.current().nextInt()
+              j += 1
             }
           }
         }
