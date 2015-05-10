@@ -14,7 +14,7 @@ import scala.concurrent.duration._
 
 /** Concurrent queue with constant-time snapshots.
  */
-class SnapQueue[T] private[concurrent] (
+class SnapQueue[T] private (
   val L: Int,
   val mustInitialize: Boolean,
   val leaky: Boolean
@@ -160,7 +160,7 @@ class SnapQueue[T] private[concurrent] (
   final def snapshot(): SnapQueue[T] = {
     val nr = snapshotInternalFrozen()
     val ur = id(nr)
-    val snapq = new SnapQueue(L, false)
+    val snapq = new SnapQueue(L, false, leaky)
     snapq.WRITE_ROOT(ur)
     snapq
   }
@@ -247,7 +247,7 @@ class SnapQueue[T] private[concurrent] (
 
   final def concat(that: SnapQueue[T]): SnapQueue[T] = {
     val nr = this.concatInternal(that)
-    val snapq = new SnapQueue(L, false)
+    val snapq = new SnapQueue(L, false, leaky)
     snapq.WRITE_ROOT(nr)
     snapq
   }
