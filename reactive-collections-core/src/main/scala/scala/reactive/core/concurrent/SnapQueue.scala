@@ -12,9 +12,12 @@ import scala.concurrent.duration._
 
 
 
-class SnapQueue[T](
-  val L: Int = 128,
-  val initialized: Boolean = true
+/** Concurrent queue with constant-time snapshots.
+ */
+class SnapQueue[T] private[concurrent] (
+  val L: Int,
+  val mustInitialize: Boolean,
+  val leaky: Boolean
 )(
   implicit val supportOps: SnapQueue.SupportOps[T]
 ) extends SnapQueueBase[T] with Serializable {
@@ -23,9 +26,28 @@ class SnapQueue[T](
 
   val stamp = SnapQueue.stamp(this)
 
-  def this(L: Int)(implicit ops: SnapQueue.SupportOps[T]) = this(L, true)
+  /** Creates a new SnapQueue.
+   *
+   *  @param L       length of the SnapQueue segments, usually between 32 and 256
+   *  @param leaky   whether or not the SnapQueue can leak (`false` by default) -- gives
+   *                 a small performance boost when `true`, with the disadvantage that
+   *                 up to `L` previously dequeued elements are garbage collectable
+   *                 (useful for applications where elements are small)
+   */
+  def this(L: Int, leaky: Boolean)(implicit ops: SnapQueue.SupportOps[T]) =
+    this(L, true, leaky)
 
-  if (initialized) WRITE_ROOT(new Segment(new Array[AnyRef](L)))
+  /** Creates a new SnapQueue.
+   *
+   *  @param L       length of the SnapQueue segments, usually between 32 and 256
+   */
+  def this(L: Int)(implicit ops: SnapQueue.SupportOps[T]) = this(L, false)
+
+  /** Creates a new SnapQueue, with the segment length set to 128.
+   */
+  def this()(implicit ops: SnapQueue.SupportOps[T]) = this(128)
+
+  if (mustInitialize) WRITE_ROOT(new Segment(new Array[AnyRef](L)))
 
   private def transition(r: RootOrSegmentOrFrozen[T], f: Trans[T]):
     RootOrSegmentOrFrozen[T] = {
@@ -101,7 +123,7 @@ class SnapQueue[T](
         val ls = r.READ_LEFT().asInstanceOf[Side]
         val rs = r.READ_RIGHT().asInstanceOf[Side]
         if (supportOps.nonEmpty(rs.support)) {
-          val (arr, sup) = supportOps.popl(rs.support)
+          val (arr, sup) = supportOps.popl(rs.support, !leaky)
           val seg = new Segment(arr.asInstanceOf[Array[AnyRef]])
           val nls = new Side(false, seg, sup)
           val nrs = new Side(false, rs.segment.copyShift(), supportOps.create())
@@ -287,7 +309,7 @@ class SnapQueue[T](
         if (l.isFrozen) REPEAT
         else { // empty
           if (supportOps.nonEmpty(l.support)) {
-            val (array, sup) = supportOps.popl(l.support)
+            val (array, sup) = supportOps.popl(l.support, !leaky)
             val seg = new Segment(array.asInstanceOf[Array[AnyRef]])
             val nl = new Side(false, seg, sup)
             CAS_LEFT(l, nl)
@@ -451,7 +473,7 @@ class SnapQueue[T](
         val x = READ_ARRAY(p)
         if ((x eq EMPTY) || (x eq FROZEN)) NONE
         else if (CAS_HEAD(p, p + 1)) {
-          WRITE_ARRAY(p, REMOVED)
+          if (!leaky) WRITE_ARRAY(p, REMOVED)
           x
         } else deq()
       } else NONE
@@ -508,6 +530,17 @@ object SnapQueue {
     def concat(xs: Support, ys: Support): Support
     def create(): Support
     def foreach[U](xs: Support, f: T => U): Unit
+
+    def popl(xs: Support, copyArray: Boolean): (Array[T], Support) = {
+      if (copyArray) poplAndCopy(xs)
+      else popl(xs)
+    }
+    private def poplAndCopy(xs: Support): (Array[T], Support) = {
+      val (a, nxs) = popl(xs)
+      val na = new Array[AnyRef](a.length)
+      System.arraycopy(a, 0, na, 0, a.length)
+      (na.asInstanceOf[Array[T]], nxs)
+    }
   }
 
   implicit def concTreeSupportOps[T] = new SupportOps[T] with Serializable {
@@ -516,10 +549,7 @@ object SnapQueue {
       ConcRope.append(xs, new Conc.Single(x))
     }
     def popl(xs: Support): (Array[T], Support) = {
-      val (a, nxs) = ConcRope.unprepend(xs)
-      val na = new Array[AnyRef](a.length)
-      System.arraycopy(a, 0, na, 0, a.length)
-      (na.asInstanceOf[Array[T]], nxs)
+      ConcRope.unprepend(xs)
     }
     def nonEmpty(xs: Support): Boolean = {
       xs.size != 0
