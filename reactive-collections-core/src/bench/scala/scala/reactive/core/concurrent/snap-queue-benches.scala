@@ -5,6 +5,8 @@ package concurrent
 
 import java.util.concurrent.ConcurrentLinkedQueue
 import org.scalameter.api._
+import scala.concurrent._
+import scala.concurrent.ExecutionContext.Implicits.global
 
 
 
@@ -353,6 +355,61 @@ class SnapQueueProducerConsumerBench extends SnapQueueBench {
       consumer.start()
       producer.join()
       consumer.join()
+    }
+
+  }
+
+}
+
+
+class SnapQueueLengthBench extends SnapQueueBench {
+
+  override def opts = Context(
+    exec.minWarmupRuns -> 30,
+    exec.maxWarmupRuns -> 60,
+    exec.benchRuns -> 60,
+    exec.independentSamples -> 1
+  )
+
+  performance of "varying-length-enqueue" config(opts) in {
+    val size = 500000
+
+    val lengths = Gen.range("size")(1, 192, 8)
+
+    val period = Gen.range("period")(100, 20000, 1000)
+
+    val lengthsPeriods = for (len <- lengths; p <- period) yield (len, p)
+
+    using(lengths) curve(s"SnapQueue") in { len =>
+      val snapq = new SnapQueue[String](len)
+      var i = 0
+      while (i < size) {
+        snapq.enqueue("")
+        i += 1
+      }
+    }
+
+    using(lengthsPeriods) curve(s"SnapQueue") in { case (len, p) =>
+      val work = Promise[Unit]()
+      val snapq = new SnapQueue[String](len)
+
+      val shooter = Future {
+        while (!work.future.isCompleted) {
+          var i = 0
+          while (i < p) {
+            work.future.isCompleted
+            i += 1
+          }
+          snapq.snapshot()
+        }
+      }
+
+      var i = 0
+      while (i < size) {
+        snapq.enqueue("")
+        i += 1
+      }
+      work.success(())
     }
 
   }
