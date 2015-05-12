@@ -58,7 +58,7 @@ trait SnapQueueBench extends PerformanceTest.OfflineReport {
     exec.minWarmupRuns -> 50,
     exec.maxWarmupRuns -> 100,
     exec.benchRuns -> 60,
-    exec.independentSamples -> 8
+    exec.independentSamples -> 1
   )
 
 }
@@ -140,7 +140,7 @@ class SnapQueueMultipleProducerBench extends SnapQueueBench {
     exec.minWarmupRuns -> 50,
     exec.maxWarmupRuns -> 100,
     exec.benchRuns -> 60,
-    exec.independentSamples -> 10
+    exec.independentSamples -> 1
   )
 
   performance of "enqueue-N-threads" config(opts) in {
@@ -236,7 +236,7 @@ class SnapQueueMultipleConsumerBench extends SnapQueueBench {
     exec.minWarmupRuns -> 40,
     exec.maxWarmupRuns -> 80,
     exec.benchRuns -> 40,
-    exec.independentSamples -> 8
+    exec.independentSamples -> 1
   )
 
   performance of "dequeue-N-threads" config(opts) in {
@@ -293,7 +293,7 @@ class SnapQueueProducerConsumerBench extends SnapQueueBench {
     exec.minWarmupRuns -> 30,
     exec.maxWarmupRuns -> 60,
     exec.benchRuns -> 40,
-    exec.independentSamples -> 8
+    exec.independentSamples -> 1
   )
 
   performance of "1-producer-1-consumer" config(opts) in {
