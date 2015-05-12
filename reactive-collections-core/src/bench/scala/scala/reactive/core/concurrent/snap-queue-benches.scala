@@ -376,7 +376,7 @@ class SnapQueueLengthBench extends SnapQueueBench {
 
     val lengths = Gen.range("size")(1, 192, 8)
 
-    val period = Gen.range("period")(100, 20000, 1000)
+    val period = Gen.range("period")(10, 100, 10)
 
     val lengthsPeriods = for (len <- lengths; p <- period) yield (len, p)
 
