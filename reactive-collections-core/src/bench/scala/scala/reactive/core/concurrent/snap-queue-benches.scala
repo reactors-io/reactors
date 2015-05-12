@@ -10,8 +10,10 @@ import org.scalameter.api._
 
 trait SnapQueueBench extends PerformanceTest.OfflineReport {
 
+  def granularity = 10
+
   def sizes(from: Int, until: Int) =
-    Gen.range("size")(from, until, (until - from) / 4)
+    Gen.range("size")(from, until, (until - from) / granularity)
 
   def parallelisms(from: Int, until: Int) =
     Gen.range("parallelism")(from, until, 1)
@@ -29,7 +31,7 @@ trait SnapQueueBench extends PerformanceTest.OfflineReport {
   }
 
   def emptySnapQueue(len: Int, from: Int, until: Int) =
-    for (sz <- sizes(from, until)) yield (new SnapQueue[String](), sz)
+    for (sz <- sizes(from, until)) yield (new SnapQueue[String](len), sz)
 
   def linkedQueues(from: Int, unt: Int) = for (sz <- sizes(from, unt)) yield {
     val q = new ConcurrentLinkedQueue[String]()
@@ -54,7 +56,7 @@ trait SnapQueueBench extends PerformanceTest.OfflineReport {
     exec.minWarmupRuns -> 50,
     exec.maxWarmupRuns -> 100,
     exec.benchRuns -> 60,
-    exec.independentSamples -> 4
+    exec.independentSamples -> 8
   )
 
 }
@@ -64,7 +66,7 @@ class SnapQueueProducerBench extends SnapQueueBench {
 
   performance of "enqueue-1-thread" config(opts) in {
     val from = 100000
-    val until = 500000
+    val until = 900000
     val len = 64
 
     using(emptySegs(from, until)) curve("Segment.enq") setUp {
@@ -135,8 +137,8 @@ class SnapQueueMultipleProducerBench extends SnapQueueBench {
   override def opts = Context(
     exec.minWarmupRuns -> 50,
     exec.maxWarmupRuns -> 100,
-    exec.benchRuns -> 40,
-    exec.independentSamples -> 1
+    exec.benchRuns -> 60,
+    exec.independentSamples -> 10
   )
 
   performance of "enqueue-N-threads" config(opts) in {
@@ -185,7 +187,7 @@ class SnapQueueConsumerBench extends SnapQueueBench {
 
   performance of "dequeue-1-thread" config(opts) in {
     val from = 100000
-    val until = 500000
+    val until = 900000
     val len = 64
 
     using(fullSegs(from, until)) curve("Segment.deq") setUp {
@@ -232,7 +234,7 @@ class SnapQueueMultipleConsumerBench extends SnapQueueBench {
     exec.minWarmupRuns -> 40,
     exec.maxWarmupRuns -> 80,
     exec.benchRuns -> 40,
-    exec.independentSamples -> 1
+    exec.independentSamples -> 8
   )
 
   performance of "dequeue-N-threads" config(opts) in {
@@ -289,12 +291,12 @@ class SnapQueueProducerConsumerBench extends SnapQueueBench {
     exec.minWarmupRuns -> 30,
     exec.maxWarmupRuns -> 60,
     exec.benchRuns -> 40,
-    exec.independentSamples -> 1
+    exec.independentSamples -> 8
   )
 
   performance of "1-producer-1-consumer" config(opts) in {
     val from = 100000
-    val until = 500000
+    val until = 900000
     val len = 64
 
     using(sizes(from, until)) curve("ConcurrentLinkedQueue") in { size =>
