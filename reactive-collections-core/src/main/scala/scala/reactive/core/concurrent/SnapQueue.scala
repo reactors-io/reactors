@@ -43,9 +43,9 @@ class SnapQueue[T] private (
    */
   def this(L: Int)(implicit ops: SnapQueue.SupportOps[T]) = this(L, false)
 
-  /** Creates a new SnapQueue, with the segment length set to 128.
+  /** Creates a new SnapQueue, with the segment length set to 64.
    */
-  def this()(implicit ops: SnapQueue.SupportOps[T]) = this(128)
+  def this()(implicit ops: SnapQueue.SupportOps[T]) = this(64)
 
   if (mustInitialize) WRITE_ROOT(new Segment(new Array[AnyRef](L)))
 
