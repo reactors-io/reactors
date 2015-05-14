@@ -86,7 +86,7 @@ object ConcRope {
       val zs = new <>(xs.right, ys)
       xs.left match {
         case ws @ Append(_, _) => appendRec(ws, zs)
-        case ws if ws.level <= zs.level => ws <> zs
+        case ws if ws.level <= zs.level => ws <> zs // note: probably can be just new <>
         case ws => new Append(ws, zs)
       }
     }
