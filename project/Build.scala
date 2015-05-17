@@ -89,7 +89,10 @@ object ReactiveCollectionsBuild extends MechaRepoBuild {
     (test in Test) <<= (test in Test)
       .dependsOn(test in (reactiveCollectionsCore, Test)),
     publish <<= publish.dependsOn(publish in reactiveCollectionsCore),
-    mechaPublishKey := { publish.value }
+    mechaPublishKey := { publish.value },
+    mechaDocsRepoKey := "git@github.com:storm-enroute/apidocs.git",
+    mechaDocsBranchKey := "gh-pages",
+    mechaDocsPathKey := "reactive-collections"
   )
 
   def dependencies(scalaVersion: String) =
