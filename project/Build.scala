@@ -198,6 +198,8 @@ object ReactiveCollectionsBuild extends MechaRepoBuild {
     "reactive-collections",
     file("."),
     settings = reactiveCollectionsSettings
+  ) configs(
+    Benchmarks
   ) dependsOn(
     reactiveCollectionsCore % "compile->compile;test->test"
   ) dependsOnSuperRepo

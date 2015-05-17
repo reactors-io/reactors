@@ -8,7 +8,7 @@
   "reactive-collections": [
     {
       "project": "scalameter",
-      "artifact": ["com.storm-enroute", "scalameter", "0.7-SNAPSHOT", "test"]
+      "artifact": ["com.storm-enroute", "scalameter", "0.7-SNAPSHOT", "bench"]
     }
   ]
 }
