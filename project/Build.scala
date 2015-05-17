@@ -75,7 +75,9 @@ object ReactiveCollectionsBuild extends MechaRepoBuild {
       </licenses>
       <scm>
         <url>git@github.com:storm-enroute/reactive-collections.git</url>
-        <connection>scm:git:git@github.com:storm-enroute/reactive-collections.git</connection>
+        <connection>
+          scm:git:git@github.com:storm-enroute/reactive-collections.git
+        </connection>
       </scm>
       <developers>
         <developer>
@@ -152,7 +154,9 @@ object ReactiveCollectionsBuild extends MechaRepoBuild {
       </licenses>
       <scm>
         <url>git@github.com:storm-enroute/reactive-collections.git</url>
-        <connection>scm:git:git@github.com:storm-enroute/reactive-collections.git</connection>
+        <connection>
+          scm:git:git@github.com:storm-enroute/reactive-collections.git
+        </connection>
       </scm>
       <developers>
         <developer>
