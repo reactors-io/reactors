@@ -167,7 +167,10 @@ object ReactiveCollectionsBuild extends MechaRepoBuild {
           <name>Aleksandar Prokopec</name>
           <url>http://axel22.github.com/</url>
         </developer>
-      </developers>
+      </developers>,
+    mechaDocsRepoKey := "git@github.com:storm-enroute/apidocs.git",
+    mechaDocsBranchKey := "gh-pages",
+    mechaDocsPathKey := "reactive-collections-core"
   )
 
   def coreDependencies(scalaVersion: String) =
