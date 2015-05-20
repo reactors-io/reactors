@@ -180,6 +180,84 @@ object ConcRope {
 }
 
 
+object LazyRope {
+  import Conc._
+
+  class Append[T](leftInit: =>Conc[T], rightInit: Conc[T], withSuspension: Boolean)
+  extends Conc[T] {
+    @volatile private var wasInitialized = false
+    lazy val left = {
+      // trick to have a nicer `toString`, should be just `leftInit` otherwise
+      wasInitialized = true
+      println(s"---> bam at $right, $createdWithSuspension")
+      leftInit
+    }
+    val right = rightInit
+    val createdWithSuspension = withSuspension
+    lazy val size = left.size + right.size
+    lazy val level = 1 + math.max(left.level, right.level)
+    if (!createdWithSuspension) left
+    override def toString = {
+      val star = if (createdWithSuspension) "*" else ""
+      if (wasInitialized) {
+        s"Append$star($left, $right)"
+      } else {
+        s"Append$star(?, $right)"
+      }
+    }
+  }
+
+  case class Wrapper[T](tree: Conc[T], schedule: List[Append[T]])
+
+  def appendAndPay[T](w: Wrapper[T], ys: Leaf[T]): Wrapper[T] = {
+    val newSchedule = w.schedule match {
+      case Nil => Nil // hoorah, no work scheduled
+      case work :: moreWork =>
+        // evaluate one step
+        (work.left: @unchecked) match {
+          case ap: Append[T] if ap.createdWithSuspension =>
+            ap :: moreWork
+          case _ =>
+            moreWork
+        }
+    }
+
+    (append(w.tree, ys): @unchecked) match {
+      case ap: Append[T] if ap.createdWithSuspension =>
+        Wrapper(ap, ap :: newSchedule)
+      case tree =>
+        Wrapper(tree, newSchedule)
+    }
+  }
+
+  def append[T](xs: Conc[T], ys: Leaf[T]): Conc[T] = (xs: @unchecked) match {
+    case xs: Append[T] => appendLazy(xs, ys)
+    case _ <> _ => new Append(xs, ys, false)
+    case Empty => ys
+    case xs: Leaf[T] => xs <> ys
+  }
+
+  private def appendLazy[T](xs: Append[T], ys: Conc[T]): Conc[T] = {
+    xs.right match {
+      case Empty =>
+        new Append(xs.left, ys, false)
+      case right =>
+        assert(right.level == ys.level)
+        val carry = right <> ys
+        (xs.left: @unchecked) match {
+          case ap: Append[T] =>
+            new Append(appendLazy(ap, carry), Empty, true)
+          case tree if tree.level > carry.level =>
+            new Append(new Append(tree, carry, false), Empty, true)
+          case tree =>
+            new Append(tree <> carry, Empty, false)
+        }
+    }
+  }
+
+}
+
+
 sealed abstract class Conqueue[+T] extends Conc[T] {
   def evaluated: Boolean
   def rear: Conqueue[T]
