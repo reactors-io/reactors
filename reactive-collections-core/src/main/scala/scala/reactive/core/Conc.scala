@@ -189,7 +189,7 @@ object LazyRope {
     lazy val left = {
       // trick to have a nicer `toString`, should be just `leftInit` otherwise
       wasInitialized = true
-      println(s"---> bam at $right, $createdWithSuspension")
+      println(s"---> bam at ${right.level}, $createdWithSuspension")
       leftInit
     }
     val right = rightInit
@@ -197,14 +197,19 @@ object LazyRope {
     lazy val size = left.size + right.size
     lazy val level = 1 + math.max(left.level, right.level)
     if (!createdWithSuspension) left
-    override def toString = {
+    def toStringAt(rank: Int): String = {
       val star = if (createdWithSuspension) "*" else ""
+      val rightString = s"${if (right == Conc.Empty) '_' else "C" + right.level}"
       if (wasInitialized) {
-        s"Append$star($left, $right)"
+        left match {
+          case ap: Append[T] => s"${ap.toStringAt(rank + 1)} $star$rank:$rightString"
+          case _ => s"${rank + 1}:C${left.level} $star$rank:$rightString"
+        }
       } else {
-        s"Append$star(?, $right)"
+        s"? $star$rank:$rightString"
       }
     }
+    override def toString = "[" + toStringAt(0) + "]"
   }
 
   case class Wrapper[T](tree: Conc[T], schedule: List[Append[T]])
@@ -250,7 +255,7 @@ object LazyRope {
           case tree if tree.level > carry.level =>
             new Append(new Append(tree, carry, false), Empty, true)
           case tree =>
-            new Append(tree <> carry, Empty, false)
+            new Append(new Append(tree <> carry, Empty, false), Empty, true)
         }
     }
   }
