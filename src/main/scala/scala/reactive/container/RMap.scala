@@ -121,6 +121,16 @@ object RMap {
      *  @return            the reactive containing all the values assigned to the key
      */
     def apply(key: K): Reactive[V]
+
+    /** Returns the optional reactive value associated with the key.
+     *
+     *  The reactive value emits a `Some` event whenever a new value is assigned,
+     *  or `None` if no value is assigned.
+     *
+     *  @param key         the key
+     *  @return            the reactive containing all the optional value at this key
+     */
+    def get(key: K): Reactive[Option[V]]
   }
 
 }

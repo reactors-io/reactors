@@ -214,4 +214,16 @@ class RHashMapSpec extends FlatSpec with ShouldMatchers {
     specificKey() should equal ("new value")
   }
 
+  it should "subscribe to optional values of a key" in {
+    val many = 512
+    val table = new RHashMap[Int, String]
+    for (i <- 0 until many) table(i) = i.toString
+    table.remove(128)
+    val specificKey = table.react.get(128)
+
+    specificKey() should equal (None)
+    table(128) = "new value"
+    specificKey() should equal (Some("new value"))
+  }
+
 }

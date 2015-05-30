@@ -66,7 +66,8 @@ trait Reactive[@spec(Int, Long, Double) +T] {
   private[reactive] def hasSubscriptions: Boolean
 
   /** Attaches a new `reactor` to this reactive,
-   *  which is called multiple times when an event is produced
+   *  which is called multiple times whenever an event is produced,
+   *  or an exception occurs,
    *  and once when the reactive is terminated.
    *
    *  @param reactor     the reactor that accepts `react` and `unreact` events
@@ -75,7 +76,8 @@ trait Reactive[@spec(Int, Long, Double) +T] {
   def observe(reactor: Reactor[T]): Reactive.Subscription
 
   /** Attaches a reactor to this reactive,
-   *  which is called multiple times when an event is produced
+   *  which is called multiple times whenever an event is produced,
+   *  or an exception occurs,
    *  and once when the reactive is terminated.
    *
    *  @param reactor     the reactor
@@ -829,8 +831,8 @@ object Reactive {
      *  
      *  @return          an `Ivar` with the first event from this reactive
      */
-    def ivar: Reactive.Ivar[T] = {
-      val iv = new Reactive.Ivar[T]
+    def ivar: Ivar[T] = {
+      val iv = new Ivar[T]
       val r = new Reactive.IvarAssignReactor(iv)
       r.subscription = self.observe(r)
       iv
@@ -2171,93 +2173,4 @@ object Reactive {
     }
   }
 
-  /** A reactive value that can be either completed or unreacted at most once.
-   *
-   *  Assigning a value propagates an event to all the subscribers,
-   *  and then propagates an unreaction.
-   *  To assign a value:
-   *
-   *  {{{
-   *  val iv = new Reactive.Ivar[Int]
-   *  iv := 5
-   *  assert(iv() == 5)
-   *  }}}
-   *
-   *  To unreact (i.e. seal, or close) an ivar without assigning a value:
-   *
-   *  {{{
-   *  val iv = new Reactive.Ivar[Int]
-   *  iv.unreact()
-   *  assert(iv.isUnreacted)
-   *  }}}
-   *  
-   *  @tparam T          type of the value in the `Ivar`
-   */
-  class Ivar[@spec(Int, Long, Double) T]
-  extends Reactive[T] with Default[T] with EventSource {
-    private var state = 0
-    private var value: T = _
-
-    /** Returns `true` iff the ivar has been assigned.
-     */
-    def isAssigned: Boolean = state == 1
-
-    /** Returns `true` iff the ivar has been closed.
-     */
-    def isUnreacted: Boolean = state == -1
-
-    /** Returns `true` iff the ivar is unassigned.
-     */
-    def isUnassigned: Boolean = state == 0
-
-    /** Returns the value of the ivar if it has been already assigned,
-     *  and throws an exception otherwise.
-     */
-    def apply(): T = {
-      if (state == 1) value
-      else if (state == -1) sys.error("Ivar closed.")
-      else sys.error("Ivar unassigned.")
-    }
-
-    /** Assigns a value to the ivar if it is unassigned,
-     *  and throws an exception otherwise.
-     */
-    def :=(x: T): Unit = if (state == 0) {
-      state = 1
-      value = x
-      reactAll(x)
-      unreactAll()
-    } else sys.error("Ivar is not unassigned.")
-
-    /** Invokes the callback immediately if the ivar is assigned,
-     *  or executes it once the ivar is assigned.
-     *
-     *  If the ivar gets closed, the callback is never invoked.
-     *
-     *  @param f        the callback to invoke with the ivar value
-     */
-    def use(f: T => Unit): Reactive.Subscription = {
-      if (isAssigned) {
-        f(this())
-        Reactive.Subscription.empty
-      } else foreach(f)
-    }
-
-    /** Closes the ivar iff it is unassigned.
-     */
-    def unreact(): Unit = if (state == 0) {
-      state = -1
-      unreactAll()
-    }
-  }
-
-  object Ivar {
-    def apply[@spec(Int, Long, Double) T](x: T): Ivar[T] = {
-      val iv = new Ivar[T]
-      iv := x
-      iv
-    }
-  }
-
 }
-

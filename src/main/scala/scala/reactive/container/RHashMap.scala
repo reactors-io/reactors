@@ -371,6 +371,11 @@ object RHashMap {
     def apply(k: K): Signal[V] = {
       container.ensure(k).signal(container.applyOrNil(k))
     }
+    def get(k: K): Signal[Option[V]] = {
+      container.ensure(k).signal(container.applyOrNil(k)).map { v =>
+        if (v == container.nil) None else Some(v)
+      }
+    }
   }
 
   val initSize = 16

@@ -314,6 +314,13 @@ package object reactive {
     }
   }
 
+  implicit class OptionOps[T](val opt: Option[T]) extends AnyVal {
+    def react: Ivar[T] = opt match {
+      case Some(v) => Ivar(v)
+      case None => Ivar.unreacted[T]
+    }
+  }
+
   /* system events */
 
   /** Internal events are used by the isolate system to communicate with different isolates.

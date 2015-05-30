@@ -297,7 +297,7 @@ object IsoSystem {
      *  @param name       name of the channel
      *  @return           the ivar with the channel registered under the specified name
      */
-    def iget[@spec(Int, Long, Double) T](name: String): Reactive.Ivar[Channel[T]]
+    def iget[@spec(Int, Long, Double) T](name: String): Ivar[Channel[T]]
 
     /** Eventually returns an *unsealed* channel under the specified name.
      *
@@ -307,7 +307,7 @@ object IsoSystem {
      *  @param name       name of the channel
      *  @return           the ivar with the channel registered under the specified name
      */
-    def iunsealed[@spec(Int, Long, Double) T](name: String): Reactive.Ivar[Channel[T]]
+    def iunsealed[@spec(Int, Long, Double) T](name: String): Ivar[Channel[T]]
   }
 
   object Channels {
@@ -331,9 +331,9 @@ object IsoSystem {
       private def channelExtractor[T](reqId: Long): PartialFunction[InternalEvent, Channel[T]] = {
         case ChannelRetrieved(`reqId`, c: Channel[T]) => c
       }
-      private def getIvar[@spec(Int, Long, Double) T](name: String, pred: Channel[_] => Boolean): Reactive.Ivar[Channel[T]] = channelMap.synchronized {
+      private def getIvar[@spec(Int, Long, Double) T](name: String, pred: Channel[_] => Boolean): Ivar[Channel[T]] = channelMap.synchronized {
         val c = channelMap.applyOrNil(name)
-        if (pred(c)) Reactive.Ivar(c.asInstanceOf[Channel[T]])
+        if (pred(c)) Ivar(c.asInstanceOf[Channel[T]])
         else {
           val reqId = Iso.self.frame.counter.incrementAndGet()
           val sysChannel = Iso.self.sysChannel

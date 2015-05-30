@@ -119,8 +119,8 @@ trait Channel[@spec(Int, Long, Double) T] {
    *  
    *  @return        the new ivar, just attached to this channel
    */
-  def attachIvar(): Reactive.Ivar[T] = {
-    val iv = new Reactive.Ivar[T]
+  def attachIvar(): Ivar[T] = {
+    val iv = new Ivar[T]
     this.attach(iv)
     iv
   }
