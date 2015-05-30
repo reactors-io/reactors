@@ -48,7 +48,7 @@ class IvarSpec extends FlatSpec with ShouldMatchers {
     b() should equal (5)
   }
 
-  it should "be completed with the source Ivar" in {
+  it should "be completed with the source Ivar in orElse" in {
     val a = new Ivar[Int]
     val b = a.orElse(5)
     a := 1
@@ -56,7 +56,7 @@ class IvarSpec extends FlatSpec with ShouldMatchers {
     b() should equal (1)
   }
 
-  it should "be completed with the source Ivar early" in {
+  it should "be completed with the source Ivar in orElse early" in {
     val a = new Ivar[Int]
     a := 1
     val b = a.orElse(5)
@@ -67,6 +67,26 @@ class IvarSpec extends FlatSpec with ShouldMatchers {
   it should "be created unreacted" in {
     val a = Ivar.unreacted
     a.isUnreacted should equal (true)
+  }
+
+  it should "be completed with the orElseWith part" in {
+    val a = new Ivar[Int]
+    val b = RCell(0)
+    val c = a.orElseWith(b)
+    a.unreact()
+    b := 11
+
+    c() should equal (11)
+  }
+
+  it should "be completed with the source Ivar in orElseWith" in {
+    val a = new Ivar[Int]
+    val b = RCell(0)
+    val c = a.orElseWith(b)
+    a := 7
+    b := 11
+
+    c() should equal (7)
   }
 
 }

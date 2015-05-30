@@ -119,12 +119,34 @@ extends Reactive[T] with Reactive.Default[T] with EventSource {
   /** Returns an `Ivar` that is completed with the value of this `Ivar`
    *  if this `Ivar` is assigned.
    *  If this `Ivar` unreacts, the returned `Ivar` is instead completed with
-   *  the first event from the specified reactive.
+   *  the first event from the specified reactive `r`.
    *
-   *  If both this `Ivar` and the reactive unreact, the resulting `Ivar`
-   *  is also unreacted.
+   *  Note that, if this `Ivar` unreacts at time T, only the events from `r` after the
+   *  time T are considered for assignment to the resulting `Ivar`.
    */
-  def orElseWith(r: Reactive[T]): Ivar[T] = ???
+  def orElseWith(r: Reactive[T]): Ivar[T] = {
+    if (this.isUnreacted) r.ivar
+    else if (this.isAssigned) Ivar(this())
+    else {
+      val iv = new Ivar[T]
+      iv.subscription = this.observe(new Reactor[T] {
+        def react(x: T) {
+          iv := x
+          iv.subscription.unsubscribe()
+          iv.subscription = Reactive.Subscription.empty
+        }
+        def except(t: Throwable) {}
+        def unreact() {
+          iv.subscription = r.foreach { x =>
+            iv := x
+            iv.subscription.unsubscribe()
+            iv.subscription = Reactive.Subscription.empty
+          }
+        }
+      })
+      iv
+    }
+  }
 }
 
 
