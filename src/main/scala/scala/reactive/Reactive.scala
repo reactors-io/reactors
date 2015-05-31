@@ -571,12 +571,29 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    *
    *  @tparam S         the type of the mapped events
    *  @param f          the mapping function
-   *  @return           a subscription and reactive value with the mapped
-   *                    events
+   *  @return           a subscription and reactive value with the mapped events
    */
   def map[@spec(Int, Long, Double) S](f: T => S):
     Reactive[S] with Reactive.Subscription = {
     val rm = new Reactive.Map[T, S](self, f)
+    rm.subscription = self observe rm
+    rm
+  }
+
+  /** Returns a new reactive that forwards the events from `this` reactive as long as
+   *  they satisfy the predicate `p`.
+   *
+   *  After an event that does not specify the predicate occurs, the resulting reactive
+   *  value unreacts.
+   *
+   *  If the predicate throws an exception, the exceptions is propagated, and the
+   *  resulting reactive unreacts.
+   *
+   *  @param p          the predicate that specifies whether to take the element
+   *  @return           a subscription and a reactive value with the forwarded events
+   */
+  def takeWhile(p: T => Boolean): Reactive[T] with Reactive.Subscription = {
+    val rm = new Reactive.TakeWhile[T](self, p)
     rm.subscription = self observe rm
     rm
   }
@@ -1531,6 +1548,36 @@ object Reactive {
       exceptAll(t)
     }
     def unreact() {
+      unreactAll()
+    }
+    var subscription = Subscription.empty
+  }
+
+  private[reactive] class TakeWhile
+    [@spec(Int, Long, Double) T]
+    (val self: Reactive[T], val p: T => Boolean)
+  extends Reactive.Default[T] with Reactor[T] with Reactive.ProxySubscription {
+    def react(value: T) {
+      val shouldForward = try {
+        p(value)
+      } catch {
+        case t if isNonLethal(t) =>
+          unsubscribe()
+          exceptAll(t)
+          unreactAll()
+          return
+      }
+      if (shouldForward) reactAll(value)
+      else {
+        unsubscribe()
+        unreactAll()
+      }
+    }
+    def except(t: Throwable) {
+      exceptAll(t)
+    }
+    def unreact() {
+      unsubscribe()
       unreactAll()
     }
     var subscription = Subscription.empty

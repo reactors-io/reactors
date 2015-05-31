@@ -461,4 +461,30 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     observed should equal ((0 until 100 by 2).map(_.toString))
   }
 
+  it should "be taken while" in {
+    val e = new Reactive.Emitter[Int]
+    val firstTen = e.takeWhile(_ < 10)
+    val observed = mutable.Buffer[Int]()
+    val emitSub = firstTen.foreach(observed += _)
+
+    for (i <- 0 until 20) e react i
+
+    observed should equal (0 until 10)
+
+    e react 5
+
+    observed should equal (0 until 10)
+  }
+
+  it should "be taken while until exception" in {
+    val e = new Reactive.Emitter[Int]
+    val firstTen = e.takeWhile(x => {assert(x != 5); x < 10})
+    val observed = mutable.Buffer[Int]()
+    val emitSub = firstTen.foreach(observed += _)
+
+    for (i <- 0 until 20) e react i
+
+    observed should equal (0 until 5)
+  }
+
 }
