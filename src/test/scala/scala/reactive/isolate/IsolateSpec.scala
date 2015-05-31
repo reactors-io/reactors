@@ -229,17 +229,15 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
   it should "use channel name resolution with ivars" in {
     val sv = new SyncVar[Boolean]
 
-    val emitter = new Reactive.Emitter[Channel[Int]]
-
     val lc = isoSystem.isolate(Proto[LookupIso])
-    Thread.sleep(100)
+    Thread.sleep(500)
     val rc = isoSystem.isolate(Proto[RegChannelIso](sv).withName("reggy"))
 
     sv.get should equal (7)
 
     rc.seal()
     lc.seal()
-    Thread.sleep(100)
+    Thread.sleep(200)
   }
 
 }
