@@ -60,8 +60,7 @@ extends ReactMutable.Subscriptions {
     b: CanBeBuffered
   ): RContainer[T] = new RContainer.Union(this, that, count)
 
-  def to[That <: RContainer[T]]
-    (implicit factory: RBuilder.Factory[T, That]): That = {
+  def to[That <: RContainer[T]](implicit factory: RBuilder.Factory[T, That]): That = {
     val builder = factory()
     for (x <- this) builder += x
     builder.container
@@ -116,12 +115,10 @@ object RContainer {
       container.inserts.foreach(f)
     }
     
-    def monoidFold(implicit m: Monoid[T]):
-      Signal[T] with Reactive.Subscription =
+    def monoidFold(implicit m: Monoid[T]): Signal[T] with Reactive.Subscription =
       new Aggregate(container, MonoidCatamorph[T])
 
-    def commuteFold(implicit c: Commutoid[T]):
-      Signal[T] with Reactive.Subscription =
+    def commuteFold(implicit c: Commutoid[T]): Signal[T] with Reactive.Subscription =
       new Aggregate(container, CommuteCatamorph[T])
 
     def abelianFold(implicit ab: Abelian[T], a: Arrayable[T]):
