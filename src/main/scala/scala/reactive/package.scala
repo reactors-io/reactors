@@ -72,9 +72,17 @@ package object reactive {
 
   val RBinaryHeap = container.RBinaryHeap
 
+  type RSet[T] = container.RSet[T]
+
+  val RSet = container.RSet
+
   type RHashSet[T] = container.RHashSet[T]
 
   val RHashSet = container.RHashSet
+
+  type RMap[K, V <: AnyRef] = container.RMap[K, V]
+
+  val RMap = container.RMap
 
   type RHashValMap[K, V] = container.RHashValMap[K, V]
 

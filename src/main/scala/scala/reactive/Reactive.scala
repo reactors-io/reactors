@@ -589,6 +589,12 @@ trait Reactive[@spec(Int, Long, Double) +T] {
    *  If the predicate throws an exception, the exceptions is propagated, and the
    *  resulting reactive unreacts.
    *
+   *  {{{
+   *  time             ------------------------>
+   *  this             -0---1--2--3-4--1-5--2-->
+   *  takeWhile(_ < 4)     -1--2--3-|---------->
+   *  }}}
+   *
    *  @param p          the predicate that specifies whether to take the element
    *  @return           a subscription and a reactive value with the forwarded events
    */
@@ -845,7 +851,7 @@ object Reactive {
      *  After the `Ivar` is assigned, all subsequent events are ignored.
      *  If the `self` reactive is unreacted before any event arrives, the
      *  `Ivar` is closed.
-     *  
+     *
      *  @return          an `Ivar` with the first event from this reactive
      */
     def ivar: Ivar[T] = {
@@ -853,6 +859,24 @@ object Reactive {
       val r = new Reactive.IvarAssignReactor(iv)
       r.subscription = self.observe(r)
       iv
+    }
+
+    /** Accumulates all the events from this reactive into a new container of the
+     *  specified type.
+     *
+     *  The events are added to the specified container until this reactive value
+     *  unreacts.
+     *  It is the client's responsibility to ensure that the reactive is not unbounded.
+     *
+     *  @tparam That     the type of the reactive container
+     *  @param factory   the factory of the builder objects for the specified container
+     *  @result          the reactive container with all the emitted events
+     */
+    def to[That <: RContainer[T]](implicit factory: RBuilder.Factory[T, That]): That = {
+      val builder = factory()
+      val result = builder.container
+      result.subscriptions += self.mutate(builder) { builder += _ }
+      result
     }
 
     /** Given an initial event `init`, converts this reactive into a `Signal`.

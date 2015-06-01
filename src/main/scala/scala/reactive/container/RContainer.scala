@@ -131,8 +131,7 @@ object RContainer {
 
     /* transformers */
   
-    def to[That <: RContainer[T]](implicit factory: RBuilder.Factory[T, That]):
-      That = {
+    def to[That <: RContainer[T]](implicit factory: RBuilder.Factory[T, That]): That = {
       val builder = factory()
       val result = builder.container
   

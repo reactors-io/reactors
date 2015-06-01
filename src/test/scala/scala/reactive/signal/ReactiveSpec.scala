@@ -487,4 +487,13 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     observed should equal (0 until 5)
   }
 
+  it should "react to a container" in {
+    val e = new Reactive.Emitter[Int]
+    val set = e.to[RSet[Int]]
+
+    for (i <- 0 until 10) e react i
+
+    for (i <- 0 until 10) set(i) should equal (true)
+  }
+
 }
