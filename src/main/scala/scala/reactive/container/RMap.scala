@@ -112,25 +112,25 @@ object RMap {
      */
     val container: RMap[K, V]
 
-    /** Returns the reactive value associated with the key.
+    /** Returns the event stream associated with the key.
      *
-     *  The reactive value emits an event whenever a new value
+     *  The event stream emits an event whenever a new value
      *  is subsequently assigned to the specified key.
      *
      *  @param key         the key
      *  @return            the reactive containing all the values assigned to the key
      */
-    def apply(key: K): Reactive[V]
+    def apply(key: K): Events[V]
 
-    /** Returns the optional reactive value associated with the key.
+    /** Returns the optional event stream associated with the key.
      *
-     *  The reactive value emits a `Some` event whenever a new value is assigned,
+     *  The event stream emits a `Some` event whenever a new value is assigned,
      *  or `None` if no value is assigned.
      *
      *  @param key         the key
      *  @return            the reactive containing all the optional value at this key
      */
-    def get(key: K): Reactive[Option[V]]
+    def get(key: K): Events[Option[V]]
   }
 
 }

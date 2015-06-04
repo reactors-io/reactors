@@ -47,7 +47,7 @@ trait Scheduler {
    *  the `failures` stream of the isolate.
    *
    *  '''Note:'''
-   *  If the `failures` reactive throws
+   *  If the `failures` event stream throws
    *  while handling any throwables passed to it,
    *  then those throwables are passed to this error handler.
    *  This means that the `handler` can also receive non-fatal errors.

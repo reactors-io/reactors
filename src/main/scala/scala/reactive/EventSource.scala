@@ -14,12 +14,12 @@ package scala.reactive
  */
 trait EventSource {
   
-  private var sub: Reactive.Subscription = _
+  private var sub: Events.Subscription = _
 
   private def initEventSource() {
     sub = Iso.selfOrNull[Iso[_]] match {
       case null =>
-        Reactive.Subscription.empty
+        Events.Subscription.empty
       case iso  =>
         iso.eventSources += this
         ultimately { iso.eventSources -= this }
@@ -34,6 +34,6 @@ trait EventSource {
 
   /** Invoked when the event source is closed.
    */
-  def ultimately(reactor: =>Unit): Reactive.Subscription
+  def ultimately(reactor: =>Unit): Events.Subscription
 
 }

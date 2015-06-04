@@ -31,8 +31,8 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     rt.x := 2
   }
 
-  def assertExceptionPropagated[S](create: Reactive[Int] => Reactive[S], effect: () => Unit) {
-    val e = new Reactive.Emitter[Int]
+  def assertExceptionPropagated[S](create: Events[Int] => Events[S], effect: () => Unit) {
+    val e = new Events.Emitter[Int]
     val s = create(e)
     
     var nullptr = false
@@ -69,7 +69,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "be mapped" in {
-    val e = new Reactive.Emitter[Int]
+    val e = new Events.Emitter[Int]
     val s = e.map {
       _ + 1
     }
@@ -85,7 +85,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "emit once" in {
-    val e = new Reactive.Emitter[Int]
+    val e = new Events.Emitter[Int]
     val s = e.once
     val check = mutable.Buffer[Int]()
     val adds = s.foreach(check += _)
@@ -98,7 +98,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "not propagate exceptions after it emitted once" in {
-    val e = new Reactive.Emitter[Int]
+    val e = new Events.Emitter[Int]
     val s = e.once
     var exceptions = 0
     val h = s.handle(_ => exceptions += 1)
@@ -113,7 +113,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "be traversed with foreach" in {
-    val e = new Reactive.Emitter[Int]
+    val e = new Events.Emitter[Int]
     val buffer = mutable.Buffer[Int]()
     val s = e.foreach(buffer += _)
 
@@ -149,8 +149,8 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "come after" in {
-    val e = new Reactive.Emitter[Int]
-    val start = new Reactive.Emitter[Boolean]
+    val e = new Events.Emitter[Int]
+    val start = new Events.Emitter[Boolean]
     val buffer = mutable.Buffer[Int]()
     val s = (e after start) foreach { case x => buffer += x }
 
@@ -168,13 +168,13 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "propagate exceptions even before the first event" in {
-    val start = new Reactive.Emitter[Unit]
+    val start = new Events.Emitter[Unit]
     assertExceptionPropagated(_ after start, () => start.react(()))
   }
 
   it should "not propagate exceptions from that after the first event" in {
-    val start = new Reactive.Emitter[Unit]
-    val exceptor = new Reactive.Emitter[Unit]
+    val start = new Events.Emitter[Unit]
+    val exceptor = new Events.Emitter[Unit]
     val a = exceptor after start
 
     var state = false
@@ -192,8 +192,8 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "never come after" in {
-    val e = new Reactive.Emitter[Int]
-    val start = Reactive.Never[Int]
+    val e = new Events.Emitter[Int]
+    val start = Events.Never[Int]
     val buffer = mutable.Buffer[Int]()
     val s = (e after start) foreach { case x => buffer += x }
 
@@ -204,8 +204,8 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "propagate exceptions until the end event" in {
-    val end = new Reactive.Emitter[Unit]
-    val e = new Reactive.Emitter[Int]
+    val end = new Events.Emitter[Unit]
+    val e = new Events.Emitter[Int]
     val s = e.until(end)
     var exceptions = 0
     val h = s.handle(_ => exceptions += 1)
@@ -224,8 +224,8 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "occur until" in {
-    val e = new Reactive.Emitter[Int]
-    val end = new Reactive.Emitter[Boolean]
+    val e = new Events.Emitter[Int]
+    val end = new Events.Emitter[Boolean]
     val buffer = mutable.Buffer[Int]()
     val s = (e until end) foreach { x => buffer += x }
 
@@ -239,8 +239,8 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "be union" in {
-    val xs = new Reactive.Emitter[Int]
-    val ys = new Reactive.Emitter[Int]
+    val xs = new Events.Emitter[Int]
+    val ys = new Events.Emitter[Int]
     val buffer = mutable.Buffer[Int]()
     val s = (xs union ys) foreach { case x => buffer += x }
 
@@ -254,8 +254,8 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "propagate both exceptions to union" in {
-    val xs = new Reactive.Emitter[Int]
-    val ys = new Reactive.Emitter[Int]
+    val xs = new Events.Emitter[Int]
+    val ys = new Events.Emitter[Int]
     val zs = xs union ys
 
     var state = false
@@ -273,9 +273,9 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
 
   it should "be concat" in {
     import Permission.canBuffer
-    val xs = new Reactive.Emitter[Int]
-    val closeXs = new Reactive.Emitter[Unit]
-    val ys = new Reactive.Emitter[Int]
+    val xs = new Events.Emitter[Int]
+    val closeXs = new Events.Emitter[Unit]
+    val ys = new Events.Emitter[Int]
     val buffer = mutable.Buffer[Int]()
     val s = ((xs until closeXs) concat ys) foreach { case x => buffer += x }
 
@@ -292,8 +292,8 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
 
   it should "propagate both exceptions to concat" in {
     import Permission.canBuffer
-    val xs = new Reactive.Emitter[Int]
-    val ys = new Reactive.Emitter[Int]
+    val xs = new Events.Emitter[Int]
+    val ys = new Events.Emitter[Int]
     val zs = xs concat ys
 
     var state = false
@@ -311,8 +311,8 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
 
   def testSynced() {
     import Permission.canBuffer
-    val xs = new Reactive.Emitter[Int]
-    val ys = new Reactive.Emitter[Int]
+    val xs = new Events.Emitter[Int]
+    val ys = new Events.Emitter[Int]
     val synced = (xs sync ys) { _ + _ }
     val buffer = mutable.Buffer[Int]()
     val s = synced foreach { case x => buffer += x }
@@ -344,9 +344,9 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "be muxed" in {
-    val cell = RCell[Reactive[Int]](Signal.Constant(0))
-    val e1 = new Reactive.Emitter[Int]
-    val e2 = new Reactive.Emitter[Int]
+    val cell = RCell[Events[Int]](Signal.Constant(0))
+    val e1 = new Events.Emitter[Int]
+    val e2 = new Events.Emitter[Int]
     val ints = cell.mux().signal(0)
 
     assert(ints() == 0, ints())
@@ -368,12 +368,12 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "be higher-order union" in {
-    val cell = RCell[Reactive[Int]](Signal.Constant(0))
-    val e1 = new Reactive.Emitter[Int]
-    val e2 = new Reactive.Emitter[Int]
-    val e3 = new Reactive.Emitter[Int]
-    val e4 = new Reactive.Emitter[Int]
-    val closeE4 = new Reactive.Emitter[Unit]
+    val cell = RCell[Events[Int]](Signal.Constant(0))
+    val e1 = new Events.Emitter[Int]
+    val e2 = new Events.Emitter[Int]
+    val e3 = new Events.Emitter[Int]
+    val e4 = new Events.Emitter[Int]
+    val closeE4 = new Events.Emitter[Unit]
     val buffer = mutable.Buffer[Int]()
     val s = cell.union() foreach { case x => buffer += x }
 
@@ -407,14 +407,14 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
 
   it should "be higher-order concat" in {
     import Permission.canBuffer
-    val cell = RCell[Reactive[Int]](Signal.Constant(0))
-    val e1 = new Reactive.Emitter[Int]
-    val closeE1 = new Reactive.Emitter[Unit]
-    val e2 = new Reactive.Emitter[Int]
-    val closeE2 = new Reactive.Emitter[Unit]
-    val e3 = new Reactive.Emitter[Int]
-    val closeE3 = new Reactive.Emitter[Unit]
-    val e4 = new Reactive.Emitter[Int]
+    val cell = RCell[Events[Int]](Signal.Constant(0))
+    val e1 = new Events.Emitter[Int]
+    val closeE1 = new Events.Emitter[Unit]
+    val e2 = new Events.Emitter[Int]
+    val closeE2 = new Events.Emitter[Unit]
+    val e3 = new Events.Emitter[Int]
+    val closeE3 = new Events.Emitter[Unit]
+    val e4 = new Events.Emitter[Int]
     val buffer = mutable.Buffer[Int]()
     val s = cell.concat() foreach { x => buffer += x }
 
@@ -449,7 +449,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "collect accurately" in {
-    val e = new Reactive.Emitter[String]
+    val e = new Events.Emitter[String]
     val evens = e collect {
       case x if x.toInt % 2 == 0 => x
     }
@@ -462,7 +462,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "be taken while" in {
-    val e = new Reactive.Emitter[Int]
+    val e = new Events.Emitter[Int]
     val firstTen = e.takeWhile(_ < 10)
     val observed = mutable.Buffer[Int]()
     val emitSub = firstTen.foreach(observed += _)
@@ -477,7 +477,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "be taken while until exception" in {
-    val e = new Reactive.Emitter[Int]
+    val e = new Events.Emitter[Int]
     val firstTen = e.takeWhile(x => {assert(x != 5); x < 10})
     val observed = mutable.Buffer[Int]()
     val emitSub = firstTen.foreach(observed += _)
@@ -488,7 +488,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
   }
 
   it should "react to a container" in {
-    val e = new Reactive.Emitter[Int]
+    val e = new Events.Emitter[Int]
     val set = e.to[RSet[Int]]
 
     for (i <- 0 until 10) e react i

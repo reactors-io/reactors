@@ -14,22 +14,22 @@ class RHashValMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
   private var keytable: Array[K] = null
   private var valtable: Array[V] = null
   private var sz = 0
-  private[reactive] var insertsEmitter: Reactive.Emitter[(K, V)] = null
-  private[reactive] var removesEmitter: Reactive.Emitter[(K, V)] = null
+  private[reactive] var insertsEmitter: Events.Emitter[(K, V)] = null
+  private[reactive] var removesEmitter: Events.Emitter[(K, V)] = null
 
   protected def init(ek: Arrayable[K], ev: Arrayable[V]) {
     keytable = emptyKey.newArray(RHashValMap.initSize)
     valtable = emptyVal.newArray(RHashValMap.initSize)
-    insertsEmitter = new Reactive.Emitter[(K, V)]
-    removesEmitter = new Reactive.Emitter[(K, V)]
+    insertsEmitter = new Events.Emitter[(K, V)]
+    removesEmitter = new Events.Emitter[(K, V)]
   }
 
   init(emptyKey, emptyVal)
 
   def nil: V = emptyVal.nil
 
-  def inserts: Reactive[(K, V)] = insertsEmitter
-  def removes: Reactive[(K, V)] = removesEmitter
+  def inserts: Events[(K, V)] = insertsEmitter
+  def removes: Events[(K, V)] = removesEmitter
 
   def builder: RBuilder[(K, V), RHashValMap[K, V]] = this
 

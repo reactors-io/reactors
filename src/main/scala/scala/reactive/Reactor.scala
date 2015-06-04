@@ -14,19 +14,19 @@ package scala.reactive
  */
 trait Reactor[@spec(Int, Long, Double) -T] {
   
-  /** Called by a reactive when an event `value` is produced.
+  /** Called by an event stream when an event `value` is produced.
    * 
    *  @param value   the event passed to the reactor
    */
   def react(value: T): Unit
 
-  /** Called by a reactive when an exception is produced.
+  /** Called by an event stream when an exception is produced.
    *
    *  @param t       the exception passed to the reactor
    */
   def except(t: Throwable): Unit
   
-  /** Called by a reactive when there will be no further updates.
+  /** Called by an event stream when there will be no further updates.
    */
   def unreact(): Unit
 }

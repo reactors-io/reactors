@@ -19,8 +19,8 @@ trait EventSink {
     canLeak.eventSinks -= this
   }
 
-  def liftSubscription(s: Reactive.Subscription, canLeak: CanLeak) = {
-    Reactive.Subscription {
+  def liftSubscription(s: Events.Subscription, canLeak: CanLeak) = {
+    Events.Subscription {
       unregisterEventSink(canLeak)
       s.unsubscribe()
     }

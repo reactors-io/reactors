@@ -62,7 +62,7 @@ object PairContainer {
   
       result
     }
-    def mutate(m: ReactMutable)(insert: RPair.Signal[P, Q] => Unit)(remove: RPair.Signal[P, Q] => Unit): Reactive.Subscription = {
+    def mutate(m: ReactMutable)(insert: RPair.Signal[P, Q] => Unit)(remove: RPair.Signal[P, Q] => Unit): Events.Subscription = {
       new Mutate(container, m, insert, remove)
     }
   }
@@ -121,8 +121,8 @@ object PairContainer {
 
   class Mutate[@spec(Int, Long, Double) P, Q <: AnyRef, M <: ReactMutable]
     (val container: PairContainer[P, Q], val m: M, val ins: RPair.Signal[P, Q] => Unit, val rem: RPair.Signal[P, Q] => Unit)
-  extends Reactive.ProxySubscription {
-    val subscription = Reactive.CompositeSubscription(
+  extends Events.ProxySubscription {
+    val subscription = Events.CompositeSubscription(
       container.inserts.mutate(m)(ins),
       container.removes.mutate(m)(rem)
     )

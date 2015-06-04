@@ -14,13 +14,13 @@ extends RCatamorph[T, S] with RBuilder[S, CommuteCatamorph[T, S]] {
 
   private[reactive] var root: Node[T] = null
   private[reactive] var leaves: mutable.Map[S, Leaf[T]] = null
-  private val insertsEmitter = new Reactive.Emitter[S]
-  private val removesEmitter = new Reactive.Emitter[S]
+  private val insertsEmitter = new Events.Emitter[S]
+  private val removesEmitter = new Events.Emitter[S]
   private var rootValue: RCell[T] = null
 
-  def inserts: Reactive[S] = insertsEmitter
+  def inserts: Events[S] = insertsEmitter
 
-  def removes: Reactive[S] = removesEmitter
+  def removes: Events[S] = removesEmitter
 
   def init(z: T) {
     root = new Empty(zero)

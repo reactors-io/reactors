@@ -12,15 +12,15 @@ import scala.reactive.core.BinaryHeap
 class RBinaryHeap[@spec(Int, Long, Double) T](val initialSize: Int = 16)(implicit val arrayable: Arrayable[T], val order: Order[T])
 extends RPriorityQueue[T] {
   private var heap: BinaryHeap[T] = _
-  private var insertsEmitter: Reactive.Emitter[T] = _
-  private var removesEmitter: Reactive.Emitter[T] = _
-  private var headEmitter: Reactive.Emitter[T] = _
+  private var insertsEmitter: Events.Emitter[T] = _
+  private var removesEmitter: Events.Emitter[T] = _
+  private var headEmitter: Events.Emitter[T] = _
 
   def init(dummy: RBinaryHeap[T]) {
     heap = new BinaryHeap(initialSize)
-    insertsEmitter = new Reactive.Emitter[T]
-    removesEmitter = new Reactive.Emitter[T]
-    headEmitter = new Reactive.Emitter[T]
+    insertsEmitter = new Events.Emitter[T]
+    removesEmitter = new Events.Emitter[T]
+    headEmitter = new Events.Emitter[T]
   }
 
   init(this)
@@ -60,7 +60,7 @@ object RBinaryHeap {
   def apply[@spec(Int, Long, Double) T: Arrayable: Order](initialSize: Int) = new RBinaryHeap[T](initialSize)
 
   class Lifted[@spec(Int, Long, Double) T](val container: RBinaryHeap[T]) extends RPriorityQueue.Lifted[T] {
-    def head: Reactive[T] = container.headEmitter
+    def head: Events[T] = container.headEmitter
   }
 
 }

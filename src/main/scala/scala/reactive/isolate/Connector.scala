@@ -42,7 +42,7 @@ class Connector[@spec(Int, Long, Double) T](
    *
    *  @return            the event stream
    */
-  def events: Reactive[T] = dequeuer.events
+  def events: Events[T] = dequeuer.events
 
   /** The channel associated with this connector.
    *

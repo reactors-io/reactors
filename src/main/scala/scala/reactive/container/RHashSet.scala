@@ -14,19 +14,19 @@ class RHashSet[@spec(Int, Long, Double) T](
 
   private var table: Array[T] = null
   private var sz = 0
-  private[reactive] var insertsEmitter: Reactive.Emitter[T] = null
-  private[reactive] var removesEmitter: Reactive.Emitter[T] = null
+  private[reactive] var insertsEmitter: Events.Emitter[T] = null
+  private[reactive] var removesEmitter: Events.Emitter[T] = null
 
   protected def init(ee: Arrayable[T]) {
     table = arrayable.newArray(RHashSet.initSize)
-    insertsEmitter = new Reactive.Emitter[T]
-    removesEmitter = new Reactive.Emitter[T]
+    insertsEmitter = new Events.Emitter[T]
+    removesEmitter = new Events.Emitter[T]
   }
 
   init(arrayable)
 
-  def inserts: Reactive[T] = insertsEmitter
-  def removes: Reactive[T] = removesEmitter
+  def inserts: Events[T] = insertsEmitter
+  def removes: Events[T] = removesEmitter
 
   def builder: RBuilder[T, RHashSet[T]] = this
 

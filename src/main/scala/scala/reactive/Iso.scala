@@ -14,13 +14,13 @@ import isolate._
  *  An `Isolate[T]` object accepts events of type `T` on its input channel.
  *  One isolate can propagate events concurrently to other isolates --
  *  it is a basic element of concurrency.
- *  Reactive values cannot be shared between isolates --
- *  it is an error to use a reactive value originating in one isolate
+ *  Event streams cannot be shared between isolates --
+ *  it is an error to use an event stream originating in one isolate
  *  in some different isolate.
  *
  *  Isolates are defined by extending the `Iso` trait.
  *  The events passed to isolates can be subscribed to using
- *  their `events` reactive.
+ *  their `events` stream.
  *  Here is an example:
  *
  *  {{{
@@ -44,25 +44,25 @@ import isolate._
  *  }}}
  *
  *  Creating an isolate returns its channel.
- *  Reactives can be attached to channels to propagate their events to isolates.
+ *  Event streams can be attached to channels to propagate their events to isolates.
  *
  *  {{{
- *  val emitter = new Reactive.Emitter[String]
+ *  val emitter = new Events.Emitter[String]
  *  channel.attach(emitter)
  *  emitter += "Hi!" // eventually, this is printed by `MyPrinter`
  *  }}}
  *
  *  To stop an isolate, its channel needs to be sealed, 
- *  and all the previously attached reactives need to be closed.
+ *  and all the previously attached event streams need to be closed.
  *
  *  {{{
  *  emitter.close()
  *  channel.seal()
  *  }}}
  *
- *  Isolates also receive special `SysEvent`s on the `sysEvents` reactive.
- *  If a subscription on the `events` reactive throws a non-fatal exception,
- *  the exception is emitted on the `failures` reactive.
+ *  Isolates also receive special `SysEvent`s on the `sysEvents` event stream.
+ *  If a subscription on the `events` event stream throws a non-lethal exception,
+ *  the exception is emitted on the `failures` event stream.
  *  
  *  @tparam T        the type of the events this isolate produces
  */
@@ -71,10 +71,10 @@ trait Iso[@spec(Int, Long, Double) T] extends ReactRecord {
 
   @volatile private[reactive] var eventSources: mutable.Set[EventSource] = _
 
-  @volatile private[reactive] var systemEmitter: Reactive.Emitter[SysEvent] = _
+  @volatile private[reactive] var systemEmitter: Events.Emitter[SysEvent] = _
 
   @volatile private[reactive] var failureEmitter:
-    Reactive.Emitter[Throwable] = _
+    Events.Emitter[Throwable] = _
 
   val implicits = new Iso.Implicits
 
@@ -90,8 +90,8 @@ trait Iso[@spec(Int, Long, Double) T] extends ReactRecord {
     }
     frame.isolate = this
     eventSources = mutable.Set[EventSource]()
-    systemEmitter = new Reactive.Emitter[SysEvent]
-    failureEmitter = new Reactive.Emitter[Throwable]
+    systemEmitter = new Events.Emitter[SysEvent]
+    failureEmitter = new Events.Emitter[Throwable]
     Iso.selfIso.set(this)
     frame.isolateSourceConnector = frame.newSourceConnector(frame)
     frame.isolateInternalConnector = frame.newInternalConnector(frame)
@@ -119,20 +119,20 @@ trait Iso[@spec(Int, Long, Double) T] extends ReactRecord {
 
   /** Internal events received by this isolate.
    */
-  private[reactive] final def internalEvents: Reactive[InternalEvent] =
+  private[reactive] final def internalEvents: Events[InternalEvent] =
     frame.internalConnector.events
 
   /** The system event stream.
    */
-  final def sysEvents: Reactive[SysEvent] = systemEmitter
+  final def sysEvents: Events[SysEvent] = systemEmitter
 
   /** The default event stream of this isolate.
    */
-  final def events: Reactive[T] = frame.sourceConnector[T].events
+  final def events: Events[T] = frame.sourceConnector[T].events
 
   /** The failures event stream.
    */
-  final def failures: Reactive[Throwable] = failureEmitter
+  final def failures: Events[Throwable] = failureEmitter
 
   /** The system channel of this isolate.
    */

@@ -5,7 +5,7 @@ package scala.reactive
 
 
 
-/** A special type of a reactive value that caches the last emitted event.
+/** A special type of an event stream that caches the last emitted event.
  *
  *  This last event is called the signal's ''value''.
  *  It can be read using the `Signal`'s `apply` method.
@@ -13,7 +13,7 @@ package scala.reactive
  *  @tparam T        the type of the events in this signal
  */
 trait Signal[@spec(Int, Long, Double) +T]
-extends Reactive[T] {
+extends Events[T] {
   self =>
 
   /** Returns the last event produced by `this` signal.
@@ -35,7 +35,7 @@ extends Reactive[T] {
    *  @return         a subscription and a signal with the mapped events
    */
   override def map[@spec(Int, Long, Double) S](f: T => S):
-    Signal[S] with Reactive.Subscription = {
+    Signal[S] with Events.Subscription = {
     val sm = new Signal.Map(self, f)
     sm.subscription = self observe sm
     sm
@@ -52,7 +52,7 @@ extends Reactive[T] {
    *
    *  @return         a subscription and a new instance of `this` signal
    */
-  def renewed: Signal[T] with Reactive.Subscription = this.signal(apply())
+  def renewed: Signal[T] with Events.Subscription = this.signal(apply())
 
   /** A signal that only emits events when the value of `this` signal changes.
    *
@@ -64,7 +64,7 @@ extends Reactive[T] {
    *
    *  @return         a subscription and the signal with changes of `this`
    */
-  def changes: Signal[T] with Reactive.Subscription = {
+  def changes: Signal[T] with Events.Subscription = {
     val initial = this()
     val sc = new Signal.Changes(self, initial)
     sc.subscription = self observe sc
@@ -87,7 +87,7 @@ extends Reactive[T] {
    *  @return         a subscription and a signal with the difference value
    */
   def diffPast[@spec(Int, Long, Double) S](z: S)(op: (T, T) => S):
-    Signal[S] with Reactive.Subscription = {
+    Signal[S] with Events.Subscription = {
     val initial = this()
     val sd = new Signal.DiffPast(self, initial, z, op)
     sd.subscription = self observe sd
@@ -123,19 +123,19 @@ extends Reactive[T] {
    *  }}}
    *
    *  '''Note:''': clients looking into pairing incoming events from two signals
-   *  you should use the `sync` method inherited from `Reactive`.
+   *  you should use the `sync` method inherited from `Events`.
    *
    *  @tparam S        the type of `that` signal
    *  @tparam R        the type of the resulting signal
    *  @param that      the signal to zip `this` with
    *  @param f         the function that maps a tuple of values into an outgoing
    *                   event
-   *  @return          a subscription and the reactive that emits zipped events
+   *  @return          a subscription and the event stream that emits zipped events
    */
   def zip[@spec(Int, Long, Double) S, @spec(Int, Long, Double) R]
-    (that: Signal[S])(f: (T, S) => R): Signal[R] with Reactive.Subscription = {
+    (that: Signal[S])(f: (T, S) => R): Signal[R] with Events.Subscription = {
     val sz = new Signal.Zip(self, that, f)
-    sz.subscription = Reactive.CompositeSubscription(
+    sz.subscription = Events.CompositeSubscription(
       self observe sz.selfReactor,
       that observe sz.thatReactor
     )
@@ -162,7 +162,7 @@ extends Reactive[T] {
    *  }}}
    *  
    *  This is similar to `mux`, but emits the initial value of the signal as an
-   *  event too -- this is because `mux` does not require the nested reactive to
+   *  event too -- this is because `mux` does not require the nested event stream to
    *  be a signal.
    *
    *  '''Use case:'''
@@ -178,7 +178,7 @@ extends Reactive[T] {
    */
   def muxSignal[@spec(Int, Long, Double) S]()
     (implicit evidence: T <:< Signal[S]):
-    Signal[S] with Reactive.Subscription = {
+    Signal[S] with Events.Subscription = {
     new Signal.Mux[T, S](this, evidence)
   }
 
@@ -197,7 +197,7 @@ object Signal {
      *  scanPastNow 1--3----7-----15---->
      *  }}}
      */
-    def scanPastNow(op: (T, T) => T): Signal[T] with Reactive.Subscription = {
+    def scanPastNow(op: (T, T) => T): Signal[T] with Events.Subscription = {
       val initial = self()
       val srp = new Signal.ScanPastNow(self, initial, op)
       srp.subscription = self observe srp
@@ -225,7 +225,7 @@ object Signal {
   private[reactive] class Map
     [@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
     (val self: Signal[T], val f: T => S)
-  extends Signal.Default[S] with Reactor[T] with Reactive.ProxySubscription {
+  extends Signal.Default[S] with Reactor[T] with Events.ProxySubscription {
     private var cached = f(self.apply)
     def apply() = cached
     def react(value: T) {
@@ -240,12 +240,12 @@ object Signal {
     def unreact() {
       unreactAll()
     }
-    var subscription = Reactive.Subscription.empty
+    var subscription = Events.Subscription.empty
   }
 
   private[reactive] class ScanPastNow[@spec(Int, Long, Double) T]
     (val self: Signal[T], initial: T, op: (T, T) => T)
-  extends Signal.Default[T] with Reactor[T] with Reactive.ProxySubscription {
+  extends Signal.Default[T] with Reactor[T] with Events.ProxySubscription {
     private var cached = initial
     def apply() = cached
     def react(value: T) {
@@ -262,12 +262,12 @@ object Signal {
     def unreact() {
       unreactAll()
     }
-    var subscription = Reactive.Subscription.empty
+    var subscription = Events.Subscription.empty
   }
 
   private[reactive] class Changes[@spec(Int, Long, Double) T]
     (val self: Signal[T], var cached: T)
-  extends Signal.Default[T] with Reactor[T] with Reactive.ProxySubscription {
+  extends Signal.Default[T] with Reactor[T] with Events.ProxySubscription {
     def apply() = cached
     def react(value: T) {
       if (cached != value) {
@@ -281,13 +281,13 @@ object Signal {
     def unreact() {
       unreactAll()
     }
-    var subscription = Reactive.Subscription.empty
+    var subscription = Events.Subscription.empty
   }
 
   private[reactive] class DiffPast
     [@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
     (val self: Signal[T], var last: T, var cached: S, val op: (T, T) => S)
-  extends Signal.Default[S] with Reactor[T] with Reactive.ProxySubscription {
+  extends Signal.Default[S] with Reactor[T] with Events.ProxySubscription {
     def apply() = cached
     def react(value: T) {
       cached = try {
@@ -304,7 +304,7 @@ object Signal {
     def unreact() {
       unreactAll()
     }
-    var subscription = Reactive.Subscription.empty
+    var subscription = Events.Subscription.empty
   }
 
   private[reactive] class Zip[
@@ -312,7 +312,7 @@ object Signal {
     @spec(Int, Long, Double) S,
     @spec(Int, Long, Double) R
   ](val self: Signal[T], val that: Signal[S], val f: (T, S) => R)
-  extends Signal.Default[R] with Reactive.ProxySubscription {
+  extends Signal.Default[R] with Events.ProxySubscription {
     zipped =>
     private[reactive] var cached = f(self(), that())
     private[reactive] var left = 2
@@ -349,7 +349,7 @@ object Signal {
       def unreact() = zipped.unreact()
     }
     def apply() = cached
-    var subscription = Reactive.Subscription.empty
+    var subscription = Events.Subscription.empty
   }
 
   /** The default implementation of the signal.
@@ -359,11 +359,11 @@ object Signal {
    *  @tparam T         the type of this signal
    */
   trait Default[@spec(Int, Long, Double) T]
-  extends Signal[T] with Reactive.Default[T]
+  extends Signal[T] with Events.Default[T]
 
   private[reactive] class Constant[@spec(Int, Long, Double) T]
     (private val value: T)
-  extends Signal[T] with Reactive.Never[T] {
+  extends Signal[T] with Events.Never[T] {
     def apply() = value
   }
 
@@ -399,13 +399,13 @@ object Signal {
    *  The underlying mutable value `m` must '''never''' be
    *  mutated directly by accessing the value of the signal
    *  and changing the mutable value `m`.
-   *  Instead, the `mutate` operation on `Reactive`s should
+   *  Instead, the `mutate` operation on `Events`s should
    *  be used to mutate `m`.
    *
    *  Example:
    *
    *  {{{
-   *  val systemMessages = new Reactive.Emitter[String]
+   *  val systemMessages = new Events.Emitter[String]
    *  val log = new Signal.Mutable(new mutable.ArrayBuffer[String])
    *  val logMutations = systemMessages.mutate(log) { msg =>
    *    log() += msg
@@ -417,9 +417,9 @@ object Signal {
    *  concurrently by different threads.
    *  In fact, as long as there are no feedback loops in the dataflow graph,
    *  the same thread will never modify the mutable signal at the same time.
-   *  See the `mutate` method on `Reactive`s for more information.
+   *  See the `mutate` method on `Events`s for more information.
    *
-   *  @see [[scala.reactive.Reactive]]
+   *  @see [[scala.reactive.Events]]
    *  @tparam T          the type of the underlying mutable object
    *  @param m           the mutable object
    */
@@ -440,9 +440,9 @@ object Signal {
   def Mutable[T <: AnyRef](v: T) = new Mutable[T](v)
 
   private[reactive] class Aggregate[@spec(Int, Long, Double) T](
-    private val root: Signal[T] with Reactive.Subscription,
-    private val subscriptions: Seq[Reactive.Subscription]
-  ) extends Signal.Default[T] with Reactive.Subscription {
+    private val root: Signal[T] with Events.Subscription,
+    private val subscriptions: Seq[Events.Subscription]
+  ) extends Signal.Default[T] with Events.Subscription {
     def apply() = root()
     def unsubscribe() {
       for (s <- subscriptions) s.unsubscribe()
@@ -464,7 +464,7 @@ object Signal {
    *
    *  Example:
    *  {{{
-   *  val emitters = for (0 until 10) yield new Reactive.Emitter[Int]
+   *  val emitters = for (0 until 10) yield new Events.Emitter[Int]
    *  val ag = Signal.Aggregate(emitters)(_ + _)
    *  }}}
    *
@@ -497,9 +497,9 @@ object Signal {
 
   private[reactive] class Mux[T, @spec(Int, Long, Double) S]
     (val self: Signal[T], val evidence: T <:< Signal[S])
-  extends Signal.Default[S] with Reactor[T] with Reactive.ProxySubscription {
+  extends Signal.Default[S] with Reactor[T] with Events.ProxySubscription {
     muxed =>
-    import Reactive.Subscription
+    import Events.Subscription
     private var value: S = _
     private[reactive] var currentSubscription: Subscription = null
     private[reactive] var terminated = false
@@ -539,7 +539,7 @@ object Signal {
       super.unsubscribe()
     }
     var subscription: Subscription = null
-    def init(e: T <:< Reactive[S]) {
+    def init(e: T <:< Events[S]) {
       value = evidence(self()).apply()
       currentSubscription = Subscription.empty
       subscription = self observe this

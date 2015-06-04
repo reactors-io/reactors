@@ -75,7 +75,7 @@ object Isolates {
   class AutoClosingIso(sv: SyncVar[Boolean]) extends Iso[Int] {
     import implicits.canLeak
 
-    val emitter = new Reactive.Emitter[Int]
+    val emitter = new Events.Emitter[Int]
 
     emitter onUnreact {
       sv.put(true)
@@ -132,7 +132,7 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
   "A synced isolate" should "react to an event" in {
     val sv = new SyncVar[String]
 
-    val emitter = new Reactive.Emitter[String]
+    val emitter = new Events.Emitter[String]
     val proto = Proto[OneIso](sv)
     val c = isoSystem.isolate(proto).attach(emitter).seal()
     emitter react "test event"
@@ -144,7 +144,7 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
   def reactToMany(many: Int) {
     val sv = new SyncVar[List[Int]]
 
-    val emitter = new Reactive.Emitter[Int]
+    val emitter = new Events.Emitter[Int]
     val proto = Proto[ManyIso](many, sv)
     val c = isoSystem.isolate(proto).attach(emitter).seal()
     for (i <- 0 until many) emitter react i
@@ -162,7 +162,7 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
   it should "see itself as an isolate" in {
     val sv = new SyncVar[Boolean]
 
-    val emitter = new Reactive.Emitter[Int]
+    val emitter = new Events.Emitter[Int]
 
     val proto = Proto[SelfIso](sv)
     val c = isoSystem.isolate(proto).attach(emitter).seal()
@@ -176,7 +176,7 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
   it should "set a custom event queue" in {
     val sv = new SyncVar[Boolean]
 
-    val emitter = new Reactive.Emitter[Int]
+    val emitter = new Events.Emitter[Int]
 
     val proto = Proto[CustomIso](sv).withEventQueue(EventQueue.DevNull.factory)
     val c = isoSystem.isolate(proto).attach(emitter).seal()
@@ -199,7 +199,7 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
   it should "receive events from all its channels" in {
     val sv = new SyncVar[Boolean]
 
-    val emitter = new Reactive.Emitter[Channel[Int]]
+    val emitter = new Events.Emitter[Channel[Int]]
 
     val dc = isoSystem.isolate(Proto[DualChannelIso](sv))
     val mc = isoSystem.isolate(Proto[MasterIso](dc))
@@ -214,7 +214,7 @@ trait IsolateSpec extends FlatSpec with ShouldMatchers {
   it should "use channel name resolution" in {
     val sv = new SyncVar[Boolean]
 
-    val emitter = new Reactive.Emitter[Channel[Int]]
+    val emitter = new Events.Emitter[Channel[Int]]
 
     val rc = isoSystem.isolate(Proto[RegChannelIso](sv).withName("reggy"))
     val lc = isoSystem.isolate(Proto[LookupIso])

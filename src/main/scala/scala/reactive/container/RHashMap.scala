@@ -17,8 +17,8 @@ extends RMap[K, V] with RBuilder[(K, V), RHashMap[K, V]] with PairBuilder[K, V, 
   private[reactive] var keysContainer: RContainer.Emitter[K] = null
   private[reactive] var valuesContainer: RContainer.Emitter[V] = null
   private[reactive] var entriesContainer: PairContainer.Emitter[K, V] = null
-  private[reactive] var insertsEmitter: Reactive.Emitter[(K, V)] = null
-  private[reactive] var removesEmitter: Reactive.Emitter[(K, V)] = null
+  private[reactive] var insertsEmitter: Events.Emitter[(K, V)] = null
+  private[reactive] var removesEmitter: Events.Emitter[(K, V)] = null
 
 
   protected def init(k: K) {
@@ -26,16 +26,16 @@ extends RMap[K, V] with RBuilder[(K, V), RHashMap[K, V]] with PairBuilder[K, V, 
     keysContainer = new RContainer.Emitter[K](f => foreachKey(f), () => size)
     valuesContainer = new RContainer.Emitter[V](f => foreachValue(f), () => size)
     entriesContainer = new PairContainer.Emitter[K, V]()
-    insertsEmitter = new Reactive.Emitter[(K, V)]
-    removesEmitter = new Reactive.Emitter[(K, V)]
+    insertsEmitter = new Events.Emitter[(K, V)]
+    removesEmitter = new Events.Emitter[(K, V)]
   }
 
   init(null.asInstanceOf[K])
 
   def keys: RContainer[K] = keysContainer
   def values: RContainer[V] = valuesContainer
-  def inserts: Reactive[(K, V)] = insertsEmitter
-  def removes: Reactive[(K, V)] = removesEmitter
+  def inserts: Events[(K, V)] = insertsEmitter
+  def removes: Events[(K, V)] = removesEmitter
   def entries: PairContainer[K, V] = entriesContainer
 
   def builder: RBuilder[(K, V), RHashMap[K, V]] = this

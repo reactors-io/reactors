@@ -21,10 +21,10 @@ class RTileMap[@spec(Int, Long, Double) T: ClassTag](
   private var sz = 0
   private[reactive] var hiddenRoot: Node[T] = null
   private[reactive] var valueContainer: RContainer.Emitter[T] = null
-  private[reactive] var insertsEmitter: Reactive.Emitter[(Int, Int, T)] = null
-  private[reactive] var removesEmitter: Reactive.Emitter[(Int, Int, T)] = null
-  private[reactive] var updatesEmitter: Reactive.Emitter[XY] = null
-  private[reactive] var dimensionsEmitter: Reactive.Emitter[Int] = null
+  private[reactive] var insertsEmitter: Events.Emitter[(Int, Int, T)] = null
+  private[reactive] var removesEmitter: Events.Emitter[(Int, Int, T)] = null
+  private[reactive] var updatesEmitter: Events.Emitter[XY] = null
+  private[reactive] var dimensionsEmitter: Events.Emitter[Int] = null
   private[reactive] def quadRoot = root
 
   protected def root: Node[T] = hiddenRoot
@@ -49,10 +49,10 @@ class RTileMap[@spec(Int, Long, Double) T: ClassTag](
     valueContainer = new RContainer.Emitter[T](f => foreachNonDefaultTile(0, 0, dim, dim)(new Applier[T] {
       def apply(x: Int, y: Int, elem: T) = f(elem)
     }), () => size)
-    insertsEmitter = new Reactive.Emitter[(Int, Int, T)]
-    removesEmitter = new Reactive.Emitter[(Int, Int, T)]
-    updatesEmitter = new Reactive.Emitter[XY]
-    dimensionsEmitter = new Reactive.Emitter[Int]
+    insertsEmitter = new Events.Emitter[(Int, Int, T)]
+    removesEmitter = new Events.Emitter[(Int, Int, T)]
+    updatesEmitter = new Events.Emitter[XY]
+    dimensionsEmitter = new Events.Emitter[Int]
   }
 
   init(dflt)
@@ -74,22 +74,22 @@ class RTileMap[@spec(Int, Long, Double) T: ClassTag](
   
   def values: RContainer[T] = valueContainer
 
-  def updates: Reactive[XY] = {
+  def updates: Events[XY] = {
     checkRoot(dflt)
     updatesEmitter
   }
 
-  def dimensions: Reactive[Int] = {
+  def dimensions: Events[Int] = {
     checkRoot(dflt)
     dimensionsEmitter
   }
 
-  def inserts: Reactive[(Int, Int, T)] = {
+  def inserts: Events[(Int, Int, T)] = {
     checkRoot(dflt)
     insertsEmitter
   }
 
-  def removes: Reactive[(Int, Int, T)] = {
+  def removes: Events[(Int, Int, T)] = {
     checkRoot(dflt)
     removesEmitter
   }

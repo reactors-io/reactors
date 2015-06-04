@@ -12,9 +12,9 @@ trait RValPair[@spec(Int, Long, Double) P, @spec(Int, Long, Double) Q] {
   private[reactive] var p: P = _
   private[reactive] var q: Q = _
   private[reactive] var asSignal: RValPair.Signal[P, Q] = _
-  private[reactive] var subscription: Reactive.Subscription =
-    Reactive.Subscription.empty
-  private[reactive] val changes = new Reactive.Emitter[Unit]
+  private[reactive] var subscription: Events.Subscription =
+    Events.Subscription.empty
+  private[reactive] val changes = new Events.Emitter[Unit]
 
   def init(dummy: RValPair[P, Q]) {
     asSignal = new RValPair.Signal(this)
@@ -30,7 +30,7 @@ trait RValPair[@spec(Int, Long, Double) P, @spec(Int, Long, Double) Q] {
 
   private[reactive] def _2_=(v: Q) = q = v
 
-  def ultimately(reactor: =>Unit): Reactive.Subscription =
+  def ultimately(reactor: =>Unit): Events.Subscription =
     changes.ultimately(reactor)
 
   def filter1(p: P => Boolean): RValPair[P, Q] = {
@@ -128,7 +128,7 @@ trait RValPair[@spec(Int, Long, Double) P, @spec(Int, Long, Double) Q] {
   }
 
   def mutate[M <: ReactMutable](mutable: M)
-    (mutation: RValPair.Signal[P, Q] => Unit): Reactive.Subscription = {
+    (mutation: RValPair.Signal[P, Q] => Unit): Events.Subscription = {
     changes foreach { _ =>
       try mutation(asSignal)
       catch {
@@ -140,21 +140,21 @@ trait RValPair[@spec(Int, Long, Double) P, @spec(Int, Long, Double) Q] {
   }
 
   def merge[@spec(Int, Long, Double) R <: AnyVal](f: (P, Q) => R):
-    Reactive[R] with Reactive.Subscription = {
+    Events[R] with Events.Subscription = {
     changes map { _ =>
       f(_1, _2)
     }
   }
 
-  def fst: Reactive[P] with Reactive.Subscription = {
+  def fst: Events[P] with Events.Subscription = {
     changes.map(_ => _1)
   }
 
-  def snd: Reactive[Q] with Reactive.Subscription = {
+  def snd: Events[Q] with Events.Subscription = {
     changes.map(_ => _2)
   }
 
-  def boxToTuples: Reactive[(P, Q)] with Reactive.Subscription = {
+  def boxToTuples: Events[(P, Q)] with Events.Subscription = {
     changes.map(_ => (_1, _2))
   }
 

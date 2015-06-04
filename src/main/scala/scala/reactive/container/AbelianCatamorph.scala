@@ -14,18 +14,18 @@ extends RCatamorph[T, S] with RBuilder[S, AbelianCatamorph[T, S]] {
   import AbelianCatamorph._
 
   private[reactive] var elements: RHashValMap[S, T] = null
-  private var insertsEmitter: Reactive.Emitter[S] = null
-  private var removesEmitter: Reactive.Emitter[S] = null
+  private var insertsEmitter: Events.Emitter[S] = null
+  private var removesEmitter: Events.Emitter[S] = null
   private var value: RCell[T] = null
 
-  def inserts: Reactive[S] = insertsEmitter
+  def inserts: Events[S] = insertsEmitter
 
-  def removes: Reactive[S] = removesEmitter
+  def removes: Events[S] = removesEmitter
 
   def init(z: T) {
     elements = RHashValMap[S, T]
-    insertsEmitter = new Reactive.Emitter[S]
-    removesEmitter = new Reactive.Emitter[S]
+    insertsEmitter = new Events.Emitter[S]
+    removesEmitter = new Events.Emitter[S]
     value = RCell[T](zero)
   }
 

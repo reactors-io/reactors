@@ -9,14 +9,14 @@ import scala.collection._
 
 class SignalCatamorph[@spec(Int, Long, Double) T](val catamorph: RCatamorph[T, Signal[T]])
 extends RCatamorph[T, Signal[T]] with RBuilder[Signal[T], SignalCatamorph[T]] {
-  private var signalSubscriptions = mutable.Map[Signal[T], Reactive.Subscription]()
-  private var insertsReactive: Reactive[Signal[T]] = null
-  private var removesReactive: Reactive[Signal[T]] = null
+  private var signalSubscriptions = mutable.Map[Signal[T], Events.Subscription]()
+  private var insertsEvents: Events[Signal[T]] = null
+  private var removesEvents: Events[Signal[T]] = null
   private var defaultSignal: Signal.Default[T] = null
 
   def init(c: RCatamorph[T, Signal[T]]) {
-    insertsReactive = catamorph.inserts
-    removesReactive = catamorph.removes
+    insertsEvents = catamorph.inserts
+    removesEvents = catamorph.removes
     defaultSignal = new Signal.Default[T] {
       def apply() = catamorph.signal()
     }
@@ -58,9 +58,9 @@ extends RCatamorph[T, Signal[T]] with RBuilder[Signal[T], SignalCatamorph[T]] {
 
   def push(s: Signal[T]) = catamorph.push(s)
 
-  def inserts: Reactive[Signal[T]] = insertsReactive
+  def inserts: Events[Signal[T]] = insertsEvents
 
-  def removes: Reactive[Signal[T]] = removesReactive
+  def removes: Events[Signal[T]] = removesEvents
 
   def size = signalSubscriptions.size
 

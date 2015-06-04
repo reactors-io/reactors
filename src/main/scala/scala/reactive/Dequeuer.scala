@@ -15,7 +15,7 @@ package scala.reactive
  *  queue implementation to drop elements that are no longer used.
  *
  *  When `dequeue` is called, an event is not returned.
- *  Instead, it is emitted on the `events` reactive associated with this dequeuer.
+ *  Instead, it is emitted on the `events` event stream associated with this dequeuer.
  *
  *  A dequeuer is used internally by isolate schedulers.
  *  
@@ -31,7 +31,7 @@ trait Dequeuer[@spec(Int, Long, Double) T] {
    *
    *  @return        the event stream of this dequeuer.
    */
-  def events: Reactive[T]
+  def events: Events[T]
 
   /** Returns the number of elements left in the dequeuer.
    *

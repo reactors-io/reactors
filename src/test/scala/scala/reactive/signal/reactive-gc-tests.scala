@@ -17,9 +17,9 @@ class ReactiveGCCheck extends Properties("ReactiveGC") with ExtendedProperties {
 
   val sizes = detChoose(1, 100)
 
-  def testGC(num: Int)(afterCheck: Reactive.Emitter[Int] => Boolean): Prop = {
+  def testGC(num: Int)(afterCheck: Events.Emitter[Int] => Boolean): Prop = {
     var signsOfLife = Array.fill(num)(false)
-    val emitter = new Reactive.Emitter[Int]
+    val emitter = new Events.Emitter[Int]
     for (i <- 0 until num) emitter foreach { _ =>
       signsOfLife(i) = true
     }
@@ -44,11 +44,11 @@ class ReactiveGCCheck extends Properties("ReactiveGC") with ExtendedProperties {
     }
   }
 
-  def testOnX(num: Int)(afterCheck: Reactive.Emitter[Int] => Boolean): Prop = {
+  def testOnX(num: Int)(afterCheck: Events.Emitter[Int] => Boolean): Prop = {
     implicit val canLeak = Permission.newCanLeak
 
     var signsOfLife = Array.fill(num)(false)
-    val emitter = new Reactive.Emitter[Int]
+    val emitter = new Events.Emitter[Int]
     for (i <- 0 until num) emitter onEvent { _ =>
       signsOfLife(i) = true
     }
@@ -72,9 +72,9 @@ class ReactiveGCCheck extends Properties("ReactiveGC") with ExtendedProperties {
     }
   }
 
-  def testDep(num: Int)(afterCheck: Reactive.Emitter[Int] => Boolean): Prop = {
+  def testDep(num: Int)(afterCheck: Events.Emitter[Int] => Boolean): Prop = {
     var signsOfLife = Array.fill(num)(false)
-    val emitter = new Reactive.Emitter[Int]
+    val emitter = new Events.Emitter[Int]
     val subs = for (i <- 0 until num) yield emitter foreach { _ =>
       signsOfLife(i) = true
     }
@@ -110,9 +110,9 @@ class ReactiveGCCheck extends Properties("ReactiveGC") with ExtendedProperties {
 
 class ReactiveGCSpec extends FlatSpec with ShouldMatchers {
 
-  def testGChalf(num: Int)(afterCheck: Reactive.Emitter[Int] => Boolean) {
+  def testGChalf(num: Int)(afterCheck: Events.Emitter[Int] => Boolean) {
     var signsOfLife = Array.fill(num)(false)
-    val emitter = new Reactive.Emitter[Int]
+    val emitter = new Events.Emitter[Int]
     val kept = for (i <- 0 until num / 2) yield emitter foreach { _ =>
       signsOfLife(i) = true
     }

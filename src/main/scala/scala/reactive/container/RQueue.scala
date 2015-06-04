@@ -25,7 +25,7 @@ object RQueue {
 
   trait Lifted[@spec(Int, Long, Double) T] extends RContainer.Lifted[T] {
     val container: RQueue[T]
-    def head: Reactive[T]
+    def head: Events[T]
   }
 
 }

@@ -12,22 +12,22 @@ import core.UnrolledRing
 class RUnrolledQueue[@spec(Int, Long, Double) T](implicit val arrayable: Arrayable[T])
 extends RQueue[T] {
   private var ring: UnrolledRing[T] = _
-  private var insertsEmitter: Reactive.Emitter[T] = _
-  private var removesEmitter: Reactive.Emitter[T] = _
-  private var headEmitter: Reactive.Emitter[T] = _
+  private var insertsEmitter: Events.Emitter[T] = _
+  private var removesEmitter: Events.Emitter[T] = _
+  private var headEmitter: Events.Emitter[T] = _
 
   private def init(dummy: RUnrolledQueue[T]) {
     ring = new UnrolledRing[T]
-    insertsEmitter = new Reactive.Emitter[T]
-    removesEmitter = new Reactive.Emitter[T]
-    headEmitter = new Reactive.Emitter[T]
+    insertsEmitter = new Events.Emitter[T]
+    removesEmitter = new Events.Emitter[T]
+    headEmitter = new Events.Emitter[T]
   }
 
   init(this)
 
-  def inserts: Reactive[T] = insertsEmitter
+  def inserts: Events[T] = insertsEmitter
 
-  def removes: Reactive[T] = removesEmitter
+  def removes: Events[T] = removesEmitter
 
   def container = this
 
@@ -60,7 +60,7 @@ object RUnrolledQueue {
   def apply[@spec(Int, Long, Double) T: Arrayable]() = new RUnrolledQueue[T]
 
   class Lifted[@spec(Int, Long, Double) T](val container: RUnrolledQueue[T]) extends RContainer.Lifted[T] {
-    def head: Reactive[T] = container.headEmitter
+    def head: Events[T] = container.headEmitter
   }
 
 }

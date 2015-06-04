@@ -52,7 +52,7 @@ class ReactRandom(private val jucRandom: java.util.Random) {
   def unreact() = react.randomEmitter.unreact()
 
   object react {
-    private[calc] val randomEmitter = new Reactive.SideEffectEmitter[Unit](() => ())
+    private[calc] val randomEmitter = new Events.SideEffectEmitter[Unit](() => ())
     def int() = randomEmitter.map(_ => self.int())
     def int(n: Int) = randomEmitter.map(_ => self.int(n))
     def long() = randomEmitter.map(_ => self.long())

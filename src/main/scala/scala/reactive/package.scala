@@ -172,7 +172,7 @@ package object reactive {
   /** Explicitly importing this object permits calling various methods.
    */
   object Permission {
-    /** Importing this value permits calling reactive combinators
+    /** Importing this value permits calling event stream combinators
      *  that can potentially unboundedly buffer events.
      */
     implicit val canBuffer = new CanBeBuffered {}
@@ -214,7 +214,7 @@ package object reactive {
   class Tuple2Extensions[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](val tuple: (Signal[T], Signal[S])) {
     def mutate[M <: ReactMutable](mutable: M)(f: (T, S) => Unit) = {
       val s = new Tuple2Extensions.Mutate(tuple, mutable, f)
-      s.subscription = Reactive.CompositeSubscription(
+      s.subscription = Events.CompositeSubscription(
         tuple._1.observe(s.m1),
         tuple._2.observe(s.m2)
       )
@@ -226,7 +226,7 @@ package object reactive {
 
   object Tuple2Extensions {
     class Mutate[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S, M <: ReactMutable](val tuple: (Signal[T], Signal[S]), val mutable: M, val f: (T, S) => Unit)
-    extends Reactive.ProxySubscription {
+    extends Events.ProxySubscription {
       val m1 = new Reactor[T] {
         def react(value: T) {
           try f(tuple._1(), tuple._2())
@@ -255,14 +255,14 @@ package object reactive {
         def unreact() {
         }
       }
-      var subscription = Reactive.Subscription.empty
+      var subscription = Events.Subscription.empty
     }
   }
 
   class Tuple3Extensions[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S,  @spec(Int, Long, Double) U](val tuple: (Signal[T], Signal[S], Signal[U])) {
     def mutate[M <: ReactMutable](mutable: M)(f: (T, S, U) => Unit) = {
       val s = new Tuple3Extensions.Mutate(tuple, mutable, f)
-      s.subscription = Reactive.CompositeSubscription(
+      s.subscription = Events.CompositeSubscription(
         tuple._1.observe(s.m1),
         tuple._2.observe(s.m2),
         tuple._3.observe(s.m3)
@@ -275,7 +275,7 @@ package object reactive {
 
   object Tuple3Extensions {
     class Mutate[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S, @spec(Int, Long, Double) U, M <: ReactMutable](val tuple: (Signal[T], Signal[S], Signal[U]), val mutable: M, val f: (T, S, U) => Unit)
-    extends Reactive.ProxySubscription {
+    extends Events.ProxySubscription {
       val m1 = new Reactor[T] {
         def react(value: T) {
           try f(tuple._1(), tuple._2(), tuple._3())
@@ -318,7 +318,7 @@ package object reactive {
         def unreact() {
         }
       }
-      var subscription = Reactive.Subscription.empty
+      var subscription = Events.Subscription.empty
     }
   }
 

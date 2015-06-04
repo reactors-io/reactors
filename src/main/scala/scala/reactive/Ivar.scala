@@ -7,14 +7,14 @@ import scala.reactive.util._
 
 
 
-/** A reactive value that can be either completed or unreacted at most once.
+/** An event stream that can be either completed or unreacted at most once.
  *
  *  Assigning a value propagates an event to all the subscribers,
  *  and then propagates an unreaction.
  *  To assign a value:
  *
  *  {{{
- *  val iv = new Reactive.Ivar[Int]
+ *  val iv = new Events.Ivar[Int]
  *  iv := 5
  *  assert(iv() == 5)
  *  }}}
@@ -22,7 +22,7 @@ import scala.reactive.util._
  *  To unreact (i.e. seal, or close) an ivar without assigning a value:
  *
  *  {{{
- *  val iv = new Reactive.Ivar[Int]
+ *  val iv = new Events.Ivar[Int]
  *  iv.unreact()
  *  assert(iv.isUnreacted)
  *  }}}
@@ -30,8 +30,8 @@ import scala.reactive.util._
  *  @tparam T          type of the value in the `Ivar`
  */
 class Ivar[@spec(Int, Long, Double) T]
-extends Reactive[T] with Reactive.Default[T] with EventSource {
-  private var subscription = Reactive.Subscription.empty
+extends Events[T] with Events.Default[T] with EventSource {
+  private var subscription = Events.Subscription.empty
   private var state = 0
   private var value: T = _
 
@@ -73,10 +73,10 @@ extends Reactive[T] with Reactive.Default[T] with EventSource {
    *
    *  @param f        the callback to invoke with the ivar value
    */
-  def use(f: T => Unit): Reactive.Subscription = {
+  def use(f: T => Unit): Events.Subscription = {
     if (isAssigned) {
       f(this())
-      Reactive.Subscription.empty
+      Events.Subscription.empty
     } else foreach(f)
   }
 
@@ -103,13 +103,13 @@ extends Reactive[T] with Reactive.Default[T] with EventSource {
         def react(x: T) {
           iv := x
           iv.subscription.unsubscribe()
-          iv.subscription = Reactive.Subscription.empty
+          iv.subscription = Events.Subscription.empty
         }
         def except(t: Throwable) {}
         def unreact() {
           iv := v
           iv.subscription.unsubscribe()
-          iv.subscription = Reactive.Subscription.empty
+          iv.subscription = Events.Subscription.empty
         }
       })
       iv
@@ -119,12 +119,12 @@ extends Reactive[T] with Reactive.Default[T] with EventSource {
   /** Returns an `Ivar` that is completed with the value of this `Ivar`
    *  if this `Ivar` is assigned.
    *  If this `Ivar` unreacts, the returned `Ivar` is instead completed with
-   *  the first event from the specified reactive `r`.
+   *  the first event from the specified event stream `r`.
    *
    *  Note that, if this `Ivar` unreacts at time T, only the events from `r` after the
    *  time T are considered for assignment to the resulting `Ivar`.
    */
-  def orElseWith(r: Reactive[T]): Ivar[T] = {
+  def orElseWith(r: Events[T]): Ivar[T] = {
     if (this.isUnreacted) r.ivar
     else if (this.isAssigned) Ivar(this())
     else {
@@ -133,14 +133,14 @@ extends Reactive[T] with Reactive.Default[T] with EventSource {
         def react(x: T) {
           iv := x
           iv.subscription.unsubscribe()
-          iv.subscription = Reactive.Subscription.empty
+          iv.subscription = Events.Subscription.empty
         }
         def except(t: Throwable) {}
         def unreact() {
           iv.subscription = r.foreach { x =>
             iv := x
             iv.subscription.unsubscribe()
-            iv.subscription = Reactive.Subscription.empty
+            iv.subscription = Events.Subscription.empty
           }
         }
       })

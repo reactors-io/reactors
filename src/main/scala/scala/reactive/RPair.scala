@@ -14,9 +14,9 @@ trait RPair[@spec(Int, Long, Double) P, Q <: AnyRef] {
   private[reactive] var p: P = _
   private[reactive] var q: Q = _
   private[reactive] var asSignal: RPair.Signal[P, Q] = _
-  private[reactive] var subscription: Reactive.Subscription =
-    Reactive.Subscription.empty
-  private[reactive] val changes = new Reactive.Emitter[Unit]
+  private[reactive] var subscription: Events.Subscription =
+    Events.Subscription.empty
+  private[reactive] val changes = new Events.Emitter[Unit]
 
   def init(dummy: RPair[P, Q]) {
     asSignal = new RPair.Signal(this)
@@ -32,7 +32,7 @@ trait RPair[@spec(Int, Long, Double) P, Q <: AnyRef] {
 
   private[reactive] def _2_=(v: Q) = q = v
 
-  def ultimately(reactor: =>Unit): Reactive.Subscription =
+  def ultimately(reactor: =>Unit): Events.Subscription =
     changes.ultimately(reactor)
 
   def filter1(p: P => Boolean): RPair[P, Q] = {
@@ -172,7 +172,7 @@ trait RPair[@spec(Int, Long, Double) P, Q <: AnyRef] {
   }
 
   def mutate[M <: ReactMutable](mutable: M)
-    (mutation: RPair.Signal[P, Q] => Unit): Reactive.Subscription = {
+    (mutation: RPair.Signal[P, Q] => Unit): Events.Subscription = {
     changes foreach { _ =>
       try mutation(asSignal)
       catch {
@@ -183,15 +183,15 @@ trait RPair[@spec(Int, Long, Double) P, Q <: AnyRef] {
     }
   }
 
-  def fst: Reactive[P] with Reactive.Subscription = {
+  def fst: Events[P] with Events.Subscription = {
     changes.map(_ => _1)
   }
 
-  def snd: Reactive[Q] with Reactive.Subscription = {
+  def snd: Events[Q] with Events.Subscription = {
     changes.map(_ => _2)
   }
 
-  def boxToTuples: Reactive[(P, Q)] with Reactive.Subscription = {
+  def boxToTuples: Events[(P, Q)] with Events.Subscription = {
     changes.map(_ => (_1, _2))
   }
 

@@ -10,9 +10,9 @@ trait RContainer[@spec(Int, Long, Double) T]
 extends ReactMutable.Subscriptions {
   self =>
 
-  def inserts: Reactive[T]
+  def inserts: Events[T]
   
-  def removes: Reactive[T]
+  def removes: Events[T]
 
   def react: RContainer.Lifted[T]
 
@@ -76,14 +76,14 @@ object RContainer {
 
     /* queries */
 
-    def size: Signal[Int] with Reactive.Subscription =
+    def size: Signal[Int] with Events.Subscription =
       new Size(container)
 
-    def count(p: T => Boolean): Signal[Int] with Reactive.Subscription =
-      new Signal.Default[Int] with Reactive.ProxySubscription {
+    def count(p: T => Boolean): Signal[Int] with Events.Subscription =
+      new Signal.Default[Int] with Events.ProxySubscription {
         private[reactive] var value = container.count(p)
         def apply() = value
-        val subscription = Reactive.CompositeSubscription(
+        val subscription = Events.CompositeSubscription(
           container.inserts foreach { x =>
             if (p(x)) { value += 1; reactAll(value) }
           },
@@ -93,14 +93,14 @@ object RContainer {
         )
       }
 
-    def exists(p: T => Boolean): Signal[Boolean] with Reactive.Subscription =
+    def exists(p: T => Boolean): Signal[Boolean] with Events.Subscription =
       count(p).map(_ > 0)
 
-    def forall(p: T => Boolean): Signal[Boolean] with Reactive.Subscription =
-      new Signal.Default[Boolean] with Reactive.ProxySubscription {
+    def forall(p: T => Boolean): Signal[Boolean] with Events.Subscription =
+      new Signal.Default[Boolean] with Events.ProxySubscription {
         private[reactive] var value = container.count(p)
         def apply() = value == container.size
-        val subscription = Reactive.CompositeSubscription(
+        val subscription = Events.CompositeSubscription(
           container.inserts foreach { x =>
             if (p(x)) value += 1; reactAll(value == container.size)
           },
@@ -110,23 +110,23 @@ object RContainer {
         )
       }
 
-    def foreach(f: T => Unit): Reactive[Unit] with Reactive.Subscription = {
+    def foreach(f: T => Unit): Events[Unit] with Events.Subscription = {
       container.foreach(f)
       container.inserts.foreach(f)
     }
     
-    def monoidFold(implicit m: Monoid[T]): Signal[T] with Reactive.Subscription =
+    def monoidFold(implicit m: Monoid[T]): Signal[T] with Events.Subscription =
       new Aggregate(container, MonoidCatamorph[T])
 
-    def commuteFold(implicit c: Commutoid[T]): Signal[T] with Reactive.Subscription =
+    def commuteFold(implicit c: Commutoid[T]): Signal[T] with Events.Subscription =
       new Aggregate(container, CommuteCatamorph[T])
 
     def abelianFold(implicit ab: Abelian[T], a: Arrayable[T]):
-      Signal[T] with Reactive.Subscription =
+      Signal[T] with Events.Subscription =
       new Aggregate(container, AbelianCatamorph[T])
 
     def mutate(m: ReactMutable)(insert: T => Unit)(remove: T => Unit):
-      Reactive.Subscription =
+      Events.Subscription =
       new Mutate(container, insert, remove)
 
     /* transformers */
@@ -153,11 +153,11 @@ object RContainer {
 
     class Eager[@spec(Int, Long, Double) T](val container: RContainer[T])
     extends Lifted[T] {
-      override val size: Signal[Int] with Reactive.Subscription =
-        new Signal.Default[Int] with Reactive.ProxySubscription {
+      override val size: Signal[Int] with Events.Subscription =
+        new Signal.Default[Int] with Events.ProxySubscription {
           private[reactive] var value = 0
           def apply() = value
-          val subscription = Reactive.CompositeSubscription(
+          val subscription = Events.CompositeSubscription(
             container.inserts foreach { _ => value += 1; reactAll(value) },
             container.removes foreach { _ => value -= 1; reactAll(value) }
           )
@@ -174,10 +174,10 @@ object RContainer {
   }
 
   class Size[@spec(Int, Long, Double) T](self: RContainer[T])
-  extends Signal.Default[Int] with Reactive.ProxySubscription {
+  extends Signal.Default[Int] with Events.ProxySubscription {
     private[reactive] var value = self.size
     def apply() = value
-    val subscription = Reactive.CompositeSubscription(
+    val subscription = Events.CompositeSubscription(
       self.inserts foreach { _ => value += 1; reactAll(value) },
       self.removes foreach { _ => value -= 1; reactAll(value) }
     )
@@ -185,8 +185,8 @@ object RContainer {
 
   class Mutate[@spec(Int, Long, Double) T]
     (self: RContainer[T], insert: T => Unit, remove: T => Unit)
-  extends Reactive.ProxySubscription {
-    val subscription = Reactive.CompositeSubscription(
+  extends Events.ProxySubscription {
+    val subscription = Events.CompositeSubscription(
       self.inserts.mutate(self)(insert),
       self.removes.mutate(self)(remove)
     )
@@ -224,8 +224,8 @@ object RContainer {
     (self: RContainer[T], that: RContainer[T], count: Union.Count[T])
     (implicit at: Arrayable[T])
   extends RContainer.Default[T] {
-    val inserts = new Reactive.BindEmitter[T]
-    val removes = new Reactive.BindEmitter[T]
+    val inserts = new Events.BindEmitter[T]
+    val removes = new Events.BindEmitter[T]
     var countSignal: Signal.Mutable[Union.Count[T]] = new Signal.Mutable(count)
     var insertSubscription =
       (self.inserts union that.inserts).mutate(countSignal, inserts) { x =>
@@ -324,16 +324,16 @@ object RContainer {
 
   class Aggregate[@spec(Int, Long, Double) T]
     (val container: RContainer[T], val catamorph: RCatamorph[T, T])
-  extends Signal.Proxy[T] with Reactive.ProxySubscription {
+  extends Signal.Proxy[T] with Events.ProxySubscription {
     commuted =>
     val id = (v: T) => v
-    var subscription: Reactive.Subscription = _
+    var subscription: Events.Subscription = _
     var proxy: Signal[T] = _
 
     def init(c: RContainer[T]) {
       proxy = catamorph.signal
       for (v <- container) catamorph += v
-      subscription = Reactive.CompositeSubscription(
+      subscription = Events.CompositeSubscription(
         container.inserts foreach { v => catamorph += v },
         container.removes foreach { v => catamorph -= v }
       )
@@ -347,12 +347,12 @@ object RContainer {
   class Emitter[@spec(Int, Long, Double) T]
     (private val foreachF: (T => Unit) => Unit, private val sizeF: () => Int)
   extends RContainer[T] {
-    private[reactive] var insertsEmitter: Reactive.Emitter[T] = null
-    private[reactive] var removesEmitter: Reactive.Emitter[T] = null
+    private[reactive] var insertsEmitter: Events.Emitter[T] = null
+    private[reactive] var removesEmitter: Events.Emitter[T] = null
 
     private def init(dummy: RContainer.Emitter[T]) {
-      insertsEmitter = new Reactive.Emitter[T]
-      removesEmitter = new Reactive.Emitter[T]
+      insertsEmitter = new Events.Emitter[T]
+      removesEmitter = new Events.Emitter[T]
     }
 
     init(this)

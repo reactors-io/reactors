@@ -13,8 +13,8 @@ extends RContainer[T] {
   private var array = implicitly[Arrayable[T]].newArray(8)
   private var len = 0
 
-  val inserts = new Reactive.Emitter[T]
-  val removes = new Reactive.Emitter[T]
+  val inserts = new Events.Emitter[T]
+  val removes = new Events.Emitter[T]
 
   val react = new RArray.Lifted(this)
 
