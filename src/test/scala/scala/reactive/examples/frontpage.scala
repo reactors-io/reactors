@@ -8,6 +8,10 @@ import org.scalatest.Matchers
 
 
 
+/** Examples from the Reactive Collections frontpage.
+ *  Note: if you are changing this file, please take care to update the website
+ *  frontpage.
+ */
 class CircuitSimulationSuite extends FunSuite with Matchers {
 
   test("Half-adder reacts to input changes") {
