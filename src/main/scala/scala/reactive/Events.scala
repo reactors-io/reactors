@@ -566,6 +566,12 @@ trait Events[@spec(Int, Long, Double) +T] {
   /** Returns a new event stream that maps events from `this` event stream using the
    *  mapping function `f`.
    *
+   *  {{{
+   *  time    --------------------->
+   *  this    --e1------e2------|
+   *  mapped  --f(e1)---f(e2)---|
+   *  }}}
+   *
    *  @tparam S         the type of the mapped events
    *  @param f          the mapping function
    *  @return           a subscription and event stream value with the mapped events
