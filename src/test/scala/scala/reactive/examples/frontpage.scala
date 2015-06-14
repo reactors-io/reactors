@@ -43,7 +43,18 @@ class CircuitSimulationSuite extends FunSuite with Matchers {
   }
 
   test("Fetching contents of a URL or failing after 10 seconds") {
-    // TODO
+    val request = system.net.url("https://www.ietf.org/rfc/rfc1738.txt")
+    val timer = system.timer(1.second)
+      .map(_ => 1)
+      .scanPast(10)(_ - _)
+      .takeWhile(_ >= 0)
+    val timeout = timer.unreacted
+    timer.onEvent(println)
+    request
+      .until(timeout)
+      .ivar
+      .orElse("Request failed.")
+      .onEvent(println)
   }
 
   test("Requesting server time") {
