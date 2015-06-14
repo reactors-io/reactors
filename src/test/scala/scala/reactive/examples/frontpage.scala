@@ -42,4 +42,20 @@ class CircuitSimulationSuite extends FunSuite with Matchers {
     assert(carry() == true)
   }
 
+  test("Fetching contents of a URL or failing after 10 seconds") {
+    // TODO
+  }
+
+  test("Requesting server time") {
+    // TODO
+  }
+
+  test("Establish the rules on a starship") {
+    // TODO
+  }
+
+  test("No boxing") {
+    // TODO
+  }
+
 }
