@@ -2,11 +2,12 @@ package scala.reactive
 
 
 
+import com.typesafe.config._
 import java.util.concurrent.atomic._
 import scala.annotation.tailrec
 import scala.collection._
-import scala.util.DynamicVariable
 import scala.reactive.isolate._
+import scala.util.DynamicVariable
 
 
 
@@ -15,7 +16,7 @@ import scala.reactive.isolate._
  *  An isolate system is composed of a set of isolates that have
  *  a common configuration.
  */
-abstract class IsoSystem {
+abstract class IsoSystem extends isolate.Services {
 
   /** Retrieves the bundle for this isolate system.
    *  
@@ -198,7 +199,7 @@ object IsoSystem {
     connector
   }
 
-  /** Retrieves the default isolate system.
+  /** Creates the default isolate system.
    *  
    *  @param name       the name for the isolate system instance
    *  @param scheduler  the default scheduler
@@ -207,10 +208,29 @@ object IsoSystem {
   def default(name: String, bundle: IsoSystem.Bundle = IsoSystem.defaultBundle) =
     new isolate.DefaultIsoSystem(name, bundle)
 
+  /** Retrieves the default bundle config object.
+   *
+   *  This configuration is merged with any custom configurations that are provided to
+   *  the isolate system bundle.
+   */
+  val defaultConfig: Config = {
+    ConfigFactory.parseString("""
+      system = {
+        net = {
+          parallelism = 4
+        }
+      }
+    """)
+  }
+
   /** Contains a set of schedulers registered with each isolate system.
    */
-  class Bundle(val defaultScheduler: Scheduler) {
+  class Bundle(val defaultScheduler: Scheduler, private val customConfig: Config) {
     private val schedulers = mutable.Map[String, Scheduler]()
+
+    /** The set of configuration variables for the isolate system.
+     */
+    val config = customConfig.withFallback(defaultConfig)
 
     /** Retrieves the scheduler registered under the specified name.
      *  
@@ -242,7 +262,7 @@ object IsoSystem {
      *  @return           the default scheduler bundle
      */
     def default(default: Scheduler): Bundle = {
-      val b = new Bundle(default)
+      val b = new Bundle(default, ConfigFactory.empty)
       b.registerScheduler("scala.reactive.Scheduler.globalExecutionContext",
         Scheduler.globalExecutionContext)
       b.registerScheduler("scala.reactive.Scheduler.default", Scheduler.default)

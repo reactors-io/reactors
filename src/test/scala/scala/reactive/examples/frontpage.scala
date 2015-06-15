@@ -3,6 +3,7 @@ package examples
 
 
 
+import scala.concurrent.duration._
 import org.scalatest._
 import org.scalatest.Matchers
 
@@ -13,7 +14,7 @@ import org.scalatest.Matchers
  *  Note: if you are changing this file, please take care to update the website
  *  frontpage.
  */
-class CircuitSimulationSuite extends FunSuite with Matchers {
+class FrontpageSuite extends FunSuite with Matchers {
 
   test("Half-adder reacts to input changes") {
     implicit val canLeak = Permission.newCanLeak
@@ -43,18 +44,8 @@ class CircuitSimulationSuite extends FunSuite with Matchers {
   }
 
   test("Fetching contents of a URL or failing after 10 seconds") {
-    val request = system.net.url("https://www.ietf.org/rfc/rfc1738.txt")
-    val timer = system.timer(1.second)
-      .map(_ => 1)
-      .scanPast(10)(_ - _)
-      .takeWhile(_ >= 0)
-    val timeout = timer.unreacted
-    timer.onEvent(println)
-    request
-      .until(timeout)
-      .ivar
-      .orElse("Request failed.")
-      .onEvent(println)
+    val system = IsoSystem.default("TestSystem")
+    system.isolate(Proto[UrlIso])
   }
 
   test("Requesting server time") {
@@ -69,4 +60,23 @@ class CircuitSimulationSuite extends FunSuite with Matchers {
     // TODO
   }
 
+}
+
+
+class UrlIso extends Iso[Unit] {
+  val request = system.net
+    .url("https://www.ietf.org/rfc/rfc1738.txt")
+    .map(_.toString)
+    .foreach(println)
+  // val timer = system.time.period(1.second)
+  //   .map(_ => 1)
+  //   .scanPast(10)(_ - _)
+  //   .takeWhile(_ >= 0)
+  // val timeout = timer.unreacted
+  // timer.onEvent(println)
+  // request
+  //   .until(timeout)
+  //   .ivar
+  //   .orElse("Request failed.")
+  //   .onEvent(println)
 }
