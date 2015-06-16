@@ -46,6 +46,8 @@ class FrontpageSuite extends FunSuite with Matchers {
   test("Fetching contents of a URL or failing after 10 seconds") {
     val system = IsoSystem.default("TestSystem")
     system.isolate(Proto[UrlIso])
+
+    Thread.sleep(1000)
   }
 
   test("Requesting server time") {
@@ -64,8 +66,7 @@ class FrontpageSuite extends FunSuite with Matchers {
 
 
 class UrlIso extends Iso[Unit] {
-  val request = system.net
-    .url("https://www.ietf.org/rfc/rfc1738.txt")
+  val request = system.net.resource.string("http://www.ietf.org/rfc/rfc1738.txt")
     .map(_.toString)
     .foreach(println)
   // val timer = system.time.period(1.second)

@@ -103,13 +103,15 @@ object ReactiveCollectionsBuild extends MechaRepoBuild {
       "com.netflix.rxjava" % "rxjava-scala" % "0.19.2" % "test",
       "org.scala-lang" % "scala-reflect" % "2.11.1",
       "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.1",
-      "com.typesafe" % "config" % "1.2.1"
+      "com.typesafe" % "config" % "1.2.1",
+      "commons-io" % "commons-io" % "2.4"
     )
     case Some((2, 10)) => Seq(
       "org.scalatest" % "scalatest_2.10" % "2.2.4" % "test",
       "org.scalacheck" %% "scalacheck" % "1.11.4" % "test",
       "com.netflix.rxjava" % "rxjava-scala" % "0.19.2" % "test",
-      "com.typesafe" % "config" % "1.2.1"
+      "com.typesafe" % "config" % "1.2.1",
+      "commons-io" % "commons-io" % "2.4"
     )
     case _ => Nil
   }
