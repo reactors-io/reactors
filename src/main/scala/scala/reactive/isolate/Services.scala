@@ -6,6 +6,8 @@ package isolate
 import java.net.URL
 import java.nio.charset.Charset
 import java.io._
+import java.util.Timer
+import java.util.TimerTask
 import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.atomic._
 import org.apache.commons.io._
@@ -99,10 +101,23 @@ object Services {
   /** Contains various time-related services.
    */
   class Time(val system: IsoSystem) {
+    private val timer = new Timer(s"${system.name}.timer-service", true)
 
-    /** Emits an event periodically, every second.
+    /** Emits an event periodically, with the duration between events equal to `d`.
      */
-    def period(d: Duration): Events[Unit] = ???
+    def period(d: Duration): Events[Unit] with Events.Subscription = {
+      val connector = system.channels.open[Unit]
+      val task = new TimerTask {
+        def run() {
+          connector.channel << (())
+        }
+      }
+      val sub = Events.Subscription {
+        task.cancel()
+        connector.channel.seal()
+      }
+      connector.events.withSubscription(sub)
+    }
 
   }
 

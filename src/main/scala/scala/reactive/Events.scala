@@ -837,6 +837,16 @@ trait Events[@spec(Int, Long, Double) +T] {
     new Events.Endure(this)
   }
 
+  /** Returns a new event stream containing the same sequence of events as this event
+   *  stream, but also contains the specified subscription.
+   *
+   *  @param sub        the new subscription
+   *  @return           new event stream and subscription
+   */
+  def withSubscription(sub: Events.Subscription): Events[T] with Events.Subscription = {
+    new Events.WithSubscription(this, sub)
+  }
+
 }
 
 
@@ -1657,6 +1667,22 @@ object Events {
     init(this)
   }
 
+  private[reactive] class WithSubscription[@spec(Int, Long, Double) T]
+    (val self: Events[T], val sub: Subscription)
+  extends Events.Default[T] with Reactor[T] with Events.ProxySubscription {
+    def react(value: T) = reactAll(value)
+    def except(t: Throwable) = exceptAll(t)
+    def unreact() = unreactAll()
+    var subscription = Subscription.empty
+    def init(dummy: Events[T]) {
+      subscription = CompositeSubscription(
+        sub,
+        self.observe(this)
+      )
+    }
+    init(this)
+  }
+
   private[reactive] class Mux[T, @spec(Int, Long, Double) S]
     (val self: Events[T], val evidence: T <:< Events[S])
   extends Events.Default[S] with Reactor[T] with Events.ProxySubscription {
@@ -2222,7 +2248,7 @@ object Events {
     }
   }
 
-  /** Uses the specified function `f` to produce an event when the `emit` method
+  /** Uses the specified function `f` to produce an event when the `react` method
    *  is called.
    */
   class SideEffectEmitter[@spec(Int, Long, Double) T](f: () => T)

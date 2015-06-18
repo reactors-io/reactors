@@ -68,11 +68,11 @@ class FrontpageSuite extends FunSuite with Matchers {
 class UrlIso extends Iso[Unit] {
   val request = system.net.resource.string("http://www.ietf.org/rfc/rfc1738.txt")
     .map(_.toString)
-    .foreach(println)
-  // val timer = system.time.period(1.second)
-  //   .map(_ => 1)
-  //   .scanPast(10)(_ - _)
-  //   .takeWhile(_ >= 0)
+  val counter = system.time.period(1.second)
+  val timer = counter
+    .map(_ => 1)
+    .scanPast(10)(_ - _)
+    .takeWhile(_ >= 0)
   // val timeout = timer.unreacted
   // timer.onEvent(println)
   // request
