@@ -112,6 +112,7 @@ object Services {
           connector.channel << (())
         }
       }
+      timer.schedule(task, d.toMillis, d.toMillis)
       val sub = Events.Subscription {
         task.cancel()
         connector.channel.seal()

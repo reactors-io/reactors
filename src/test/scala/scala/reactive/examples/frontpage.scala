@@ -47,7 +47,7 @@ class FrontpageSuite extends FunSuite with Matchers {
     val system = IsoSystem.default("TestSystem")
     system.isolate(Proto[UrlIso])
 
-    Thread.sleep(1000)
+    Thread.sleep(4000)
   }
 
   test("Requesting server time") {
@@ -73,6 +73,7 @@ class UrlIso extends Iso[Unit] {
     .map(_ => 1)
     .scanPast(10)(_ - _)
     .takeWhile(_ >= 0)
+  timer.foreach(println)
   // val timeout = timer.unreacted
   // timer.onEvent(println)
   // request
