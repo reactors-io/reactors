@@ -847,6 +847,28 @@ trait Events[@spec(Int, Long, Double) +T] {
     new Events.WithSubscription(this, sub)
   }
 
+  /** Returns a new event stream that emits an event when this event stream unreacts.
+   *
+   *  After the current event stream unreacts, the result event stream first emits an
+   *  event of type `Unit`, and then unreacts itself.
+   *
+   *  Exceptions from this event stream are propagated until the resulting event stream
+   *  unreacts -- after that, `this` event stream is not allowed to produce exceptions.
+   *
+   *  Shown on the diagram:
+   *
+   *  {{{
+   *  time            ------------------->
+   *  this            --1--2-----3-|----->
+   *  currentEvent    -------------()-|-->
+   *  }}}
+   *
+   *  @return           the unreaction event stream and subscription
+   */
+  def unreacted: Events[Unit] with Events.Subscription = {
+    new Events.Unreacted(this)
+  }
+
 }
 
 
@@ -1683,6 +1705,21 @@ object Events {
     init(this)
   }
 
+  private[reactive] class Unreacted[@spec(Int, Long, Double) T](val self: Events[T])
+  extends Events.Default[Unit] with Reactor[T] with Events.ProxySubscription {
+    def react(value: T) = {}
+    def except(t: Throwable) = exceptAll(t)
+    def unreact() {
+      reactAll(())
+      unreactAll()
+    }
+    var subscription = Subscription.empty
+    def init(dummy: Events[Unit]) {
+      subscription = self.observe(this)
+    }
+    init(this)
+  }
+
   private[reactive] class Mux[T, @spec(Int, Long, Double) S]
     (val self: Events[T], val evidence: T <:< Events[S])
   extends Events.Default[S] with Reactor[T] with Events.ProxySubscription {
@@ -1969,9 +2006,9 @@ object Events {
    */
   trait Default[@spec(Int, Long, Double) T] extends Events[T] {
     private[reactive] var demux: AnyRef = null
-    private[reactive] var unreacted: Boolean = false
+    private[reactive] var eventsUnreacted: Boolean = false
     def observe(reactor: Reactor[T]) = {
-      if (unreacted) {
+      if (eventsUnreacted) {
         reactor.unreact()
         Subscription.empty
       } else {
@@ -2045,7 +2082,7 @@ object Events {
       }
     }
     def unreactAll() {
-      unreacted = true
+      eventsUnreacted = true
       demux match {
         case null =>
           // no need to inform anybody

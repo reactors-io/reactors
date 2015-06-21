@@ -47,7 +47,7 @@ class FrontpageSuite extends FunSuite with Matchers {
     val system = IsoSystem.default("TestSystem")
     system.isolate(Proto[UrlIso])
 
-    Thread.sleep(4000)
+    Thread.sleep(8000)
   }
 
   test("Requesting server time") {
@@ -68,17 +68,21 @@ class FrontpageSuite extends FunSuite with Matchers {
 class UrlIso extends Iso[Unit] {
   import implicits.canLeak
 
-  val request = system.net.resource.string("http://www.ietf.org/rfc/rfc1738.txt")
-    .map(_.toString)
-  val counter = system.time.period(1.second)
-  val timer = counter
+  val timer = system.time.period(1.second)
     .map(_ => 1)
-    .scanPast(10)(_ - _)
+    .scanPast(4)(_ - _)
     .takeWhile(_ >= 0)
-  timer.onEvent(println)
-  // request
-  //   .until(timer.unreacted)
-  //   .ivar
-  //   .orElse("Request failed.")
-  //   .onEvent(println)
+  system.net.resource.string("http://www.ietf.org/rfc/rfc1738.txt")
+    .map(_.toString)
+    .until(timer.unreacted)
+    .ivar
+    .orElse("Request failed.")
+    .onEvent { txt =>
+      println(txt.take(512) + "...")
+      channel.seal()
+    }
+
+  sysEvents onCase {
+    case IsoTerminated => println("UrlIso terminating...")
+  }
 }

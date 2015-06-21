@@ -496,4 +496,41 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     for (i <- 0 until 10) set(i) should equal (true)
   }
 
+  it should "react to unreactions" in {
+    val e = new Events.Emitter[Int]
+    val unreacted = e.unreacted
+    var events = 0
+    var excepts = 0
+    var unreactions = 0
+    val observations = unreacted.observe(new Reactor[Unit] {
+      def react(u: Unit) {
+        assert(unreactions == 0)
+        events += 1
+      }
+      def except(t: Throwable) = excepts += 1
+      def unreact() {
+        assert(events == 1)
+        unreactions += 1
+      }
+    })
+
+    for (i <- 0 until 10) e react i
+
+    assert(events == 0)
+    assert(excepts == 0)
+    assert(unreactions == 0)
+
+    e.except(new Exception)
+
+    assert(events == 0)
+    assert(excepts == 1)
+    assert(unreactions == 0)
+
+    e.unreact()
+
+    assert(events == 1)
+    assert(excepts == 1)
+    assert(unreactions == 1)
+  }
+
 }
