@@ -75,7 +75,7 @@ object Services {
        *  @return        the event stream with the resource string
        */
       def string(url: String, cs: String = system.io.defaultCharset): Events[String] = {
-        val connector = system.channels.open[String]
+        val connector = system.channels.daemon.open[String]
         Future {
           val inputStream = new URL(url).openStream()
           try {

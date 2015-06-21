@@ -145,6 +145,8 @@ object Multiplexer {
     private def findNonEmpty() {
       var attemptsLeft = descriptors.length
       while (attemptsLeft > 0 && descriptors(pos).dequeuer.isEmpty) {
+        current = descriptors(pos)
+        if (current.isTerminated) deleteCurrentConnector()
         pos = (pos + 1) % descriptors.length
         attemptsLeft -= 1
       }
