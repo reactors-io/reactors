@@ -36,12 +36,8 @@ object Reactor {
 
   class EventSink[@spec(Int, Long, Double) T]
     (val underlying: Reactor[T], val canLeak: CanLeak)
-  extends Reactor[T] with scala.reactive.EventSink {
-    def init(dummy: EventSink[T]) {
-      registerEventSink(canLeak)
-    }
-
-    init(this)
+  extends Reactor[T] with Events.ProxySubscription {
+    var subscription = Events.Subscription.empty
 
     def react(value: T) = {
       try underlying.react(value)
@@ -55,7 +51,7 @@ object Reactor {
 
     def unreact() = {
       try {
-        unregisterEventSink(canLeak)
+        Events.Subscription.unregisterLeakySubscription(canLeak, subscription)
         underlying.unreact()
       } catch ignoreNonLethal
     }

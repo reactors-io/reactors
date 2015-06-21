@@ -159,14 +159,23 @@ package object reactive {
     "Import the value `Permission.canBuffer` to allow buffering operations.")
   sealed trait CanBeBuffered
 
-  @implicitNotFound("Calling on* methods can result in time and memory leaks " +
+  @implicitNotFound("Calling certain methods can result in time and memory leaks " +
     "when the reference to the corresponding Subscription object is lost. " +
     "If you are sure you want to risk this, import " +
     "implicits.canLeak or scala.reactive.Iso.canLeak from within an isolate, " +
     "or instantiate a fresh canLeak object if calling outside of an isolate. " +
     "Otherwise, consider using observe or foreach.")
   sealed trait CanLeak {
-    val eventSinks = mutable.Set[EventSink]()
+    val leakySubscriptions = mutable.Set[Events.Subscription]()
+
+    /** Unsubscribes all the subscriptions, and removes them from this object. */
+    def dispose() = {
+      val copiedLeakySubscriptions = leakySubscriptions.toList
+      for (s <- copiedLeakySubscriptions) {
+        s.unsubscribe()
+      }
+      leakySubscriptions.clear()
+    }
   }
 
   /** Explicitly importing this object permits calling various methods.

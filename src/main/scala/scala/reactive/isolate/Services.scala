@@ -104,8 +104,15 @@ object Services {
     private val timer = new Timer(s"${system.name}.timer-service", true)
 
     /** Emits an event periodically, with the duration between events equal to `d`.
+     *
+     *  Note that these events are fired eventually, after 
+     *
+     *  @param d        duration between events
+     *  @param canLeak  context in which 
+     *  @return         an event stream and subscription
      */
-    def period(d: Duration): Events[Unit] with Events.Subscription = {
+    def period(d: Duration)(implicit canLeak: CanLeak):
+      Events[Unit] with Events.Subscription = {
       val connector = system.channels.open[Unit]
       val task = new TimerTask {
         def run() {

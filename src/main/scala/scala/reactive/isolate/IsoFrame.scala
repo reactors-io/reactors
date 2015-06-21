@@ -105,6 +105,7 @@ final class IsoFrame(
             for (es <- copiedEventSources) {
               es.unreact()
             }
+            isolate.implicits.canLeak.dispose()
           } finally isolateSystem.releaseNames(name)
         }
       } else checkTerminated()

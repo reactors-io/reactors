@@ -66,6 +66,8 @@ class FrontpageSuite extends FunSuite with Matchers {
 
 
 class UrlIso extends Iso[Unit] {
+  import implicits.canLeak
+  
   val request = system.net.resource.string("http://www.ietf.org/rfc/rfc1738.txt")
     .map(_.toString)
   val counter = system.time.period(1.second)
@@ -73,7 +75,6 @@ class UrlIso extends Iso[Unit] {
     .map(_ => 1)
     .scanPast(10)(_ - _)
     .takeWhile(_ >= 0)
-  timer.foreach(println)
   // val timeout = timer.unreacted
   // timer.onEvent(println)
   // request

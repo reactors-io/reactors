@@ -78,14 +78,14 @@ trait Events[@spec(Int, Long, Double) +T] {
    *  or an exception occurs,
    *  and once when the event stream is terminated.
    *
-   *  @param reactor     the reactor
+   *  @param r           the reactor
    *  @return            a subscription for unsubscribing from reactions
    */
-  def onReaction(reactor: Reactor[T])(implicit canLeak: CanLeak):
-    Events.Subscription = {
-    val eventSink = new Reactor.EventSink(reactor, canLeak)
-    val subscription = observe(eventSink)
-    eventSink.liftSubscription(subscription, canLeak)
+  def onReaction(r: Reactor[T])(implicit canLeak: CanLeak): Events.Subscription = {
+    val eventSink = new Reactor.EventSink(r, canLeak)
+    eventSink.subscription = observe(eventSink)
+    Events.Subscription.registerLeakySubscription(canLeak, eventSink.subscription)
+    Events.Subscription.liftSubscription(canLeak, eventSink.subscription)
   }
 
   /** A shorthand for `onReaction` -- the specified functions are invoked
@@ -1916,6 +1916,21 @@ object Events {
      */
     def apply(onUnsubscribe: =>Unit) = new Subscription {
       def unsubscribe() = onUnsubscribe
+    }
+
+    def registerLeakySubscription(canLeak: CanLeak, s: Subscription) {
+      canLeak.leakySubscriptions += s
+    }
+
+    def unregisterLeakySubscription(canLeak: CanLeak, s: Subscription) {
+      canLeak.leakySubscriptions -= s
+    }
+
+    def liftSubscription(canLeak: CanLeak, s: Events.Subscription) = {
+      Events.Subscription {
+        unregisterLeakySubscription(canLeak, s)
+        s.unsubscribe()
+      }
     }
   }
 
