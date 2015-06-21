@@ -241,6 +241,17 @@ object IsoSystem {
       schedulers(name)
     }
   
+    /** Does an inverse lookup for the name of this scheduler instance.
+     *  The method fails if this specific scheduler instance was not previously
+     *  registered with the isolate system.
+     *
+     *  @param scheduler           scheduler that was previously registered
+     *  @return                    name of the previously registered scheduler
+     */
+    def schedulerName(s: Scheduler): String = {
+      schedulers.find(_._2 eq s).get._1
+    }
+
     /** Registers the scheduler under a specific name,
      *  so that it can be later retrieved using the 
      *  `scheduler` method.
@@ -257,17 +268,24 @@ object IsoSystem {
   /** Scheduler bundle factory methods.
    */
   object Bundle {
+    object schedulers {
+      val globalExecutionContext = "scala.reactive.Scheduler.globalExecutionContext"
+      val default = "scala.reactive.Scheduler.default"
+      val newThread = "scala.reactive.Scheduler.newThread"
+      val piggyback = "scala.reactive.Scheduler.piggyback"
+    }
+
     /** A bundle with default schedulers from the `Scheduler` companion object.
      *  
      *  @return           the default scheduler bundle
      */
     def default(default: Scheduler): Bundle = {
       val b = new Bundle(default, ConfigFactory.empty)
-      b.registerScheduler("scala.reactive.Scheduler.globalExecutionContext",
+      b.registerScheduler(schedulers.globalExecutionContext,
         Scheduler.globalExecutionContext)
-      b.registerScheduler("scala.reactive.Scheduler.default", Scheduler.default)
-      b.registerScheduler("scala.reactive.Scheduler.newThread", Scheduler.newThread)
-      b.registerScheduler("scala.reactive.Scheduler.piggyback", Scheduler.piggyback)
+      b.registerScheduler(schedulers.default, Scheduler.default)
+      b.registerScheduler(schedulers.newThread, Scheduler.newThread)
+      b.registerScheduler(schedulers.piggyback, Scheduler.piggyback)
       b
     }
   }

@@ -254,22 +254,25 @@ object Scheduler {
       }
     }
 
-    /** Executes the isolate on the thread that called the isolate system's `isolate` method
-     *  to create the isolate.
+    /** Executes the isolate on the thread that called the isolate system's `isolate`
+     *  method to create the isolate.
      *
-     *  While isolates are generally sent off to some other thread or computer for execution
-     *  after the isolate has been created, this scheduler executes the isolate on the
-     *  current thread.
+     *  While isolates are generally sent off to some other thread or computer for
+     *  execution after the isolate has been created, this scheduler executes the
+     *  isolate on the current thread.
      *
      *  The current thread is permanently blocked until the isolate terminates.
-     *  Using this scheduler from an existing isolate is illegal and throws an exception.
+     *  Using this scheduler from an existing isolate is illegal and throws an
+     *  exception.
      *  This scheduler is meant to be used to turn the application main thread
      *  into an isolate, i.e. to step from the normal multithreaded world into
      *  the isolate universe.
      *
-     *  @param handler           The error handler for the fatal errors not passed to isolates.
+     *  @param handler           The error handler for the fatal errors not passed to
+     *                           isolates.
      */
-    class Piggyback(val handler: Scheduler.Handler = Scheduler.defaultHandler) extends Dedicated {
+    class Piggyback(val handler: Scheduler.Handler = Scheduler.defaultHandler)
+    extends Dedicated {
       override def newInfo(frame: IsoFrame): Dedicated.Worker = {
         val w = new Worker(frame, handler)
         w

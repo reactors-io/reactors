@@ -105,7 +105,10 @@ object Services {
 
     /** Emits an event periodically, with the duration between events equal to `d`.
      *
-     *  Note that these events are fired eventually, after 
+     *  Note that these events are fired eventually, and have similar semantics as that
+     *  of `java.util.Timer`.
+     *
+     *  The channel through which the events arrive is daemon.
      *
      *  @param d        duration between events
      *  @param canLeak  context in which 
@@ -113,7 +116,7 @@ object Services {
      */
     def period(d: Duration)(implicit canLeak: CanLeak):
       Events[Unit] with Events.Subscription = {
-      val connector = system.channels.open[Unit]
+      val connector = system.channels.daemon.open[Unit]
       val task = new TimerTask {
         def run() {
           connector.channel << (())
