@@ -111,7 +111,7 @@ object Services {
      *  The channel through which the events arrive is daemon.
      *
      *  @param d        duration between events
-     *  @param canLeak  context in which 
+     *  @param canLeak  the object that contains the leaky subscriptions
      *  @return         an event stream and subscription
      */
     def period(d: Duration)(implicit canLeak: CanLeak):
@@ -123,6 +123,33 @@ object Services {
         }
       }
       timer.schedule(task, d.toMillis, d.toMillis)
+      val sub = Events.Subscription {
+        task.cancel()
+        connector.channel.seal()
+      }
+      connector.events.withSubscription(sub)
+    }
+
+    /** Emits an event after a timeout specified by the duration `d`.
+     *
+     *  Note that this event is fired eventually after duration `d`, and has similar
+     *  semantics as that of `java.util.Timer`.
+     *
+     *  The channel through which the event arrives is daemon.
+     *
+     *  @param d        duration after which the timeout event fires
+     *  @param canLeak  the object that contains the leaky subscriptions
+     *  @return         an event stream and subscription
+     */
+    def timeout(d: Duration)(implicit canLeak: CanLeak):
+      Events[Unit] with Events.Subscription = {
+      val connector = system.channels.daemon.open[Unit]
+      val task = new TimerTask {
+        def run() {
+          connector.channel << (())
+        }
+      }
+      timer.schedule(task, d.toMillis)
       val sub = Events.Subscription {
         task.cancel()
         connector.channel.seal()
