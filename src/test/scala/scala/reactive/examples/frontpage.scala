@@ -15,6 +15,7 @@ import org.scalatest.Matchers
  *  frontpage.
  */
 class FrontpageSuite extends FunSuite with Matchers {
+  val system = IsoSystem.default("TestSystem")
 
   test("Half-adder reacts to input changes") {
     implicit val canLeak = Permission.newCanLeak
@@ -44,12 +45,12 @@ class FrontpageSuite extends FunSuite with Matchers {
   }
 
   test("Fetching contents of a URL or failing after 10 seconds") {
-    val system = IsoSystem.default("TestSystem")
     system.isolate(Proto[UrlIso].withScheduler(IsoSystem.Bundle.schedulers.piggyback))
   }
 
   test("Requesting server time") {
-    // TODO
+    val timeServer = system.isolate(Proto[TimeServer])
+    val client = system.isolate(Proto[Client](timeServer))
   }
 
   test("Establish the rules on a starship") {
@@ -83,5 +84,28 @@ class UrlIso extends Iso[Unit] {
 
   sysEvents onCase {
     case IsoTerminated => println("UrlIso terminating...")
+  }
+}
+
+
+class TimeServer extends Iso[(String, Channel[Long])] {
+  import implicits.canLeak
+  events.onCase {
+    case ("time", response) =>
+      response << System.currentTimeMillis()
+      channel.seal()
+  }
+}
+
+
+class Client(server: Channel[(String, Channel[Long])])
+extends Iso[Long] {
+  import implicits.canLeak
+  sysEvents.onCase {
+    case IsoStarted => server << (("time", channel))
+  }
+  events.onEvent { time =>
+    println("Server Unix time: " + time)
+    channel.seal()
   }
 }
