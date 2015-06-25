@@ -48,13 +48,13 @@ object Services {
 
   /** Contains I/O-related services.
    */
-  class Io(val system: IsoSystem) {
+  class Io(private val system: IsoSystem) {
     val defaultCharset = Charset.defaultCharset.name
   }
 
   /** Contains common network protocol services.
    */
-  class Net(val system: IsoSystem) {
+  class Net(private val system: IsoSystem) {
     private implicit val networkRequestPool: ExecutionContext = {
       val parallelism = system.config.getInt("system.net.parallelism")
       ExecutionContext.fromExecutor(new ForkJoinPool(parallelism))
@@ -100,7 +100,7 @@ object Services {
 
   /** Contains various time-related services.
    */
-  class Time(val system: IsoSystem) {
+  class Time(private val system: IsoSystem) {
     private val timer = new Timer(s"${system.name}.timer-service", true)
 
     /** Emits an event periodically, with the duration between events equal to `d`.
