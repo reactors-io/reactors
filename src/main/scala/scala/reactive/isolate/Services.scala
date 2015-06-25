@@ -36,8 +36,8 @@ abstract class Services {
   /** Network services. */
   val net = new Services.Net(system)
 
-  /** Time services. */
-  val time = new Services.Time(system)
+  /** Clock services. */
+  val clock = new Services.Clock(system)
 
 }
 
@@ -100,7 +100,7 @@ object Services {
 
   /** Contains various time-related services.
    */
-  class Time(private val system: IsoSystem) {
+  class Clock(private val system: IsoSystem) {
     private val timer = new Timer(s"${system.name}.timer-service", true)
 
     /** Emits an event periodically, with the duration between events equal to `d`.

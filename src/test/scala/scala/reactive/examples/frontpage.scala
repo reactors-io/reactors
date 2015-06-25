@@ -67,7 +67,7 @@ class FrontpageTest extends FunSuite with Matchers {
 class UrlIso extends Iso[Unit] {
   import implicits.canLeak
 
-  val timer = system.time.period(1.second)
+  val timer = system.clock.period(1.second)
     .map(_ => 1)
     .scanPast(4)(_ - _)
     .takeWhile(_ >= 0)

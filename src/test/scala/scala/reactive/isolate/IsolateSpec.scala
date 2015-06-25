@@ -297,14 +297,3 @@ class TimerSyncedIsolateSpec extends LooperIsolateSpec {
   val isoSystem = IsoSystem.default("TestSystem", bundle)
 
 }
-
-
-
-
-
-
-
-
-
-
-
