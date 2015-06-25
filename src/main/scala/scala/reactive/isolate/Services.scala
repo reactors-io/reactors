@@ -3,9 +3,9 @@ package isolate
 
 
 
+import java.io._
 import java.net.URL
 import java.nio.charset.Charset
-import java.io._
 import java.util.Timer
 import java.util.TimerTask
 import java.util.concurrent.ForkJoinPool
@@ -19,6 +19,7 @@ import scala.reactive.isolate._
 import scala.util.DynamicVariable
 import scala.util.Success
 import scala.util.Failure
+import scala.util.Try
 
 
 
@@ -54,11 +55,13 @@ object Services {
 
   /** Contains common network protocol services.
    */
-  class Net(private val system: IsoSystem) {
+  class Net(private val system: IsoSystem, private val resolver: URL => InputStream) {
     private implicit val networkRequestPool: ExecutionContext = {
       val parallelism = system.config.getInt("system.net.parallelism")
       ExecutionContext.fromExecutor(new ForkJoinPool(parallelism))
     }
+
+    def this(s: IsoSystem) = this(s, url => url.openStream())
 
     /** Contains various methods used to retrieve remote resources.
      */
@@ -75,23 +78,26 @@ object Services {
        *  @return        the event stream with the resource string
        */
       def string(url: String, cs: String = system.io.defaultCharset): Events[String] = {
-        val connector = system.channels.daemon.open[String]
+        val connector = system.channels.daemon.open[Try[String]]
         Future {
-          val inputStream = new URL(url).openStream()
+          val inputStream = resolver(new URL(url))
           try {
             IOUtils.toString(inputStream, cs)
           } finally {
             inputStream.close()
           }
         } onComplete {
-          case Success(s) =>
+          case s @ Success(_) =>
             connector.channel << s
             connector.channel.seal()
-          case Failure(t) =>
-            // TODO forward exception to connector.channel
+          case f @ Failure(t) =>
+            connector.channel << f
             connector.channel.seal()
         }
-        connector.events
+        connector.events.map({
+          case Success(s) => s
+          case Failure(t) => throw t
+        })
       }
 
     }

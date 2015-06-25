@@ -50,7 +50,8 @@ class FrontpageTest extends FunSuite with Matchers {
 
   test("Requesting server time") {
     val timeServer = system.isolate(Proto[TimeServer])
-    val client = system.isolate(Proto[Client](timeServer))
+    val client = system.isolate(Proto[Client](timeServer)
+      .withScheduler(IsoSystem.Bundle.schedulers.piggyback))
   }
 
   test("Establish the rules on a starship") {
