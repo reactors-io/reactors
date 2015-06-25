@@ -14,7 +14,7 @@ import org.scalatest.Matchers
  *  Note: if you are changing this file, please take care to update the website
  *  frontpage.
  */
-class FrontpageSuite extends FunSuite with Matchers {
+class FrontpageTest extends FunSuite with Matchers {
   val system = IsoSystem.default("TestSystem")
 
   test("Half-adder reacts to input changes") {
