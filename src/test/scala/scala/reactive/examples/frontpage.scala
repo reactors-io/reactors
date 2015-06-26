@@ -3,6 +3,7 @@ package examples
 
 
 
+import scala.collection._
 import scala.concurrent.duration._
 import org.scalatest._
 import org.scalatest.Matchers
@@ -72,16 +73,34 @@ class FrontpageTest extends FunSuite with Matchers {
     val commandingOfficer: Signal[String] =
       rank.react.commuteFold(shipRank).map(_._1)
 
-    (commandingOfficer zip numLt)((m, n) => (m, n)).onEvent { case (m, n) =>
+    val commanderAndNumLt = (commandingOfficer zip numLt)((m, n) => (m, n))
+    commanderAndNumLt.onEvent { case (m, n) =>
       println(s"$m says: all $n lieutenants shall mop floors!")
     }
 
     rank("Picard") = "Captain"
+    assert(commanderAndNumLt() == ("Picard", 2))
     rank("Worf") = "Lieutenant"
+    assert(commanderAndNumLt() == ("Picard", 3))
   }
 
   test("No boxing") {
-    // TODO
+    import Permission.canBuffer
+
+    // No boxing!
+    val cell = RCell[Int](0)
+    val evens = cell.filter(_ % 2 == 0).to[RSet[Int]]
+    val odds = cell.filter(_ % 2 == 1).to[RSet[Int]]
+    cell := 1
+    cell := 2
+    cell := 3
+    cell := 4
+    val all = evens union odds
+    all.foreach(println)
+
+    val observed = mutable.Set[Int]()
+    all.foreach(observed += _)
+    assert(observed == (1 to 4).toSet)
   }
 
 }
