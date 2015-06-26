@@ -55,7 +55,29 @@ class FrontpageTest extends FunSuite with Matchers {
   }
 
   test("Establish the rules on a starship") {
-    // TODO
+    implicit val canLeak = Permission.newCanLeak
+
+    // Store ranks of a starship crew and establish the rules
+    val rank = RMap[String, String]
+    rank("Geordie") = "Lieutenant"
+    rank("Deanna") = "Lieutenant"
+    rank("Data") = "Commander Lieutenant"
+    rank("Riker") = "Commander"
+
+    val numLt: Signal[Int] =
+      rank.filter(_._2 == "Lieutenant").react.size
+    val shipRank = Commutoid.apply(("nobody", "no-rank")) {
+      (x, y) => if (x._2 < y._2) x else y
+    }
+    val commandingOfficer: Signal[String] =
+      rank.react.commuteFold(shipRank).map(_._1)
+
+    (commandingOfficer zip numLt)((m, n) => (m, n)).onEvent { case (m, n) =>
+      println(s"$m says: all $n lieutenants shall mop floors!")
+    }
+
+    rank("Picard") = "Captain"
+    rank("Worf") = "Lieutenant"
   }
 
   test("No boxing") {
@@ -69,19 +91,19 @@ class UrlIso extends Iso[Unit] {
   import implicits.canLeak
 
   val timer = system.clock.period(1.second)
-    .map(_ => 1)
-    .scanPast(4)(_ - _)
-    .takeWhile(_ >= 0)
+  .map(_ => 1)
+  .scanPast(4)(_ - _)
+  .takeWhile(_ >= 0)
   timer.onEvent(println)
   system.net.resource.string("http://www.ietf.org/rfc/rfc1738.txt")
-    .map(_.toString)
-    .until(timer.unreacted)
-    .ivar
-    .orElse("Request failed")
-    .onEvent { txt =>
-      println(txt.take(512) + "...")
-      channel.seal()
-    }
+  .map(_.toString)
+  .until(timer.unreacted)
+  .ivar
+  .orElse("Request failed")
+  .onEvent { txt =>
+    println(txt.take(512) + "...")
+    channel.seal()
+  }
 
   sysEvents onCase {
     case IsoTerminated => println("UrlIso terminating...")
