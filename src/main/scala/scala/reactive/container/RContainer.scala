@@ -150,27 +150,10 @@ object RContainer {
   object Lifted {
     class Default[@spec(Int, Long, Double) T](val container: RContainer[T])
     extends Lifted[T]
-
-    class Eager[@spec(Int, Long, Double) T](val container: RContainer[T])
-    extends Lifted[T] {
-      override val size: Signal[Int] with Events.Subscription =
-        new Signal.Default[Int] with Events.ProxySubscription {
-          private[reactive] var value = 0
-          def apply() = value
-          val subscription = Events.CompositeSubscription(
-            container.inserts foreach { _ => value += 1; reactAll(value) },
-            container.removes foreach { _ => value -= 1; reactAll(value) }
-          )
-        }
-    }
   }
 
   trait Default[@spec(Int, Long, Double) T] extends RContainer[T] {
     val react = new Lifted.Default[T](this)
-  }
-
-  trait Eager[@spec(Int, Long, Double) T] extends RContainer[T] {
-    val react = new Lifted.Eager[T](this)
   }
 
   class Size[@spec(Int, Long, Double) T](self: RContainer[T])
