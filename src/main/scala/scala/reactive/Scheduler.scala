@@ -12,11 +12,15 @@ import isolate._
 
 /** An object that schedules isolates for execution.
  *
- *  After an isolate is instantiated, its isolate frame is assigned a scheduler by the isolate system.
- *  An isolate that is assigned a specific scheduler will always be executed on that same scheduler.
+ *  After an isolate is instantiated, its isolate frame is assigned a scheduler by the
+ *  isolate system.
+ *  An isolate that is assigned a specific scheduler will always be executed on that
+ *  same scheduler.
  *
- *  After creating an isolate, every isolate system will first call the `initiate` method on the isolate frame.
- *  Then, the isolate system will call the `schedule` method every time there are events ready for the isolate.
+ *  After creating an isolate, every isolate system will first call the `initiate`
+ *  method on the isolate frame.
+ *  Then, the isolate system will call the `schedule` method every time there are events
+ *  ready for the isolate.
  *
  *  '''Note:'''
  *  Clients never invoke `Scheduler` operations directly,
@@ -70,7 +74,8 @@ trait Scheduler {
  */
 object Scheduler {
 
-  /** Superclass for the information objects that a scheduler attaches to an isolate frame.
+  /** Superclass for the information objects that a scheduler attaches to an isolate
+   *  frame.
    */
   abstract class Info {
     /** Called when scheduling starts.
@@ -99,7 +104,8 @@ object Scheduler {
     def onBatchStop(frame: IsoFrame): Unit = {
     }
 
-    /** Picks and dequeues a single event from the dequeuer set of the associated isolate.
+    /** Picks and dequeues a single event from the dequeuer set of the associated
+     *  isolate.
      */
     def dequeueEvent(frame: IsoFrame): Unit = {
       frame.multiplexer.dequeueEvent()
@@ -141,7 +147,8 @@ object Scheduler {
 
   /** Scheduler that shares the global Scala execution context.
    */
-  lazy val globalExecutionContext: Scheduler = new Executed(ExecutionContext.Implicits.global)
+  lazy val globalExecutionContext: Scheduler =
+    new Executed(ExecutionContext.Implicits.global)
 
   /** Default isolate scheduler.
    */
@@ -162,7 +169,8 @@ object Scheduler {
 
   /** A scheduler that reuses (piggybacks) the current thread to run the isolate.
    *
-   *  Until the isolate terminates, the current thread is blocked and cannot be used any more.
+   *  Until the isolate terminates, the current thread is blocked and cannot be used any
+   *  more.
    *  This scheduler cannot be used to start isolates from within another isolate,
    *  and is typically used to turn the application main thread into an isolate.
    *
@@ -173,10 +181,13 @@ object Scheduler {
   /** A `Scheduler` that reuses the target Java `Executor`.
    *
    *  @param executor       The `Executor` used to schedule isolate tasks.
-   *  @param handler        The default error handler for fatal errors not passed to isolates.
+   *  @param handler        The default error handler for fatal errors not passed to
+   *                        isolates.
    */
-  class Executed(val executor: java.util.concurrent.Executor, val handler: Scheduler.Handler = Scheduler.defaultHandler)
-  extends Scheduler {
+  class Executed(
+    val executor: java.util.concurrent.Executor,
+    val handler: Scheduler.Handler = Scheduler.defaultHandler
+  ) extends Scheduler {
     def initiate(frame: IsoFrame): Unit = {
     }
 
@@ -238,10 +249,13 @@ object Scheduler {
      *  The thread is optionally a daemon thread.
      *
      *  @param isDaemon          Is the new thread a daemon.
-     *  @param handler           The error handler for fatal errors not passed to isolates.
+     *  @param handler           The error handler for fatal errors not passed to
+     *                           isolates.
      */
-    class NewThread(val isDaemon: Boolean, val handler: Scheduler.Handler = Scheduler.defaultHandler)
-    extends Dedicated {
+    class NewThread(
+      val isDaemon: Boolean,
+      val handler: Scheduler.Handler = Scheduler.defaultHandler
+    ) extends Dedicated {
       override def newInfo(frame: IsoFrame): Dedicated.Worker = {
         val w = new Worker(frame, handler)
         w
@@ -292,13 +306,17 @@ object Scheduler {
    *  The isolate is run every `period` milliseconds.
    *  This is regardless of the number of events in this isolate's event queue.
    *
-   *  When the isolate runs, it flushes as many events as there are initially pending events.
+   *  When the isolate runs, it flushes as many events as there are initially pending
+   *  events.
    *
    *  @param period       Period between executing the isolate.
    *  @param isDaemon     Is the timer thread a daemon thread.
    */
-  class Timer(private val period: Long, val isDaemon: Boolean = true, val handler: Scheduler.Handler = Scheduler.defaultHandler)
-  extends Scheduler {
+  class Timer(
+    private val period: Long,
+    val isDaemon: Boolean = true,
+    val handler: Scheduler.Handler = Scheduler.defaultHandler
+  ) extends Scheduler {
     private var timer: java.util.Timer = null
     private val frames = mutable.Set[IsoFrame]()
 
