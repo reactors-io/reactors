@@ -110,19 +110,19 @@ class UrlIso extends Iso[Unit] {
   import implicits.canLeak
 
   val timer = system.clock.period(1.second)
-  .map(_ => 1)
-  .scanPast(4)(_ - _)
-  .takeWhile(_ >= 0)
+    .map(_ => 1)
+    .scanPast(4)(_ - _)
+    .takeWhile(_ >= 0)
   timer.onEvent(println)
   system.net.resource.string("http://www.ietf.org/rfc/rfc1738.txt")
-  .map(_.toString)
-  .until(timer.unreacted)
-  .ivar
-  .orElse("Request failed")
-  .onEvent { txt =>
-    println(txt.take(512) + "...")
-    channel.seal()
-  }
+    .map(_.toString)
+    .until(timer.unreacted)
+    .ivar
+    .orElse("Request failed")
+    .onEvent { txt =>
+      println(txt.take(512) + "...")
+      channel.seal()
+    }
 
   sysEvents onCase {
     case IsoTerminated => println("UrlIso terminating...")
