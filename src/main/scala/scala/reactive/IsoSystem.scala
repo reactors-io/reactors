@@ -7,7 +7,6 @@ import java.util.concurrent.atomic._
 import scala.annotation.tailrec
 import scala.collection._
 import scala.reactive.isolate._
-import scala.util.DynamicVariable
 
 
 
@@ -17,6 +16,42 @@ import scala.util.DynamicVariable
  *  a common configuration.
  */
 abstract class IsoSystem extends isolate.Services {
+
+  /** Encapsulates the internal state of the isolate system.
+   */
+  private[reactive] class State {
+    private val isolates = mutable.Map[String, Frame]()
+    private val uniqueIdCount = new AtomicLong(0L)
+
+    private[reactive] def frameForName(nm: String): Frame = isolates(nm)
+
+    def reserveUniqueId() = uniqueIdCount.getAndIncrement()
+
+    def tryAcquireName(proposedName: String, frame: Frame): String = this.synchronized {
+      @tailrec def uniqueName(count: Long): String = {
+        val suffix = if (count == 0) "" else s"-$count"
+        val possibleName = s"isolate-${frame.uid}$suffix"
+        if (isolates.contains(possibleName)) uniqueName(count + 1)
+        else possibleName
+      }
+      val uname = if (proposedName != null) proposedName else uniqueName(0)
+      if (isolates.contains(uname)) null
+      else {
+        isolates(uname) = frame
+        uname
+      }
+    }
+
+    def tryReleaseName(nm: String): Boolean = this.synchronized {
+      if (!isolates.contains(nm)) false
+      else {
+        isolates.remove(nm)
+        true
+      }
+    }
+  }
+
+  private[reactive] val state = new State
 
   /** Retrieves the bundle for this isolate system.
    *  
@@ -91,8 +126,10 @@ abstract class IsoSystem extends isolate.Services {
    */
   protected[reactive] def releaseNames(name: String): Unit
 
-  /** Generates a new unique id, generated only once during
-   *  the lifetime of this isolate system.
+  /** Generates a new unique id, generated only once during the lifetime of this
+   *  isolate system.
+   *
+   *  The implementation of this method must be thread-safe.
    *
    *  @return           a unique id
    */
@@ -110,6 +147,35 @@ abstract class IsoSystem extends isolate.Services {
     } finally {
       Iso.selfIso.set(oldi)
     }
+  }
+
+  protected[reactive] def tryCreateIsolate[@spec(Int, Long, Double) T: Arrayable](
+    proto: Proto[Iso[T]]
+  ): Channel[T] = {
+    // ensure a unique name
+    val uid = state.reserveUniqueId()
+    val scheduler = proto.scheduler match {
+      case null => bundle.defaultScheduler
+      case name => bundle.scheduler(name)
+    }
+    val frame = new Frame(uid, scheduler, this)
+
+    // reserve the name
+    val uname = state.tryAcquireName(proto.name, frame)
+    if (uname == null)
+      throw new IllegalArgumentException(s"Isolate name ${proto.name} unavailable.")
+
+    try {
+      frame.name = uname
+      // TODO
+    } catch {
+      case t: Throwable =>
+        // release the name and rethrow
+        state.tryReleaseName(uname)
+        throw t
+    }
+
+    null
   }
 
   /** Creates an isolate frame.
