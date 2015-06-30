@@ -152,7 +152,7 @@ abstract class IsoSystem extends isolate.Services {
   protected[reactive] def tryCreateIsolate[@spec(Int, Long, Double) T: Arrayable](
     proto: Proto[Iso[T]]
   ): Channel[T] = {
-    // ensure a unique name
+    // 1. ensure a unique id
     val uid = state.reserveUniqueId()
     val scheduler = proto.scheduler match {
       case null => bundle.defaultScheduler
@@ -160,17 +160,21 @@ abstract class IsoSystem extends isolate.Services {
     }
     val frame = new Frame(uid, scheduler, this)
 
-    // reserve the name
+    // 2. reserve the unique name or break
     val uname = state.tryAcquireName(proto.name, frame)
     if (uname == null)
       throw new IllegalArgumentException(s"Isolate name ${proto.name} unavailable.")
 
     try {
+      // 3. allocate the standard connectors
       frame.name = uname
-      // TODO
+      frame.defaultConnector = null
+      frame.systemConnector = null
+
+      // 4. schedule for the first execution
     } catch {
       case t: Throwable =>
-        // release the name and rethrow
+        // 5. if not successful, release the name and rethrow
         state.tryReleaseName(uname)
         throw t
     }
