@@ -12,9 +12,9 @@ import scala.reactive.container.RMap
 /** Stores `Identifiable` objects along with their unique names.
  */
 final class NameMap[T >: Null <: Identifiable with AnyRef](
-  val uniqueNamePrefix: String
+  val uniqueNamePrefix: String,
+  val monitor: Monitor
 ) {
-  private val monitor = new Monitor
   private val idCounter = new AtomicLong(0L)
   private val byName = RMap[String, T]
   private val byId = RMap[Long, T]

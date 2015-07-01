@@ -7,12 +7,6 @@ package scala.reactive
 
 package object isolate {
 
-  /** Any object that contains a unique id within some scope.
-   */
-  trait Identifiable {
-    def uid: Long
-  }
-
   /** Object used for synchronization.
    */
   final class Monitor extends AnyRef {

@@ -218,6 +218,12 @@ package object reactive {
     case t if isNonLethal(t) => // ignore
   }
 
+  /** Any object that contains a unique id within some scope.
+   */
+  trait Identifiable {
+    def uid: Long
+  }
+
   /* extensions on tuples */
 
   class Tuple2Extensions[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](val tuple: (Signal[T], Signal[S])) {

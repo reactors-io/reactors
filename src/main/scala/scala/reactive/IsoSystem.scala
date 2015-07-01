@@ -20,7 +20,8 @@ abstract class IsoSystem extends isolate.Services {
   /** Encapsulates the internal state of the isolate system.
    */
   private[reactive] class State {
-    val frames = new NameMap[Frame]("isolate")
+    val monitor = new Monitor
+    val frames = new NameMap[Frame]("isolate", monitor)
   }
 
   private[reactive] val state = new State
@@ -220,34 +221,6 @@ abstract class IsoSystem extends isolate.Services {
 /** Contains factory methods for creating isolate systems.
  */
 object IsoSystem {
-
-  /** Opens a new channel on the current isolate and returns its connector.
-   *
-   *  Throws an exception if the specified name is not unique.
-   *
-   *  @param frame            frame of the current isolate
-   *  @param channelName      name of the channel, or `null` if unspecified
-   *  @param isDaemon         is the channel a daemon
-   */
-  private[reactive] def openConnector[@spec(Int, Long, Double) Q: Arrayable](
-    frame: Frame,
-    channelName: String,
-    isDaemon: Boolean
-  ): Connector[Q] = {
-    // @tailrec def uniqueName(count: Long) = {
-    //   val suffix = if (count == 0) "" else s"-$count"
-    //   val proposedName = "channel-" + suffix
-    //   if (frame.channels.contains(proposedName)) uniqueName(count + 1)
-    //   else proposedName
-    // }
-    // val uniqueChannelId = frame.reserveChannelId()
-    // val uniqueChannelName = 
-    //   if (channelName != null) channelName else uniqueName(uniqueChannelId)
-    // if (frame.channels.contains(uniqueChannelName))
-    //   throw new IllegalArgumentException(
-    //     "Name $uniqueChannelName is not a unique channel name.")
-    ???
-  }
 
   /** Opens a channel for the current isolate, using the specified parameters.
    */

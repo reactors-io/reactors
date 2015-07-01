@@ -37,7 +37,9 @@ import scala.collection._
  *
  *  @tparam T        the type of events in this channel
  */
-trait Channel[@spec(Int, Long, Double) T] {
+trait Channel[@spec(Int, Long, Double) T] extends Identifiable {
+
+  def uid: Long = ???
 
   /** Attaches an event stream to this channel.
    *  

@@ -13,12 +13,12 @@ final class Frame(
   val scheduler: Scheduler,
   val isolateSystem: IsoSystem
 ) extends Identifiable {
-  private val channelNameCounter = new AtomicLong(0L)
-  private val channels = mutable.Map[String, Channel[_]]()
+  private val monitor = new Monitor
+  private val channels = new NameMap[Channel[_]]("channel", monitor)
 
   @volatile var name: String = _
   @volatile var defaultConnector: Connector[_] = _
   @volatile var systemConnector: Connector[_] = _
 
-  def reserveChannelId(): Long = channelNameCounter.getAndIncrement()
+  def openConnector[@spec(Int, Long, Double) Q: Arrayable]() = ???
 }
