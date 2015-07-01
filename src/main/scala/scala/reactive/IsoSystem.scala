@@ -20,35 +20,7 @@ abstract class IsoSystem extends isolate.Services {
   /** Encapsulates the internal state of the isolate system.
    */
   private[reactive] class State {
-    private val isolates = mutable.Map[String, Frame]()
-    private val uniqueIdCount = new AtomicLong(0L)
-
-    private[reactive] def frameForName(nm: String): Frame = isolates(nm)
-
-    def reserveUniqueId() = uniqueIdCount.getAndIncrement()
-
-    def tryAcquireName(proposedName: String, frame: Frame): String = this.synchronized {
-      @tailrec def uniqueName(count: Long): String = {
-        val suffix = if (count == 0) "" else s"-$count"
-        val possibleName = s"isolate-${frame.uid}$suffix"
-        if (isolates.contains(possibleName)) uniqueName(count + 1)
-        else possibleName
-      }
-      val uname = if (proposedName != null) proposedName else uniqueName(0)
-      if (isolates.contains(uname)) null
-      else {
-        isolates(uname) = frame
-        uname
-      }
-    }
-
-    def tryReleaseName(nm: String): Boolean = this.synchronized {
-      if (!isolates.contains(nm)) false
-      else {
-        isolates.remove(nm)
-        true
-      }
-    }
+    val frames = new NameMap[Frame]("isolate")
   }
 
   private[reactive] val state = new State
@@ -153,7 +125,7 @@ abstract class IsoSystem extends isolate.Services {
     proto: Proto[Iso[T]]
   ): Channel[T] = {
     // 1. ensure a unique id
-    val uid = state.reserveUniqueId()
+    val uid = state.frames.reserveId()
     val scheduler = proto.scheduler match {
       case null => bundle.defaultScheduler
       case name => bundle.scheduler(name)
@@ -161,7 +133,7 @@ abstract class IsoSystem extends isolate.Services {
     val frame = new Frame(uid, scheduler, this)
 
     // 2. reserve the unique name or break
-    val uname = state.tryAcquireName(proto.name, frame)
+    val uname = state.frames.tryStore(proto.name, frame)
     if (uname == null)
       throw new IllegalArgumentException(s"Isolate name ${proto.name} unavailable.")
 
@@ -175,7 +147,7 @@ abstract class IsoSystem extends isolate.Services {
     } catch {
       case t: Throwable =>
         // 5. if not successful, release the name and rethrow
-        state.tryReleaseName(uname)
+        state.frames.tryRelease(uname)
         throw t
     }
 
@@ -249,8 +221,37 @@ abstract class IsoSystem extends isolate.Services {
  */
 object IsoSystem {
 
+  /** Opens a new channel on the current isolate and returns its connector.
+   *
+   *  Throws an exception if the specified name is not unique.
+   *
+   *  @param frame            frame of the current isolate
+   *  @param channelName      name of the channel, or `null` if unspecified
+   *  @param isDaemon         is the channel a daemon
+   */
+  private[reactive] def openConnector[@spec(Int, Long, Double) Q: Arrayable](
+    frame: Frame,
+    channelName: String,
+    isDaemon: Boolean
+  ): Connector[Q] = {
+    // @tailrec def uniqueName(count: Long) = {
+    //   val suffix = if (count == 0) "" else s"-$count"
+    //   val proposedName = "channel-" + suffix
+    //   if (frame.channels.contains(proposedName)) uniqueName(count + 1)
+    //   else proposedName
+    // }
+    // val uniqueChannelId = frame.reserveChannelId()
+    // val uniqueChannelName = 
+    //   if (channelName != null) channelName else uniqueName(uniqueChannelId)
+    // if (frame.channels.contains(uniqueChannelName))
+    //   throw new IllegalArgumentException(
+    //     "Name $uniqueChannelName is not a unique channel name.")
+    ???
+  }
+
   /** Opens a channel for the current isolate, using the specified parameters.
    */
+  @deprecated
   private[reactive] def openChannel[@spec(Int, Long, Double) Q: Arrayable](
     system: IsoSystem,
     frame: IsoFrame,
