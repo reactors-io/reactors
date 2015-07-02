@@ -21,7 +21,7 @@ abstract class IsoSystem extends isolate.Services {
    */
   private[reactive] class State {
     val monitor = new Monitor
-    val frames = new NameMap[Frame]("isolate", monitor)
+    val frames = new UniqueMap[Frame]("isolate", monitor)
   }
 
   private[reactive] val state = new State
