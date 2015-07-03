@@ -20,35 +20,8 @@ abstract class IsoSystem extends isolate.Services {
   /** Encapsulates the internal state of the isolate system.
    */
   private[reactive] class State {
-    private val isolates = mutable.Map[String, Frame]()
-    private val uniqueIdCount = new AtomicLong(0L)
-
-    private[reactive] def frameForName(nm: String): Frame = isolates(nm)
-
-    def reserveUniqueId() = uniqueIdCount.getAndIncrement()
-
-    def tryAcquireName(proposedName: String, frame: Frame): String = this.synchronized {
-      @tailrec def uniqueName(count: Long): String = {
-        val suffix = if (count == 0) "" else s"-$count"
-        val possibleName = s"isolate-${frame.uid}$suffix"
-        if (isolates.contains(possibleName)) uniqueName(count + 1)
-        else possibleName
-      }
-      val uname = if (proposedName != null) proposedName else uniqueName(0)
-      if (isolates.contains(uname)) null
-      else {
-        isolates(uname) = frame
-        uname
-      }
-    }
-
-    def tryReleaseName(nm: String): Boolean = this.synchronized {
-      if (!isolates.contains(nm)) false
-      else {
-        isolates.remove(nm)
-        true
-      }
-    }
+    val monitor = new Monitor
+    val frames = new UniqueMap[Frame]("isolate", monitor)
   }
 
   private[reactive] val state = new State
@@ -153,7 +126,7 @@ abstract class IsoSystem extends isolate.Services {
     proto: Proto[Iso[T]]
   ): Channel[T] = {
     // 1. ensure a unique id
-    val uid = state.reserveUniqueId()
+    val uid = state.frames.reserveId()
     val scheduler = proto.scheduler match {
       case null => bundle.defaultScheduler
       case name => bundle.scheduler(name)
@@ -161,7 +134,7 @@ abstract class IsoSystem extends isolate.Services {
     val frame = new Frame(uid, scheduler, this)
 
     // 2. reserve the unique name or break
-    val uname = state.tryAcquireName(proto.name, frame)
+    val uname = state.frames.tryStore(proto.name, frame)
     if (uname == null)
       throw new IllegalArgumentException(s"Isolate name ${proto.name} unavailable.")
 
@@ -175,7 +148,7 @@ abstract class IsoSystem extends isolate.Services {
     } catch {
       case t: Throwable =>
         // 5. if not successful, release the name and rethrow
-        state.tryReleaseName(uname)
+        state.frames.tryRelease(uname)
         throw t
     }
 
@@ -251,6 +224,7 @@ object IsoSystem {
 
   /** Opens a channel for the current isolate, using the specified parameters.
    */
+  @deprecated
   private[reactive] def openChannel[@spec(Int, Long, Double) Q: Arrayable](
     system: IsoSystem,
     frame: IsoFrame,

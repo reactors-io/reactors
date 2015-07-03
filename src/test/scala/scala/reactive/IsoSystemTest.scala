@@ -25,15 +25,15 @@ class IsoSystemTest extends FunSuite with Matchers {
     val system = new TestIsoSystem
     val proto = Proto[IsoSystemTest.TestIso]
     system.tryCreateIsolate(proto)
-    assert(system.state.frameForName("isolate-0") != null)
+    assert(system.state.frames.forName("isolate-0") != null)
   }
 
   test("tryCreateIsolate should return without throwing and use custom name") {
     val system = new TestIsoSystem
     val proto = Proto[IsoSystemTest.TestIso].withName("Izzy")
     system.tryCreateIsolate(proto)
-    assert(system.state.frameForName("Izzy") != null)
-    assert(system.state.frameForName("Izzy").name == "Izzy")
+    assert(system.state.frames.forName("Izzy") != null)
+    assert(system.state.frames.forName("Izzy").name == "Izzy")
   }
 
   test("tryCreateIsolate should throw when attempting to reuse the same name") {
