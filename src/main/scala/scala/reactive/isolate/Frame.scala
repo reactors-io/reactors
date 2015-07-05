@@ -20,9 +20,21 @@ final class Frame(
   @volatile var defaultConnector: Conn[_] = _
   @volatile var systemConnector: Conn[_] = _
 
-  def openConnector[@spec(Int, Long, Double) Q: Arrayable]() = {
-    val id = channels.reserveId()
-    
+  def openConnector[@spec(Int, Long, Double) Q: Arrayable](
+    name: String,
+    f: EventQ.Factory,
+  ) = {
+    val uid = channels.reserveId()
+    val queue = 
+    val chan = new Chan.Local(uid, )
+  }
+
+  def enqueueEvent[@spec(Int, Long, Double) Q](queue: EventQ[T], x: T): Unit = {
+    ???
+  }
+
+  def isChannelSealed(uid: Long): Boolean = {
+    ???
   }
 
 }
