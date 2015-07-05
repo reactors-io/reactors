@@ -44,6 +44,24 @@ class IsoSystemTest extends FunSuite with Matchers {
     }
   }
 
+  test("tryCreateIsolate should create a default channel for the isolate") {
+    val system = new TestIsoSystem
+    val channel = system.tryCreateIsolate(Proto[IsoSystemTest.TestIso].withName("Izzy"))
+    assert(channel != null)
+    val conn = system.state.frames.forName("Izzy").connectors.forName("default")
+    assert(conn != null)
+    assert(conn.channel eq channel)
+    assert(!conn.isDaemon)
+  }
+
+  test("tryCreateIsolate should create a system channel for the isolate") {
+    val system = new TestIsoSystem
+    system.tryCreateIsolate(Proto[IsoSystemTest.TestIso].withName("Izzy"))
+    val conn = system.state.frames.forName("Izzy").connectors.forName("system")
+    assert(conn != null)
+    assert(conn.isDaemon)
+  }
+
 }
 
 

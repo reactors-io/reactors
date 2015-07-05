@@ -11,7 +11,8 @@ class Conn[@spec(Int, Long, Double) T](
   private val localChannel: Chan.Local[T],
   private val queue: EventQ[T],
   private val eventsEmitter: Events.Emitter[T],
-  private val frame: Frame
+  private val frame: Frame,
+  val isDaemon: Boolean
 ) extends Identifiable {
 
   def uid = localChannel.uid

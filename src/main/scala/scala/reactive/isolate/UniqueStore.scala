@@ -12,7 +12,7 @@ import scala.reactive.util.Monitor
 
 /** Stores `Identifiable` objects along with their unique names.
  */
-final class UniqueMap[T >: Null <: Identifiable with AnyRef](
+final class UniqueStore[T >: Null <: Identifiable with AnyRef](
   val uniqueNamePrefix: String,
   val monitor: Monitor
 ) {
@@ -70,7 +70,12 @@ final class UniqueMap[T >: Null <: Identifiable with AnyRef](
   /** Returns an object stored under the specified name, or `null`.
    */
   def forName(name: String): T = monitor.synchronized {
-    if (byName.contains(name)) byName(name)
-    else null
+    byName.applyOrNil(name)
+  }
+
+  /** Returns an object stored under the specified `id`, or `null`.
+   */
+  def forId(id: Long): T = monitor.synchronized {
+    byId.applyOrNil(id)
   }
 }

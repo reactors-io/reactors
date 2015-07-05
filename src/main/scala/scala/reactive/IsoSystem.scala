@@ -22,7 +22,7 @@ abstract class IsoSystem extends isolate.Services {
    */
   private[reactive] class State {
     val monitor = new Monitor
-    val frames = new UniqueMap[Frame]("isolate", monitor)
+    val frames = new UniqueStore[Frame]("isolate", monitor)
   }
 
   private[reactive] val state = new State
@@ -141,8 +141,8 @@ abstract class IsoSystem extends isolate.Services {
     try {
       // 3. allocate the standard connectors
       frame.name = uname
-      frame.defaultConnector = frame.openConnector("default", factory)
-      frame.systemConnector = null
+      frame.defaultConnector = frame.openConnector("default", factory, false)
+      frame.systemConnector = frame.openConnector("system", factory, true)
 
       // 4. schedule for the first execution
     } catch {

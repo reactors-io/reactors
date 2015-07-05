@@ -14,8 +14,8 @@ final class Frame(
   val scheduler: Scheduler,
   val isolateSystem: IsoSystem
 ) extends Identifiable {
-  private val monitor = new Monitor
-  private val connectors = new UniqueMap[Conn[_]]("channel", monitor)
+  private[reactive] val monitor = new Monitor
+  private[reactive] val connectors = new UniqueStore[Conn[_]]("channel", monitor)
 
   @volatile var name: String = _
   @volatile var defaultConnector: Conn[_] = _
@@ -23,14 +23,15 @@ final class Frame(
 
   def openConnector[@spec(Int, Long, Double) Q: Arrayable](
     name: String,
-    factory: EventQ.Factory
+    factory: EventQ.Factory,
+    isDaemon: Boolean
   ): Conn[Q] = {
     // 1. prepare and ensure a unique id
     val uid = connectors.reserveId()
     val queue = factory.newInstance[Q]
     val chan = new Chan.Local[Q](uid, queue, this)
     val events = new Events.Emitter[Q]
-    val conn = new Conn(chan, queue, events, this)
+    val conn = new Conn(chan, queue, events, this, isDaemon)
 
     // 2. acquire a unique name or break
     val uname = connectors.tryStore(name, conn)
