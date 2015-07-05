@@ -9,7 +9,7 @@ import scala.reactive.util.Monitor
 
 trait EventQ[@spec(Int, Long, Double) T] {
 
-  def enqueue(x: T): Unit
+  def enqueue(x: T): Int
 
   def dequeue(): T
 
@@ -27,8 +27,9 @@ object EventQ {
     private val monitor = new Monitor
     private[reactive] val ring = new scala.reactive.core.UnrolledRing[T]
 
-    def enqueue(x: T): Unit = monitor.synchronized {
+    def enqueue(x: T): Int = monitor.synchronized {
       ring.enqueue(x)
+      ring.size
     }
 
     def dequeue(): T = monitor.synchronized {

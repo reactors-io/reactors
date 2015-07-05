@@ -5,6 +5,7 @@ package isolate
 
 import java.util.concurrent.atomic._
 import scala.collection._
+import scala.reactive.core.UnrolledRing
 import scala.reactive.util.Monitor
 
 
@@ -18,6 +19,7 @@ final class Frame(
   private[reactive] val connectors = new UniqueStore[Conn[_]]("channel", monitor)
   private[reactive] var executing = false
   private[reactive] var lifecycleState: Frame.LifecycleState = Frame.Fresh
+  private[reactive] val pendingQueues = new UnrolledRing[Conn[_]]
 
   @volatile var name: String = _
   @volatile var defaultConnector: Conn[_] = _
@@ -52,12 +54,19 @@ final class Frame(
     }
   }
 
-  def enqueueEvent[@spec(Int, Long, Double) Q](uid: Long, queue: EventQ[Q], x: Q) {
+  def enqueueEvent[@spec(Int, Long, Double) T](uid: Long, queue: EventQ[T], x: T) {
     // 1. add the event to the event queue
-    queue.enqueue(x)
+    val size = queue.enqueue(x)
 
-    // 2. schedule the frame for execution
-    scheduleForExecution()
+    // 2. check if the frame should be scheduled for execution
+    if (size == 1) monitor.synchronized {
+      // 3. add the queue to pending queues
+      val conn = connectors.forId(uid)
+      pendingQueues.enqueue(conn)
+
+      // 4. schedule the frame for later execution
+      scheduleForExecution()
+    }
   }
 
   def executeBatch() {
@@ -98,8 +107,8 @@ final class Frame(
     ???
   }
 
-  def hasPendingEvents: Boolean = {
-    ???
+  def hasPendingEvents: Boolean = monitor.synchronized {
+    pendingQueues.nonEmpty
   }
 
   def dequeueEvent() {
