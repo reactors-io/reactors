@@ -43,9 +43,14 @@ trait Scheduler2 {
   /** Tells the scheduler to start listening to schedule requests for the isolate frame.
    *  Clients never call this method directly.
    *
+   *  By default, assigns the default scheduler state to the `schedulerState` field in
+   *  the isolate frame.
+   *
    *  @param frame      the isolate frame to start scheduling
    */
-  def startSchedule(frame: Frame): Unit
+  def startSchedule(frame: Frame): Unit = {
+    frame.schedulerState = newState(frame)
+  }
 
   /** The handler for the fatal errors that are not sent to
    *  the `failures` stream of the isolate.
@@ -65,7 +70,7 @@ trait Scheduler2 {
    *  @param frame       the isolate frame
    *  @return            creates a fresh scheduler info object
    */
-  def newState(frame: Frame): Scheduler2.State = new Scheduler2.State.Default
+  protected def newState(frame: Frame): Scheduler2.State = new Scheduler2.State.Default
 
 }
 
@@ -179,8 +184,6 @@ object Scheduler2 {
     val executor: java.util.concurrent.Executor,
     val handler: Scheduler2.Handler = Scheduler2.defaultHandler
   ) extends Scheduler2 {
-    def startSchedule(frame: Frame): Unit = {
-    }
 
     def schedule(frame: Frame): Unit = {
       executor.execute(frame.schedulerState.asInstanceOf[Runnable])
@@ -191,6 +194,7 @@ object Scheduler2 {
         def run() = frame.executeBatch()
       }
     }
+
   }
 
   /** An abstract scheduler that always dedicates a thread to an isolate.
@@ -199,14 +203,12 @@ object Scheduler2 {
     def schedule(frame: Frame): Unit = {
       frame.schedulerState.asInstanceOf[Dedicated.Worker].awake()
     }
-
-    def startSchedule(frame: Frame): Unit = {
-    }
   }
 
   /** Contains utility classes and implementations of the dedicated scheduler.
    */
   object Dedicated {
+
     private[reactive] class Worker(val frame: Frame, val handler: Scheduler2.Handler)
     extends Scheduler2.State.Default {
       val monitor = new util.Monitor
@@ -245,16 +247,19 @@ object Scheduler2 {
       val isDaemon: Boolean,
       val handler: Scheduler2.Handler = Scheduler2.defaultHandler
     ) extends Dedicated {
+
       override def newState(frame: Frame): Dedicated.Worker = {
         val w = new Worker(frame, handler)
         w
       }
 
       override def startSchedule(frame: Frame): Unit = {
+        super.startSchedule(frame)
         val w = frame.schedulerState.asInstanceOf[Worker]
         val t = new WorkerThread(w)
         t.start()
       }
+
     }
 
     /** Executes the isolate on the thread that called the isolate system's `isolate`
@@ -319,10 +324,11 @@ object Scheduler2 {
 
     def schedule(frame: Frame) {}
 
-    def startSchedule(frame: Frame) {
+    override def startSchedule(frame: Frame) {
+      super.startSchedule(frame)
       addFrame(frame)
 
-      timer.schedule(new java.util.TimerTask {
+      val task = new java.util.TimerTask {
         timerTask =>
         def run() {
           try {
@@ -337,7 +343,9 @@ object Scheduler2 {
             frame.scheduleForExecution()
           } catch handler
         }
-      }, period, period)
+      }
+
+      timer.schedule(task, period, period)
     }
 
     private def addFrame(frame: Frame) = frames.synchronized {

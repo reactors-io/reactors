@@ -142,7 +142,8 @@ abstract class IsoSystem extends isolate.Services {
       frame.systemConnector = frame.openConnector("system", factory, true)
 
       // 4. schedule for the first execution
-      
+      scheduler.startSchedule(frame)
+      frame.scheduleForExecution()
     } catch {
       case t: Throwable =>
         // 5. if not successful, release the name and rethrow
