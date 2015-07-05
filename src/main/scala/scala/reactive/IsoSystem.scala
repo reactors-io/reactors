@@ -7,6 +7,7 @@ import java.util.concurrent.atomic._
 import scala.annotation.tailrec
 import scala.collection._
 import scala.reactive.isolate._
+import scala.reactive.util.Monitor
 
 
 
@@ -124,24 +125,23 @@ abstract class IsoSystem extends isolate.Services {
 
   protected[reactive] def tryCreateIsolate[@spec(Int, Long, Double) T: Arrayable](
     proto: Proto[Iso[T]]
-  ): Channel[T] = {
+  ): Chan[T] = {
     // 1. ensure a unique id
     val uid = state.frames.reserveId()
     val scheduler = proto.scheduler match {
       case null => bundle.defaultScheduler
       case name => bundle.scheduler(name)
     }
+    val factory = EventQ.UnrolledRing.Factory
     val frame = new Frame(uid, scheduler, this)
 
     // 2. reserve the unique name or break
     val uname = state.frames.tryStore(proto.name, frame)
-    if (uname == null)
-      throw new IllegalArgumentException(s"Isolate name ${proto.name} unavailable.")
 
     try {
       // 3. allocate the standard connectors
       frame.name = uname
-      frame.defaultConnector = null
+      frame.defaultConnector = frame.openConnector("default", factory)
       frame.systemConnector = null
 
       // 4. schedule for the first execution
@@ -152,7 +152,8 @@ abstract class IsoSystem extends isolate.Services {
         throw t
     }
 
-    null
+    // 6. return the default channel
+    frame.defaultConnector.channel.asInstanceOf[Chan[T]]
   }
 
   /** Creates an isolate frame.

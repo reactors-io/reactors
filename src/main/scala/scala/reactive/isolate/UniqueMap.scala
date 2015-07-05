@@ -6,6 +6,7 @@ package isolate
 import java.util.concurrent.atomic._
 import scala.annotation.tailrec
 import scala.reactive.container.RMap
+import scala.reactive.util.Monitor
 
 
 
@@ -30,7 +31,9 @@ final class UniqueMap[T >: Null <: Identifiable with AnyRef](
    *
    *  @param proposedName     the proposed name, or `null` to assign any name
    *  @param x                the object
-   *  @return                 name under which `x` was stored, or `null` if it was not
+   *  @return                 name under which `x` was stored
+   *  @throws                 an `IllegalArgumentException` if the proposed name already
+   *                          exists in the map
    */
   def tryStore(proposedName: String, x: T): String = monitor.synchronized {
     @tailrec def uniqueName(count: Long): String = {
@@ -40,8 +43,9 @@ final class UniqueMap[T >: Null <: Identifiable with AnyRef](
       else possibleName
     }
     val uname = if (proposedName != null) proposedName else uniqueName(0)
-    if (byName.contains(uname)) null
-    else {
+    if (byName.contains(uname)) {
+      throw new IllegalArgumentException(s"Name $proposedName unavailable.")
+    } else {
       byName(uname) = x
       byId(x.uid) = x
       uname

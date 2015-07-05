@@ -7,11 +7,6 @@ package scala.reactive
 
 package object isolate {
 
-  /** Object used for synchronization.
-   */
-  final class Monitor extends AnyRef {
-  }
-
   /* isolate types */
 
   trait Looper[@spec(Int, Long, Double) T] extends Iso[T] {
