@@ -43,39 +43,46 @@ final class Frame(
     conn
   }
 
-  def enqueueEvent[@spec(Int, Long, Double) Q](uid: Long, queue: EventQ[Q], x: Q) {
+  def scheduleForExecution() {
     monitor.synchronized {
-      // 1. add the event to the event queue
-      queue.enqueue(x)
-
-      // 2. schedule the execute frame for execution if it is not executing already
       if (!executing) {
         executing = true
-        scheduler.schedule(frame)
+        scheduler.schedule(this)
       }
     }
   }
 
+  def enqueueEvent[@spec(Int, Long, Double) Q](uid: Long, queue: EventQ[Q], x: Q) {
+    // 1. add the event to the event queue
+    queue.enqueue(x)
+
+    // 2. schedule the frame for execution
+    scheduleForExecution()
+  }
+
   def executeBatch() {
+    // this method can only be called if the frame is in the "executing" state
+    assert(executing)
+
     try {
       // if the frame was never run, initialize the frame
       var runCtor = false
       monitor.synchronized {
         if (lifecycleState == Frame.Fresh) {
-          lifecycleState = Frame.Created
+          lifecycleState = Frame.Running
           runCtor = true
         }
       }
 
       if (runCtor) {
-        ???
+        // TODO: instantiate the isolate
       }
     } finally {
       // set the execution state to false if no more events
       // or re-schedule
       monitor.synchronized {
         if (hasPendingEvents) {
-          scheduler.schedule(frame)
+          scheduler.schedule(this)
         } else {
           executing = false
         }

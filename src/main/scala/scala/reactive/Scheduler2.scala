@@ -326,14 +326,15 @@ object Scheduler2 {
         timerTask =>
         def run() {
           try {
-            if (!frame.isTerminated) {
-              frame.executeBatch()
-            } else {
+            frame.executeBatch()
+            if (frame.hasTerminated) {
               timerTask.cancel()
               removeFrame(frame)
             }
 
-            frame.tryOwn()
+            // we put into the "executing" state to be consistent,
+            // although this is not strictly necessary
+            frame.scheduleForExecution()
           } catch handler
         }
       }, period, period)
