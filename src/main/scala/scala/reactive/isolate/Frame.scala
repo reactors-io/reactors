@@ -11,15 +11,18 @@ import scala.reactive.util.Monitor
 
 final class Frame(
   val uid: Long,
-  val scheduler: Scheduler,
+  val scheduler: Scheduler2,
   val isolateSystem: IsoSystem
 ) extends Identifiable {
   private[reactive] val monitor = new Monitor
   private[reactive] val connectors = new UniqueStore[Conn[_]]("channel", monitor)
+  private[reactive] var executing = false
+  private[reactive] var lifecycleState: Frame.LifecycleState = Frame.Fresh
 
   @volatile var name: String = _
   @volatile var defaultConnector: Conn[_] = _
   @volatile var systemConnector: Conn[_] = _
+  @volatile var schedulerState: Scheduler2.State = _
 
   def openConnector[@spec(Int, Long, Double) Q: Arrayable](
     name: String,
@@ -41,6 +44,58 @@ final class Frame(
   }
 
   def enqueueEvent[@spec(Int, Long, Double) Q](uid: Long, queue: EventQ[Q], x: Q) {
+    monitor.synchronized {
+      // 1. add the event to the event queue
+      queue.enqueue(x)
+
+      // 2. schedule the execute frame for execution if it is not executing already
+      if (!executing) {
+        executing = true
+        scheduler.schedule(frame)
+      }
+    }
+  }
+
+  def executeBatch() {
+    try {
+      // if the frame was never run, initialize the frame
+      var runCtor = false
+      monitor.synchronized {
+        if (lifecycleState == Frame.Fresh) {
+          lifecycleState = Frame.Created
+          runCtor = true
+        }
+      }
+
+      if (runCtor) {
+        ???
+      }
+    } finally {
+      // set the execution state to false if no more events
+      // or re-schedule
+      monitor.synchronized {
+        if (hasPendingEvents) {
+          scheduler.schedule(frame)
+        } else {
+          executing = false
+        }
+      }
+    }
+  }
+
+  def hasTerminated: Boolean = monitor.synchronized {
+    lifecycleState == Frame.Terminated
+  }
+
+  def numPendingEvents: Int = {
+    ???
+  }
+
+  def hasPendingEvents: Boolean = {
+    ???
+  }
+
+  def dequeueEvent() {
     ???
   }
 
@@ -51,5 +106,18 @@ final class Frame(
   def sealConnector(uid: Long): Boolean = {
     ???
   }
+
+}
+
+
+object Frame {
+
+  sealed trait LifecycleState
+
+  case object Fresh extends LifecycleState
+
+  case object Running extends LifecycleState
+
+  case object Terminated extends LifecycleState
 
 }

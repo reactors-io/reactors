@@ -128,10 +128,7 @@ abstract class IsoSystem extends isolate.Services {
   ): Chan[T] = {
     // 1. ensure a unique id
     val uid = state.frames.reserveId()
-    val scheduler = proto.scheduler match {
-      case null => bundle.defaultScheduler
-      case name => bundle.scheduler(name)
-    }
+    val scheduler = Scheduler2.newThread
     val factory = EventQ.UnrolledRing.Factory
     val frame = new Frame(uid, scheduler, this)
 
