@@ -22,7 +22,7 @@ final class Frame(
 
   def openConnector[@spec(Int, Long, Double) Q: Arrayable]() = {
     val id = channels.reserveId()
-
+    
   }
 
 }
