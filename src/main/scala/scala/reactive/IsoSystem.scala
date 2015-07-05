@@ -145,6 +145,7 @@ abstract class IsoSystem extends isolate.Services {
       frame.systemConnector = frame.openConnector("system", factory, true)
 
       // 4. schedule for the first execution
+      
     } catch {
       case t: Throwable =>
         // 5. if not successful, release the name and rethrow
@@ -174,7 +175,7 @@ abstract class IsoSystem extends isolate.Services {
    *  Note that the `createFrame` caller (i.e. then `isolate` method of an iso-system
    *  implementation) must:
    *  - first, update its state
-   *  - then, call `frame.scheduler.initiate(frame)`
+   *  - then, call `frame.scheduler.startSchedule(frame)`
    *  - finally, call `frame.wake()`
    *
    *  @tparam T         the type of the events for the isolate

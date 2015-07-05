@@ -51,7 +51,7 @@ extends IsoSystem {
     monitor.synchronized {
       isolates(frame.name) = frame
     }
-    frame.scheduler.initiate(frame)
+    frame.scheduler.startSchedule(frame)
     frame.wake()
     isolate.channel
   }

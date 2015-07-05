@@ -17,7 +17,7 @@ import isolate._
  *  An isolate that is assigned a specific scheduler will always be executed on that
  *  same scheduler.
  *
- *  After creating an isolate, every isolate system will first call the `initiate`
+ *  After creating an isolate, every isolate system will first call the `startSchedule`
  *  method on the isolate frame.
  *  Then, the isolate system will call the `schedule` method every time there are events
  *  ready for the isolate.
@@ -40,12 +40,12 @@ trait Scheduler {
    */
   def schedule(frame: IsoFrame): Unit
 
-  /** Initiates the isolate frame.
+  /** Tells the scheduler to start listening to schedule requests for the isolate frame.
    *  Clients never call this method directly.
    *
-   *  @param frame      the isolate frame to initiate
+   *  @param frame      the isolate frame to start scheduling
    */
-  def initiate(frame: IsoFrame): Unit
+  def startSchedule(frame: IsoFrame): Unit
 
   /** The handler for the fatal errors that are not sent to
    *  the `failures` stream of the isolate.
@@ -188,7 +188,7 @@ object Scheduler {
     val executor: java.util.concurrent.Executor,
     val handler: Scheduler.Handler = Scheduler.defaultHandler
   ) extends Scheduler {
-    def initiate(frame: IsoFrame): Unit = {
+    def startSchedule(frame: IsoFrame): Unit = {
     }
 
     def schedule(frame: IsoFrame): Unit = {
@@ -209,7 +209,7 @@ object Scheduler {
       frame.schedulerInfo.asInstanceOf[Dedicated.Worker].awake()
     }
 
-    def initiate(frame: IsoFrame): Unit = {
+    def startSchedule(frame: IsoFrame): Unit = {
     }
   }
 
@@ -261,7 +261,7 @@ object Scheduler {
         w
       }
 
-      override def initiate(frame: IsoFrame): Unit = {
+      override def startSchedule(frame: IsoFrame): Unit = {
         val w = frame.schedulerInfo.asInstanceOf[Worker]
         val t = new WorkerThread(w)
         t.start()
@@ -292,9 +292,9 @@ object Scheduler {
         w
       }
 
-      override def initiate(frame: IsoFrame) {
+      override def startSchedule(frame: IsoFrame) {
         // ride, piggy, ride, like you never rode before!
-        super.initiate(frame)
+        super.startSchedule(frame)
         frame.schedulerInfo.asInstanceOf[Worker].loop(frame)
       }
     }
@@ -330,7 +330,7 @@ object Scheduler {
 
     def schedule(frame: IsoFrame) {}
 
-    def initiate(frame: IsoFrame) {
+    def startSchedule(frame: IsoFrame) {
       addFrame(frame)
 
       timer.schedule(new java.util.TimerTask {
