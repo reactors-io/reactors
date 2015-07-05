@@ -2,6 +2,8 @@ package scala.reactive
 package isolate
 
 
+// TODO remove this
+/*
 
 import java.util.concurrent.atomic._
 import scala.annotation.tailrec
@@ -153,3 +155,4 @@ object IsoFrame {
 
 }
 
+*/

@@ -88,11 +88,11 @@ object Services {
           }
         } onComplete {
           case s @ Success(_) =>
-            connector.channel << s
-            connector.channel.seal()
+            connector.channel ! s
+            connector.seal()
           case f @ Failure(t) =>
-            connector.channel << f
-            connector.channel.seal()
+            connector.channel ! f
+            connector.seal()
         }
         connector.events.map({
           case Success(s) => s
@@ -125,13 +125,13 @@ object Services {
       val connector = system.channels.daemon.open[Unit]
       val task = new TimerTask {
         def run() {
-          connector.channel << (())
+          connector.channel ! ()
         }
       }
       timer.schedule(task, d.toMillis, d.toMillis)
       val sub = Events.Subscription {
         task.cancel()
-        connector.channel.seal()
+        connector.seal()
       }
       connector.events.withSubscription(sub)
     }
@@ -152,13 +152,13 @@ object Services {
       val connector = system.channels.daemon.open[Unit]
       val task = new TimerTask {
         def run() {
-          connector.channel << (())
+          connector.channel ! ()
         }
       }
       timer.schedule(task, d.toMillis)
       val sub = Events.Subscription {
         task.cancel()
-        connector.channel.seal()
+        connector.seal()
       }
       connector.events.withSubscription(sub)
     }

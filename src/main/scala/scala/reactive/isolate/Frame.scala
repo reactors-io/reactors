@@ -12,6 +12,7 @@ import scala.reactive.util.Monitor
 
 final class Frame(
   val uid: Long,
+  val proto: Proto[Iso[_]],
   val scheduler: Scheduler2,
   val isolateSystem: IsoSystem
 ) extends Identifiable {
@@ -21,6 +22,7 @@ final class Frame(
   private[reactive] var lifecycleState: Frame.LifecycleState = Frame.Fresh
   private[reactive] val pendingQueues = new UnrolledRing[Conn[_]]
 
+  @volatile var iso: Iso[_] = _
   @volatile var name: String = _
   @volatile var defaultConnector: Conn[_] = _
   @volatile var systemConnector: Conn[_] = _
@@ -70,22 +72,18 @@ final class Frame(
   }
 
   def executeBatch() {
+    // 1. check the state
     // this method can only be called if the frame is in the "executing" state
     assert(executing)
 
-    try {
-      // if the frame was never run, initialize the frame
-      var runCtor = false
-      monitor.synchronized {
-        if (lifecycleState == Frame.Fresh) {
-          lifecycleState = Frame.Running
-          runCtor = true
-        }
-      }
+    // this method cannot be executed inside another isolate
+    if (Iso.selfIso.get != null) {
+      throw new IllegalStateException(
+        s"Cannot execute isolate inside of another isolate: ${Iso.selfIso.get}.")
+    }
 
-      if (runCtor) {
-        // TODO: instantiate the isolate
-      }
+    try {
+      isolateAndProcessBatch()
     } finally {
       // set the execution state to false if no more events
       // or re-schedule
@@ -97,6 +95,35 @@ final class Frame(
         }
       }
     }
+  }
+
+  def isolateAndProcessBatch() {
+    try {
+      Iso.selfIso.set(iso)
+      Iso.selfFrame.set(this)
+      processBatch()
+    } catch {
+      scheduler.handler
+    } finally {
+      Iso.selfIso.set(null)
+      Iso.selfFrame.set(null)
+    }
+  }
+
+  def processBatch() {
+    // if the frame was never run, run the isolate ctor
+    var runCtor = false
+    monitor.synchronized {
+      if (lifecycleState == Frame.Fresh) {
+        lifecycleState = Frame.Running
+        runCtor = true
+      }
+    }
+    if (runCtor) {
+      iso = proto.create()
+    }
+
+    // TODO process events
   }
 
   def hasTerminated: Boolean = monitor.synchronized {

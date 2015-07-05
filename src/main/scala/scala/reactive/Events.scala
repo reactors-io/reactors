@@ -823,20 +823,6 @@ trait Events[@spec(Int, Long, Double) +T] {
    */
   def effect(f: T => Unit): Events[T] = self.map({ x => f(x); x })
 
-  /** Adds this event stream to the current isolate's `react` store,
-   *  and removes it either when the event stream unreacts or when `unsubscribe`
-   *  gets called.
-   *
-   *  While the event stream is in the `react` store,
-   *  it is not necessary to keep a reference to it to prevent it from getting
-   *  garbage collected.
-   *  
-   *  @return           returns the endured version of this event stream
-   */
-  def endure: Events[T] with Events.Subscription = {
-    new Events.Endure(this)
-  }
-
   /** Returns a new event stream containing the same sequence of events as this event
    *  stream, but also contains the specified subscription.
    *
@@ -1666,27 +1652,6 @@ object Events {
       }
     }
     var subscription = Subscription.empty
-  }
-
-  private[reactive] class Endure[@spec(Int, Long, Double) T]
-    (val self: Events[T])
-  extends Events.Default[T] with Reactor[T] with Events.Subscription {
-    def react(value: T) = reactAll(value)
-    def except(t: Throwable) = exceptAll(t)
-    def unreact() {
-      Iso.self.declarations -= this
-      unreactAll()
-    }
-    def unsubscribe() {
-      Iso.self.declarations -= this
-      subscription.unsubscribe()
-    }
-    var subscription = Subscription.empty
-    def init(dummy: Events[T]) {
-      Iso.self.declarations += this
-      subscription = self.observe(this)
-    }
-    init(this)
   }
 
   private[reactive] class WithSubscription[@spec(Int, Long, Double) T]

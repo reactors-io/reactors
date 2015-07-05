@@ -66,15 +66,10 @@ import isolate._
  *  
  *  @tparam T        the type of the events this isolate produces
  */
-trait Iso[@spec(Int, Long, Double) T] extends ReactRecord {
-  @volatile private[reactive] var frame: IsoFrame = _
+trait Iso[@spec(Int, Long, Double) T] {
+  @volatile private[reactive] var frame: Frame = _
 
   @volatile private[reactive] var eventSources: mutable.Set[EventSource] = _
-
-  @volatile private[reactive] var systemEmitter: Events.Emitter[SysEvent] = _
-
-  @volatile private[reactive] var failureEmitter:
-    Events.Emitter[Throwable] = _
 
   val implicits = new Iso.Implicits
 
@@ -84,28 +79,18 @@ trait Iso[@spec(Int, Long, Double) T] extends ReactRecord {
   /* start workaround for a handful of specialization bugs */
 
   private def init(dummy: Iso[T]) {
-    frame = Iso.argFrame.value match {
+    frame = Iso.selfFrame.get match {
       case null => illegal()
-      case eq => eq.asInstanceOf[IsoFrame]
+      case eq => eq.asInstanceOf[Frame]
     }
-    frame.isolate = this
+    frame.iso = this
     eventSources = mutable.Set[EventSource]()
-    systemEmitter = new Events.Emitter[SysEvent]
-    failureEmitter = new Events.Emitter[Throwable]
     Iso.selfIso.set(this)
-    frame.isolateSourceConnector = frame.newSourceConnector(frame)
-    frame.isolateInternalConnector = frame.newInternalConnector(frame)
   }
 
   init(this)
 
   /* end workaround */
-
-  /** Make sure that system events reach the `systemEmitter`.
-   */
-  react <<= frame.internalConnector.events.collect({
-    case e: SysEvent => e
-  }).pipe(systemEmitter)
 
   /** The unique id of this isolate.
    *  
@@ -117,34 +102,41 @@ trait Iso[@spec(Int, Long, Double) T] extends ReactRecord {
    */
   final def system: IsoSystem = frame.isolateSystem
 
-  /** Internal events received by this isolate.
+  /** The default connector of this isolate.
    */
-  private[reactive] final def internalEvents: Events[InternalEvent] =
-    frame.internalConnector.events
-
-  /** The system event stream.
-   */
-  final def sysEvents: Events[SysEvent] = systemEmitter
-
-  /** The default event stream of this isolate.
-   */
-  final def events: Events[T] = frame.sourceConnector[T].events
-
-  /** The failures event stream.
-   */
-  final def failures: Events[Throwable] = failureEmitter
-
-  /** The system channel of this isolate.
-   */
-  final def sysChannel: Channel[InternalEvent] = frame.internalConnector.channel
+  final def connector: Conn[T] = {
+    frame.defaultConnector.asInstanceOf[Conn[T]]
+  }
 
   /** The default channel of this isolate.
    */
-  final def channel: Channel[T] = frame.sourceConnector[T].channel
+  final def channel: Chan[T] = {
+    connector.channel
+  }
 
-  /** The `Enqueuer` interface to the default event queue.
+  /** The default event stream of this isolate.
    */
-  final def later: Enqueuer[T] = frame.sourceConnector[T].queue
+  final def events: Events[T] = {
+    connector.events
+  }
+
+  /** The system connector of this isolate, which is a daemon.
+   */
+  final def sysConnector: Conn[SysEvent] = {
+    frame.systemConnector.asInstanceOf[Conn[SysEvent]]
+  }
+
+  /** The system channel of this isolate, which is a daemon.
+   */
+  final def sysChannel: Chan[SysEvent] = {
+    sysConnector.channel
+  }
+
+  /** The system event stream of this isolate.
+   */
+  final def sysEvents: Events[SysEvent] = {
+    sysConnector.events
+  }
 
 }
 
@@ -155,7 +147,9 @@ object Iso {
     override def initialValue = null
   }
 
-  private[reactive] val argFrame = new DynamicVariable[IsoFrame](null)
+  private[reactive] val selfFrame = new ThreadLocal[Frame] {
+    override def initialValue = null
+  }
 
   /** Returns the current isolate.
    *

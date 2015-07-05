@@ -3,6 +3,8 @@ package scala.reactive
 
 
 import org.scalatest.{FunSuite, Matchers}
+import scala.concurrent._
+import scala.concurrent.duration._
 
 
 
@@ -62,11 +64,34 @@ class IsoSystemTest extends FunSuite with Matchers {
     assert(conn.isDaemon)
   }
 
+  test("tryCreateIsolate should schedule isolate's ctor for execution") {
+    val system = new TestIsoSystem
+    val p = Promise[Unit]()
+    system.tryCreateIsolate(Proto[IsoSystemTest.PromiseIso](p))
+    Await.result(p.future, 5.seconds)
+  }
+
+  test("tryCreateIsolate should invoke the ctor with the Iso.self set") {
+    val system = new TestIsoSystem
+    val p = Promise[Boolean]()
+    system.tryCreateIsolate(Proto[IsoSystemTest.IsoSelfIso](p))
+    assert(Await.result(p.future, 5.seconds))
+  }
+
 }
 
 
 object IsoSystemTest {
 
   class TestIso extends Iso[Unit]
+
+  class PromiseIso(val p: Promise[Unit]) extends Iso[Unit] {
+    p.success(())
+  }
+
+  class IsoSelfIso(val p: Promise[Boolean]) extends Iso[Boolean] {
+    if (Iso.self[Iso[_]] eq this) p.success(true)
+    else p.success(false)
+  }
 
 }

@@ -2,7 +2,6 @@ package scala.reactive
 
 
 
-import scala.reactive.isolate.Multiplexer
 import scala.reflect.ClassTag
 
 
@@ -16,8 +15,7 @@ final class Proto[+I <: Iso[_]] private[reactive] (
   val clazz: Class[_],
   val params: Seq[Any],
   val scheduler: String = null,
-  val eventQueueFactory: EventQueue.Factory = null,
-  val multiplexer: Multiplexer = null,
+  val eventQueueFactory: EventQ.Factory = null,
   val name: String = null
 ) {
 
@@ -33,7 +31,7 @@ final class Proto[+I <: Iso[_]] private[reactive] (
    *  @return                    a new `Proto` object
    */
   def withScheduler(sname: String): Proto[I] =
-    new Proto(clazz, params, sname, eventQueueFactory, multiplexer, name)
+    new Proto(clazz, params, sname, eventQueueFactory, name)
 
   /** Associates the specified event queue type and returns the new `Proto` object.
    *  
@@ -41,19 +39,13 @@ final class Proto[+I <: Iso[_]] private[reactive] (
    *                             queue object
    *  @return                    a new `Proto` object
    */
-  def withEventQueue(f: EventQueue.Factory): Proto[I] =
-    new Proto(clazz, params, scheduler, f, multiplexer, name)
-
-  /** Associates a multiplexer with the event queue type and returns the new `Proto`
-   *  object.
-   */
-  def withMultiplexer(m: Multiplexer): Proto[I] =
-    new Proto(clazz, params, scheduler, eventQueueFactory, m, name)
+  def withEventQueue(f: EventQ.Factory): Proto[I] =
+    new Proto(clazz, params, scheduler, f, name)
 
   /** Associates the name for the new isolate and returns the new `Proto` object.
    */
   def withName(nm: String): Proto[I] =
-    new Proto(clazz, params, scheduler, eventQueueFactory, multiplexer, nm)
+    new Proto(clazz, params, scheduler, eventQueueFactory, nm)
 
 }
 
