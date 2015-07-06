@@ -48,12 +48,14 @@ final class Frame(
   }
 
   def scheduleForExecution() {
+    var mustSchedule = false
     monitor.synchronized {
       if (!executing) {
         executing = true
-        scheduler.schedule(this)
+        mustSchedule = true
       }
     }
+    if (mustSchedule) scheduler.schedule(this)
   }
 
   def enqueueEvent[@spec(Int, Long, Double) T](uid: Long, queue: EventQ[T], x: T) {
