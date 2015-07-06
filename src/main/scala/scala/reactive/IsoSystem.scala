@@ -60,13 +60,13 @@ abstract class IsoSystem extends isolate.Services {
    *  Finally, they must return the isolate's default channel.
    *
    *  @tparam T         the type of the events for the isolate
-   *  @tparam Q         the type of the events in the event queue of the isolate,
-   *                    for most isolate types the same as `T`
-   *  @param proto      the prototype for the isolate
+   *  @param p          the prototype for the isolate
    *  @param scheduler  the scheduler used to scheduler the isolate
    *  @return           the channel for this isolate
    */
-  def isolate[@spec(Int, Long, Double) T: Arrayable](proto: Proto[Iso[T]]): Channel[T]
+  def isolate[@spec(Int, Long, Double) T: Arrayable](p: Proto[Iso[T]]): Chan[T] = {
+    tryCreateIsolate(p)
+  }
 
   protected[reactive] def tryCreateIsolate[@spec(Int, Long, Double) T: Arrayable](
     proto: Proto[Iso[T]]

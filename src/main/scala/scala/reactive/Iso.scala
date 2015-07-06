@@ -68,9 +68,9 @@ import isolate._
  */
 trait Iso[@spec(Int, Long, Double) T] {
   @volatile private[reactive] var frame: Frame = _
-
   @volatile private[reactive] var eventSources: mutable.Set[EventSource] = _
-
+  @volatile private[reactive] var sysEventSub: Events.Subscription = _
+  private[reactive] val sysEmitter = new Events.Emitter[SysEvent]
   val implicits = new Iso.Implicits
 
   private def illegal() =
@@ -85,6 +85,7 @@ trait Iso[@spec(Int, Long, Double) T] {
     }
     frame.iso = this
     eventSources = mutable.Set[EventSource]()
+    sysEventSub = sysConnector.events.foreach(x => sysEmitter react x)
     Iso.selfIso.set(this)
   }
 
@@ -93,7 +94,7 @@ trait Iso[@spec(Int, Long, Double) T] {
   /* end workaround */
 
   /** The unique id of this isolate.
-   *  
+   *
    *  @return          the unique id, assigned only to this isolate
    */
   final def uid: Long = frame.uid
@@ -134,9 +135,7 @@ trait Iso[@spec(Int, Long, Double) T] {
 
   /** The system event stream of this isolate.
    */
-  final def sysEvents: Events[SysEvent] = {
-    sysConnector.events
-  }
+  final def sysEvents: Events[SysEvent] = sysEmitter
 
 }
 

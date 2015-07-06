@@ -20,10 +20,6 @@ class DefaultIsoSystem(
 
   val channels = new IsoSystem.Channels
 
-  def isolate[@spec(Int, Long, Double) T: Arrayable](proto: Proto[Iso[T]]): Channel[T] = {
-    ???
-  }
-
 }
 
 

@@ -47,6 +47,8 @@ final class Frame(
     conn
   }
 
+  /** Atomically schedules the frame for execution, unless already scheduled.
+   */
   def scheduleForExecution() {
     var mustSchedule = false
     monitor.synchronized {
@@ -63,14 +65,19 @@ final class Frame(
     val size = queue.enqueue(x)
 
     // 2. check if the frame should be scheduled for execution
+    var mustSchedule = false
     if (size == 1) monitor.synchronized {
       // 3. add the queue to pending queues
       val conn = connectors.forId(uid)
       pendingQueues.enqueue(conn)
 
       // 4. schedule the frame for later execution
-      scheduleForExecution()
+      if (!executing) {
+        executing = true
+        mustSchedule = true
+      }
     }
+    if (mustSchedule) scheduler.schedule(this)
   }
 
   def executeBatch() {
@@ -89,17 +96,19 @@ final class Frame(
     } finally {
       // set the execution state to false if no more events
       // or re-schedule
+      var mustSchedule = false
       monitor.synchronized {
         if (hasPendingEvents) {
-          scheduler.schedule(this)
+          mustSchedule = true
         } else {
           executing = false
         }
       }
+      if (mustSchedule) scheduler.schedule(this)
     }
   }
 
-  def isolateAndProcessBatch() {
+  private def isolateAndProcessBatch() {
     try {
       Iso.selfIso.set(iso)
       Iso.selfFrame.set(this)
@@ -112,7 +121,7 @@ final class Frame(
     }
   }
 
-  def processBatch() {
+  private def processBatch() {
     // if the frame was never run, run the isolate ctor
     var runCtor = false
     monitor.synchronized {
@@ -123,6 +132,7 @@ final class Frame(
     }
     if (runCtor) {
       iso = proto.create()
+      iso.sysEmitter.react(IsoStarted)
     }
 
     // TODO process events
