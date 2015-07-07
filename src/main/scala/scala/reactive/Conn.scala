@@ -8,10 +8,10 @@ import scala.reactive.isolate.Frame
 
 
 class Conn[@spec(Int, Long, Double) T](
-  private val localChannel: Chan.Local[T],
-  private val queue: EventQ[T],
-  private val eventsEmitter: Events.Emitter[T],
-  private val frame: Frame,
+  private[reactive] val localChannel: Chan.Local[T],
+  private[reactive] val queue: EventQ[T],
+  private[reactive] val eventsEmitter: Events.Emitter[T],
+  private[reactive] val frame: Frame,
   val isDaemon: Boolean
 ) extends Identifiable {
 
@@ -22,5 +22,7 @@ class Conn[@spec(Int, Long, Double) T](
   def events: Events[T] = eventsEmitter
 
   def seal(): Unit = frame.sealConnector(localChannel.uid)
+
+  private[reactive] def releaseEvent(): Int = ???
 
 }

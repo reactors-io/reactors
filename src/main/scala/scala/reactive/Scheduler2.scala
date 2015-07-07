@@ -94,7 +94,7 @@ object Scheduler2 {
      *  
      *  @return         `true` if more events can be scheduled
      */
-    def canSchedule: Boolean
+    def canConsume: Boolean
 
     /** Called just before an event gets scheduled.
      *  
@@ -120,7 +120,7 @@ object Scheduler2 {
         allowedBudget = 50
       }
 
-      def canSchedule = allowedBudget > 0
+      def canConsume = allowedBudget > 0
 
       def onBatchEvent(frame: Frame): Unit = {
         allowedBudget -= 1

@@ -13,6 +13,8 @@ trait EventQ[@spec(Int, Long, Double) T] {
 
   def dequeue(): T
 
+  def size: Int
+
 }
 
 
@@ -34,6 +36,10 @@ object EventQ {
 
     def dequeue(): T = monitor.synchronized {
       ring.dequeue()
+    }
+
+    def size: Int = monitor.synchronized {
+      ring.size
     }
   }
 

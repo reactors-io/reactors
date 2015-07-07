@@ -4,6 +4,7 @@ package isolate
 
 
 import java.util.concurrent.atomic._
+import scala.annotation.tailrec
 import scala.collection._
 import scala.reactive.core.UnrolledRing
 import scala.reactive.util.Monitor
@@ -94,8 +95,7 @@ final class Frame(
     try {
       isolateAndProcessBatch()
     } finally {
-      // set the execution state to false if no more events
-      // or re-schedule
+      // set the execution state to false if no more events, or otherwise re-schedule
       var mustSchedule = false
       monitor.synchronized {
         if (hasPendingEvents) {
@@ -121,8 +121,7 @@ final class Frame(
     }
   }
 
-  private def processBatch() {
-    // if the frame was never run, run the isolate ctor
+  private def checkFresh() {
     var runCtor = false
     monitor.synchronized {
       if (lifecycleState == Frame.Fresh) {
@@ -134,24 +133,46 @@ final class Frame(
       iso = proto.create()
       iso.sysEmitter.react(IsoStarted)
     }
+  }
 
-    // TODO process events
+  private def processEvents() {
+    schedulerState.onBatchStart(this)
+
+    // precondition: there is at least one pending event
+    @tailrec def loop(c: Conn[_]): Unit = {
+      val remaining = c.releaseEvent()
+      schedulerState.onBatchEvent(this)
+      if (schedulerState.canConsume) {
+        if (remaining > 0) loop(c)
+        else ??? // get next connector
+      } else {
+        if (remaining > 0) monitor.synchronized {
+          pendingQueues.enqueue(c)
+        }
+      }
+    }
+    // loop()
+
+    schedulerState.onBatchStop(this)
+  }
+
+  private def processBatch() {
+    checkFresh()
+    processEvents()
   }
 
   def hasTerminated: Boolean = monitor.synchronized {
     lifecycleState == Frame.Terminated
   }
 
-  def numPendingEvents: Int = {
-    ???
+  def numPendingEvents: Int = monitor.synchronized {
+    var count = 0
+    for (c <- pendingQueues) count += c.queue.size
+    count
   }
 
   def hasPendingEvents: Boolean = monitor.synchronized {
     pendingQueues.nonEmpty
-  }
-
-  def dequeueEvent() {
-    ???
   }
 
   def isConnectorSealed(uid: Long): Boolean = {
