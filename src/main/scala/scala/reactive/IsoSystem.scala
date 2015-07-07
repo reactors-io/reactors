@@ -20,12 +20,8 @@ abstract class IsoSystem extends isolate.Services {
 
   /** Encapsulates the internal state of the isolate system.
    */
-  private[reactive] class State {
-    val monitor = new Monitor
-    val frames = new UniqueStore[Frame]("isolate", monitor)
-  }
-
-  private[reactive] val state = new State
+  val monitor = new Monitor
+  val frames = new UniqueStore[Frame]("isolate", monitor)
 
   /** Retrieves the bundle for this isolate system.
    *  
@@ -72,13 +68,13 @@ abstract class IsoSystem extends isolate.Services {
     proto: Proto[Iso[T]]
   ): Chan[T] = {
     // 1. ensure a unique id
-    val uid = state.frames.reserveId()
+    val uid = frames.reserveId()
     val scheduler = Scheduler2.newThread
     val factory = EventQ.UnrolledRing.Factory
     val frame = new Frame(uid, proto, scheduler, this)
 
     // 2. reserve the unique name or break
-    val uname = state.frames.tryStore(proto.name, frame)
+    val uname = frames.tryStore(proto.name, frame)
 
     try {
       // 3. allocate the standard connectors
@@ -92,7 +88,7 @@ abstract class IsoSystem extends isolate.Services {
     } catch {
       case t: Throwable =>
         // 5. if not successful, release the name and rethrow
-        state.frames.tryRelease(uname)
+        frames.tryRelease(uname)
         throw t
     }
 

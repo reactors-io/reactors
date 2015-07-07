@@ -24,15 +24,15 @@ class IsoSystemTest extends FunSuite with Matchers {
     val system = new TestIsoSystem
     val proto = Proto[IsoSystemTest.TestIso]
     system.isolate(proto)
-    assert(system.state.frames.forName("isolate-0") != null)
+    assert(system.frames.forName("isolate-0") != null)
   }
 
   test("system should return without throwing and use custom name") {
     val system = new TestIsoSystem
     val proto = Proto[IsoSystemTest.TestIso].withName("Izzy")
     system.isolate(proto)
-    assert(system.state.frames.forName("Izzy") != null)
-    assert(system.state.frames.forName("Izzy").name == "Izzy")
+    assert(system.frames.forName("Izzy") != null)
+    assert(system.frames.forName("Izzy").name == "Izzy")
   }
 
   test("system should throw when attempting to reuse the same name") {
@@ -47,7 +47,7 @@ class IsoSystemTest extends FunSuite with Matchers {
     val system = new TestIsoSystem
     val channel = system.isolate(Proto[IsoSystemTest.TestIso].withName("Izzy"))
     assert(channel != null)
-    val conn = system.state.frames.forName("Izzy").connectors.forName("default")
+    val conn = system.frames.forName("Izzy").connectors.forName("default")
     assert(conn != null)
     assert(conn.channel eq channel)
     assert(!conn.isDaemon)
@@ -56,7 +56,7 @@ class IsoSystemTest extends FunSuite with Matchers {
   test("system should create a system channel for the isolate") {
     val system = new TestIsoSystem
     system.isolate(Proto[IsoSystemTest.TestIso].withName("Izzy"))
-    val conn = system.state.frames.forName("Izzy").connectors.forName("system")
+    val conn = system.frames.forName("Izzy").connectors.forName("system")
     assert(conn != null)
     assert(conn.isDaemon)
   }
