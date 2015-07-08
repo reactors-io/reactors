@@ -135,6 +135,11 @@ final class Frame(
     }
   }
 
+  private def nextPending(): Conn[_] = monitor.synchronized {
+    if (pendingQueues.nonEmpty) pendingQueues.dequeue()
+    else null
+  }
+
   private def processEvents() {
     schedulerState.onBatchStart(this)
 
@@ -143,15 +148,20 @@ final class Frame(
       val remaining = c.releaseEvent()
       schedulerState.onBatchEvent(this)
       if (schedulerState.canConsume) {
+        // need to consume some more
         if (remaining > 0) loop(c)
-        else ??? // get next connector
+        else {
+          val nc = nextPending()
+          if (nc != null) loop(nc)
+        }
       } else {
+        // done consuming -- see if the connector needs to be enqueued
         if (remaining > 0) monitor.synchronized {
           pendingQueues.enqueue(c)
         }
       }
     }
-    // loop()
+    // loop(???)
 
     schedulerState.onBatchStop(this)
   }
