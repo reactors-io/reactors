@@ -161,7 +161,8 @@ final class Frame(
         }
       }
     }
-    // loop(???)
+    val nc = nextPending()
+    if (nc != null) loop(nc)
 
     schedulerState.onBatchStop(this)
   }
