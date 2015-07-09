@@ -75,14 +75,14 @@ class IsoSystemTest extends FunSuite with Matchers {
     assert(Await.result(p.future, 5.seconds))
   }
 
-  test("system should ensure the IsoStarted event") {
+  test("iso should ensure the IsoStarted event") {
     val system = new TestIsoSystem
     val p = Promise[Boolean]()
     system.isolate(Proto[IsoSystemTest.IsoStartedIso](p))
     assert(Await.result(p.future, 5.seconds))
   }
 
-  test("system should process an event that arrives after the first batch") {
+  test("iso should process an event that arrives after the first batch") {
     val system = new TestIsoSystem
     val p = Promise[Boolean]()
     val ch = system.isolate(Proto[IsoSystemTest.AfterFirstBatchIso](p))
@@ -91,18 +91,35 @@ class IsoSystemTest extends FunSuite with Matchers {
     assert(Await.result(p.future, 5.seconds))
   }
 
-  test("system should process an event that arrives during the first batch") {
+  test("iso should process an event that arrives during the first batch") {
     val system = new TestIsoSystem
     val p = Promise[Boolean]()
     val ch = system.isolate(Proto[IsoSystemTest.DuringFirstBatchIso](p))
     assert(Await.result(p.future, 5.seconds))
   }
 
-  test("system should process an event that arrives during the first event") {
+  test("iso should process an event that arrives during the first event") {
     val system = new TestIsoSystem
     val p = Promise[Boolean]()
     val ch = system.isolate(Proto[IsoSystemTest.DuringFirstEventIso](p))
     ch ! "message"
+    assert(Await.result(p.future, 5.seconds))
+  }
+
+  test("iso should process two events that arrive during the first event") {
+    val system = new TestIsoSystem
+    val p = Promise[Boolean]()
+    val ch = system.isolate(Proto[IsoSystemTest.TwoDuringFirstIso](p))
+    ch ! "start"
+    assert(Await.result(p.future, 5.seconds))
+  }
+
+  test("iso should process 100 incoming events") {
+    val system = new TestIsoSystem
+    val p = Promise[Boolean]()
+    val ch = system.isolate(Proto[IsoSystemTest.CountdownIso](p, 100))
+    Thread.sleep(200)
+    for (i <- 0 until 100) ch ! "dec"
     assert(Await.result(p.future, 5.seconds))
   }
 
@@ -151,6 +168,28 @@ object IsoSystemTest {
     events onCase {
       case "message" => channel ! "success"
       case "success" => p.success(true)
+    }
+  }
+
+  class TwoDuringFirstIso(val p: Promise[Boolean]) extends Iso[String] {
+    import implicits.canLeak
+    var countdown = 2
+    events onCase {
+      case "start" =>
+        channel ! "dec"
+        channel ! "dec"
+      case "dec" =>
+        countdown -= 1
+        if (countdown == 0) p.success(true)
+    }
+  }
+
+  class CountdownIso(val p: Promise[Boolean], var count: Int) extends Iso[String] {
+    import implicits.canLeak
+    events onCase {
+      case "dec" =>
+        count -= 1
+        if (count == 0) p.success(true)
     }
   }
 

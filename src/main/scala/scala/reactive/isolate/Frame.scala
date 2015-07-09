@@ -98,7 +98,7 @@ final class Frame(
       // set the execution state to false if no more events, or otherwise re-schedule
       var mustSchedule = false
       monitor.synchronized {
-        if (hasPendingEvents) {
+        if (pendingQueues.nonEmpty) {
           mustSchedule = true
         } else {
           executing = false
@@ -176,14 +176,14 @@ final class Frame(
     lifecycleState == Frame.Terminated
   }
 
-  def numPendingEvents: Int = monitor.synchronized {
+  def hasPendingEvents: Boolean = monitor.synchronized {
+    pendingQueues.nonEmpty
+  }
+
+  def estimateTotalPendingEvents: Int = monitor.synchronized {
     var count = 0
     for (c <- pendingQueues) count += c.queue.size
     count
-  }
-
-  def hasPendingEvents: Boolean = monitor.synchronized {
-    pendingQueues.nonEmpty
   }
 
   def isConnectorSealed(uid: Long): Boolean = {

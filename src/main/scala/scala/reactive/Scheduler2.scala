@@ -211,21 +211,22 @@ object Scheduler2 {
 
     private[reactive] class Worker(val frame: Frame, val handler: Scheduler2.Handler)
     extends Scheduler2.State.Default {
-      val monitor = new util.Monitor
 
       @tailrec final def loop(f: Frame): Unit = {
         try {
           frame.executeBatch()
-          monitor.synchronized {
-            monitor.wait()
+          frame.monitor.synchronized {
+            while (!frame.hasTerminated && !frame.hasPendingEvents) {
+              frame.monitor.wait()
+            }
           }
         } catch handler
         if (!frame.hasTerminated) loop(f)
       }
 
       def awake() {
-        monitor.synchronized {
-          monitor.notify()
+        frame.monitor.synchronized {
+          frame.monitor.notify()
         }
       }
     }
@@ -318,7 +319,7 @@ object Scheduler2 {
 
     override def newState(frame: Frame) = new Scheduler2.State.Default {
       override def onBatchStart(frame: Frame): Unit = {
-        allowedBudget = frame.numPendingEvents
+        allowedBudget = frame.estimateTotalPendingEvents
       }
     }
 
