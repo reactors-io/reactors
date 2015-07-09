@@ -82,7 +82,7 @@ class IsoSystemTest extends FunSuite with Matchers {
     assert(Await.result(p.future, 5.seconds))
   }
 
-  test("system should process a message that arrives after the first batch") {
+  test("system should process an event that arrives after the first batch") {
     val system = new TestIsoSystem
     val p = Promise[Boolean]()
     val ch = system.isolate(Proto[IsoSystemTest.AfterFirstBatchIso](p))
@@ -91,10 +91,18 @@ class IsoSystemTest extends FunSuite with Matchers {
     assert(Await.result(p.future, 5.seconds))
   }
 
-  test("system should process a message that arrives during the first batch") {
+  test("system should process an event that arrives during the first batch") {
     val system = new TestIsoSystem
     val p = Promise[Boolean]()
     val ch = system.isolate(Proto[IsoSystemTest.DuringFirstBatchIso](p))
+    assert(Await.result(p.future, 5.seconds))
+  }
+
+  test("system should process an event that arrives during the first event") {
+    val system = new TestIsoSystem
+    val p = Promise[Boolean]()
+    val ch = system.isolate(Proto[IsoSystemTest.DuringFirstEventIso](p))
+    ch ! "message"
     assert(Await.result(p.future, 5.seconds))
   }
 
@@ -134,6 +142,14 @@ object IsoSystemTest {
       case IsoStarted => channel ! "success"
     }
     events onCase {
+      case "success" => p.success(true)
+    }
+  }
+
+  class DuringFirstEventIso(val p: Promise[Boolean]) extends Iso[String] {
+    import implicits.canLeak
+    events onCase {
+      case "message" => channel ! "success"
       case "success" => p.success(true)
     }
   }
