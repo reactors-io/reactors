@@ -86,7 +86,7 @@ class IsoSystemTest extends FunSuite with Matchers {
     val system = new TestIsoSystem
     val p = Promise[Boolean]()
     val ch = system.isolate(Proto[IsoSystemTest.AfterFirstBatchIso](p))
-    Thread.sleep(500)
+    Thread.sleep(250)
     ch ! "success"
     assert(Await.result(p.future, 5.seconds))
   }
@@ -118,9 +118,14 @@ class IsoSystemTest extends FunSuite with Matchers {
     val system = new TestIsoSystem
     val p = Promise[Boolean]()
     val ch = system.isolate(Proto[IsoSystemTest.CountdownIso](p, 100))
-    Thread.sleep(200)
+    Thread.sleep(250)
     for (i <- 0 until 100) ch ! "dec"
     assert(Await.result(p.future, 5.seconds))
+  }
+
+  test("iso should terminate") {
+    val system = new TestIsoSystem
+    // TODO implement Frame#sealConnector and complete this test
   }
 
 }

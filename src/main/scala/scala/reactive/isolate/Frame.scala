@@ -19,6 +19,7 @@ final class Frame(
 ) extends Identifiable {
   private[reactive] val monitor = new Monitor
   private[reactive] val connectors = new UniqueStore[Conn[_]]("channel", monitor)
+  private[reactive] var nonDaemonCount = 0
   private[reactive] var executing = false
   private[reactive] var lifecycleState: Frame.LifecycleState = Frame.Fresh
   private[reactive] val pendingQueues = new UnrolledRing[Conn[_]]
@@ -42,7 +43,11 @@ final class Frame(
     val conn = new Conn(chan, queue, events, this, isDaemon)
 
     // 2. acquire a unique name or break
-    val uname = connectors.tryStore(name, conn)
+    val uname = monitor.synchronized {
+      val u = connectors.tryStore(name, conn)
+      if (!isDaemon) nonDaemonCount += 1
+      u
+    }
 
     // 3. return connector
     conn
@@ -167,9 +172,16 @@ final class Frame(
     schedulerState.onBatchStop(this)
   }
 
+  private def checkTerminated() {
+    monitor.synchronized {
+      pendingQueues.isEmpty && nonDaemonCount == 0
+    }
+  }
+
   private def processBatch() {
     checkFresh()
     processEvents()
+    checkTerminated()
   }
 
   def hasTerminated: Boolean = monitor.synchronized {
