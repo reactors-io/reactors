@@ -23,6 +23,6 @@ class Conn[@spec(Int, Long, Double) T](
 
   def seal(): Unit = frame.sealConnector(localChannel.uid)
 
-  private[reactive] def releaseEvent(): Int = ???
+  def dequeue(): Int = queue.dequeue(eventsEmitter)
 
 }

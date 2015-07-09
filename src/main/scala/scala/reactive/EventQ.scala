@@ -11,7 +11,7 @@ trait EventQ[@spec(Int, Long, Double) T] {
 
   def enqueue(x: T): Int
 
-  def dequeue(): T
+  def dequeue(emitter: Events.Emitter[T]): Int
 
   def size: Int
 
@@ -34,8 +34,14 @@ object EventQ {
       ring.size
     }
 
-    def dequeue(): T = monitor.synchronized {
-      ring.dequeue()
+    def dequeue(emitter: Events.Emitter[T]): Int = {
+      var remaining = -1
+      val x = monitor.synchronized {
+        remaining = ring.size - 1
+        ring.dequeue()
+      }
+      emitter react x
+      remaining
     }
 
     def size: Int = monitor.synchronized {

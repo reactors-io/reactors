@@ -145,7 +145,7 @@ final class Frame(
 
     // precondition: there is at least one pending event
     @tailrec def loop(c: Conn[_]): Unit = {
-      val remaining = c.releaseEvent()
+      val remaining = c.dequeue()
       schedulerState.onBatchEvent(this)
       if (schedulerState.canConsume) {
         // need to consume some more
