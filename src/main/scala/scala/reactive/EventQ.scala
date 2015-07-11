@@ -24,6 +24,15 @@ object EventQ {
     def newInstance[@spec(Int, Long, Double) T: Arrayable]: EventQ[T]
   }
 
+  class Zero[@spec(Int, Long, Double) T: Arrayable]
+  extends EventQ[T] {
+    def enqueue(x: T) = 0
+    def dequeue(emitter: Events.Emitter[T]) = 0
+    def size = 0
+  }
+
+  def isZero(q: EventQ[_]): Boolean = q.isInstanceOf[Zero[_]]
+
   class UnrolledRing[@spec(Int, Long, Double) T: Arrayable]
   extends EventQ[T] {
     private val monitor = new Monitor

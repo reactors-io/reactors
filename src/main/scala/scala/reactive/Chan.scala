@@ -22,10 +22,11 @@ object Chan {
     val queue: EventQ[T],
     val frame: Frame
   ) extends Chan[T] {
+    private[reactive] var isOpen = true
 
-    def !(x: T): Unit = frame.enqueueEvent(uid, queue, x)
+    def !(x: T): Unit = if (isOpen) frame.enqueueEvent(uid, queue, x)
 
-    def isSealed: Boolean = frame.isConnectorSealed(uid)
+    def isSealed: Boolean = !isOpen
 
   }
 

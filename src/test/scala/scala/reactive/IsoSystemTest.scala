@@ -123,9 +123,12 @@ class IsoSystemTest extends FunSuite with Matchers {
     assert(Await.result(p.future, 5.seconds))
   }
 
-  test("iso should terminate") {
+  test("iso should terminate after sealing its channel") {
     val system = new TestIsoSystem
-    // TODO implement Frame#sealConnector and complete this test
+    val p = Promise[Boolean]()
+    val ch = system.isolate(Proto[IsoSystemTest.AfterSealTerminateIso](p))
+    ch ! "seal"
+    assert(Await.result(p.future, 5.seconds))
   }
 
 }
@@ -195,6 +198,16 @@ object IsoSystemTest {
       case "dec" =>
         count -= 1
         if (count == 0) p.success(true)
+    }
+  }
+
+  class AfterSealTerminateIso(val p: Promise[Boolean]) extends Iso[String] {
+    import implicits.canLeak
+    events onCase {
+      case "seal" => connector.seal()
+    }
+    sysEvents onCase {
+      case IsoTerminated => p.success(true)
     }
   }
 

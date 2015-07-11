@@ -18,7 +18,9 @@ final class UniqueStore[T >: Null <: Identifiable with AnyRef](
 ) {
   private val idCounter = new AtomicLong(0L)
   private val byName = RMap[String, T]
-  private val byId = RMap[Long, T]
+  private val byId = RMap[Long, String]
+
+  val nil = byName.nil
 
   /** Compute and return a unique id.
    */
@@ -47,7 +49,7 @@ final class UniqueStore[T >: Null <: Identifiable with AnyRef](
       throw new IllegalArgumentException(s"Name $proposedName unavailable.")
     } else {
       byName(uname) = x
-      byId(x.uid) = x
+      byId(x.uid) = uname
       uname
     }
   }
@@ -67,6 +69,17 @@ final class UniqueStore[T >: Null <: Identifiable with AnyRef](
     }
   }
 
+  /** Releases the object under the specified id.
+   *
+   *  @param id              the unique id of the object
+   *  @return                `true` if released, `false` otherwise
+   */
+  def tryReleaseById(id: Long): Boolean = monitor.synchronized {
+    val uname = byId.applyOrNil(id)
+    if (uname == byId.nil) false
+    else tryRelease(uname)
+  }
+
   /** Returns an object stored under the specified name, or `null`.
    */
   def forName(name: String): T = monitor.synchronized {
@@ -76,6 +89,8 @@ final class UniqueStore[T >: Null <: Identifiable with AnyRef](
   /** Returns an object stored under the specified `id`, or `null`.
    */
   def forId(id: Long): T = monitor.synchronized {
-    byId.applyOrNil(id)
+    val uname = byId.applyOrNil(id)
+    if (uname == byId.nil) byName.nil
+    else byName(uname)
   }
 }

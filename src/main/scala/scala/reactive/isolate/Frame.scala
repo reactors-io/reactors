@@ -140,7 +140,7 @@ final class Frame(
     }
   }
 
-  private def nextPending(): Conn[_] = monitor.synchronized {
+  private def popNextPending(): Conn[_] = monitor.synchronized {
     if (pendingQueues.nonEmpty) pendingQueues.dequeue()
     else null
   }
@@ -156,7 +156,7 @@ final class Frame(
         // need to consume some more
         if (remaining > 0) loop(c)
         else {
-          val nc = nextPending()
+          val nc = popNextPending()
           if (nc != null) loop(nc)
         }
       } else {
@@ -166,15 +166,24 @@ final class Frame(
         }
       }
     }
-    val nc = nextPending()
+    val nc = popNextPending()
     if (nc != null) loop(nc)
 
     schedulerState.onBatchStop(this)
   }
 
   private def checkTerminated() {
+    var emitTerminated = false
     monitor.synchronized {
-      pendingQueues.isEmpty && nonDaemonCount == 0
+      if (lifecycleState == Frame.Running) {
+        if (pendingQueues.isEmpty && nonDaemonCount == 0) {
+          lifecycleState = Frame.Terminated
+          emitTerminated = true
+        }
+      }
+    }
+    if (emitTerminated) {
+      iso.sysEmitter.react(IsoTerminated)
     }
   }
 
@@ -198,12 +207,15 @@ final class Frame(
     count
   }
 
-  def isConnectorSealed(uid: Long): Boolean = {
-    ???
-  }
-
-  def sealConnector(uid: Long): Boolean = {
-    ???
+  def sealConnector(uid: Long): Boolean = monitor.synchronized {
+    val conn = connectors.forId(uid)
+    if (conn == connectors.nil) false
+    else {
+      conn.localChannel.isOpen = false
+      if (!conn.isDaemon) nonDaemonCount -= 1
+      assert(connectors.tryReleaseById(uid))
+      true
+    }
   }
 
 }
