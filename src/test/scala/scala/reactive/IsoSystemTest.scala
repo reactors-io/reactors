@@ -17,7 +17,6 @@ class IsoSystemTest extends FunSuite with Matchers {
     def newChannel[@spec(Int, Long, Double) Q](reactor: Reactor[Q]): Channel[Q] = ???
     def name = "TestIsoSystem"
     def bundle = IsoSystem.defaultBundle
-    def channels = ???
   }
 
   test("system should return without throwing") {
@@ -131,6 +130,13 @@ class IsoSystemTest extends FunSuite with Matchers {
     assert(Await.result(p.future, 5.seconds))
   }
 
+  test("iso should be able to open a new channel") {
+    val system = new TestIsoSystem
+    val p = Promise[Boolean]()
+    system.isolate(Proto[IsoSystemTest.NewChannelIso](p))
+    assert(Await.result(p.future, 5.seconds))
+  }
+
 }
 
 
@@ -208,6 +214,25 @@ object IsoSystemTest {
     }
     sysEvents onCase {
       case IsoTerminated => p.success(true)
+    }
+  }
+
+  class NewChannelIso(val p: Promise[Boolean]) extends Iso[String] {
+    import implicits.canLeak
+    val secondary = system.channels.open[Boolean]
+    sysEvents onCase {
+      case IsoStarted =>
+        channel ! "open"
+      case IsoTerminated =>
+        p.success(true)
+    }
+    events onCase {
+      case "open" =>
+        secondary.channel ! true
+        connector.seal()
+    }
+    secondary.events onEvent { v =>
+      secondary.seal()
     }
   }
 

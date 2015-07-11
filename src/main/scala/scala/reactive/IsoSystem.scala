@@ -39,7 +39,7 @@ abstract class IsoSystem extends isolate.Services {
    *  
    *  @return          the channels register
    */
-  def channels: IsoSystem.Channels
+  val channels: IsoSystem.Channels = new IsoSystem.Channels
 
   /** Creates a new isolate instance in this isolate system.
    *
@@ -228,8 +228,6 @@ object IsoSystem {
 
   /** The channel register used for channel lookup by name.
    */
-  class Channels extends ChannelBuilder(null, false, null)
+  class Channels extends ChannelBuilder(null, false, EventQ.UnrolledRing.Factory)
 
 }
-
-

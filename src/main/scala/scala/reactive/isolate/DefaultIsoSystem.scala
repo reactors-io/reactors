@@ -16,11 +16,7 @@ import scala.collection._
 class DefaultIsoSystem(
   val name: String,
   val bundle: IsoSystem.Bundle = IsoSystem.defaultBundle
-) extends IsoSystem {
-
-  val channels = new IsoSystem.Channels
-
-}
+) extends IsoSystem
 
 
 object DefaultIsoSystem {
