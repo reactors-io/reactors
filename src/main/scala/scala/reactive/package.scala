@@ -372,11 +372,6 @@ package object reactive {
    */
   case object IsoTerminated extends SysEvent
 
-  /** Denotes that all the events were processed
-   *  and the queues became empty.
-   */
-  case object IsoEmptyQueue extends SysEvent
-
   /* exceptions */
 
   object exception {
