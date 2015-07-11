@@ -137,6 +137,24 @@ class IsoSystemTest extends FunSuite with Matchers {
     assert(Await.result(p.future, 5.seconds))
   }
 
+  test("iso should get IsoScheduled events") {
+    val system = new TestIsoSystem
+    val p = Promise[Boolean]()
+    val ch = system.isolate(Proto[IsoSystemTest.IsoScheduledIso](p))
+    for (i <- 0 until 5) {
+      Thread.sleep(60)
+      ch ! "dummy"
+    }
+    assert(Await.result(p.future, 5.seconds))
+  }
+
+  test("iso should get IsoPreempted events") {
+    val system = new TestIsoSystem
+    val p = Promise[Boolean]()
+    system.isolate(Proto[IsoSystemTest.IsoPreemptedIso](p))
+    assert(Await.result(p.future, 5.seconds))
+  }
+
 }
 
 
@@ -233,6 +251,31 @@ object IsoSystemTest {
     }
     secondary.events onEvent { v =>
       secondary.seal()
+    }
+  }
+
+  class IsoScheduledIso(val p: Promise[Boolean]) extends Iso[String] {
+    import implicits.canLeak
+    var left = 5
+    sysEvents onCase {
+      case IsoScheduled =>
+        left -= 1
+        if (left == 0) connector.seal()
+      case IsoTerminated =>
+        p.success(true)
+    }
+  }
+
+  class IsoPreemptedIso(val p: Promise[Boolean]) extends Iso[String] {
+    import implicits.canLeak
+    var left = 5
+    sysEvents onCase {
+      case IsoPreempted =>
+        left -= 1
+        if (left > 0) channel ! "dummy"
+        else connector.seal()
+      case IsoTerminated =>
+        p.success(true)
     }
   }
 

@@ -188,9 +188,17 @@ final class Frame(
   }
 
   private def processBatch() {
-    checkFresh()
-    processEvents()
-    checkTerminated()
+    try checkFresh()
+    catch { case t: Throwable =>
+      throw new IsolateError("Isolate constructor raised an exception.", t)
+    }
+    try {
+      iso.sysEmitter.react(IsoScheduled)
+      processEvents()
+      iso.sysEmitter.react(IsoPreempted)
+    } finally {
+      checkTerminated()
+    }
   }
 
   def hasTerminated: Boolean = monitor.synchronized {

@@ -190,9 +190,12 @@ package object reactive {
 
   /* exception handling */
 
+  case class IsolateError(msg: String, cause: Throwable) extends Error(msg, cause)
+
   def isLethal(t: Throwable): Boolean = t match {
     case e: VirtualMachineError => true
     case e: LinkageError => true
+    case e: IsolateError => true
     case _ => false
   }
 
@@ -200,6 +203,7 @@ package object reactive {
     def unapply(t: Throwable): Option[Throwable] = t match {
       case e: VirtualMachineError => Some(e)
       case e: LinkageError => Some(e)
+      case e: IsolateError => Some(e)
       case _ => None
     }
   }
@@ -210,6 +214,7 @@ package object reactive {
     def unapply(t: Throwable): Option[Throwable] = t match {
       case e: VirtualMachineError => None
       case e: LinkageError => None
+      case e: IsolateError => None
       case _ => Some(t)
     }
   }
@@ -371,6 +376,22 @@ package object reactive {
    *  Called after all other events.
    */
   case object IsoTerminated extends SysEvent
+
+  /** Denotes that the isolate was scheduled for execution by the scheduler.
+   *
+   *  This event usually occurs when isolate is woken up to process incoming events,
+   *  but may be invoked even if there are no pending events.
+   *  This event is typically used in conjunction with a scheduler that periodically
+   *  wakes up the isolate.
+   */
+  case object IsoScheduled extends SysEvent
+
+  /** Denotes that the isolate was preempted by the scheduler.
+   *
+   *  When the isolate is preempted, it loses control of the execution thread, until the
+   *  scheduler schedules it again on some (possibly the same) thread.
+   */
+  case object IsoPreempted extends SysEvent
 
   /* exceptions */
 
