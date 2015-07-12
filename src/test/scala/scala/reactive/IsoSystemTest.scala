@@ -11,9 +11,6 @@ import scala.concurrent.duration._
 class IsoSystemTest extends FunSuite with Matchers {
 
   class TestIsoSystem extends IsoSystem {
-    def uniqueId() = ???
-    def uniqueName(name: String) = ???
-    def releaseNames(name: String) = ???
     def newChannel[@spec(Int, Long, Double) Q](reactor: Reactor[Q]): Channel[Q] = ???
     def name = "TestIsoSystem"
     def bundle = IsoSystem.defaultBundle
@@ -162,6 +159,14 @@ class IsoSystemTest extends FunSuite with Matchers {
     assert(Await.result(p.future, 5.seconds) == (true, true))
   }
 
+  test("iso does not raise termination-related IsoDied events after IsoTerminated") {
+    val system = new TestIsoSystem
+    val p = Promise[Boolean]()
+    system.isolate(Proto[IsoSystemTest.TerminationExceptionIso](p))
+    Thread.sleep(100)
+    assert(p.future.value == None)
+  }
+
 }
 
 
@@ -301,6 +306,16 @@ object IsoSystemTest {
     }
 
     sys.error("Exception thrown in ctor!")
+  }
+
+  class TerminationExceptionIso(val p: Promise[Boolean]) extends Iso[Unit] {
+    import implicits.canLeak
+
+    sysEvents onCase {
+      case IsoDied(t) => p.success(true)
+      case IsoPreempted => connector.seal()
+      case IsoTerminated => sys.error("Exception thrown during termination!")
+    }
   }
 
 }

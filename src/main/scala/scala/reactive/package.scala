@@ -403,7 +403,7 @@ package object reactive {
    *
    *  This event is sent after `IsoStarted`.
    *  This event is sent before `IsoTerminated`, *unless* the exception is thrown while
-   *  `IsoTerminated` is being processed.
+   *  `IsoTerminated` is being processed, in which case the `IsoDied` is not sent.
    *
    *  Note that, if the exception is thrown during the isolate constructor invocation
    *  and before the appropriate event handler is created, this event cannot be sent

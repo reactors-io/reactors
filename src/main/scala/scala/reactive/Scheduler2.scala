@@ -136,8 +136,7 @@ object Scheduler2 {
   /** The default handler prints the exception to the standard error stream.
    */
   val defaultHandler: Handler = {
-    case t: Throwable =>
-      t.printStackTrace()
+    case t: Throwable => t.printStackTrace()
   }
 
   /** Scheduler2 that shares the global Scala execution context.
