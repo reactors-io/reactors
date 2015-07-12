@@ -119,7 +119,11 @@ final class Frame(
       Iso.selfFrame.set(this)
       processBatch()
     } catch {
-      scheduler.handler
+      case t: Throwable =>
+        // send the exception to the scheduler's handler, then immediately terminate
+        try scheduler.handler(t)
+        finally try iso.sysEmitter.react(IsoDied(t))
+        finally checkTerminated(true)
     } finally {
       Iso.selfIso.set(null)
       Iso.selfFrame.set(null)
@@ -172,11 +176,11 @@ final class Frame(
     schedulerState.onBatchStop(this)
   }
 
-  private def checkTerminated() {
+  private def checkTerminated(forcedTermination: Boolean) {
     var emitTerminated = false
     monitor.synchronized {
       if (lifecycleState == Frame.Running) {
-        if (pendingQueues.isEmpty && nonDaemonCount == 0) {
+        if (forcedTermination || (pendingQueues.isEmpty && nonDaemonCount == 0)) {
           lifecycleState = Frame.Terminated
           emitTerminated = true
         }
@@ -197,7 +201,7 @@ final class Frame(
       processEvents()
       iso.sysEmitter.react(IsoPreempted)
     } finally {
-      checkTerminated()
+      checkTerminated(false)
     }
   }
 

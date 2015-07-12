@@ -390,8 +390,16 @@ package object reactive {
    *
    *  When the isolate is preempted, it loses control of the execution thread, until the
    *  scheduler schedules it again on some (possibly the same) thread.
+   *  This event is typically used to send another message back to the isolate,
+   *  indicating that he should be scheduled again later.
    */
   case object IsoPreempted extends SysEvent
+
+  /** Denotes that the isolate died due to an exception.
+   *
+   *  @param t              the exception that the isolate threw
+   */
+  case class IsoDied(t: Throwable) extends SysEvent
 
   /* exceptions */
 
