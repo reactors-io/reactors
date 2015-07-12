@@ -155,8 +155,11 @@ class IsoSystemTest extends FunSuite with Matchers {
     assert(Await.result(p.future, 5.seconds))
   }
 
-  test("iso should terminate in the case of an exception") {
-    // TODO
+  test("iso should terminate on ctor exception") {
+    val system = new TestIsoSystem
+    val p = Promise[(Boolean, Boolean)]()
+    system.isolate(Proto[IsoSystemTest.CtorExceptionIso](p))
+    assert(Await.result(p.future, 5.seconds) == (true, true))
   }
 
 }
@@ -281,6 +284,23 @@ object IsoSystemTest {
       case IsoTerminated =>
         p.success(true)
     }
+  }
+
+  class CtorExceptionIso(val p: Promise[(Boolean, Boolean)])
+  extends Iso[Unit] {
+    import implicits.canLeak
+    var excepted = false
+    var terminated = false
+
+    sysEvents onCase {
+      case IsoDied(t) =>
+        excepted = true
+      case IsoTerminated =>
+        terminated = true
+        p.success((excepted, terminated))
+    }
+
+    sys.error("Exception thrown in ctor!")
   }
 
 }

@@ -137,7 +137,6 @@ object Scheduler2 {
    */
   val defaultHandler: Handler = {
     case t: Throwable =>
-      Console.err.println(t)
       t.printStackTrace()
   }
 

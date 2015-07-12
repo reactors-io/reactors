@@ -405,6 +405,10 @@ package object reactive {
    *  This event is sent before `IsoTerminated`, *unless* the exception is thrown while
    *  `IsoTerminated` is being processed.
    *
+   *  Note that, if the exception is thrown during the isolate constructor invocation
+   *  and before the appropriate event handler is created, this event cannot be sent
+   *  to that event handler.
+   *
    *  @param t              the exception that the isolate threw
    */
   case class IsoDied(t: Throwable) extends SysEvent
