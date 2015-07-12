@@ -155,6 +155,10 @@ class IsoSystemTest extends FunSuite with Matchers {
     assert(Await.result(p.future, 5.seconds))
   }
 
+  test("iso should terminate in the case of an exception") {
+    // TODO
+  }
+
 }
 
 

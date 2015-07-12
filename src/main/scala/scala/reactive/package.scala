@@ -379,6 +379,8 @@ package object reactive {
 
   /** Denotes that the isolate was scheduled for execution by the scheduler.
    *
+   *  Always sent after `IsoStarted` and before `IsoTerminated`.
+   *
    *  This event usually occurs when isolate is woken up to process incoming events,
    *  but may be invoked even if there are no pending events.
    *  This event is typically used in conjunction with a scheduler that periodically
@@ -388,6 +390,8 @@ package object reactive {
 
   /** Denotes that the isolate was preempted by the scheduler.
    *
+   *  Always sent after `IsoStarted` and before `IsoTerminated`.
+   *
    *  When the isolate is preempted, it loses control of the execution thread, until the
    *  scheduler schedules it again on some (possibly the same) thread.
    *  This event is typically used to send another message back to the isolate,
@@ -396,6 +400,10 @@ package object reactive {
   case object IsoPreempted extends SysEvent
 
   /** Denotes that the isolate died due to an exception.
+   *
+   *  This event is sent after `IsoStarted`.
+   *  This event is sent before `IsoTerminated`, *unless* the exception is thrown while
+   *  `IsoTerminated` is being processed.
    *
    *  @param t              the exception that the isolate threw
    */
