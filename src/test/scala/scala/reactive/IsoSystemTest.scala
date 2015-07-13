@@ -167,6 +167,14 @@ class IsoSystemTest extends FunSuite with Matchers {
     assert(p.future.value == None)
   }
 
+  test("iso should terminate on exceptions while running") {
+    val system = new TestIsoSystem
+    val p = Promise[Throwable]()
+    val ch = system.isolate(Proto[IsoSystemTest.RunningExceptionIso](p))
+    ch ! "die"
+    assert(Await.result(p.future, 5.seconds).getMessage == "exception thrown")
+  }
+
 }
 
 
@@ -315,6 +323,18 @@ object IsoSystemTest {
       case IsoDied(t) => p.success(true)
       case IsoPreempted => connector.seal()
       case IsoTerminated => sys.error("Exception thrown during termination!")
+    }
+  }
+
+  class RunningExceptionIso(val p: Promise[Throwable]) extends Iso[String] {
+    import implicits.canLeak
+
+    events onCase {
+      case "die" => sys.error("exception thrown")
+    }
+
+    sysEvents onCase {
+      case IsoDied(t) => p.success(t)
     }
   }
 

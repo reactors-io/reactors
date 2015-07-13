@@ -40,20 +40,16 @@ object Reactor {
     var subscription = Events.Subscription.empty
 
     def react(value: T) = {
-      try underlying.react(value)
-      catch ignoreNonLethal
+      underlying.react(value)
     }
 
     def except(t: Throwable) = {
-      try underlying.except(t)
-      catch ignoreNonLethal
+      underlying.except(t)
     }
 
     def unreact() = {
-      try {
-        Events.Subscription.unregisterLeakySubscription(canLeak, subscription)
-        underlying.unreact()
-      } catch ignoreNonLethal
+      Events.Subscription.unregisterLeakySubscription(canLeak, subscription)
+      underlying.unreact()
     }
   }
 

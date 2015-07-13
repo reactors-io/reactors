@@ -31,7 +31,8 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     rt.x := 2
   }
 
-  def assertExceptionPropagated[S](create: Events[Int] => Events[S], effect: () => Unit) {
+  def assertExceptionPropagated[S](create: Events[Int] => Events[S],
+    effect: () => Unit) {
     val e = new Events.Emitter[Int]
     val s = create(e)
     
@@ -39,15 +40,16 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     var state = false
     var argument = false
 
-    println(noEffect.getClass)
     val h = s handle {
       case e: IllegalStateException => state = true
       case e: NullPointerException => nullptr = true
+      case _ => // ignore all the rest
     }
 
     implicit val canLeak = Permission.newCanLeak
     val o = s onExcept {
       case e: IllegalArgumentException => argument = true
+      case _ => // ignore all the rest
     }
 
     e.except(new NullPointerException)
@@ -101,7 +103,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     val e = new Events.Emitter[Int]
     val s = e.once
     var exceptions = 0
-    val h = s.handle(_ => exceptions += 1)
+    val h = s.handle { case _ => exceptions += 1 }
 
     e.except(new RuntimeException)
     assert(exceptions == 1)
@@ -122,10 +124,6 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     e react 3
 
     buffer should equal (Seq(1, 2, 3))
-  }
-
-  it should "propagate the exception when traversed" in {
-    assertExceptionPropagated(_.foreach(x => ()), noEffect)
   }
 
   it should "be scanned past" in {
@@ -208,7 +206,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     val e = new Events.Emitter[Int]
     val s = e.until(end)
     var exceptions = 0
-    val h = s.handle(_ => exceptions += 1)
+    val h = s.handle { case _ => exceptions += 1 }
 
     e.except(new RuntimeException)
     assert(exceptions == 1)
@@ -482,7 +480,9 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     val observed = mutable.Buffer[Int]()
     val emitSub = firstTen.foreach(observed += _)
 
-    for (i <- 0 until 20) e react i
+    intercept[TestFailedException] {
+      for (i <- 0 until 20) e react i
+    }
 
     observed should equal (0 until 5)
   }
@@ -531,6 +531,125 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     assert(events == 1)
     assert(excepts == 1)
     assert(unreactions == 1)
+  }
+
+  case object TestException extends Exception
+
+  it should "throw from a foreach" in {
+    var num = 0
+    val e = new Events.Emitter[Int]
+    val f = e.foreach(num += _)
+    e.react(2)
+    assert(num == 2)
+    intercept[TestException.type] {
+      e.except(TestException)
+    }
+  }
+
+  it should "throw from ultimately" in {
+    val e = new Events.Emitter[Int]
+    val u = e.map[Int](_ => throw TestException).ultimately(() => {})
+    intercept[TestException.type] {
+      e.except(TestException)
+    }
+  }
+
+  it should "throw from handle" in {
+    val e = new Events.Emitter[Int]
+    val h = e.handle { case _ => throw TestException }
+    intercept[TestException.type] {
+      e.except(new Exception)
+    }
+  }
+
+  it should "throw from onReaction" in {
+    implicit val canLeak = Permission.newCanLeak
+    val e = new Events.Emitter[Int]
+    val o = e.onReaction(new Reactor[Int] {
+      def react(x: Int) {
+        throw TestException
+      }
+      def except(t: Throwable) {
+        throw TestException
+      }
+      def unreact() {
+        throw TestException
+      }
+    })
+    intercept[TestException.type] {
+      e.react(1)
+    }
+    intercept[TestException.type] {
+      e.except(new Exception)
+    }
+    intercept[TestException.type] {
+      e.unreact()
+    }
+  }
+
+  it should "throw from onReactUnreact" in {
+    implicit val canLeak = Permission.newCanLeak
+    val e = new Events.Emitter[Int]
+    val o = e.onReactUnreact(x => throw TestException)(throw TestException)
+    intercept[TestException.type] {
+      e.react(1)
+    }
+    intercept[TestException.type] {
+      e.unreact()
+    }
+  }
+
+  it should "throw from onEvent" in {
+    implicit val canLeak = Permission.newCanLeak
+    val e = new Events.Emitter[Int]
+    intercept[TestException.type] {
+      val o = e.onEvent(x => throw TestException)
+      e.react(1)
+    }
+    intercept[TestException.type] {
+      val o = e.map(_ => throw TestException).onEvent(x => {})
+      e.react(1)
+    }
+  }
+
+  it should "throw from onCase" in {
+    implicit val canLeak = Permission.newCanLeak
+    val e = new Events.Emitter[String]
+    intercept[TestException.type] {
+      val o = e.onCase { case "1" => throw TestException }
+      e.react("1")
+    }
+    intercept[TestException.type] {
+      val o = e.map(_ => throw TestException).onCase { case _ => }
+      e.react("1")
+    }
+  }
+
+  it should "throw from onExcept" in {
+    implicit val canLeak = Permission.newCanLeak
+    val e = new Events.Emitter[String]
+    intercept[TestException.type] {
+      val o = e.onExcept { case e: Exception => throw TestException }
+      e.except(new Exception)
+    }
+  }
+
+  it should "throw from on" in {
+    implicit val canLeak = Permission.newCanLeak
+    val e = new Events.Emitter[String]
+    intercept[TestException.type] {
+      val o = e on {}
+      e.except(TestException)
+    }
+  }
+
+  it should "throw from onUnreact" in {
+    implicit val canLeak = Permission.newCanLeak
+    val e = new Events.Emitter[String]
+    intercept[TestException.type] {
+      val o = e onUnreact {}
+      e.except(TestException)
+    }
   }
 
 }

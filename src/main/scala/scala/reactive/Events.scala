@@ -99,13 +99,13 @@ trait Events[@spec(Int, Long, Double) +T] {
     (implicit canLeak: CanLeak): Events.Subscription = {
     onReaction(new Reactor[T] {
       def react(event: T) {
-        try reactFunc(event)
-        catch ignoreNonLethal
+        reactFunc(event)
       }
-      def except(t: Throwable) {}
+      def except(t: Throwable) {
+        throw t
+      }
       def unreact() {
-        try unreactFunc
-        catch ignoreNonLethal
+        unreactFunc
       }
     })
   }
@@ -120,10 +120,11 @@ trait Events[@spec(Int, Long, Double) +T] {
     Events.Subscription = {
     onReaction(new Reactor[T] {
       def react(event: T) {
-        try reactor(event)
-        catch ignoreNonLethal
+        reactor(event)
       }
-      def except(t: Throwable) {}
+      def except(t: Throwable) {
+        throw t
+      }
       def unreact() {}
     })
   }
@@ -155,11 +156,11 @@ trait Events[@spec(Int, Long, Double) +T] {
     (implicit sub: T <:< AnyRef, canLeak: CanLeak): Events.Subscription = {
     onReaction(new Reactor[T] {
       def react(event: T) = {
-        try {
-          if (reactor.isDefinedAt(event)) reactor(event)
-        } catch ignoreNonLethal
+        if (reactor.isDefinedAt(event)) reactor(event)
       }
-      def except(t: Throwable) {}
+      def except(t: Throwable) {
+        throw t
+      }
       def unreact() {}
     })
   }
@@ -175,10 +176,11 @@ trait Events[@spec(Int, Long, Double) +T] {
   def on(reactor: =>Unit)(implicit canLeak: CanLeak): Events.Subscription = {
     onReaction(new Reactor[T] {
       def react(value: T) {
-        try reactor
-        catch ignoreNonLethal
+        reactor
       }
-      def except(t: Throwable) {}
+      def except(t: Throwable) {
+        throw t
+      }
       def unreact() {}
     })
   }
@@ -191,10 +193,11 @@ trait Events[@spec(Int, Long, Double) +T] {
   def onUnreact(reactor: =>Unit)(implicit canLeak: CanLeak): Events.Subscription = {
     onReaction(new Reactor[T] {
       def react(value: T) {}
-      def except(t: Throwable) {}
+      def except(t: Throwable) {
+        throw t
+      }
       def unreact() {
-        try reactor
-        catch ignoreNonLethal
+        reactor
       }
     })
   }
@@ -209,9 +212,8 @@ trait Events[@spec(Int, Long, Double) +T] {
     onReaction(new Reactor[T] {
       def react(value: T) {}
       def except(t: Throwable) {
-        try {
-          if (pf.isDefinedAt(t)) pf(t)
-        } catch ignoreNonLethal
+        if (pf.isDefinedAt(t)) pf(t)
+        else throw t
       }
       def unreact() {}
     })
@@ -230,10 +232,9 @@ trait Events[@spec(Int, Long, Double) +T] {
    *  }}}
    *
    *  @param f           the callback invoked when an event arrives
-   *  @return            a subscription that is also an event stream producing
-   *                     `Unit` events after each callback invocation
+   *  @return            a subscription
    */
-  def foreach(f: T => Unit): Events[Unit] with Events.Subscription = {
+  def foreach(f: T => Unit): Events.Subscription = {
     val rf = new Events.Foreach(self, f)
     rf.subscription = self observe rf
     rf
@@ -244,13 +245,11 @@ trait Events[@spec(Int, Long, Double) +T] {
    *  Semantically equivalent to `onExcept`,
    *  but does not cause time and memory leaks.
    *  
-   *  @param  f          an exception handler
-   *  @return            a subscription that is also an event stream producing
-   *                     `Unit` events after each callback invocation
+   *  @param pf          an exception handler
+   *  @return            a subscription
    */
-  def handle(f: Throwable => Unit):
-    Events[Unit] with Events.Subscription = {
-    val rh = new Events.Handle(self, f)
+  def handle(pf: PartialFunction[Throwable, Unit]): Events.Subscription = {
+    val rh = new Events.Handle(self, pf)
     rh.subscription = self observe rh
     rh
   }
@@ -264,9 +263,9 @@ trait Events[@spec(Int, Long, Double) +T] {
    *  unreacts. It then itself unreacts.
    *
    *  @param body        the callback invoked when an event arrives
-   *  @return            a subscription that is also an event stream
+   *  @return            a subscription
    */
-  def ultimately(body: =>Unit): Events[Unit] with Events.Subscription = {
+  def ultimately(body: =>Unit): Events.Subscription = {
     val rf = new Events.Ultimately(self, () => body)
     rf.subscription = self observe rf
     rf
@@ -1188,7 +1187,7 @@ object Events {
       reactAll(())
     }
     def except(t: Throwable) {
-      exceptAll(t)
+      throw t
     }
     def unreact() {
       unreactAll()
@@ -1197,17 +1196,13 @@ object Events {
   }
 
   private[reactive] class Handle[@spec(Int, Long, Double) T]
-    (val self: Events[T], val f: Throwable => Unit)
+    (val self: Events[T], val pf: PartialFunction[Throwable, Unit])
   extends Events.Default[Unit] with Reactor[T]
   with Events.ProxySubscription {
     def react(value: T) {}
     def except(t: Throwable) {
-      try f(t)
-      catch {
-        case t if isNonLethal(t) =>
-          exceptAll(t)
-          return
-      }
+      if (pf.isDefinedAt(t)) pf(t)
+      else throw t
       reactAll(())
     }
     def unreact() {
@@ -1222,7 +1217,7 @@ object Events {
   with Events.ProxySubscription {
     def react(value: T) {}
     def except(t: Throwable) {
-      exceptAll(t)
+      throw t
     }
     def unreact() {
       try {
@@ -1585,7 +1580,7 @@ object Events {
         f(value)
       } catch {
         case t if isNonLethal(t) =>
-          exceptAll(t)
+          except(t)
           return
       }
       reactAll(event)

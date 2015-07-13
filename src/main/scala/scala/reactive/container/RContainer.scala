@@ -110,7 +110,7 @@ object RContainer {
         )
       }
 
-    def foreach(f: T => Unit): Events[Unit] with Events.Subscription = {
+    def foreach(f: T => Unit): Events.Subscription = {
       container.foreach(f)
       container.inserts.foreach(f)
     }

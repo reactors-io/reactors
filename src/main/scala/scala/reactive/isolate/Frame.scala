@@ -122,7 +122,7 @@ final class Frame(
       case t: Throwable =>
         // send the exception to the scheduler's handler, then immediately terminate
         try scheduler.handler(t)
-        finally try iso.sysEmitter.react(IsoDied(t))
+        finally try if (!hasTerminated) iso.sysEmitter.react(IsoDied(t))
         finally checkTerminated(true)
     } finally {
       Iso.selfIso.set(null)
