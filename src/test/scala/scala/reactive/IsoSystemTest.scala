@@ -175,6 +175,13 @@ class IsoSystemTest extends FunSuite with Matchers {
     assert(Await.result(p.future, 5.seconds).getMessage == "exception thrown")
   }
 
+  test("iso should dispose its events sources when terminated") {
+    val system = new TestIsoSystem
+    val p = Promise[Boolean]()
+    system.isolate(Proto[IsoSystemTest.EventSourceIso](p))
+    assert(Await.result(p.future, 5.seconds))
+  }
+
 }
 
 
@@ -335,6 +342,20 @@ object IsoSystemTest {
 
     sysEvents onCase {
       case IsoDied(t) => p.success(t)
+    }
+  }
+
+  class EventSourceIso(val p: Promise[Boolean]) extends Iso[String] {
+    import implicits.canLeak
+
+    val emitter = new Events.Emitter[Int]()
+
+    emitter onUnreact {
+      p.success(true)
+    }
+
+    sysEvents onCase {
+      case IsoPreempted => connector.seal()
     }
   }
 

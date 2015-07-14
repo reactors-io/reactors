@@ -176,6 +176,13 @@ final class Frame(
     schedulerState.onBatchStop(this)
   }
 
+  private def disposeEventSources() {
+    val copiedEventSources = iso.eventSources.toList
+    for (es <- copiedEventSources) {
+      es.unreact()
+    }
+  }
+
   private def checkTerminated(forcedTermination: Boolean) {
     var emitTerminated = false
     monitor.synchronized {
@@ -187,7 +194,9 @@ final class Frame(
       }
     }
     if (emitTerminated) {
-      iso.sysEmitter.react(IsoTerminated)
+      try iso.sysEmitter.react(IsoTerminated)
+      finally try disposeEventSources()
+      finally iso.implicits.canLeak.dispose()
     }
   }
 
