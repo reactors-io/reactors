@@ -175,13 +175,6 @@ class IsoSystemTest extends FunSuite with Matchers {
     assert(Await.result(p.future, 5.seconds).getMessage == "exception thrown")
   }
 
-  test("iso should dispose its events sources when terminated") {
-    val system = new TestIsoSystem
-    val p = Promise[Boolean]()
-    system.isolate(Proto[IsoSystemTest.EventSourceIso](p))
-    assert(Await.result(p.future, 5.seconds))
-  }
-
 }
 
 
