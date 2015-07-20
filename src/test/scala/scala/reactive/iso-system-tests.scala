@@ -387,7 +387,34 @@ class ManyIso(p: Promise[Boolean], var n: Int) extends Iso[String] {
 }
 
 
-abstract class IsoSystemChecks extends Properties("IsoSystem") {
+class EvenOddIso(p: Promise[Boolean], n: Int) extends Iso[Int] {
+  import implicits.canLeak
+  val rem = RSet[Int]
+  for (i <- 0 until n) rem += i
+  events onEvent { v =>
+    if (v % 2 == 0) even.channel ! v
+    else odd.channel ! v
+  }
+  val odd = system.channels.open[Int]
+  odd.events onEvent { v =>
+    rem -= v
+  }
+  val even = system.channels.open[Int]
+  even.events onEvent { v =>
+    rem -= v
+  }
+  rem.react.size onEvent { sz =>
+    if (sz == 0) {
+      default.seal()
+      odd.seal()
+      even.seal()
+      p.success(true)
+    }
+  }
+}
+
+
+abstract class IsoSystemCheck extends Properties("IsoSystem") {
 
   val system = IsoSystem.default("check-system")
 
@@ -400,9 +427,17 @@ abstract class IsoSystemChecks extends Properties("IsoSystem") {
     Await.result(p.future, 4.seconds)
   }
 
+  property("should receive many events through different sources") =
+    forAllNoShrink(choose(1, 1024)) { n =>
+      val p = Promise[Boolean]()
+      val ch = system.isolate(Proto[EvenOddIso](p, n).withScheduler(scheduler))
+      for (i <- 0 until n) ch ! i
+      Await.result(p.future, 4.seconds)
+    }
+
 }
 
 
-object NewThreadIsoSystemChecks extends IsoSystemChecks {
+object NewThreadIsoSystemCheck extends IsoSystemCheck {
   val scheduler = IsoSystem.Bundle.schedulers.newThread
 }
