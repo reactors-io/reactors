@@ -172,10 +172,25 @@ class IsoSystemTest extends FunSuite with Matchers {
     assert(Await.result(p.future, 5.seconds).getMessage == "exception thrown")
   }
 
+  test("Iso.self should be correctly set") {
+    val system = IsoSystem.default("test")
+    val p = Promise[Boolean]()
+    system.isolate(Proto[SelfIso](p))
+    assert(Await.result(p.future, 5.seconds))
+  }
+
 }
 
 
 class TestIso extends Iso[Unit]
+
+
+class SelfIso(val p: Promise[Boolean]) extends Iso[Int] {
+  import implicits.canLeak
+  sysEvents onCase {
+    case IsoStarted => p.success(this eq Iso.self)
+  }
+}
 
 
 class PromiseIso(val p: Promise[Unit]) extends Iso[Unit] {

@@ -33,9 +33,9 @@ object EventQueue {
 
   def isZero(q: EventQueue[_]): Boolean = q.isInstanceOf[Zero[_]]
 
-  class UnrolledRing[@spec(Int, Long, Double) T: Arrayable]
-  extends EventQueue[T] {
-    private val monitor = new Monitor
+  class UnrolledRing[@spec(Int, Long, Double) T: Arrayable](
+    private[reactive] val monitor: Monitor = new Monitor
+  ) extends EventQueue[T] {
     private[reactive] val ring = new scala.reactive.core.UnrolledRing[T]
 
     def enqueue(x: T): Int = monitor.synchronized {
