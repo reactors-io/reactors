@@ -351,14 +351,10 @@ package object reactive {
 
   /* system events */
 
-  /** Internal events are used by the isolate system to communicate with different isolates.
-   */
-  sealed trait InternalEvent
-
   /** System events are a special kind of internal events that can be observed
    *  by isolates.
    */
-  sealed trait SysEvent extends InternalEvent
+  sealed trait SysEvent
 
   /** Denotes start of an isolate.
    *

@@ -73,8 +73,8 @@ class IsoSystem(
     try {
       // 3. allocate the standard connectors
       frame.name = uname
-      frame.defaultConnector = frame.openConnector("default", factory, false)
-      frame.systemConnector = frame.openConnector("system", factory, true)
+      frame.defaultConnector = frame.openConnector[T]("default", factory, false)
+      frame.internalConnector = frame.openConnector[SysEvent]("system", factory, true)
 
       // 4. schedule for the first execution
       scheduler.startSchedule(frame)

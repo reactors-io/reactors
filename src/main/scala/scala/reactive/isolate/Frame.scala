@@ -27,7 +27,7 @@ final class Frame(
   @volatile var iso: Iso[_] = _
   @volatile var name: String = _
   @volatile var defaultConnector: Connector[_] = _
-  @volatile var systemConnector: Connector[_] = _
+  @volatile var internalConnector: Connector[_] = _
   @volatile var schedulerState: Scheduler.State = _
 
   def openConnector[@spec(Int, Long, Double) Q: Arrayable](

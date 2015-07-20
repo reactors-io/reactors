@@ -85,7 +85,7 @@ trait Iso[@spec(Int, Long, Double) T] {
     }
     frame.iso = this
     eventSources = mutable.Set[EventSource]()
-    sysEventSub = sysConnector.events.foreach(x => sysEmitter react x)
+    sysEventSub = internal.events.foreach(x => sysEmitter react x)
     Iso.selfIso.set(this)
   }
 
@@ -105,32 +105,26 @@ trait Iso[@spec(Int, Long, Double) T] {
 
   /** The default connector of this isolate.
    */
-  final def connector: Connector[T] = {
+  final def default: Connector[T] = {
     frame.defaultConnector.asInstanceOf[Connector[T]]
   }
 
-  /** The default channel of this isolate.
+  /** The default channel of this isolate, same as `default.channel`.
    */
   final def channel: Channel[T] = {
-    connector.channel
+    default.channel
   }
 
-  /** The default event stream of this isolate.
+  /** The default event stream of this isolate, same as `default.events`.
    */
   final def events: Events[T] = {
-    connector.events
+    default.events
   }
 
   /** The system connector of this isolate, which is a daemon.
    */
-  final def sysConnector: Connector[SysEvent] = {
-    frame.systemConnector.asInstanceOf[Connector[SysEvent]]
-  }
-
-  /** The system channel of this isolate, which is a daemon.
-   */
-  final def sysChannel: Channel[SysEvent] = {
-    sysConnector.channel
+  private def internal: Connector[SysEvent] = {
+    frame.internalConnector.asInstanceOf[Connector[SysEvent]]
   }
 
   /** The system event stream of this isolate.

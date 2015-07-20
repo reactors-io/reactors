@@ -252,7 +252,7 @@ class CountdownIso(val p: Promise[Boolean], var count: Int) extends Iso[String] 
 class AfterSealTerminateIso(val p: Promise[Boolean]) extends Iso[String] {
   import implicits.canLeak
   events onCase {
-    case "seal" => connector.seal()
+    case "seal" => default.seal()
   }
   sysEvents onCase {
     case IsoTerminated => p.success(true)
@@ -272,7 +272,7 @@ class NewChannelIso(val p: Promise[Boolean]) extends Iso[String] {
   events onCase {
     case "open" =>
       secondary.channel ! true
-      connector.seal()
+      default.seal()
   }
   secondary.events onEvent { v =>
     secondary.seal()
@@ -286,7 +286,7 @@ class IsoScheduledIso(val p: Promise[Boolean]) extends Iso[String] {
   sysEvents onCase {
     case IsoScheduled =>
       left -= 1
-      if (left == 0) connector.seal()
+      if (left == 0) default.seal()
     case IsoTerminated =>
       p.success(true)
   }
@@ -300,7 +300,7 @@ class IsoPreemptedIso(val p: Promise[Boolean]) extends Iso[String] {
     case IsoPreempted =>
       left -= 1
       if (left > 0) channel ! "dummy"
-      else connector.seal()
+      else default.seal()
     case IsoTerminated =>
       p.success(true)
   }
@@ -327,7 +327,7 @@ class TerminationExceptionIso(val p: Promise[Boolean]) extends Iso[Unit] {
   import implicits.canLeak
   sysEvents onCase {
     case IsoDied(t) => p.success(true)
-    case IsoPreempted => connector.seal()
+    case IsoPreempted => default.seal()
     case IsoTerminated => sys.error("Exception thrown during termination!")
   }
 }
@@ -351,7 +351,7 @@ class EventSourceIso(val p: Promise[Boolean]) extends Iso[String] {
     p.success(true)
   }
   sysEvents onCase {
-    case IsoPreempted => connector.seal()
+    case IsoPreempted => default.seal()
   }
 }
 
@@ -366,7 +366,7 @@ class ManyIso(p: Promise[Boolean], var n: Int) extends Iso[String] {
     n -= 1
     if (n <= 0) {
       p.success(true)
-      connector.seal()
+      default.seal()
     }
   }
 }
