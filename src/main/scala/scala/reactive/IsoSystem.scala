@@ -15,25 +15,19 @@ import scala.reactive.util.Monitor
  *
  *  An isolate system is composed of a set of isolates that have
  *  a common configuration.
+ *
+ *  @param name      the name of this isolate system
+ *  @param bundle    the scheduler bundle used by the isolate system
  */
-abstract class IsoSystem extends isolate.Services {
+class IsoSystem(
+  val name: String,
+  val bundle: IsoSystem.Bundle = IsoSystem.defaultBundle
+) extends isolate.Services {
 
   /** Encapsulates the internal state of the isolate system.
    */
   val monitor = new Monitor
   val frames = new UniqueStore[Frame]("isolate", monitor)
-
-  /** Retrieves the bundle for this isolate system.
-   *  
-   *  @return           the bundle
-   */
-  def bundle: IsoSystem.Bundle
-
-  /** Name of this isolate system instance.
-   *
-   *  @return          the name of the isolate system
-   */
-  def name: String
 
   /** Retrieves the register of channels in this isolate system.
    *  
@@ -110,7 +104,7 @@ object IsoSystem {
    *  @return           a new isolate system instance
    */
   def default(name: String, bundle: IsoSystem.Bundle = IsoSystem.defaultBundle) =
-    new isolate.DefaultIsoSystem(name, bundle)
+    new IsoSystem(name, bundle)
 
   /** Retrieves the default bundle config object.
    *
