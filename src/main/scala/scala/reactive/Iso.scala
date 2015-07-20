@@ -105,13 +105,13 @@ trait Iso[@spec(Int, Long, Double) T] {
 
   /** The default connector of this isolate.
    */
-  final def connector: Conn[T] = {
-    frame.defaultConnector.asInstanceOf[Conn[T]]
+  final def connector: Connector[T] = {
+    frame.defaultConnector.asInstanceOf[Connector[T]]
   }
 
   /** The default channel of this isolate.
    */
-  final def channel: Chan[T] = {
+  final def channel: Channel[T] = {
     connector.channel
   }
 
@@ -123,13 +123,13 @@ trait Iso[@spec(Int, Long, Double) T] {
 
   /** The system connector of this isolate, which is a daemon.
    */
-  final def sysConnector: Conn[SysEvent] = {
-    frame.systemConnector.asInstanceOf[Conn[SysEvent]]
+  final def sysConnector: Connector[SysEvent] = {
+    frame.systemConnector.asInstanceOf[Connector[SysEvent]]
   }
 
   /** The system channel of this isolate, which is a daemon.
    */
-  final def sysChannel: Chan[SysEvent] = {
+  final def sysChannel: Channel[SysEvent] = {
     sysConnector.channel
   }
 

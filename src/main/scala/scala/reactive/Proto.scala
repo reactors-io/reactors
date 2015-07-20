@@ -15,7 +15,7 @@ final class Proto[+I <: Iso[_]] private[reactive] (
   val clazz: Class[_],
   val params: Seq[Any],
   val scheduler: String = null,
-  val eventQueueFactory: EventQ.Factory = null,
+  val eventQueueFactory: EventQueue.Factory = null,
   val name: String = null
 ) {
 
@@ -39,7 +39,7 @@ final class Proto[+I <: Iso[_]] private[reactive] (
    *                             queue object
    *  @return                    a new `Proto` object
    */
-  def withEventQueue(f: EventQ.Factory): Proto[I] =
+  def withEventQueue(f: EventQueue.Factory): Proto[I] =
     new Proto(clazz, params, scheduler, f, name)
 
   /** Associates the name for the new isolate and returns the new `Proto` object.

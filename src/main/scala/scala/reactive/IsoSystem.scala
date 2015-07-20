@@ -54,17 +54,17 @@ class IsoSystem(
    *  @param scheduler  the scheduler used to scheduler the isolate
    *  @return           the channel for this isolate
    */
-  def isolate[@spec(Int, Long, Double) T: Arrayable](p: Proto[Iso[T]]): Chan[T] = {
+  def isolate[@spec(Int, Long, Double) T: Arrayable](p: Proto[Iso[T]]): Channel[T] = {
     tryCreateIsolate(p)
   }
 
   protected[reactive] def tryCreateIsolate[@spec(Int, Long, Double) T: Arrayable](
     proto: Proto[Iso[T]]
-  ): Chan[T] = {
+  ): Channel[T] = {
     // 1. ensure a unique id
     val uid = frames.reserveId()
-    val scheduler = Scheduler2.newThread
-    val factory = EventQ.UnrolledRing.Factory
+    val scheduler = Scheduler.newThread
+    val factory = EventQueue.UnrolledRing.Factory
     val frame = new Frame(uid, proto, scheduler, this)
 
     // 2. reserve the unique name or break
@@ -87,7 +87,7 @@ class IsoSystem(
     }
 
     // 6. return the default channel
-    frame.defaultConnector.channel.asInstanceOf[Chan[T]]
+    frame.defaultConnector.channel.asInstanceOf[Channel[T]]
   }
 
 }
@@ -123,8 +123,8 @@ object IsoSystem {
 
   /** Contains a set of schedulers registered with each isolate system.
    */
-  class Bundle(val defaultScheduler: Scheduler2, private val customConfig: Config) {
-    private val schedulers = mutable.Map[String, Scheduler2]()
+  class Bundle(val defaultScheduler: Scheduler, private val customConfig: Config) {
+    private val schedulers = mutable.Map[String, Scheduler]()
 
     /** The set of configuration variables for the isolate system.
      */
@@ -135,7 +135,7 @@ object IsoSystem {
      *  @param name        the name of the scheduler
      *  @return            the scheduler object associated with the name
      */
-    def scheduler(name: String): Scheduler2 = {
+    def scheduler(name: String): Scheduler = {
       schedulers(name)
     }
   
@@ -146,7 +146,7 @@ object IsoSystem {
      *  @param scheduler           scheduler that was previously registered
      *  @return                    name of the previously registered scheduler
      */
-    def schedulerName(s: Scheduler2): String = {
+    def schedulerName(s: Scheduler): String = {
       schedulers.find(_._2 eq s).get._1
     }
 
@@ -157,7 +157,7 @@ object IsoSystem {
      *  @param name       the name under which to register the scheduler
      *  @param s          the scheduler object to register
      */
-    def registerScheduler(name: String, s: Scheduler2) {
+    def registerScheduler(name: String, s: Scheduler) {
       if (schedulers contains name) sys.error(s"Scheduler $name already registered.")
       else schedulers(name) = s
     }
@@ -177,25 +177,25 @@ object IsoSystem {
      *  
      *  @return           the default scheduler bundle
      */
-    def default(default: Scheduler2): Bundle = {
+    def default(default: Scheduler): Bundle = {
       val b = new Bundle(default, ConfigFactory.empty)
       b.registerScheduler(schedulers.globalExecutionContext,
-        Scheduler2.globalExecutionContext)
-      b.registerScheduler(schedulers.default, Scheduler2.default)
-      b.registerScheduler(schedulers.newThread, Scheduler2.newThread)
-      b.registerScheduler(schedulers.piggyback, Scheduler2.piggyback)
+        Scheduler.globalExecutionContext)
+      b.registerScheduler(schedulers.default, Scheduler.default)
+      b.registerScheduler(schedulers.newThread, Scheduler.newThread)
+      b.registerScheduler(schedulers.piggyback, Scheduler.piggyback)
       b
     }
   }
 
   /** Default scheduler bundle.
    */
-  lazy val defaultBundle = Bundle.default(Scheduler2.default)
+  lazy val defaultBundle = Bundle.default(Scheduler.default)
 
   class ChannelBuilder(
     val channelName: String,
     val isDaemon: Boolean,
-    val eventQueueFactory: EventQ.Factory
+    val eventQueueFactory: EventQueue.Factory
   ) {
     /** Associates a new name for the channel.
      */
@@ -208,7 +208,7 @@ object IsoSystem {
 
     /** Associates a new event queue factory.
      */
-    def eventQueue(factory: EventQ.Factory) =
+    def eventQueue(factory: EventQueue.Factory) =
       new ChannelBuilder(channelName, isDaemon, factory)
 
     /** Opens a new channel for this isolate.
@@ -216,12 +216,12 @@ object IsoSystem {
      *  @tparam Q        type of the events in the new channel
      *  @return          the connector object of the new channel
      */
-    final def open[@spec(Int, Long, Double) Q: Arrayable]: Conn[Q] =
+    final def open[@spec(Int, Long, Double) Q: Arrayable]: Connector[Q] =
       Iso.self.frame.openConnector[Q](channelName, eventQueueFactory, isDaemon)
   }
 
   /** The channel register used for channel lookup by name.
    */
-  class Channels extends ChannelBuilder(null, false, EventQ.UnrolledRing.Factory)
+  class Channels extends ChannelBuilder(null, false, EventQueue.UnrolledRing.Factory)
 
 }

@@ -935,22 +935,6 @@ object Events {
       case _ => throw new UnsupportedOperationException("This is not a signal.")
     }
 
-    /** Pipes the events from this event stream to the specified channel.
-     *  
-     *  The call `r.pipe(c)` is equivalent to the following:
-     *  {{{
-     *  c.attach(r)
-     *  }}}
-     */
-    def pipe(c: Channel[T]): Unit = c.attach(self)
-
-    /** Pipes the events from this event stream to the specified emitter.
-     *
-     *  @param em        emitter to forward the events to
-     */
-    def pipe(em: Events.Emitter[T]): Events.Subscription =
-      self.foreach(em react _)
-
     /** Creates a union of `this` and `that` event stream.
      *  
      *  The resulting event stream emits events from both `this` and `that`

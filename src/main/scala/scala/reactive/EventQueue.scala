@@ -7,7 +7,7 @@ import scala.reactive.util.Monitor
 
 
 
-trait EventQ[@spec(Int, Long, Double) T] {
+trait EventQueue[@spec(Int, Long, Double) T] {
 
   def enqueue(x: T): Int
 
@@ -18,23 +18,23 @@ trait EventQ[@spec(Int, Long, Double) T] {
 }
 
 
-object EventQ {
+object EventQueue {
 
   abstract class Factory extends Serializable {
-    def newInstance[@spec(Int, Long, Double) T: Arrayable]: EventQ[T]
+    def newInstance[@spec(Int, Long, Double) T: Arrayable]: EventQueue[T]
   }
 
   class Zero[@spec(Int, Long, Double) T: Arrayable]
-  extends EventQ[T] {
+  extends EventQueue[T] {
     def enqueue(x: T) = 0
     def dequeue(emitter: Events.Emitter[T]) = 0
     def size = 0
   }
 
-  def isZero(q: EventQ[_]): Boolean = q.isInstanceOf[Zero[_]]
+  def isZero(q: EventQueue[_]): Boolean = q.isInstanceOf[Zero[_]]
 
   class UnrolledRing[@spec(Int, Long, Double) T: Arrayable]
-  extends EventQ[T] {
+  extends EventQueue[T] {
     private val monitor = new Monitor
     private[reactive] val ring = new scala.reactive.core.UnrolledRing[T]
 
@@ -60,8 +60,8 @@ object EventQ {
 
   object UnrolledRing {
 
-    object Factory extends EventQ.Factory {
-      def newInstance[@spec(Int, Long, Double) T: Arrayable]: EventQ[T] = {
+    object Factory extends EventQueue.Factory {
+      def newInstance[@spec(Int, Long, Double) T: Arrayable]: EventQueue[T] = {
         new UnrolledRing[T]
       }
     }

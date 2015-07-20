@@ -23,12 +23,12 @@ import isolate._
  *  ready for the isolate.
  *
  *  '''Note:'''
- *  Clients never invoke `Scheduler2` operations directly,
+ *  Clients never invoke `Scheduler` operations directly,
  *  but can implement their own scheduler if necessary.
  *
  *  @see [[scala.reactive.IsoSystem]]
  */
-trait Scheduler2 {
+trait Scheduler {
 
   /** Notifies an isolate frame that it should be executed.
    *  Clients never call this method directly.
@@ -63,21 +63,21 @@ trait Scheduler2 {
    *
    *  @see [[scala.util.control.NonFatal]]
    */
-  def handler: Scheduler2.Handler
+  def handler: Scheduler.Handler
 
   /** Creates an `State` object for the isolate frame.
    *
    *  @param frame       the isolate frame
    *  @return            creates a fresh scheduler info object
    */
-  protected def newState(frame: Frame): Scheduler2.State = new Scheduler2.State.Default
+  protected def newState(frame: Frame): Scheduler.State = new Scheduler.State.Default
 
 }
 
 
 /** Companion object for creating standard isolate schedulers.
  */
-object Scheduler2 {
+object Scheduler {
 
   /** Superclass for the information objects that a scheduler attaches to an isolate
    *  frame.
@@ -139,18 +139,18 @@ object Scheduler2 {
     case t: Throwable => t.printStackTrace()
   }
 
-  /** Scheduler2 that shares the global Scala execution context.
+  /** Scheduler that shares the global Scala execution context.
    */
-  lazy val globalExecutionContext: Scheduler2 =
+  lazy val globalExecutionContext: Scheduler =
     new Executed(ExecutionContext.Implicits.global)
 
   /** Default isolate scheduler.
    */
-  lazy val default: Scheduler2 = new Executed(new ForkJoinPool(
+  lazy val default: Scheduler = new Executed(new ForkJoinPool(
     Runtime.getRuntime.availableProcessors,
     new ForkJoinPool.ForkJoinWorkerThreadFactory {
       def newThread(pool: ForkJoinPool) = new ForkJoinWorkerThread(pool) {
-        setName(s"Scheduler2-${getName}")
+        setName(s"Scheduler-${getName}")
       }
     },
     null,
@@ -159,7 +159,7 @@ object Scheduler2 {
 
   /** A scheduler that always starts an isolate on a dedicated thread.
    */
-  lazy val newThread: Scheduler2 = new Dedicated.NewThread(true)
+  lazy val newThread: Scheduler = new Dedicated.NewThread(true)
 
   /** A scheduler that reuses (piggybacks) the current thread to run the isolate.
    *
@@ -168,11 +168,11 @@ object Scheduler2 {
    *  This scheduler cannot be used to start isolates from within another isolate,
    *  and is typically used to turn the application main thread into an isolate.
    *
-   *  @see [[scala.reactive.Scheduler2.Dedicated.Piggyback]]
+   *  @see [[scala.reactive.Scheduler.Dedicated.Piggyback]]
    */
-  lazy val piggyback: Scheduler2 = new Dedicated.Piggyback()
+  lazy val piggyback: Scheduler = new Dedicated.Piggyback()
 
-  /** A `Scheduler2` that reuses the target Java `Executor`.
+  /** A `Scheduler` that reuses the target Java `Executor`.
    *
    *  @param executor       The `Executor` used to schedule isolate tasks.
    *  @param handler        The default error handler for fatal errors not passed to
@@ -180,15 +180,15 @@ object Scheduler2 {
    */
   class Executed(
     val executor: java.util.concurrent.Executor,
-    val handler: Scheduler2.Handler = Scheduler2.defaultHandler
-  ) extends Scheduler2 {
+    val handler: Scheduler.Handler = Scheduler.defaultHandler
+  ) extends Scheduler {
 
     def schedule(frame: Frame): Unit = {
       executor.execute(frame.schedulerState.asInstanceOf[Runnable])
     }
 
-    override def newState(frame: Frame): Scheduler2.State = {
-      new Scheduler2.State.Default with Runnable {
+    override def newState(frame: Frame): Scheduler.State = {
+      new Scheduler.State.Default with Runnable {
         def run() = frame.executeBatch()
       }
     }
@@ -197,7 +197,7 @@ object Scheduler2 {
 
   /** An abstract scheduler that always dedicates a thread to an isolate.
    */
-  abstract class Dedicated extends Scheduler2 {
+  abstract class Dedicated extends Scheduler {
     def schedule(frame: Frame): Unit = {
       frame.schedulerState.asInstanceOf[Dedicated.Worker].awake()
     }
@@ -207,8 +207,8 @@ object Scheduler2 {
    */
   object Dedicated {
 
-    private[reactive] class Worker(val frame: Frame, val handler: Scheduler2.Handler)
-    extends Scheduler2.State.Default {
+    private[reactive] class Worker(val frame: Frame, val handler: Scheduler.Handler)
+    extends Scheduler.State.Default {
 
       @tailrec final def loop(f: Frame): Unit = {
         try {
@@ -244,7 +244,7 @@ object Scheduler2 {
      */
     class NewThread(
       val isDaemon: Boolean,
-      val handler: Scheduler2.Handler = Scheduler2.defaultHandler
+      val handler: Scheduler.Handler = Scheduler.defaultHandler
     ) extends Dedicated {
 
       override def newState(frame: Frame): Dedicated.Worker = {
@@ -278,7 +278,7 @@ object Scheduler2 {
      *  @param handler           The error handler for the fatal errors not passed to
      *                           isolates.
      */
-    class Piggyback(val handler: Scheduler2.Handler = Scheduler2.defaultHandler)
+    class Piggyback(val handler: Scheduler.Handler = Scheduler.defaultHandler)
     extends Dedicated {
       override def newState(frame: Frame): Dedicated.Worker = {
         val w = new Worker(frame, handler)
@@ -308,14 +308,14 @@ object Scheduler2 {
   class Timer(
     private val period: Long,
     val isDaemon: Boolean = true,
-    val handler: Scheduler2.Handler = Scheduler2.defaultHandler
-  ) extends Scheduler2 {
+    val handler: Scheduler.Handler = Scheduler.defaultHandler
+  ) extends Scheduler {
     private var timer: java.util.Timer = null
     private val frames = mutable.Set[Frame]()
 
     def shutdown() = if (timer != null) timer.cancel()
 
-    override def newState(frame: Frame) = new Scheduler2.State.Default {
+    override def newState(frame: Frame) = new Scheduler.State.Default {
       override def onBatchStart(frame: Frame): Unit = {
         allowedBudget = frame.estimateTotalPendingEvents
       }
@@ -350,7 +350,7 @@ object Scheduler2 {
     private def addFrame(frame: Frame) = frames.synchronized {
       frames += frame
       if (frames.size == 1) {
-        timer = new java.util.Timer(s"Scheduler2-${util.freshId[Timer]}", isDaemon)
+        timer = new java.util.Timer(s"Scheduler-${util.freshId[Timer]}", isDaemon)
       }
     }
 

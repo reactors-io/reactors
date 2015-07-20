@@ -355,11 +355,6 @@ package object reactive {
    */
   sealed trait InternalEvent
 
-  /** Denotes that a channel corresponding to the specified request identifier
-   *  has been found.
-   */
-  case class ChannelRetrieved(reqId: Long, channel: Channel[_]) extends InternalEvent
-
   /** System events are a special kind of internal events that can be observed
    *  by isolates.
    */

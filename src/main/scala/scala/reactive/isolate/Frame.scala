@@ -14,33 +14,33 @@ import scala.reactive.util.Monitor
 final class Frame(
   val uid: Long,
   val proto: Proto[Iso[_]],
-  val scheduler: Scheduler2,
+  val scheduler: Scheduler,
   val isolateSystem: IsoSystem
 ) extends Identifiable {
   private[reactive] val monitor = new Monitor
-  private[reactive] val connectors = new UniqueStore[Conn[_]]("channel", monitor)
+  private[reactive] val connectors = new UniqueStore[Connector[_]]("channel", monitor)
   private[reactive] var nonDaemonCount = 0
   private[reactive] var executing = false
   private[reactive] var lifecycleState: Frame.LifecycleState = Frame.Fresh
-  private[reactive] val pendingQueues = new UnrolledRing[Conn[_]]
+  private[reactive] val pendingQueues = new UnrolledRing[Connector[_]]
 
   @volatile var iso: Iso[_] = _
   @volatile var name: String = _
-  @volatile var defaultConnector: Conn[_] = _
-  @volatile var systemConnector: Conn[_] = _
-  @volatile var schedulerState: Scheduler2.State = _
+  @volatile var defaultConnector: Connector[_] = _
+  @volatile var systemConnector: Connector[_] = _
+  @volatile var schedulerState: Scheduler.State = _
 
   def openConnector[@spec(Int, Long, Double) Q: Arrayable](
     name: String,
-    factory: EventQ.Factory,
+    factory: EventQueue.Factory,
     isDaemon: Boolean
-  ): Conn[Q] = {
+  ): Connector[Q] = {
     // 1. prepare and ensure a unique id
     val uid = connectors.reserveId()
     val queue = factory.newInstance[Q]
-    val chan = new Chan.Local[Q](uid, queue, this)
+    val chan = new Channel.Local[Q](uid, queue, this)
     val events = new Events.Emitter[Q]
-    val conn = new Conn(chan, queue, events, this, isDaemon)
+    val conn = new Connector(chan, queue, events, this, isDaemon)
 
     // 2. acquire a unique name or break
     val uname = monitor.synchronized {
@@ -66,7 +66,7 @@ final class Frame(
     if (mustSchedule) scheduler.schedule(this)
   }
 
-  def enqueueEvent[@spec(Int, Long, Double) T](uid: Long, queue: EventQ[T], x: T) {
+  def enqueueEvent[@spec(Int, Long, Double) T](uid: Long, queue: EventQueue[T], x: T) {
     // 1. add the event to the event queue
     val size = queue.enqueue(x)
 
@@ -144,7 +144,7 @@ final class Frame(
     }
   }
 
-  private def popNextPending(): Conn[_] = monitor.synchronized {
+  private def popNextPending(): Connector[_] = monitor.synchronized {
     if (pendingQueues.nonEmpty) pendingQueues.dequeue()
     else null
   }
@@ -153,7 +153,7 @@ final class Frame(
     schedulerState.onBatchStart(this)
 
     // precondition: there is at least one pending event
-    @tailrec def loop(c: Conn[_]): Unit = {
+    @tailrec def loop(c: Connector[_]): Unit = {
       val remaining = c.dequeue()
       schedulerState.onBatchEvent(this)
       if (schedulerState.canConsume) {
