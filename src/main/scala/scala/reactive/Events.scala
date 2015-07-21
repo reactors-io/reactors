@@ -342,6 +342,26 @@ trait Events[@spec(Int, Long, Double) +T] {
     r
   }
 
+  /** Emits the total number of events produced by this event stream.
+   *
+   *  The returned value is a [[scala.reactive.Signal]] that holds the total number of
+   *  emitted events.
+   *
+   *  {{{
+   *  time  ---------------->
+   *  this  ---x---y--z--|
+   *  count ---1---2--3--|
+   *  }}}
+   *
+   *  @return           a subscription and an event stream that emits the total number
+   *                    of events emitted since `card` was called
+   */
+  def count: Signal[Int] with Events.Subscription = {
+    val r = new Events.Count(self)
+    r.subscription = self observe r
+    r
+  }
+
   /** Checks if this event stream is also a signal.
    *
    *  @return         `true` if the event stream is a signal, `false` otherwise
@@ -1271,6 +1291,27 @@ object Events {
           return
       }
       reactAll(cached)
+    }
+    def except(t: Throwable) {
+      exceptAll(t)
+    }
+    def unreact() {
+      unreactAll()
+    }
+    var subscription = Subscription.empty
+  }
+
+  private[reactive] class Count[@spec(Int, Long, Double) T](val self: Events[T])
+  extends Signal.Default[Int] with Reactor[T] with Events.ProxySubscription {
+    private var cnt: Int = _
+    def init(dummy: Reactor[T]) {
+      cnt = 0
+    }
+    init(this)
+    def apply() = cnt
+    def react(value: T) {
+      cnt += 1
+      reactAll(cnt)
     }
     def except(t: Throwable) {
       exceptAll(t)

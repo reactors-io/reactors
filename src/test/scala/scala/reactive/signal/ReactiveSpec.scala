@@ -86,6 +86,16 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     assertExceptionPropagated(_.map(_ + 1), noEffect)
   }
 
+  it should "be counted" in {
+    val e = new Events.Emitter[Int]
+    val c = e.count
+    val buffer = mutable.Buffer[Int]()
+    val sub = c.foreach(buffer += _)
+
+    for (i <- 110 until 210) e react i
+    assert(buffer == (1 to 100))
+  }
+
   it should "emit once" in {
     val e = new Events.Emitter[Int]
     val s = e.once
