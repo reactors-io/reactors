@@ -103,22 +103,10 @@ trait Iso[@spec(Int, Long, Double) T] {
    */
   final def system: IsoSystem = frame.isolateSystem
 
-  /** The default connector of this isolate.
+  /** The main connector of this isolate.
    */
-  final def default: Connector[T] = {
+  final def main: Connector[T] = {
     frame.defaultConnector.asInstanceOf[Connector[T]]
-  }
-
-  /** The default channel of this isolate, same as `default.channel`.
-   */
-  final def channel: Channel[T] = {
-    default.channel
-  }
-
-  /** The default event stream of this isolate, same as `default.events`.
-   */
-  final def events: Events[T] = {
-    default.events
   }
 
   /** The system connector of this isolate, which is a daemon.

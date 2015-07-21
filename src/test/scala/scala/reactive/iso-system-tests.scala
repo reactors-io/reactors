@@ -214,7 +214,7 @@ class IsoStartedIso(val p: Promise[Boolean]) extends Iso[Unit] {
 
 class AfterFirstBatchIso(val p: Promise[Boolean]) extends Iso[String] {
   import implicits.canLeak
-  events onCase {
+  main.events onCase {
     case "success" => p.success(true)
   }
 }
@@ -223,9 +223,9 @@ class AfterFirstBatchIso(val p: Promise[Boolean]) extends Iso[String] {
 class DuringFirstBatchIso(val p: Promise[Boolean]) extends Iso[String] {
   import implicits.canLeak
   sysEvents onCase {
-    case IsoStarted => channel ! "success"
+    case IsoStarted => main.channel ! "success"
   }
-  events onCase {
+  main.events onCase {
     case "success" => p.success(true)
   }
 }
@@ -233,8 +233,8 @@ class DuringFirstBatchIso(val p: Promise[Boolean]) extends Iso[String] {
 
 class DuringFirstEventIso(val p: Promise[Boolean]) extends Iso[String] {
   import implicits.canLeak
-  events onCase {
-    case "message" => channel ! "success"
+  main.events onCase {
+    case "message" => main.channel ! "success"
     case "success" => p.success(true)
   }
 }
@@ -243,10 +243,10 @@ class DuringFirstEventIso(val p: Promise[Boolean]) extends Iso[String] {
 class TwoDuringFirstIso(val p: Promise[Boolean]) extends Iso[String] {
   import implicits.canLeak
   var countdown = 2
-  events onCase {
+  main.events onCase {
     case "start" =>
-      channel ! "dec"
-      channel ! "dec"
+      main.channel ! "dec"
+      main.channel ! "dec"
     case "dec" =>
       countdown -= 1
       if (countdown == 0) p.success(true)
@@ -256,7 +256,7 @@ class TwoDuringFirstIso(val p: Promise[Boolean]) extends Iso[String] {
 
 class CountdownIso(val p: Promise[Boolean], var count: Int) extends Iso[String] {
   import implicits.canLeak
-  events onCase {
+  main.events onCase {
     case "dec" =>
       count -= 1
       if (count == 0) p.success(true)
@@ -266,8 +266,8 @@ class CountdownIso(val p: Promise[Boolean], var count: Int) extends Iso[String] 
 
 class AfterSealTerminateIso(val p: Promise[Boolean]) extends Iso[String] {
   import implicits.canLeak
-  events onCase {
-    case "seal" => default.seal()
+  main.events onCase {
+    case "seal" => main.seal()
   }
   sysEvents onCase {
     case IsoTerminated => p.success(true)
@@ -280,14 +280,14 @@ class NewChannelIso(val p: Promise[Boolean]) extends Iso[String] {
   val secondary = system.channels.open[Boolean]
   sysEvents onCase {
     case IsoStarted =>
-      channel ! "open"
+      main.channel ! "open"
     case IsoTerminated =>
       p.success(true)
   }
-  events onCase {
+  main.events onCase {
     case "open" =>
       secondary.channel ! true
-      default.seal()
+      main.seal()
   }
   secondary.events onEvent { v =>
     secondary.seal()
@@ -301,7 +301,7 @@ class IsoScheduledIso(val p: Promise[Boolean]) extends Iso[String] {
   sysEvents onCase {
     case IsoScheduled =>
       left -= 1
-      if (left == 0) default.seal()
+      if (left == 0) main.seal()
     case IsoTerminated =>
       p.success(true)
   }
@@ -314,8 +314,8 @@ class IsoPreemptedIso(val p: Promise[Boolean]) extends Iso[String] {
   sysEvents onCase {
     case IsoPreempted =>
       left -= 1
-      if (left > 0) channel ! "dummy"
-      else default.seal()
+      if (left > 0) main.channel ! "dummy"
+      else main.seal()
     case IsoTerminated =>
       p.success(true)
   }
@@ -342,7 +342,7 @@ class TerminationExceptionIso(val p: Promise[Boolean]) extends Iso[Unit] {
   import implicits.canLeak
   sysEvents onCase {
     case IsoDied(t) => p.success(true)
-    case IsoPreempted => default.seal()
+    case IsoPreempted => main.seal()
     case IsoTerminated => sys.error("Exception thrown during termination!")
   }
 }
@@ -350,7 +350,7 @@ class TerminationExceptionIso(val p: Promise[Boolean]) extends Iso[Unit] {
 
 class RunningExceptionIso(val p: Promise[Throwable]) extends Iso[String] {
   import implicits.canLeak
-  events onCase {
+  main.events onCase {
     case "die" => sys.error("exception thrown")
   }
   sysEvents onCase {
@@ -366,7 +366,7 @@ class EventSourceIso(val p: Promise[Boolean]) extends Iso[String] {
     p.success(true)
   }
   sysEvents onCase {
-    case IsoPreempted => default.seal()
+    case IsoPreempted => main.seal()
   }
 }
 
@@ -377,11 +377,11 @@ object Log {
 
 
 class ManyIso(p: Promise[Boolean], var n: Int) extends Iso[String] {
-  val sub = events foreach { v =>
+  val sub = main.events foreach { v =>
     n -= 1
     if (n <= 0) {
       p.success(true)
-      default.seal()
+      main.seal()
     }
   }
 }
@@ -391,7 +391,7 @@ class EvenOddIso(p: Promise[Boolean], n: Int) extends Iso[Int] {
   import implicits.canLeak
   val rem = RSet[Int]
   for (i <- 0 until n) rem += i
-  events onEvent { v =>
+  main.events onEvent { v =>
     if (v % 2 == 0) even.channel ! v
     else odd.channel ! v
   }
@@ -405,7 +405,7 @@ class EvenOddIso(p: Promise[Boolean], n: Int) extends Iso[Int] {
   }
   rem.react.size onEvent { sz =>
     if (sz == 0) {
-      default.seal()
+      main.seal()
       odd.seal()
       even.seal()
       p.success(true)
@@ -424,11 +424,11 @@ class MultiChannelIso(val p: Promise[Boolean], val n: Int) extends Iso[Int] {
     }
     conn
   }
-  events onEvent {
+  main.events onEvent {
     i => connectors(i).channel ! i
   }
-  events.scanPast(n)((count, _) => count - 1) onEvent { i =>
-    default.seal()
+  main.events.scanPast(n)((count, _) => count - 1) onEvent { i =>
+    main.seal()
   }
   sysEvents onCase {
     case IsoTerminated => p.success(true)
@@ -440,13 +440,13 @@ class LooperIso(val p: Promise[Boolean], var n: Int) extends Iso[String] {
   import implicits.canLeak
   sysEvents onCase {
     case IsoPreempted =>
-      if (n > 0) channel ! "count"
+      if (n > 0) main.channel ! "count"
       else {
-        default.seal()
+        main.seal()
         p.success(true)
       }
   }
-  events onCase {
+  main.events onCase {
     case "count" => n -= 1
   }
 }
