@@ -436,14 +436,38 @@ class MultiChannelIso(val p: Promise[Boolean], val n: Int) extends Iso[Int] {
 }
 
 
-abstract class BaseIsoSystemCheck extends Properties(getClass.getSimpleName)
+class LooperIso(val p: Promise[Boolean], var n: Int) extends Iso[String] {
+  import implicits.canLeak
+  sysEvents onCase {
+    case IsoPreempted =>
+      if (n > 0) channel ! "count"
+      else {
+        default.seal()
+        p.success(true)
+      }
+  }
+  events onCase {
+    case "count" => n -= 1
+  }
+}
 
 
-abstract class IsoSystemCheck extends BaseIsoSystemCheck {
+abstract class BaseIsoSystemCheck(name: String) extends Properties(name) {
 
-  val system = IsoSystem.default("check-system")
+  val system = IsoSystem.default("check-system")  
 
   val scheduler: String
+
+  property("should send itself messages") = forAllNoShrink(choose(1, 1024)) { n =>
+    val p = Promise[Boolean]()
+    system.isolate(Proto[LooperIso](p, n).withScheduler(scheduler))
+    Await.result(p.future, 2.seconds)
+  }
+
+}
+
+
+abstract class IsoSystemCheck(name: String) extends BaseIsoSystemCheck(name) {
 
   property("should receive many events") = forAllNoShrink(choose(1, 1024)) { n =>
     val p = Promise[Boolean]()
@@ -471,21 +495,21 @@ abstract class IsoSystemCheck extends BaseIsoSystemCheck {
 }
 
 
-object NewThreadIsoSystemCheck extends IsoSystemCheck {
+object NewThreadIsoSystemCheck extends IsoSystemCheck("NewThreadSystem") {
   val scheduler = IsoSystem.Bundle.schedulers.newThread
 }
 
 
-object GlobalExecutionContextIsoSystemCheck extends IsoSystemCheck {
+object GlobalExecutionContextIsoSystemCheck extends IsoSystemCheck("ECSystem") {
   val scheduler = IsoSystem.Bundle.schedulers.globalExecutionContext
 }
 
 
-object DefaultIsoSystemCheck extends IsoSystemCheck {
+object DefaultSchedulerIsoSystemCheck extends IsoSystemCheck("DefaultSchedulerSystem") {
   val scheduler = IsoSystem.Bundle.schedulers.default
 }
 
 
-object PiggybackIsoSystemCheck extends BaseIsoSystemCheck {
+object PiggybackIsoSystemCheck extends BaseIsoSystemCheck("PiggybackSystem") {
   val scheduler = IsoSystem.Bundle.schedulers.piggyback
 }
