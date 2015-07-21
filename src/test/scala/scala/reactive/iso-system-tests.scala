@@ -3,8 +3,8 @@ package scala.reactive
 
 
 import org.scalacheck._
-import org.scalacheck.Prop._
-import org.scalacheck.Gen._
+import org.scalacheck.Prop.forAllNoShrink
+import org.scalacheck.Gen.choose
 import org.scalatest.{FunSuite, Matchers}
 import scala.concurrent._
 import scala.concurrent.duration._
@@ -436,7 +436,10 @@ class MultiChannelIso(val p: Promise[Boolean], val n: Int) extends Iso[Int] {
 }
 
 
-abstract class IsoSystemCheck extends Properties("IsoSystem") {
+abstract class BaseIsoSystemCheck extends Properties(this.getClass.getSimpleName)
+
+
+abstract class IsoSystemCheck extends BaseIsoSystemCheck {
 
   val system = IsoSystem.default("check-system")
 
@@ -470,4 +473,19 @@ abstract class IsoSystemCheck extends Properties("IsoSystem") {
 
 object NewThreadIsoSystemCheck extends IsoSystemCheck {
   val scheduler = IsoSystem.Bundle.schedulers.newThread
+}
+
+
+object GlobalExecutionContextIsoSystemCheck extends IsoSystemCheck {
+  val scheduler = IsoSystem.Bundle.schedulers.globalExecutionContext
+}
+
+
+object DefaultIsoSystemCheck extends IsoSystemCheck {
+  val scheduler = IsoSystem.Bundle.schedulers.default
+}
+
+
+object PiggybackIsoSystemCheck extends BaseIsoSystemCheck {
+  val scheduler = IsoSystem.Bundle.schedulers.piggyback
 }
