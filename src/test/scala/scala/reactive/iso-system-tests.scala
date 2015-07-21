@@ -414,6 +414,28 @@ class EvenOddIso(p: Promise[Boolean], n: Int) extends Iso[Int] {
 }
 
 
+class MultiChannelIso(val p: Promise[Boolean], val n: Int) extends Iso[Int] {
+  import implicits.canLeak
+  var c = n
+  val connectors = for (i <- 0 until n) yield {
+    val conn = system.channels.open[Int]
+    conn.events onEvent { j =>
+      if (i == j) conn.seal()
+    }
+    conn
+  }
+  events onEvent {
+    i => connectors(i).channel ! i
+  }
+  events.scanPast(n)((count, _) => count - 1) onEvent { i =>
+    default.seal()
+  }
+  sysEvents onCase {
+    case IsoTerminated => p.success(true)
+  }
+}
+
+
 abstract class IsoSystemCheck extends Properties("IsoSystem") {
 
   val system = IsoSystem.default("check-system")
@@ -424,7 +446,7 @@ abstract class IsoSystemCheck extends Properties("IsoSystem") {
     val p = Promise[Boolean]()
     val ch = system.isolate(Proto[ManyIso](p, n).withScheduler(scheduler))
     for (i <- 0 until n) ch ! "count"
-    Await.result(p.future, 4.seconds)
+    Await.result(p.future, 2.seconds)
   }
 
   property("should receive many events through different sources") =
@@ -432,7 +454,15 @@ abstract class IsoSystemCheck extends Properties("IsoSystem") {
       val p = Promise[Boolean]()
       val ch = system.isolate(Proto[EvenOddIso](p, n).withScheduler(scheduler))
       for (i <- 0 until n) ch ! i
-      Await.result(p.future, 4.seconds)
+      Await.result(p.future, 2.seconds)
+    }
+
+  property("should be terminated after all its channels are sealed") =
+    forAllNoShrink(choose(1, 128)) { n =>
+      val p = Promise[Boolean]()
+      val ch = system.isolate(Proto[MultiChannelIso](p, n).withScheduler(scheduler))
+      for (i <- 0 until n) ch ! i
+      Await.result(p.future, 2.seconds)
     }
 
 }
