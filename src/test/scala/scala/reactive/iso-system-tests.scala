@@ -436,7 +436,7 @@ class MultiChannelIso(val p: Promise[Boolean], val n: Int) extends Iso[Int] {
 }
 
 
-abstract class BaseIsoSystemCheck extends Properties(this.getClass.getSimpleName)
+abstract class BaseIsoSystemCheck extends Properties(getClass.getSimpleName)
 
 
 abstract class IsoSystemCheck extends BaseIsoSystemCheck {
