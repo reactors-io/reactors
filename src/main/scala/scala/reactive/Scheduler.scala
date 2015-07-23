@@ -209,8 +209,9 @@ object Scheduler {
 
     private[reactive] class Worker(val frame: Frame, val handler: Scheduler.Handler)
     extends Scheduler.State.Default {
+      @volatile var thread: Thread = _
 
-      @tailrec final def loop(f: Frame): Unit = {
+      @tailrec final def loop(): Unit = {
         try {
           frame.executeBatch()
           frame.monitor.synchronized {
@@ -219,7 +220,7 @@ object Scheduler {
             }
           }
         } catch handler
-        if (!frame.hasTerminated) loop(f)
+        if (!frame.hasTerminated) loop()
       }
 
       def awake() {
@@ -230,7 +231,7 @@ object Scheduler {
     }
 
     private[reactive] class WorkerThread(val worker: Worker) extends Thread {
-      override def run() = worker.loop(worker.frame)
+      override def run() = worker.loop()
     }
 
     /** Starts a new dedicated thread for each isolate that is created.
@@ -249,16 +250,15 @@ object Scheduler {
 
       override def newState(frame: Frame): Dedicated.Worker = {
         val w = new Worker(frame, handler)
+        w.thread = new WorkerThread(w)
         w
       }
 
-      override def startSchedule(frame: Frame): Unit = {
-        super.startSchedule(frame)
-        val w = frame.schedulerState.asInstanceOf[Worker]
-        val t = new WorkerThread(w)
-        t.start()
+      override def schedule(frame: Frame): Unit = {
+        val t = frame.schedulerState.asInstanceOf[Worker].thread
+        if (t.getState == Thread.State.NEW) t.start()
+        super.schedule(frame)
       }
-
     }
 
     /** Executes the isolate on the thread that called the isolate system's `isolate`
@@ -288,7 +288,7 @@ object Scheduler {
       override def startSchedule(frame: Frame) {
         // ride, piggy, ride, like you never rode before!
         super.startSchedule(frame)
-        frame.schedulerState.asInstanceOf[Worker].loop(frame)
+        frame.schedulerState.asInstanceOf[Worker].loop()
       }
     }
 
