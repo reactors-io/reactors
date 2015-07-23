@@ -452,6 +452,25 @@ class LooperIso(val p: Promise[Boolean], var n: Int) extends Iso[String] {
 }
 
 
+class ParentIso(val p: Promise[Boolean], val n: Int) extends Iso[Unit] {
+  val ch = system.isolate(Proto[ChildIso](p, n))
+  for (i <- 0 until n) ch ! i
+  main.seal()
+}
+
+
+class ChildIso(val p: Promise[Boolean], val n: Int) extends Iso[Int] {
+  var nextNumber = 0
+  val sub = main.events foreach { i =>
+    if (nextNumber == i) nextNumber += 1
+    if (nextNumber == n) {
+      main.seal()
+      p.success(true)
+    }
+  }
+}
+
+
 abstract class BaseIsoSystemCheck(name: String) extends Properties(name) {
 
   val system = IsoSystem.default("check-system")  
@@ -489,6 +508,13 @@ abstract class IsoSystemCheck(name: String) extends BaseIsoSystemCheck(name) {
       val p = Promise[Boolean]()
       val ch = system.isolate(Proto[MultiChannelIso](p, n).withScheduler(scheduler))
       for (i <- 0 until n) ch ! i
+      Await.result(p.future, 2.seconds)
+    }
+
+  property("should create another isolate and send it messages") =
+    forAllNoShrink(choose(1, 512)) { n =>
+      val p = Promise[Boolean]()
+      system.isolate(Proto[ParentIso](p, n).withScheduler(scheduler))
       Await.result(p.future, 2.seconds)
     }
 

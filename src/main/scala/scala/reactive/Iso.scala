@@ -11,7 +11,7 @@ import isolate._
 
 /** An isolated, independent event propagation context.
  *
- *  An `Isolate[T]` object accepts events of type `T` on its input channel.
+ *  An `Iso[T]` object accepts events of type `T` on its input channel.
  *  One isolate can propagate events concurrently to other isolates --
  *  it is a basic element of concurrency.
  *  Event streams cannot be shared between isolates --
@@ -33,18 +33,16 @@ import isolate._
  *
  *  Separate isolate instances that exist at runtime
  *  are created using isolate systems.
- *  The `isolate` method in the isolate system requires a scheduler
- *  to execute the isolate.
  *  Here is an example:
  *
  *  {{{
- *  import Scheduler.Implicits.globalExecutionContext
  *  val isolateSystem = IsoSystem.default("MyIsolateSystem")
  *  val channel = isolateSystem.isolate(Proto[MyPrinter])
  *  }}}
  *
  *  Creating an isolate returns its channel.
  *  Event streams can be attached to channels to propagate their events to isolates.
+ *  TODO: update this documentation, as it is now obsolete.
  *
  *  {{{
  *  val emitter = new Events.Emitter[String]
