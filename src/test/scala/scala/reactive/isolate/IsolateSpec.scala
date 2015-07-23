@@ -18,31 +18,6 @@ import org.scalatest.matchers.ShouldMatchers
 // object Isolates {
 //   import Logging._
 
-//   class MasterIso(ask: Channel[Channel[Channel[Int]]]) extends Iso[Channel[Int]] {
-//     import implicits.canLeak
-
-//     sysEvents onCase {
-//       case IsoStarted => ask << channel
-//     }
-
-//     react <<= events foreach { c =>
-//       c << 7
-//     }
-//   }
-
-//   class RegChannelIso(sv: SyncVar[Int]) extends Iso[Null] {
-//     val second = system.channels.named("secondChannel").open[Int]
-
-//     react <<= second.events foreach { i =>
-//       sv.put(i)
-//       second.channel.seal()
-//     }
-//   }
-
-//   class LookupIso extends Iso[Null] {
-//     react <<= system.channels.iget[Int]("reggy#secondChannel").use(_ << 7)
-//   }
-
 // }
 
 

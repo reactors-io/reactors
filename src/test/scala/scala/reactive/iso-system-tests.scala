@@ -11,177 +11,6 @@ import scala.concurrent.duration._
 
 
 
-class IsoSystemTest extends FunSuite with Matchers {
-
-  test("system should return without throwing") {
-    val system = IsoSystem.default("test")
-    val proto = Proto[TestIso]
-    system.isolate(proto)
-    assert(system.frames.forName("isolate-0") != null)
-  }
-
-  test("system should return without throwing and use custom name") {
-    val system = IsoSystem.default("test")
-    val proto = Proto[TestIso].withName("Izzy")
-    system.isolate(proto)
-    assert(system.frames.forName("Izzy") != null)
-    assert(system.frames.forName("Izzy").name == "Izzy")
-  }
-
-  test("system should throw when attempting to reuse the same name") {
-    val system = IsoSystem.default("test")
-    system.isolate(Proto[TestIso].withName("Izzy"))
-    intercept[IllegalArgumentException] {
-      system.isolate(Proto[TestIso].withName("Izzy"))
-    }
-  }
-
-  test("system should create a default channel for the isolate") {
-    val system = IsoSystem.default("test")
-    val channel = system.isolate(Proto[TestIso].withName("Izzy"))
-    assert(channel != null)
-    val conn = system.frames.forName("Izzy").connectors.forName("default")
-    assert(conn != null)
-    assert(conn.channel eq channel)
-    assert(!conn.isDaemon)
-  }
-
-  test("system should create a system channel for the isolate") {
-    val system = IsoSystem.default("test")
-    system.isolate(Proto[TestIso].withName("Izzy"))
-    val conn = system.frames.forName("Izzy").connectors.forName("system")
-    assert(conn != null)
-    assert(conn.isDaemon)
-  }
-
-  test("system should schedule isolate's ctor for execution") {
-    val system = IsoSystem.default("test")
-    val p = Promise[Unit]()
-    system.isolate(Proto[PromiseIso](p))
-    Await.result(p.future, 5.seconds)
-  }
-
-  test("system should invoke the ctor with the Iso.self set") {
-    val system = IsoSystem.default("test")
-    val p = Promise[Boolean]()
-    system.isolate(Proto[IsoSelfIso](p))
-    assert(Await.result(p.future, 5.seconds))
-  }
-
-  test("iso should ensure the IsoStarted event") {
-    val system = IsoSystem.default("test")
-    val p = Promise[Boolean]()
-    system.isolate(Proto[IsoStartedIso](p))
-    assert(Await.result(p.future, 5.seconds))
-  }
-
-  test("iso should process an event that arrives after the first batch") {
-    val system = IsoSystem.default("test")
-    val p = Promise[Boolean]()
-    val ch = system.isolate(Proto[AfterFirstBatchIso](p))
-    Thread.sleep(250)
-    ch ! "success"
-    assert(Await.result(p.future, 5.seconds))
-  }
-
-  test("iso should process an event that arrives during the first batch") {
-    val system = IsoSystem.default("test")
-    val p = Promise[Boolean]()
-    val ch = system.isolate(Proto[DuringFirstBatchIso](p))
-    assert(Await.result(p.future, 5.seconds))
-  }
-
-  test("iso should process an event that arrives during the first event") {
-    val system = IsoSystem.default("test")
-    val p = Promise[Boolean]()
-    val ch = system.isolate(Proto[DuringFirstEventIso](p))
-    ch ! "message"
-    assert(Await.result(p.future, 5.seconds))
-  }
-
-  test("iso should process two events that arrive during the first event") {
-    val system = IsoSystem.default("test")
-    val p = Promise[Boolean]()
-    val ch = system.isolate(Proto[TwoDuringFirstIso](p))
-    ch ! "start"
-    assert(Await.result(p.future, 5.seconds))
-  }
-
-  test("iso should process 100 incoming events") {
-    val system = IsoSystem.default("test")
-    val p = Promise[Boolean]()
-    val ch = system.isolate(Proto[CountdownIso](p, 100))
-    Thread.sleep(250)
-    for (i <- 0 until 100) ch ! "dec"
-    assert(Await.result(p.future, 5.seconds))
-  }
-
-  test("iso should terminate after sealing its channel") {
-    val system = IsoSystem.default("test")
-    val p = Promise[Boolean]()
-    val ch = system.isolate(Proto[AfterSealTerminateIso](p))
-    ch ! "seal"
-    assert(Await.result(p.future, 5.seconds))
-  }
-
-  test("iso should be able to open a new channel") {
-    val system = IsoSystem.default("test")
-    val p = Promise[Boolean]()
-    system.isolate(Proto[NewChannelIso](p))
-    assert(Await.result(p.future, 5.seconds))
-  }
-
-  test("iso should get IsoScheduled events") {
-    val system = IsoSystem.default("test")
-    val p = Promise[Boolean]()
-    val ch = system.isolate(Proto[IsoScheduledIso](p))
-    for (i <- 0 until 5) {
-      Thread.sleep(60)
-      ch ! "dummy"
-    }
-    assert(Await.result(p.future, 5.seconds))
-  }
-
-  test("iso should get IsoPreempted events") {
-    val system = IsoSystem.default("test")
-    val p = Promise[Boolean]()
-    system.isolate(Proto[IsoPreemptedIso](p))
-    assert(Await.result(p.future, 5.seconds))
-  }
-
-  test("iso should terminate on ctor exception") {
-    val system = IsoSystem.default("test")
-    val p = Promise[(Boolean, Boolean)]()
-    system.isolate(Proto[CtorExceptionIso](p))
-    assert(Await.result(p.future, 5.seconds) == (true, true))
-  }
-
-  test("iso does not raise termination-related IsoDied events after IsoTerminated") {
-    val system = IsoSystem.default("test")
-    val p = Promise[Boolean]()
-    system.isolate(Proto[TerminationExceptionIso](p))
-    Thread.sleep(100)
-    assert(p.future.value == None)
-  }
-
-  test("iso should terminate on exceptions while running") {
-    val system = IsoSystem.default("test")
-    val p = Promise[Throwable]()
-    val ch = system.isolate(Proto[RunningExceptionIso](p))
-    ch ! "die"
-    assert(Await.result(p.future, 5.seconds).getMessage == "exception thrown")
-  }
-
-  test("Iso.self should be correctly set") {
-    val system = IsoSystem.default("test")
-    val p = Promise[Boolean]()
-    system.isolate(Proto[SelfIso](p))
-    assert(Await.result(p.future, 5.seconds))
-  }
-
-}
-
-
 class TestIso extends Iso[Unit]
 
 
@@ -452,8 +281,9 @@ class LooperIso(val p: Promise[Boolean], var n: Int) extends Iso[String] {
 }
 
 
-class ParentIso(val p: Promise[Boolean], val n: Int) extends Iso[Unit] {
-  val ch = system.isolate(Proto[ChildIso](p, n))
+class ParentIso(val p: Promise[Boolean], val n: Int, val s: String)
+extends Iso[Unit] {
+  val ch = system.isolate(Proto[ChildIso](p, n).withScheduler(s))
   for (i <- 0 until n) ch ! i
   main.seal()
 }
@@ -467,6 +297,35 @@ class ChildIso(val p: Promise[Boolean], val n: Int) extends Iso[Int] {
       main.seal()
       p.success(true)
     }
+  }
+}
+
+
+class PingIso(val p: Promise[Boolean], var n: Int, val s: String) extends Iso[String] {
+  import implicits.canLeak
+  val pong = system.isolate(Proto[PongIso](n, main.channel).withScheduler(s))
+  val start = sysEvents onCase {
+    case IsoStarted => pong ! "pong"
+  }
+  val sub = main.events onCase {
+    case "ping" =>
+      n -= 1
+      if (n > 0) pong ! "pong"
+      else {
+        main.seal()
+        p.success(true)
+      }
+  }
+}
+
+
+class PongIso(var n: Int, val ping: Channel[String]) extends Iso[String] {
+  import implicits.canLeak
+  main.events onCase {
+    case "pong" =>
+      ping ! "ping"
+      n -= 1
+      if (n == 0) main.seal()
   }
 }
 
@@ -514,8 +373,15 @@ abstract class IsoSystemCheck(name: String) extends BaseIsoSystemCheck(name) {
   property("should create another isolate and send it messages") =
     forAllNoShrink(choose(1, 512)) { n =>
       val p = Promise[Boolean]()
-      system.isolate(Proto[ParentIso](p, n).withScheduler(scheduler))
+      system.isolate(Proto[ParentIso](p, n, scheduler).withScheduler(scheduler))
       Await.result(p.future, 2.seconds)
+    }
+
+  property("should play ping-pong with another isolate") =
+    forAllNoShrink(choose(1, 512)) { n =>
+      val p = Promise[Boolean]()
+      system.isolate(Proto[PingIso](p, n, scheduler).withScheduler(scheduler))
+      Await.result(p.future, 2.second)
     }
 
 }
@@ -538,4 +404,175 @@ object DefaultSchedulerIsoSystemCheck extends IsoSystemCheck("DefaultSchedulerSy
 
 object PiggybackIsoSystemCheck extends BaseIsoSystemCheck("PiggybackSystem") {
   val scheduler = IsoSystem.Bundle.schedulers.piggyback
+}
+
+
+class IsoSystemTest extends FunSuite with Matchers {
+
+  test("system should return without throwing") {
+    val system = IsoSystem.default("test")
+    val proto = Proto[TestIso]
+    system.isolate(proto)
+    assert(system.frames.forName("isolate-0") != null)
+  }
+
+  test("system should return without throwing and use custom name") {
+    val system = IsoSystem.default("test")
+    val proto = Proto[TestIso].withName("Izzy")
+    system.isolate(proto)
+    assert(system.frames.forName("Izzy") != null)
+    assert(system.frames.forName("Izzy").name == "Izzy")
+  }
+
+  test("system should throw when attempting to reuse the same name") {
+    val system = IsoSystem.default("test")
+    system.isolate(Proto[TestIso].withName("Izzy"))
+    intercept[IllegalArgumentException] {
+      system.isolate(Proto[TestIso].withName("Izzy"))
+    }
+  }
+
+  test("system should create a default channel for the isolate") {
+    val system = IsoSystem.default("test")
+    val channel = system.isolate(Proto[TestIso].withName("Izzy"))
+    assert(channel != null)
+    val conn = system.frames.forName("Izzy").connectors.forName("default")
+    assert(conn != null)
+    assert(conn.channel eq channel)
+    assert(!conn.isDaemon)
+  }
+
+  test("system should create a system channel for the isolate") {
+    val system = IsoSystem.default("test")
+    system.isolate(Proto[TestIso].withName("Izzy"))
+    val conn = system.frames.forName("Izzy").connectors.forName("system")
+    assert(conn != null)
+    assert(conn.isDaemon)
+  }
+
+  test("system should schedule isolate's ctor for execution") {
+    val system = IsoSystem.default("test")
+    val p = Promise[Unit]()
+    system.isolate(Proto[PromiseIso](p))
+    Await.result(p.future, 5.seconds)
+  }
+
+  test("system should invoke the ctor with the Iso.self set") {
+    val system = IsoSystem.default("test")
+    val p = Promise[Boolean]()
+    system.isolate(Proto[IsoSelfIso](p))
+    assert(Await.result(p.future, 5.seconds))
+  }
+
+  test("iso should ensure the IsoStarted event") {
+    val system = IsoSystem.default("test")
+    val p = Promise[Boolean]()
+    system.isolate(Proto[IsoStartedIso](p))
+    assert(Await.result(p.future, 5.seconds))
+  }
+
+  test("iso should process an event that arrives after the first batch") {
+    val system = IsoSystem.default("test")
+    val p = Promise[Boolean]()
+    val ch = system.isolate(Proto[AfterFirstBatchIso](p))
+    Thread.sleep(250)
+    ch ! "success"
+    assert(Await.result(p.future, 5.seconds))
+  }
+
+  test("iso should process an event that arrives during the first batch") {
+    val system = IsoSystem.default("test")
+    val p = Promise[Boolean]()
+    val ch = system.isolate(Proto[DuringFirstBatchIso](p))
+    assert(Await.result(p.future, 5.seconds))
+  }
+
+  test("iso should process an event that arrives during the first event") {
+    val system = IsoSystem.default("test")
+    val p = Promise[Boolean]()
+    val ch = system.isolate(Proto[DuringFirstEventIso](p))
+    ch ! "message"
+    assert(Await.result(p.future, 5.seconds))
+  }
+
+  test("iso should process two events that arrive during the first event") {
+    val system = IsoSystem.default("test")
+    val p = Promise[Boolean]()
+    val ch = system.isolate(Proto[TwoDuringFirstIso](p))
+    ch ! "start"
+    assert(Await.result(p.future, 5.seconds))
+  }
+
+  test("iso should process 100 incoming events") {
+    val system = IsoSystem.default("test")
+    val p = Promise[Boolean]()
+    val ch = system.isolate(Proto[CountdownIso](p, 100))
+    Thread.sleep(250)
+    for (i <- 0 until 100) ch ! "dec"
+    assert(Await.result(p.future, 5.seconds))
+  }
+
+  test("iso should terminate after sealing its channel") {
+    val system = IsoSystem.default("test")
+    val p = Promise[Boolean]()
+    val ch = system.isolate(Proto[AfterSealTerminateIso](p))
+    ch ! "seal"
+    assert(Await.result(p.future, 5.seconds))
+  }
+
+  test("iso should be able to open a new channel") {
+    val system = IsoSystem.default("test")
+    val p = Promise[Boolean]()
+    system.isolate(Proto[NewChannelIso](p))
+    assert(Await.result(p.future, 5.seconds))
+  }
+
+  test("iso should get IsoScheduled events") {
+    val system = IsoSystem.default("test")
+    val p = Promise[Boolean]()
+    val ch = system.isolate(Proto[IsoScheduledIso](p))
+    for (i <- 0 until 5) {
+      Thread.sleep(60)
+      ch ! "dummy"
+    }
+    assert(Await.result(p.future, 5.seconds))
+  }
+
+  test("iso should get IsoPreempted events") {
+    val system = IsoSystem.default("test")
+    val p = Promise[Boolean]()
+    system.isolate(Proto[IsoPreemptedIso](p))
+    assert(Await.result(p.future, 5.seconds))
+  }
+
+  test("iso should terminate on ctor exception") {
+    val system = IsoSystem.default("test")
+    val p = Promise[(Boolean, Boolean)]()
+    system.isolate(Proto[CtorExceptionIso](p))
+    assert(Await.result(p.future, 5.seconds) == (true, true))
+  }
+
+  test("iso does not raise termination-related IsoDied events after IsoTerminated") {
+    val system = IsoSystem.default("test")
+    val p = Promise[Boolean]()
+    system.isolate(Proto[TerminationExceptionIso](p))
+    Thread.sleep(100)
+    assert(p.future.value == None)
+  }
+
+  test("iso should terminate on exceptions while running") {
+    val system = IsoSystem.default("test")
+    val p = Promise[Throwable]()
+    val ch = system.isolate(Proto[RunningExceptionIso](p))
+    ch ! "die"
+    assert(Await.result(p.future, 5.seconds).getMessage == "exception thrown")
+  }
+
+  test("Iso.self should be correctly set") {
+    val system = IsoSystem.default("test")
+    val p = Promise[Boolean]()
+    system.isolate(Proto[SelfIso](p))
+    assert(Await.result(p.future, 5.seconds))
+  }
+
 }
