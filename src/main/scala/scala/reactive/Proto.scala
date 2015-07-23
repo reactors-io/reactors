@@ -26,7 +26,7 @@ final class Proto[+I <: Iso[_]] private[reactive] (
   /** Associates the specified scheduler and returns the new `Proto` object.
    *
    *  Note that the scheduler name needs to be registered with the `IsoSystem` object.
-   *  
+   *
    *  @param sname               name of the scheduler
    *  @return                    a new `Proto` object
    */

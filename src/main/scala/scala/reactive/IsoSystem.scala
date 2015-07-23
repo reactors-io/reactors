@@ -63,8 +63,14 @@ class IsoSystem(
   ): Channel[T] = {
     // 1. ensure a unique id
     val uid = frames.reserveId()
-    val scheduler = Scheduler.newThread
-    val factory = EventQueue.UnrolledRing.Factory
+    val scheduler = proto.scheduler match {
+      case null => bundle.defaultScheduler
+      case name => bundle.scheduler(name)
+    }
+    val factory = proto.eventQueueFactory match {
+      case null => EventQueue.UnrolledRing.Factory
+      case fact => fact
+    }
     val frame = new Frame(uid, proto, scheduler, this)
 
     // 2. reserve the unique name or break

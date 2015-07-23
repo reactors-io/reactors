@@ -22,6 +22,23 @@ class SelfIso(val p: Promise[Boolean]) extends Iso[Int] {
 }
 
 
+class PiggyIso(val p: Promise[Boolean]) extends Iso[Unit] {
+  import implicits.canLeak
+  sysEvents onCase {
+    case IsoStarted =>
+      try {
+        val piggy = IsoSystem.Bundle.schedulers.piggyback
+        system.isolate(Proto[SelfIso].withScheduler(piggy))
+      } catch {
+        case e: IllegalStateException =>
+          p.success(true)
+      } finally {
+        main.seal()
+      }
+  }
+}
+
+
 class PromiseIso(val p: Promise[Unit]) extends Iso[Unit] {
   p.success(())
 }
@@ -572,6 +589,13 @@ class IsoSystemTest extends FunSuite with Matchers {
     val system = IsoSystem.default("test")
     val p = Promise[Boolean]()
     system.isolate(Proto[SelfIso](p))
+    assert(Await.result(p.future, 5.seconds))
+  }
+
+  test("piggyback scheduler should throw an exception if called from an isolate") {
+    val system = IsoSystem.default("test")
+    val p = Promise[Boolean]()
+    system.isolate(Proto[PiggyIso](p))
     assert(Await.result(p.future, 5.seconds))
   }
 

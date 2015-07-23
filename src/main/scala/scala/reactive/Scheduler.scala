@@ -219,7 +219,11 @@ object Scheduler {
               frame.monitor.wait()
             }
           }
-        } catch handler
+        } catch {
+          case t if handler.isDefinedAt(t) =>
+            handler(t)
+            throw t
+        }
         if (!frame.hasTerminated) loop()
       }
 
@@ -286,8 +290,13 @@ object Scheduler {
       }
 
       override def startSchedule(frame: Frame) {
-        // ride, piggy, ride, like you never rode before!
         super.startSchedule(frame)
+        if (Iso.selfOrNull != null)
+          throw new IllegalStateException(
+            "Cannot use piggyback scheduler from within an isolate.")
+      }
+
+      override def schedule(frame: Frame) {
         frame.schedulerState.asInstanceOf[Worker].loop()
       }
     }
