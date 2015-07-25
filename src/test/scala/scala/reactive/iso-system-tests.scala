@@ -347,6 +347,44 @@ class PongIso(var n: Int, val ping: Channel[String]) extends Iso[String] {
 }
 
 
+class RingIso(
+  val index: Int,
+  val num: Int,
+  val sink: Either[Promise[Boolean], Channel[String]],
+  val sched: String
+) extends Iso[String] {
+  import implicits.canLeak
+
+  val next: Channel[String] = {
+    if (index == 0) {
+      val p = Proto[RingIso](index + 1, num, Right(main.channel), sched)
+        .withScheduler(sched)
+      system.isolate(p)
+    } else if (index < num) {
+      val p = Proto[RingIso](index + 1, num, sink, sched).withScheduler(sched)
+      system.isolate(p)
+    } else {
+      sink match {
+        case Right(first) => first
+        case _ => sys.error("unexpected case")
+      }
+    }
+  }
+
+  main.events onCase {
+    case "start" =>
+      next ! "ping"
+    case "ping" =>
+      next ! "ping"
+      main.seal()
+      if (index == 0) sink match {
+        case Left(p) => p.success(true)
+        case _ => sys.error("unexpected case")
+      }
+  }
+}
+
+
 abstract class BaseIsoSystemCheck(name: String) extends Properties(name) {
 
   val system = IsoSystem.default("check-system")  
@@ -398,6 +436,15 @@ abstract class IsoSystemCheck(name: String) extends BaseIsoSystemCheck(name) {
     forAllNoShrink(choose(1, 512)) { n =>
       val p = Promise[Boolean]()
       system.isolate(Proto[PingIso](p, n, scheduler).withScheduler(scheduler))
+      Await.result(p.future, 2.second)
+    }
+
+  property("a ring of isolates should correctly propagate messages") =
+    forAllNoShrink(choose(1, 256)) { n =>
+      val p = Promise[Boolean]()
+      val proto = Proto[RingIso](0, n, Left(p), scheduler).withScheduler(scheduler)
+      val ch = system.isolate(proto)
+      ch ! "start"
       Await.result(p.future, 2.second)
     }
 
