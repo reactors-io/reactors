@@ -38,19 +38,21 @@ package testx {
       x <- gens(i)
     } yield x
 
-    def stackTraced[T](p: =>T): T = {
-      try {
-        p
-      } catch {
-        case t: Throwable =>
-          t.printStackTrace()
-          throw t
-      }
-    }
   }
 
 }
 
 
 package object testx {
+
+  def stackTraced[T](p: =>T): T = {
+    try {
+      p
+    } catch {
+      case t: Throwable =>
+        t.printStackTrace()
+        throw t
+    }
+  }
+
 }

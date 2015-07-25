@@ -440,7 +440,7 @@ abstract class IsoSystemCheck(name: String) extends BaseIsoSystemCheck(name) {
     }
 
   property("a ring of isolates should correctly propagate messages") =
-    forAllNoShrink(choose(1, 256)) { n =>
+    forAllNoShrink(choose(1, 64)) { n =>
       val p = Promise[Boolean]()
       val proto = Proto[RingIso](0, n, Left(p), scheduler).withScheduler(scheduler)
       val ch = system.isolate(proto)

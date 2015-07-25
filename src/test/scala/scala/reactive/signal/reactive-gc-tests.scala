@@ -3,9 +3,6 @@ package signal
 
 
 
-import org.scalacheck._
-import org.scalacheck.Gen._
-import org.scalacheck.Prop._
 import org.scalatest._
 import org.scalatest.matchers.ShouldMatchers
 import org.testx._
@@ -13,11 +10,9 @@ import scala.reactive.util._
 
 
 
-class ReactiveGCCheck extends Properties("ReactiveGC") with ExtendedProperties {
+class ReactiveGCSpec extends FlatSpec with ShouldMatchers {
 
-  val sizes = detChoose(1, 100)
-
-  def testGC(num: Int)(afterCheck: Events.Emitter[Int] => Boolean): Prop = {
+  def testGC(num: Int)(afterCheck: Events.Emitter[Int] => Boolean) = {
     var signsOfLife = Array.fill(num)(false)
     val emitter = new Events.Emitter[Int]
     for (i <- 0 until num) emitter foreach { _ =>
@@ -30,13 +25,14 @@ class ReactiveGCCheck extends Properties("ReactiveGC") with ExtendedProperties {
 
     emitter react 1
 
-    val allDead = s"all dead: ${signsOfLife.mkString(", ")}" |:
+    val allDead =
       (for (i <- 0 until num) yield signsOfLife(i) == false).forall(_ == true)
-    val afterCheckOk = s"after check passes" |: afterCheck(emitter)
-    allDead && afterCheckOk
+    val afterCheckOk = afterCheck(emitter)
+    assert(allDead && afterCheckOk)
   }
 
-  property("GC a single dependency") = forAllNoShrink(sizes) { sz =>
+  it should "GC 1 dependency" in {
+    val sz = 1
     stackTraced {
       testGC(sz) {
         _.demux == null
@@ -44,7 +40,34 @@ class ReactiveGCCheck extends Properties("ReactiveGC") with ExtendedProperties {
     }
   }
 
-  def testOnX(num: Int)(afterCheck: Events.Emitter[Int] => Boolean): Prop = {
+  it should "GC 2 dependencies" in {
+    val sz = 2
+    stackTraced {
+      testGC(sz) {
+        _.demux == null
+      }
+    }
+  }
+
+  it should "GC 4 dependencies" in {
+    val sz = 2
+    stackTraced {
+      testGC(sz) {
+        _.demux == null
+      }
+    }
+  }
+
+  it should "GC 8 dependencies" in {
+    val sz = 2
+    stackTraced {
+      testGC(sz) {
+        _.demux == null
+      }
+    }
+  }
+
+  def testOnX(num: Int)(afterCheck: Events.Emitter[Int] => Boolean) = {
     implicit val canLeak = Permission.newCanLeak
 
     var signsOfLife = Array.fill(num)(false)
@@ -58,13 +81,14 @@ class ReactiveGCCheck extends Properties("ReactiveGC") with ExtendedProperties {
 
     emitter react 1
 
-    val allDead = s"all live: ${signsOfLife.mkString(", ")}" |:
+    val allDead =
       (for (i <- 0 until num) yield signsOfLife(i) == true).forall(_ == true)
-    val afterCheckOk = s"after check passes" |: afterCheck(emitter)
-    allDead && afterCheckOk
+    val afterCheckOk = afterCheck(emitter)
+    assert(allDead && afterCheckOk)
   }
 
-  property("not GC onX dependency") = forAllNoShrink(sizes) { sz =>
+  it should "not GC onX dependency" in {
+    val sz = 5
     stackTraced {
       testOnX(sz) {
         _.demux != null
@@ -72,7 +96,7 @@ class ReactiveGCCheck extends Properties("ReactiveGC") with ExtendedProperties {
     }
   }
 
-  def testDep(num: Int)(afterCheck: Events.Emitter[Int] => Boolean): Prop = {
+  def testDep(num: Int)(afterCheck: Events.Emitter[Int] => Boolean) = {
     var signsOfLife = Array.fill(num)(false)
     val emitter = new Events.Emitter[Int]
     val subs = for (i <- 0 until num) yield emitter foreach { _ =>
@@ -84,13 +108,13 @@ class ReactiveGCCheck extends Properties("ReactiveGC") with ExtendedProperties {
 
     emitter react 1
 
-    val allDead = s"all live: ${signsOfLife.mkString(", ")}" |:
+    val allDead =
       (for (i <- 0 until num) yield signsOfLife(i) == true).forall(_ == true)
-    val afterCheckOk = s"after check passes" |: afterCheck(emitter)
+    val afterCheckOk = afterCheck(emitter)
     allDead && afterCheckOk
   }
 
-  property("accurately reflect dependencies") = forAllNoShrink(sizes) { sz =>
+  def testDeps(sz: Int): Boolean = {
     stackTraced {
       testDep(sz) { r =>
         if (sz == 0) {
@@ -105,10 +129,26 @@ class ReactiveGCCheck extends Properties("ReactiveGC") with ExtendedProperties {
       }
     }
   }
-}
 
+  it should "accurately reflect 0 dependencies" in {
+    val sz = 0
+    assert(testDeps(sz))
+  }
 
-class ReactiveGCSpec extends FlatSpec with ShouldMatchers {
+  it should "accurately reflect 1 dependency" in {
+    val sz = 1
+    assert(testDeps(sz))
+  }
+
+  it should "accurately reflect 2 dependencies" in {
+    val sz = 2
+    assert(testDeps(sz))
+  }
+
+  it should "accurately reflect 8 dependencies" in {
+    val sz = 8
+    assert(testDeps(sz))
+  }
 
   def testGChalf(num: Int)(afterCheck: Events.Emitter[Int] => Boolean) {
     var signsOfLife = Array.fill(num)(false)
