@@ -27,7 +27,7 @@ class RContainerCheck extends Properties("RContainer") with ExtendedProperties {
       val numbers = new RHashSet[Long]
       val mapped = numbers.map(-_).react.to[RHashSet[Long]]
       
-      sys.runtime.gc()
+      // sys.runtime.gc()
   
       assert(mapped.size == 0)
   
@@ -67,7 +67,7 @@ class RContainerCheck extends Properties("RContainer") with ExtendedProperties {
         assert(both(n) == true, s"(not true for $n in ${nums.mkString(", ")})")
     }
 
-    sys.runtime.gc()
+    // sys.runtime.gc()
 
     xs += 1
     check(1)
@@ -124,7 +124,7 @@ class RContainerCheck extends Properties("RContainer") with ExtendedProperties {
     }
     val inputs = (0 until sz).map(_.toString)
 
-    sys.runtime.gc()
+    // sys.runtime.gc()
 
     xs += "1"
     check("1")
