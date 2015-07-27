@@ -231,7 +231,8 @@ package object reactive {
 
   /* extensions on tuples */
 
-  class Tuple2Extensions[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](val tuple: (Signal[T], Signal[S])) {
+  class Tuple2Extensions[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
+    (val tuple: (Signal[T], Signal[S])) {
     def mutate[M <: ReactMutable](mutable: M)(f: (T, S) => Unit) = {
       val s = new Tuple2Extensions.Mutate(tuple, mutable, f)
       s.subscription = Events.CompositeSubscription(
@@ -242,11 +243,19 @@ package object reactive {
     }
   }
 
-  implicit def tuple2ext[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](tuple: (Signal[T], Signal[S])) = new Tuple2Extensions[T, S](tuple)
+  implicit def tuple2ext[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S]
+    (tuple: (Signal[T], Signal[S])) = new Tuple2Extensions[T, S](tuple)
 
   object Tuple2Extensions {
-    class Mutate[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S, M <: ReactMutable](val tuple: (Signal[T], Signal[S]), val mutable: M, val f: (T, S) => Unit)
-    extends Events.ProxySubscription {
+    class Mutate[
+      @spec(Int, Long, Double) T,
+      @spec(Int, Long, Double) S,
+      M <: ReactMutable
+    ](
+      val tuple: (Signal[T], Signal[S]),
+      val mutable: M,
+      val f: (T, S) => Unit
+    ) extends Events.ProxySubscription {
       val m1 = new Reactor[T] {
         def react(value: T) {
           try f(tuple._1(), tuple._2())
@@ -279,7 +288,11 @@ package object reactive {
     }
   }
 
-  class Tuple3Extensions[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S,  @spec(Int, Long, Double) U](val tuple: (Signal[T], Signal[S], Signal[U])) {
+  class Tuple3Extensions[
+    @spec(Int, Long, Double) T,
+    @spec(Int, Long, Double) S,
+    @spec(Int, Long, Double) U
+  ](val tuple: (Signal[T], Signal[S], Signal[U])) {
     def mutate[M <: ReactMutable](mutable: M)(f: (T, S, U) => Unit) = {
       val s = new Tuple3Extensions.Mutate(tuple, mutable, f)
       s.subscription = Events.CompositeSubscription(
@@ -291,11 +304,23 @@ package object reactive {
     }
   }
 
-  implicit def tuple3ext[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S,  @spec(Int, Long, Double) U](tuple: (Signal[T], Signal[S], Signal[U])) = new Tuple3Extensions[T, S, U](tuple)
+  implicit def tuple3ext[
+    @spec(Int, Long, Double) T,
+    @spec(Int, Long, Double) S,
+    @spec(Int, Long, Double) U
+  ](tuple: (Signal[T], Signal[S], Signal[U])) = new Tuple3Extensions[T, S, U](tuple)
 
   object Tuple3Extensions {
-    class Mutate[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S, @spec(Int, Long, Double) U, M <: ReactMutable](val tuple: (Signal[T], Signal[S], Signal[U]), val mutable: M, val f: (T, S, U) => Unit)
-    extends Events.ProxySubscription {
+    class Mutate[
+      @spec(Int, Long, Double) T,
+      @spec(Int, Long, Double) S,
+      @spec(Int, Long, Double) U,
+      M <: ReactMutable
+    ](
+      val tuple: (Signal[T], Signal[S], Signal[U]),
+      val mutable: M,
+      val f: (T, S, U) => Unit
+    ) extends Events.ProxySubscription {
       val m1 = new Reactor[T] {
         def react(value: T) {
           try f(tuple._1(), tuple._2(), tuple._3())
