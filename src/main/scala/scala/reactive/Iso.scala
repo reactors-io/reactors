@@ -20,12 +20,13 @@ import isolate._
  *
  *  Isolates are defined by extending the `Iso` trait.
  *  The events passed to isolates can be subscribed to using
- *  their `events` stream.
+ *  their `main.events` stream.
  *  Here is an example:
  *
  *  {{{
  *  class MyPrinter extends Iso[String] {
- *    react <<= events onEvent {
+ *    import implicits.canLeak
+ *    main.events onEvent {
  *      e => println(e)
  *    }
  *  }
@@ -41,26 +42,27 @@ import isolate._
  *  }}}
  *
  *  Creating an isolate returns its channel.
- *  Event streams can be attached to channels to propagate their events to isolates.
- *  TODO: update this documentation, as it is now obsolete.
+ *  Events can be sent to a channel using the `!` method:
  *
  *  {{{
- *  val emitter = new Events.Emitter[String]
- *  channel.attach(emitter)
- *  emitter += "Hi!" // eventually, this is printed by `MyPrinter`
+ *  channel ! "Hi!" // eventually, this is printed by `MyPrinter`
  *  }}}
  *
- *  To stop an isolate, its channel needs to be sealed, 
- *  and all the previously attached event streams need to be closed.
+ *  To stop an isolate, the isolate needs to seal its main channel.
+ *  The following isolate seals its main channel after receiving the first event:
  *
  *  {{{
- *  emitter.close()
- *  channel.seal()
+ *  class MyPrinter extends Iso[String] {
+ *    import implicits.canLeak
+ *    main.events onEvent {
+ *      e =>
+ *      println(e)
+ *      main.seal()
+ *    }
+ *  }
  *  }}}
  *
- *  Isolates also receive special `SysEvent`s on the `sysEvents` event stream.
- *  If a subscription on the `events` event stream throws a non-lethal exception,
- *  the exception is emitted on the `failures` event stream.
+ *  Isolates also receive special `SysEvent` events on the `sysEvents` event stream.
  *  
  *  @tparam T        the type of the events this isolate produces
  */
