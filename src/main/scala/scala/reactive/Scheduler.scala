@@ -297,7 +297,15 @@ object Scheduler {
       }
 
       override def schedule(frame: Frame) {
-        frame.schedulerState.asInstanceOf[Worker].loop()
+        frame.schedulerState match {
+          case w: Worker =>
+            if (w.thread == null) {
+              w.thread = Thread.currentThread
+              w.loop()
+            } else {
+              super.schedule(frame)
+            }
+        }
       }
     }
 

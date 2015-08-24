@@ -287,6 +287,17 @@ trait Events[@spec(Int, Long, Double) +T] {
     rr
   }
 
+  /** Ignores all incoming exceptions.
+   *
+   *  @return            an event stream that emits all incoming events,
+   *                     and ignores all incoming exceptions
+   */
+  def recoverAll: Events[T] with Events.Subscription = {
+    val rr = new Events.RecoverAll(self)
+    rr.subscription = self observe rr
+    rr
+  }
+
   /** Creates a new event stream `s` that produces events by consecutively
    *  applying the specified operator `op` to the previous event that `s`
    *  produced and the current event that this event stream value produced.
@@ -1265,6 +1276,19 @@ object Events {
         }
         reactAll(event)
       }
+    }
+    def unreact() {
+      unreactAll()
+    }
+    var subscription = Subscription.empty
+  }
+
+  private[reactive] class RecoverAll[@spec(Int, Long, Double) T](val self: Events[T])
+  extends Events.Default[T] with Reactor[T] with Events.ProxySubscription {
+    def react(value: T) {
+      reactAll(value)
+    }
+    def except(t: Throwable) {
     }
     def unreact() {
       unreactAll()

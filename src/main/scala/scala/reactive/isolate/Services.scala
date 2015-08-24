@@ -120,7 +120,7 @@ object Services {
      *  @param canLeak  the object that contains the leaky subscriptions
      *  @return         an event stream and subscription
      */
-    def period(d: Duration)(implicit canLeak: CanLeak):
+    def periodic(d: Duration)(implicit canLeak: CanLeak):
       Events[Unit] with Events.Subscription = {
       val connector = system.channels.daemon.open[Unit]
       val task = new TimerTask {
