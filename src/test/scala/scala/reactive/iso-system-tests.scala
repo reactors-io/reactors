@@ -394,7 +394,7 @@ abstract class BaseIsoSystemCheck(name: String) extends Properties(name) {
   property("should send itself messages") = forAllNoShrink(choose(1, 1024)) { n =>
     val p = Promise[Boolean]()
     system.isolate(Proto[LooperIso](p, n).withScheduler(scheduler))
-    Await.result(p.future, 2.seconds)
+    Await.result(p.future, 5.seconds)
   }
 
 }
@@ -406,7 +406,7 @@ abstract class IsoSystemCheck(name: String) extends BaseIsoSystemCheck(name) {
     val p = Promise[Boolean]()
     val ch = system.isolate(Proto[ManyIso](p, n).withScheduler(scheduler))
     for (i <- 0 until n) ch ! "count"
-    Await.result(p.future, 2.seconds)
+    Await.result(p.future, 5.seconds)
   }
 
   property("should receive many events through different sources") =
@@ -414,7 +414,7 @@ abstract class IsoSystemCheck(name: String) extends BaseIsoSystemCheck(name) {
       val p = Promise[Boolean]()
       val ch = system.isolate(Proto[EvenOddIso](p, n).withScheduler(scheduler))
       for (i <- 0 until n) ch ! i
-      Await.result(p.future, 2.seconds)
+      Await.result(p.future, 5.seconds)
     }
 
   property("should be terminated after all its channels are sealed") =
@@ -422,21 +422,21 @@ abstract class IsoSystemCheck(name: String) extends BaseIsoSystemCheck(name) {
       val p = Promise[Boolean]()
       val ch = system.isolate(Proto[MultiChannelIso](p, n).withScheduler(scheduler))
       for (i <- 0 until n) ch ! i
-      Await.result(p.future, 2.seconds)
+      Await.result(p.future, 5.seconds)
     }
 
   property("should create another isolate and send it messages") =
     forAllNoShrink(choose(1, 512)) { n =>
       val p = Promise[Boolean]()
       system.isolate(Proto[ParentIso](p, n, scheduler).withScheduler(scheduler))
-      Await.result(p.future, 2.seconds)
+      Await.result(p.future, 5.seconds)
     }
 
   property("should play ping-pong with another isolate") =
     forAllNoShrink(choose(1, 512)) { n =>
       val p = Promise[Boolean]()
       system.isolate(Proto[PingIso](p, n, scheduler).withScheduler(scheduler))
-      Await.result(p.future, 2.second)
+      Await.result(p.future, 5.seconds)
     }
 
   property("a ring of isolates should correctly propagate messages") =
@@ -445,7 +445,7 @@ abstract class IsoSystemCheck(name: String) extends BaseIsoSystemCheck(name) {
       val proto = Proto[RingIso](0, n, Left(p), scheduler).withScheduler(scheduler)
       val ch = system.isolate(proto)
       ch ! "start"
-      Await.result(p.future, 2.second)
+      Await.result(p.future, 5.seconds)
     }
 
 }
