@@ -10,7 +10,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 
 
-trait SnapQueueBench extends PerformanceTest.OfflineReport {
+trait SnapQueueBench extends Bench.OfflineReport {
 
   def granularity = 10
 

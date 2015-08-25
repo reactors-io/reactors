@@ -8,7 +8,7 @@ import org.scalameter.api._
 
 
 
-trait ConcUtils extends PerformanceTest.OfflineReport {
+trait ConcUtils extends Bench.OfflineReport {
 
   override def historian = org.scalameter.reporting.RegressionReporter.Historian.Complete()
 
@@ -342,7 +342,7 @@ class ConcMemoryBenches extends ConcUtils {
 }
 
 
-class ConcBenches extends PerformanceTest.OfflineReport {
+class ConcBenches extends Bench.OfflineReport {
 
   include[ConcTimeBenches]
   include[ConcMemoryBenches]
