@@ -41,6 +41,9 @@ object ReactiveCollectionsBuild extends MechaRepoBuild {
     parallelExecution in Test := false,
     fork in Test := true,
     javaOptions in test += "-Xmx2G -XX:MaxPermSize=384m",
+    scalacOptions ++= Seq(
+      "-deprecation"
+    ),
     scalacOptions in (Compile, doc) ++= Seq(
       "-implicits"
     ),
@@ -127,6 +130,9 @@ object ReactiveCollectionsBuild extends MechaRepoBuild {
     testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
     parallelExecution in Test := false,
     fork in Test := true,
+    scalacOptions ++= Seq(
+      "-deprecation"
+    ),
     scalacOptions in (Compile, doc) ++= Seq(
       "-implicits"
     ),
