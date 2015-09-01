@@ -124,7 +124,7 @@ object IsoSystem {
     ConfigFactory.parseString("""
       system = {
         net = {
-          parallelism = 4
+          parallelism = 8
         }
       }
     """)
@@ -147,7 +147,7 @@ object IsoSystem {
     def scheduler(name: String): Scheduler = {
       schedulers(name)
     }
-  
+
     /** Does an inverse lookup for the name of this scheduler instance.
      *  The method fails if this specific scheduler instance was not previously
      *  registered with the isolate system.

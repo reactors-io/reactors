@@ -53,16 +53,16 @@ final class Proto[+I <: Iso[_]] private[reactive] (
 object Proto {
 
   /** Creates prototype for instantiating an isolate that takes no parameters.
-   * 
+   *
    *  @tparam I         type of the isolate, must be a concrete type, or its class tag
    *                    must be in scope
    *  @return           a new prototype of an isolate of type `T`
    */
   def apply[I <: Iso[_]: ClassTag] =
-    new Proto[I](implicitly[ClassTag[I]].erasure.asInstanceOf[Class[I]], Seq())
+    new Proto[I](implicitly[ClassTag[I]].runtimeClass.asInstanceOf[Class[I]], Seq())
 
   /** Creates prototype for instantiating an isolate that takes specific parameters.
-   * 
+   *
    *  @tparam I         type of the isolate, must be a concrete type, or its class tag
    *                    must be in scope
    *  @param clazz      class that describes the isolate
@@ -71,7 +71,7 @@ object Proto {
    *                    parameters
    */
   def apply[I <: Iso[_]: ClassTag](params: Any*) =
-    new Proto[I](implicitly[ClassTag[I]].erasure.asInstanceOf[Class[I]], params)
+    new Proto[I](implicitly[ClassTag[I]].runtimeClass.asInstanceOf[Class[I]], params)
 
 }
 

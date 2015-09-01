@@ -15,7 +15,7 @@ package object util {
   private val counterMap = concurrent.TrieMap[Class[_], AtomicLong]()
 
   final def freshId[C: ClassTag]: Long = {
-    val cls = implicitly[ClassTag[C]].erasure
+    val cls = implicitly[ClassTag[C]].runtimeClass
     if (!(counterMap contains cls)) counterMap.putIfAbsent(cls, new AtomicLong)
     val counter = counterMap(cls)
     counter.incrementAndGet()

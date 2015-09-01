@@ -102,6 +102,7 @@ object ReactiveCollectionsBuild extends MechaRepoBuild {
   def dependencies(scalaVersion: String) =
     CrossVersion.partialVersion(scalaVersion) match {
     case Some((2, major)) if major >= 11 => Seq(
+      "io.netty" % "netty-all" % "4.0.30.Final",
       "org.scalatest" % "scalatest_2.11" % "2.2.4" % "test",
       "org.scalacheck" %% "scalacheck" % "1.11.4" % "test",
       "com.netflix.rxjava" % "rxjava-scala" % "0.19.2" % "test",
@@ -111,6 +112,7 @@ object ReactiveCollectionsBuild extends MechaRepoBuild {
       "commons-io" % "commons-io" % "2.4"
     )
     case Some((2, 10)) => Seq(
+      "io.netty" % "netty" % "4.0.30.Final",
       "org.scalatest" % "scalatest_2.10" % "2.2.4" % "test",
       "org.scalacheck" %% "scalacheck" % "1.11.4" % "test",
       "com.netflix.rxjava" % "rxjava-scala" % "0.19.2" % "test",
