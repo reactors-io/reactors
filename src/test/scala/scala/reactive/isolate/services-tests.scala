@@ -58,7 +58,7 @@ class ClockTest extends FunSuite with Matchers {
 
   val system = IsoSystem.default("TestSystem")
 
-  test("Periodical timer should fire 3 times") {
+  test("Periodic timer should fire 3 times") {
     system.isolate(Proto[PeriodIso].withScheduler(
       IsoSystem.Bundle.schedulers.piggyback))
   }
@@ -93,5 +93,36 @@ class TimeoutIso(val timeoutCount: Promise[Int]) extends Iso[Unit] {
       main.seal()
       timeoutCount success timeouts
     }
+  }
+}
+
+
+class CustomServiceTest extends FunSuite with Matchers {
+
+  val system = IsoSystem.default("TestSystem")
+
+  test("Custom service should be retrieved") {
+    val done = Promise[Boolean]()
+    system.isolate(Proto[CustomServiceIso](done).withScheduler(
+      IsoSystem.Bundle.schedulers.piggyback))
+    assert(done.future.value.get.get, s"Status: ${done.future.value}")
+  }
+
+}
+
+
+class CustomService(val system: IsoSystem) {
+  val cell = RCell(0)
+}
+
+
+class CustomServiceIso(val done: Promise[Boolean]) extends Iso[Unit] {
+  import implicits.canLeak
+  system.service[CustomService].cell := 1
+  sysEvents onCase {
+    case IsoStarted =>
+      if (system.service[CustomService].cell() == 1) done.success(true)
+      else done.success(true)
+      main.seal()
   }
 }

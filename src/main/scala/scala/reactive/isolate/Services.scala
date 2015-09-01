@@ -16,6 +16,7 @@ import scala.collection._
 import scala.concurrent._
 import scala.concurrent.duration._
 import scala.reactive.isolate._
+import scala.reflect.ClassTag
 import scala.util.DynamicVariable
 import scala.util.Success
 import scala.util.Failure
@@ -28,6 +29,8 @@ import scala.util.Try
 abstract class Services {
   system: IsoSystem =>
 
+  private val extensions = mutable.Map[ClassTag[_], AnyRef]()
+
   /** System configuration */
   def config = system.bundle.config
 
@@ -39,6 +42,16 @@ abstract class Services {
 
   /** Clock services. */
   val clock = new Services.Clock(system)
+
+  /** Arbitrary service. */
+  def service[T: ClassTag] = {
+    val tag = implicitly[ClassTag[T]]
+    if (!extensions.contains(tag)) {
+      val ctor = tag.runtimeClass.getConstructor(classOf[IsoSystem])
+      extensions(tag) = ctor.newInstance(system).asInstanceOf[AnyRef]
+    }
+    extensions(tag).asInstanceOf[T]
+  }
 
 }
 
@@ -125,7 +138,7 @@ object Services {
       val connector = system.channels.daemon.open[Unit]
       val task = new TimerTask {
         def run() {
-          connector.channel ! ()
+          connector.channel ! (())
         }
       }
       timer.schedule(task, d.toMillis, d.toMillis)
@@ -152,7 +165,7 @@ object Services {
       val connector = system.channels.daemon.open[Unit]
       val task = new TimerTask {
         def run() {
-          connector.channel ! ()
+          connector.channel ! (())
         }
       }
       timer.schedule(task, d.toMillis)

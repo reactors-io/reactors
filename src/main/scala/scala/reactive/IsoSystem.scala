@@ -24,9 +24,12 @@ class IsoSystem(
   val bundle: IsoSystem.Bundle = IsoSystem.defaultBundle
 ) extends isolate.Services {
 
-  /** Encapsulates the internal state of the isolate system.
+  /** Protects the internal state of the isolate system.
    */
-  val monitor = new Monitor
+  private val monitor = new Monitor
+
+  /** Contains the frames for different isolates.
+   */
   val frames = new UniqueStore[Frame]("isolate", monitor)
 
   /** Retrieves the register of channels in this isolate system.

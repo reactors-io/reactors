@@ -7,7 +7,6 @@ import org.scalacheck._
 import org.scalacheck.Gen._
 import org.scalacheck.Prop._
 import org.scalatest._
-import org.scalatest.matchers.ShouldMatchers
 import org.testx._
 
 
@@ -133,7 +132,7 @@ with ExtendedProperties {
 }
 
 
-class SignalCatamorphSpec extends FlatSpec with ShouldMatchers {
+class SignalCatamorphSpec extends FlatSpec with Matchers {
 
   plus("Int Monoid", SignalCatamorph(Monoid(0)(_ + _)))
 
