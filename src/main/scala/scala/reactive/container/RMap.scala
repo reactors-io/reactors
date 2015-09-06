@@ -91,17 +91,27 @@ object RMap {
 
   /** Factory method for default reactive map creation.
    */
-  def apply[@spec(Int, Long, Double) K, V >: Null <: AnyRef](implicit can: RHashMap.Can[K, V]) = new RHashMap[K, V]
+  def apply[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
+    implicit can: RHashMap.Can[K, V], hash: Hash[K]
+  ) = {
+    new RHashMap[K, V]
+  }
 
-  /** Reactive builder factory, automatically used for transforming containers into reactive maps.
+  /** Reactive builder factory, automatically used for transforming containers into
+   *  reactive maps.
    */
-  implicit def factory[@spec(Int, Long, Double) K, V >: Null <: AnyRef] = new RBuilder.Factory[(K, V), RMap[K, V]] {
+  implicit def factory[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
+    implicit can: RHashMap.Can[K, V], hash: Hash[K]
+  ) = new RBuilder.Factory[(K, V), RMap[K, V]] {
     def apply() = RHashMap[K, V]
   }
 
-  /** Reactive pair builder factory, automatically used for transforming pair containers into reactive maps.
+  /** Reactive pair builder factory, automatically used for transforming pair containers
+   *  into reactive maps.
    */
-  implicit def pairFactory[@spec(Int, Long, Double) K, V >: Null <: AnyRef] = new PairBuilder.Factory[K, V, RMap[K, V]] {
+  implicit def pairFactory[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
+    implicit can: RHashMap.Can[K, V], hash: Hash[K]
+  ) = new PairBuilder.Factory[K, V, RMap[K, V]] {
     def apply() = RHashMap[K, V]
   }
 

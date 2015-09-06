@@ -9,6 +9,6 @@ import io.netty.channel._
 
 
 
-class Remote(val system: IsoSystem) {
+class Remote(val system: IsoSystem) extends Protocol {
 
 }

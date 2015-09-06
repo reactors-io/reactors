@@ -44,7 +44,7 @@ abstract class Services {
   val clock = new Services.Clock(system)
 
   /** Arbitrary service. */
-  def service[T: ClassTag] = {
+  def service[T <: Protocol: ClassTag] = {
     val tag = implicitly[ClassTag[T]]
     if (!extensions.contains(tag)) {
       val ctor = tag.runtimeClass.getConstructor(classOf[IsoSystem])
@@ -62,13 +62,14 @@ object Services {
 
   /** Contains I/O-related services.
    */
-  class Io(private val system: IsoSystem) {
+  class Io(val system: IsoSystem) extends Protocol {
     val defaultCharset = Charset.defaultCharset.name
   }
 
   /** Contains common network protocol services.
    */
-  class Net(private val system: IsoSystem, private val resolver: URL => InputStream) {
+  class Net(val system: IsoSystem, private val resolver: URL => InputStream)
+  extends Protocol {
     private implicit val networkRequestPool: ExecutionContext = {
       val parallelism = system.config.getInt("system.net.parallelism")
       ExecutionContext.fromExecutor(new ForkJoinPool(parallelism))
@@ -119,7 +120,8 @@ object Services {
 
   /** Contains various time-related services.
    */
-  class Clock(private val system: IsoSystem) {
+  class Clock(val system: IsoSystem)
+  extends Protocol {
     private val timer = new Timer(s"${system.name}.timer-service", true)
 
     /** Emits an event periodically, with the duration between events equal to `d`.

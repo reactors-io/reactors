@@ -134,6 +134,37 @@ package object reactive {
 
   val Abelian = calc.Abelian
 
+  trait Hash[@spec(Int, Long, Double) T] {
+    def apply(x: T): Int
+  }
+
+  private class IntHash extends Hash[Int] {
+    def apply(x: Int) = x
+  }
+
+  implicit val intHash: Hash[Int] = new IntHash
+
+  private class LongHash extends Hash[Long] {
+    def apply(x: Long) = (x ^ (x >>> 32)).toInt
+  }
+
+  implicit val longHash: Hash[Long] = new LongHash
+
+  private class DoubleHash extends Hash[Double] {
+    def apply(x: Double) = {
+      val b = java.lang.Double.doubleToLongBits(x)
+      (b ^ (b >>> 32)).toInt
+    }
+  }
+
+  implicit val doubleHash: Hash[Double] = new DoubleHash
+
+  private class RefHash[T <: AnyRef] extends Hash[T] {
+    def apply(x: T) = x.##
+  }
+
+  implicit def refHash[T <: AnyRef]: Hash[T] = new RefHash[T]
+
   trait Foreach[@spec(Int, Long, Double) T] {
     def foreach[@spec(Int, Long, Double) U](f: T => U): Unit
   }

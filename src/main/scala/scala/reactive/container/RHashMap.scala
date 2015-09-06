@@ -9,8 +9,9 @@ import scala.reflect.ClassTag
 
 
 class RHashMap[@spec(Int, Long, Double) K, V >: Null <: AnyRef]
-  (implicit val can: RHashMap.Can[K, V])
-extends RMap[K, V] with RBuilder[(K, V), RHashMap[K, V]] with PairBuilder[K, V, RHashMap[K, V]] {
+  (implicit val can: RHashMap.Can[K, V], val hash: Hash[K])
+extends RMap[K, V] with RBuilder[(K, V), RHashMap[K, V]]
+with PairBuilder[K, V, RHashMap[K, V]] {
   private var table: Array[RHashMap.Entry[K, V]] = null
   private var elemCount = 0
   private var entryCount = 0
@@ -226,7 +227,7 @@ extends RMap[K, V] with RBuilder[(K, V), RHashMap[K, V]] with PairBuilder[K, V, 
   }
 
   private def index(k: K): Int = {
-    val hc = k.##
+    val hc = hash(k)
     math.abs(scala.util.hashing.byteswap32(hc)) % table.length
   }
 
@@ -364,7 +365,11 @@ object RHashMap {
     }
   }
 
-  def apply[@spec(Int, Long, Double) K, V >: Null <: AnyRef](implicit can: Can[K, V]) = new RHashMap[K, V]()(can)
+  def apply[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
+    implicit can: Can[K, V], hash: Hash[K]
+  ) = {
+    new RHashMap[K, V]()(can, hash)
+  }
 
   class Lifted[@spec(Int, Long, Double) K, V >: Null <: AnyRef](val container: RHashMap[K, V])
   extends RMap.Lifted[K, V] {
@@ -382,12 +387,20 @@ object RHashMap {
 
   val loadFactor = 750
 
-  implicit def factory[@spec(Int, Long, Double) K, V >: Null <: AnyRef] = new RBuilder.Factory[(K, V), RHashMap[K, V]] {
-    def apply() = RHashMap[K, V]
+  implicit def factory[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
+    implicit can: Can[K, V], hash: Hash[K]
+  ) = {
+    new RBuilder.Factory[(K, V), RHashMap[K, V]] {
+      def apply() = RHashMap[K, V]
+    }
   }
 
-  implicit def pairFactory[@spec(Int, Long, Double) K, V >: Null <: AnyRef] = new PairBuilder.Factory[K, V, RHashMap[K, V]] {
-    def apply() = RHashMap[K, V]
+  implicit def pairFactory[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
+    implicit can: Can[K, V], hash: Hash[K]
+  ) = {
+    new PairBuilder.Factory[K, V, RHashMap[K, V]] {
+      def apply() = RHashMap[K, V]
+    }
   }
 
 }
