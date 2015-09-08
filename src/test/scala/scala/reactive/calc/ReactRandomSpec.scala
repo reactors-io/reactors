@@ -4,11 +4,10 @@ package calc
 
 
 import org.scalatest._
-import org.scalatest.matchers.ShouldMatchers
 
 
 
-class ReactRandomSpec extends FlatSpec with ShouldMatchers {
+class ReactRandomSpec extends FlatSpec with Matchers {
 
   "ReactRandom" should "create random events" in {
     val random = new ReactRandom(0L)

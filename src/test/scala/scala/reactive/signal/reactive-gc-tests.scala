@@ -4,13 +4,12 @@ package signal
 
 
 import org.scalatest._
-import org.scalatest.matchers.ShouldMatchers
 import org.testx._
 import scala.reactive.util._
 
 
 
-class ReactiveGCSpec extends FlatSpec with ShouldMatchers {
+class ReactiveGCSpec extends FlatSpec with Matchers {
 
   def testGC(num: Int)(afterCheck: Events.Emitter[Int] => Boolean) = {
     var signsOfLife = Array.fill(num)(false)

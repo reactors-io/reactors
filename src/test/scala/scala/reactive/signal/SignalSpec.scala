@@ -5,11 +5,10 @@ package signal
 
 import scala.collection._
 import org.scalatest._
-import org.scalatest.matchers.ShouldMatchers
 
 
 
-class SignalSpec extends FlatSpec with ShouldMatchers {
+class SignalSpec extends FlatSpec with Matchers {
 
   "A signal" should "be constant" in {
     val s = Signal.Constant(1)

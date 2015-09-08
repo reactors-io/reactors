@@ -5,11 +5,10 @@ package signal
 
 import scala.collection._
 import org.scalatest._
-import org.scalatest.matchers.ShouldMatchers
 
 
 
-class IvarSpec extends FlatSpec with ShouldMatchers {
+class IvarSpec extends FlatSpec with Matchers {
 
   "An ivar" should "be assigned" in {
     val iv = new Ivar[Int]

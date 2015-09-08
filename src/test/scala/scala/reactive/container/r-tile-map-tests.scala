@@ -7,7 +7,6 @@ import org.scalacheck._
 import org.scalacheck.Gen._
 import org.scalacheck.Prop._
 import org.scalatest._
-import org.scalatest.matchers.ShouldMatchers
 import org.testx._
 import scala.collection._
 
@@ -89,7 +88,7 @@ class RTileMapCheck extends Properties("RTileMap") with ExtendedProperties {
 }
 
 
-class RTileMapSpec extends FlatSpec with ShouldMatchers {
+class RTileMapSpec extends FlatSpec with Matchers {
 
   "A RTileMap" should "have dimension 128" in {
     val table = new RTileMap[String](128, "")

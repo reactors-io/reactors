@@ -8,7 +8,6 @@ import org.scalacheck.Gen._
 import org.scalacheck.Prop._
 import org.testx._
 import org.scalatest._
-import org.scalatest.matchers.ShouldMatchers
 
 
 
@@ -36,14 +35,14 @@ class RHashValMapCheck extends Properties("RHashValMap") with ExtendedProperties
 }
 
 
-class RHashValMapSpec extends FlatSpec with ShouldMatchers {
+class RHashValMapSpec extends FlatSpec with Matchers {
 
   "A RHashValMap" should "be empty" in {
     val table = new RHashValMap[Long, Int]
 
     table.size should equal (0)
     table.get(0L) should equal (None)
-    evaluating { table(0L) } should produce [NoSuchElementException]
+    a [NoSuchElementException] should be thrownBy { table(0L) }
     table.remove(0L) should equal (false)
   }
 

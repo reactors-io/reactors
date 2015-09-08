@@ -4,12 +4,12 @@ package signal
 
 
 import org.scalatest._
-import org.scalatest.matchers.ShouldMatchers
+import org.scalatest.exceptions.TestFailedException
 import scala.collection._
 
 
 
-class ReactiveSpec extends FlatSpec with ShouldMatchers {
+class ReactiveSpec extends FlatSpec with Matchers {
 
   class ReactiveTest {
     val x = RCell(0)
@@ -293,7 +293,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     ys react 12
     ys react 15
     xs react 7
-    closeXs react ()
+    closeXs.react(())
     buffer should equal (Seq(1, 2, 7, 11, 12, 15))
   }
 
@@ -408,7 +408,7 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     e3 react 33
     cell := (e4 until closeE4)
     e4 react 4
-    closeE4 react ()
+    closeE4.react(())
     e4 react -44
     buffer should equal (Seq(1, 11, 111, 2, 1111, 22, 3, 11111, 222, 33, 4))
   }
@@ -443,12 +443,12 @@ class ReactiveSpec extends FlatSpec with ShouldMatchers {
     e1 react 1111
     e2 react 22
     e3 react 3
-    closeE1 react ()
-    closeE2 react ()
+    closeE1.react(())
+    closeE2.react(())
     e1 react -11111
     e2 react -222
     e3 react 33
-    closeE3 react ()
+    closeE3.react(())
     e3 react -333
     cell := e4
     e4 react 4

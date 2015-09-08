@@ -10,7 +10,9 @@ import scala.reflect.ClassTag
 class RHashValMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
   implicit val emptyKey: Arrayable[K],
   implicit val emptyVal: Arrayable[V]
-) extends RContainer[(K, V)] with RBuilder[(K, V), RHashValMap[K, V]] with ValPairBuilder[K, V, RHashValMap[K, V]] {
+) extends RContainer[(K, V)]
+with RBuilder[(K, V), RHashValMap[K, V]]
+with ValPairBuilder[K, V, RHashValMap[K, V]] {
   private var keytable: Array[K] = null
   private var valtable: Array[V] = null
   private var sz = 0
