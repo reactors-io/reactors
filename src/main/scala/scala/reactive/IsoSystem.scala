@@ -30,7 +30,7 @@ class IsoSystem(
 
   /** Contains the frames for different isolates.
    */
-  val frames = new UniqueStore[Frame]("isolate", monitor)
+  private[reactive] val frames = new UniqueStore[Frame]("isolate", monitor)
 
   /** Retrieves the register of channels in this isolate system.
    *  

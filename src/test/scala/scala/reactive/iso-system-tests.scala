@@ -385,6 +385,18 @@ class RingIso(
 }
 
 
+class TerminatedIso(val p: Promise[Boolean]) extends Iso[Unit] {
+  import implicits.canLeak
+  sysEvents onCase {
+    case IsoStarted =>
+      main.seal()
+    case IsoTerminated =>
+      // should still be different than null
+      p.success(system.frames.forName("ephemo") != null)
+  }
+}
+
+
 abstract class BaseIsoSystemCheck(name: String) extends Properties(name) {
 
   val system = IsoSystem.default("check-system")  
@@ -644,6 +656,14 @@ class IsoSystemTest extends FunSuite with Matchers {
     val p = Promise[Boolean]()
     system.isolate(Proto[PiggyIso](p))
     assert(Await.result(p.future, 5.seconds))
+  }
+
+  test("after termination and before IsoTerminated, isolate name should be released") {
+    val system = IsoSystem.default("test")
+    val p = Promise[Boolean]()
+    system.isolate(Proto[TerminatedIso](p).withName("ephemo"))
+    assert(Await.result(p.future, 5.seconds))
+    assert(system.frames.forName("ephemo") == null)
   }
 
 }

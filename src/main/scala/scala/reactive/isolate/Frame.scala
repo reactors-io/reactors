@@ -187,7 +187,8 @@ final class Frame(
       }
     }
     if (emitTerminated) {
-      iso.sysEmitter.react(IsoTerminated)
+      try iso.sysEmitter.react(IsoTerminated)
+      finally isolateSystem.frames.tryRelease(name)
     }
   }
 

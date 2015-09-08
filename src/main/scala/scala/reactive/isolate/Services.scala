@@ -34,14 +34,17 @@ abstract class Services {
   /** System configuration */
   def config = system.bundle.config
 
-  /** IO services */
+  /** Clock services. */
+  val clock = new Services.Clock(system)
+
+  /** I/O services. */
   val io = new Services.Io(system)
+
+  /** Naming services. */
+  val naming = new Services.Naming(system)
 
   /** Network services. */
   val net = new Services.Net(system)
-
-  /** Clock services. */
-  val clock = new Services.Clock(system)
 
   /** Arbitrary service. */
   def service[T <: Protocol: ClassTag] = {
@@ -64,6 +67,11 @@ object Services {
    */
   class Io(val system: IsoSystem) extends Protocol {
     val defaultCharset = Charset.defaultCharset.name
+  }
+
+  /** Contains services used for naming channels.
+   */
+  class Naming(val system: IsoSystem) extends Protocol {
   }
 
   /** Contains common network protocol services.
