@@ -130,6 +130,8 @@ object UnrolledRing {
       if (until < array.length) {
         array(until) = elem
         until += 1
+        // TODO(axel22): This prematurely allocates without checking. Fix, and add
+        // ScalaMeter tests for boxing.
         if (until == array.length) reserve(ring)
       } else if (this.isEmpty) {
         this.reset()
