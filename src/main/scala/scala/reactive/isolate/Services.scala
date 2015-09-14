@@ -184,6 +184,44 @@ object Services {
       }
       connector.events.withSubscription(sub)
     }
+
+    /** Emits an event at regular intervals, until the specified count reaches zero.
+     *
+     *  Note that this event is fired eventually after duration `d`, and has similar
+     *  semantics as that of `java.util.Timer`.
+     *
+     *  The channel through which the event arrives is daemon.
+     *
+     *  Once the countdown reaches `0`, the resulting event stream unreacts, and the
+     *  channel is sealed.
+     *
+     *  @param n        the starting value of the countdown
+     *  @param d        period between countdowns
+     *  @param canLeak  the object that contains leaky subscriptions
+     *  @return         an event stream and subscription
+     */
+    def countdown(n: Int, d: Duration)(implicit canLeak: CanLeak):
+      Events[Int] with Events.Subscription = {
+      assert(n > 0)
+      val connector = system.channels.daemon.open[Int]
+      val task = new TimerTask {
+        var left = n
+        def run() = if (left > 0) {
+          left -= 1
+          connector.channel ! left
+          if (left == 0) {
+            this.cancel()
+            connector.seal()
+          }
+        }
+      }
+      timer.schedule(task, d.toMillis, d.toMillis)
+      val sub = Events.Subscription {
+        task.cancel()
+        connector.seal()
+      }
+      connector.events.takeWhile(_ > 0).withSubscription(sub)
+    }
   }
 
   private[reactive] class ChannelsIso

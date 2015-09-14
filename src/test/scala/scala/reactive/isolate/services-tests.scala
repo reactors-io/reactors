@@ -71,6 +71,14 @@ class ClockTest extends FunSuite with Matchers {
       s"Total timeouts: ${timeoutCount.future.value}")
   }
 
+  test("Countdown should accumulate 55") {
+    val total = Promise[Int]()
+    system.isolate(Proto[CountdownIso](total).withScheduler(
+      IsoSystem.Bundle.schedulers.piggyback))
+    assert(total.future.value.get.get == 45,
+      s"Total sum of countdowns = ${total.future.value}")
+  }
+
 }
 
 
@@ -93,6 +101,18 @@ class TimeoutIso(val timeoutCount: Promise[Int]) extends Iso[Unit] {
       main.seal()
       timeoutCount success timeouts
     }
+  }
+}
+
+
+class CountdownIso(val total: Promise[Int]) extends Iso[Unit] {
+  import implicits.canLeak
+  var sum = 0
+  system.clock.countdown(10, 50.millis).onReactUnreact {
+    x => sum += x
+  } {
+    total.success(sum)
+    main.seal()
   }
 }
 
