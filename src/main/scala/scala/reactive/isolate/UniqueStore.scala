@@ -48,8 +48,8 @@ final class UniqueStore[T >: Null <: Identifiable with AnyRef](
     if (byName.contains(uname)) {
       throw new IllegalArgumentException(s"Name $proposedName unavailable.")
     } else {
-      byName(uname) = x
       byId(x.uid) = uname
+      byName(uname) = x
       uname
     }
   }

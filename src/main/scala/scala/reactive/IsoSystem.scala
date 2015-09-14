@@ -40,6 +40,7 @@ class IsoSystem(
     val finder =
       isolate(Proto[Services.ChannelsIso].withName("channels").withChannelName("find"))
   }
+  isolate
 
   /** Creates a new isolate instance in this isolate system.
    *
@@ -77,6 +78,7 @@ class IsoSystem(
       case null => EventQueue.UnrolledRing.Factory
       case fact => fact
     }
+    assert(proto.channelName != "system")
     val frame = new Frame(uid, proto, scheduler, this)
 
     // 2. reserve the unique name or break

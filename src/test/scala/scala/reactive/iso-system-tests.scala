@@ -521,7 +521,7 @@ class IsoSystemTest extends FunSuite with Matchers {
     val system = IsoSystem.default("test")
     val proto = Proto[TestIso]
     system.isolate(proto)
-    assert(system.frames.forName("isolate-0") != null)
+    assert(system.frames.forName("isolate-1") != null)
   }
 
   test("system should return without throwing and use custom name") {
