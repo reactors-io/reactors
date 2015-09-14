@@ -1691,8 +1691,8 @@ object Events {
     def unreact() {
       if (!forwarded) {
         forwarded = true
-        unreactAll()
         subscription.unsubscribe()
+        unreactAll()
       }
     }
     var subscription = Subscription.empty

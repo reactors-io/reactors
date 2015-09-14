@@ -21,7 +21,6 @@ with PairBuilder[K, V, RHashMap[K, V]] {
   private[reactive] var insertsEmitter: Events.Emitter[(K, V)] = null
   private[reactive] var removesEmitter: Events.Emitter[(K, V)] = null
 
-
   protected def init(k: K) {
     table = new Array(RHashMap.initSize)
     keysContainer = new RContainer.Emitter[K](f => foreachKey(f), () => size)

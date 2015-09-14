@@ -40,9 +40,6 @@ abstract class Services {
   /** I/O services. */
   val io = new Services.Io(system)
 
-  /** Naming services. */
-  val naming = new Services.Naming(system)
-
   /** Network services. */
   val net = new Services.Net(system)
 
@@ -67,11 +64,6 @@ object Services {
    */
   class Io(val system: IsoSystem) extends Protocol {
     val defaultCharset = Charset.defaultCharset.name
-  }
-
-  /** Contains services used for naming channels.
-   */
-  class Naming(val system: IsoSystem) extends Protocol {
   }
 
   /** Contains common network protocol services.

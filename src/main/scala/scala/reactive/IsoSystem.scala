@@ -36,7 +36,7 @@ class IsoSystem(
    *  
    *  @return          the channels register
    */
-  val channels: IsoSystem.Channels = new IsoSystem.Channels
+  val channels: IsoSystem.Channels = new IsoSystem.Channels(this)
 
   /** Creates a new isolate instance in this isolate system.
    *
@@ -208,8 +208,7 @@ object IsoSystem {
   ) {
     /** Associates a new name for the channel.
      */
-    def named(name: String) =
-      new ChannelBuilder(name, isDaemon, eventQueueFactory)
+    def named(name: String) = new ChannelBuilder(name, isDaemon, eventQueueFactory)
 
     /** Specifies a daemon channel.
      */
@@ -231,6 +230,20 @@ object IsoSystem {
 
   /** The channel register used for channel lookup by name.
    */
-  class Channels extends ChannelBuilder(null, false, EventQueue.UnrolledRing.Factory)
-
+  class Channels(val system: IsoSystem)
+  extends ChannelBuilder(null, false, EventQueue.UnrolledRing.Factory)
+  with Protocol {
+    /** Optionally returns the channel with the given name, if it exists.
+     */
+    def find[T](name: String): Option[Channel[T]] = {
+      val parts = name.split("#")
+      val frame = system.frames.forName(parts(0))
+      if (frame == null) None
+      else {
+        val conn = frame.connectors.forName(parts(1))
+        if (conn == null) None
+        else Some(conn.channel.asInstanceOf[Channel[T]])
+      }
+    }
+  }
 }

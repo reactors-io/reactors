@@ -397,6 +397,22 @@ class TerminatedIso(val p: Promise[Boolean]) extends Iso[Unit] {
 }
 
 
+class LookupChannelIso(val started: Promise[Boolean], val ended: Promise[Boolean])
+extends Iso[Unit] {
+  import implicits.canLeak
+  sysEvents onCase {
+    case IsoStarted =>
+      val terminator = system.channels.daemon.named("terminator").open[String]
+      terminator.events onCase {
+        case "end" =>
+          main.seal()
+          ended.success(true)
+      }
+      started.success(true)
+  }
+}
+
+
 abstract class BaseIsoSystemCheck(name: String) extends Properties(name) {
 
   val system = IsoSystem.default("check-system")  
@@ -664,6 +680,19 @@ class IsoSystemTest extends FunSuite with Matchers {
     system.isolate(Proto[TerminatedIso](p).withName("ephemo"))
     assert(Await.result(p.future, 5.seconds))
     assert(system.frames.forName("ephemo") == null)
+  }
+
+  test("after the iso starts, its channel should be looked up") {
+    val system = IsoSystem.default("test")
+    val started = Promise[Boolean]()
+    val ended = Promise[Boolean]()
+    val channel = system.isolate(Proto[LookupChannelIso](started, ended).withName("pi"))
+    assert(Await.result(started.future, 5.seconds))
+    system.channels.find[String]("pi#terminator") match {
+      case Some(ch) => ch ! "end"
+      case None => sys.error("channel not found")
+    }
+    assert(Await.result(ended.future, 5.seconds))
   }
 
 }
