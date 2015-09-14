@@ -119,7 +119,7 @@ class CustomService(val system: IsoSystem) extends Protocol {
 class CustomServiceIso(val done: Promise[Boolean]) extends Iso[Unit] {
   import implicits.canLeak
   system.service[CustomService].cell := 1
-  sysEvents onCase {
+  sysEvents onMatch {
     case IsoStarted =>
       if (system.service[CustomService].cell() == 1) done.success(true)
       else done.success(true)

@@ -14,7 +14,7 @@ import scala.reactive.util._
  *  Event stream are special objects that may
  *  produce events of a certain type `T`.
  *  Clients may subscribe side-effecting functions (i.e. callbacks)
- *  to these events with `onReaction`, `onEvent`, `onCase` and `on` --
+ *  to these events with `onReaction`, `onEvent`, `onMatch` and `on` --
  *  each of these methods will invoke the callback when an event
  *  is produced, but some may be more suitable depending on the use-case.
  *
@@ -137,7 +137,7 @@ trait Events[@spec(Int, Long, Double) +T] {
    *  Example: 
    *
    *  {{{
-   *  r onCase {
+   *  r onMatch {
    *    case s: String => println(s)
    *    case n: Int    => println("number " + s)
    *  }
@@ -146,13 +146,13 @@ trait Events[@spec(Int, Long, Double) +T] {
    *  '''Use case''':
    *
    *  {{{
-   *  def onCase(reactor: PartialFunction[T, Unit]): Events.Subscription
+   *  def onMatch(reactor: PartialFunction[T, Unit]): Events.Subscription
    *  }}}
    *  
    *  @param reactor     the callback for those events for which it is defined
    *  @return            a subscription for unsubscribing from reactions
    */
-  def onCase(reactor: PartialFunction[T, Unit])
+  def onMatch(reactor: PartialFunction[T, Unit])
     (implicit sub: T <:< AnyRef, canLeak: CanLeak): Events.Subscription = {
     onReaction(new Reactor[T] {
       def react(event: T) = {

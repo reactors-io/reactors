@@ -622,15 +622,15 @@ class ReactiveSpec extends FlatSpec with Matchers {
     }
   }
 
-  it should "throw from onCase" in {
+  it should "throw from onMatch" in {
     implicit val canLeak = Permission.newCanLeak
     val e = new Events.Emitter[String]
     intercept[TestException.type] {
-      val o = e.onCase { case "1" => throw TestException }
+      val o = e.onMatch { case "1" => throw TestException }
       e.react("1")
     }
     intercept[TestException.type] {
-      val o = e.map(_ => throw TestException).onCase { case _ => }
+      val o = e.map(_ => throw TestException).onMatch { case _ => }
       e.react("1")
     }
   }
