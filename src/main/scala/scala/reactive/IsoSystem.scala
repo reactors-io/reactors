@@ -32,11 +32,15 @@ class IsoSystem(
    */
   private[reactive] val frames = new UniqueStore[Frame]("isolate", monitor)
 
-  /** Retrieves the register of channels in this isolate system.
-   *  
-   *  @return          the channels register
+  /** Contains channels of various system isolates.
    */
-  val channels: IsoSystem.Channels = new IsoSystem.Channels(this)
+  object isolate {
+    /** Replies to channel lookup requests.
+     */
+    val finder =
+      isolate(Proto[Services.ChannelsIso].withName("channels").withChannelName("find"))
+  }
+  isolate
 
   /** Creates a new isolate instance in this isolate system.
    *
@@ -82,7 +86,7 @@ class IsoSystem(
     try {
       // 3. allocate the standard connectors
       frame.name = uname
-      frame.defaultConnector = frame.openConnector[T]("default", factory, false)
+      frame.defaultConnector = frame.openConnector[T](proto.channelName, factory, false)
       frame.internalConnector = frame.openConnector[SysEvent]("system", factory, true)
 
       // 4. schedule for the first execution
@@ -226,24 +230,5 @@ object IsoSystem {
      */
     final def open[@spec(Int, Long, Double) Q: Arrayable]: Connector[Q] =
       Iso.self.frame.openConnector[Q](channelName, eventQueueFactory, isDaemon)
-  }
-
-  /** The channel register used for channel lookup by name.
-   */
-  class Channels(val system: IsoSystem)
-  extends ChannelBuilder(null, false, EventQueue.UnrolledRing.Factory)
-  with Protocol {
-    /** Optionally returns the channel with the given name, if it exists.
-     */
-    def find[T](name: String): Option[Channel[T]] = {
-      val parts = name.split("#")
-      val frame = system.frames.forName(parts(0))
-      if (frame == null) None
-      else {
-        val conn = frame.connectors.forName(parts(1))
-        if (conn == null) None
-        else Some(conn.channel.asInstanceOf[Channel[T]])
-      }
-    }
   }
 }

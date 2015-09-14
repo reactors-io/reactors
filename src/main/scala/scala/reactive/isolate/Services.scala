@@ -13,7 +13,8 @@ import java.util.concurrent.atomic._
 import org.apache.commons.io._
 import scala.annotation.tailrec
 import scala.collection._
-import scala.concurrent._
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.reactive.isolate._
 import scala.reflect.ClassTag
@@ -42,6 +43,12 @@ abstract class Services {
 
   /** Network services. */
   val net = new Services.Net(system)
+
+  /** The register of channels in this isolate system.
+   *
+   *  Used for creating and finding channels.
+   */
+  val channels: Services.Channels = new Services.Channels(this)
 
   /** Arbitrary service. */
   def service[T <: Protocol: ClassTag] = {
@@ -177,7 +184,32 @@ object Services {
       }
       connector.events.withSubscription(sub)
     }
-
   }
 
+  private[reactive] class ChannelsIso
+  extends Iso[(String, Channel[Option[Channel[_]]])] {
+    import implicits.canLeak
+    main.events onMatch {
+      case (name, answer) => answer ! system.channels.find(name)
+    }
+  }
+
+  /** The channel register used for channel lookup by name.
+   */
+  class Channels(val system: IsoSystem)
+  extends IsoSystem.ChannelBuilder(null, false, EventQueue.UnrolledRing.Factory)
+  with Protocol {
+    /** Optionally returns the channel with the given name, if it exists.
+     */
+    def find[T](name: String): Option[Channel[T]] = {
+      val parts = name.split("#")
+      val frame = system.frames.forName(parts(0))
+      if (frame == null) None
+      else {
+        val conn = frame.connectors.forName(parts(1))
+        if (conn == null) None
+        else Some(conn.channel.asInstanceOf[Channel[T]])
+      }
+    }
+  }
 }

@@ -413,6 +413,20 @@ extends Iso[Unit] {
 }
 
 
+class ChannelsAskIso(val p: Promise[Boolean]) extends Iso[Unit] {
+  import implicits.canLeak
+  system.isolate.finder ! (("chaki#main", answer.channel))
+  answer.events onMatch {
+    case Some(ch: Channel[Unit]) => ch ! (())
+    case None => sys.error("chaki#main not found")
+  }
+  main.events on {
+    main.seal()
+    p.success(true)
+  }
+}
+
+
 abstract class BaseIsoSystemCheck(name: String) extends Properties(name) {
 
   val system = IsoSystem.default("check-system")  
@@ -505,7 +519,7 @@ class IsoSystemTest extends FunSuite with Matchers {
     val system = IsoSystem.default("test")
     val proto = Proto[TestIso]
     system.isolate(proto)
-    assert(system.frames.forName("isolate-0") != null)
+    assert(system.frames.forName("isolate-1") != null)
   }
 
   test("system should return without throwing and use custom name") {
@@ -528,7 +542,7 @@ class IsoSystemTest extends FunSuite with Matchers {
     val system = IsoSystem.default("test")
     val channel = system.isolate(Proto[TestIso].withName("Izzy"))
     assert(channel != null)
-    val conn = system.frames.forName("Izzy").connectors.forName("default")
+    val conn = system.frames.forName("Izzy").connectors.forName("main")
     assert(conn != null)
     assert(conn.channel eq channel)
     assert(!conn.isDaemon)
@@ -693,6 +707,13 @@ class IsoSystemTest extends FunSuite with Matchers {
       case None => sys.error("channel not found")
     }
     assert(Await.result(ended.future, 5.seconds))
+  }
+
+  test("channels iso should look up channels when asked") {
+    val system = IsoSystem.default("test")
+    val p = Promise[Boolean]
+    system.isolate(Proto[ChannelsAskIso](p).withName("chaki"))
+    assert(Await.result(p.future, 5.seconds))
   }
 
 }
