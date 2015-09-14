@@ -40,7 +40,6 @@ class IsoSystem(
     val finder =
       isolate(Proto[Services.ChannelsIso].withName("channels").withChannelName("find"))
   }
-  isolate
 
   /** Creates a new isolate instance in this isolate system.
    *

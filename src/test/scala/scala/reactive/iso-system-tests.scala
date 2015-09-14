@@ -6,6 +6,7 @@ import org.scalacheck._
 import org.scalacheck.Prop.forAllNoShrink
 import org.scalacheck.Gen.choose
 import org.scalatest.{FunSuite, Matchers}
+import scala.annotation.unchecked
 import scala.concurrent._
 import scala.concurrent.duration._
 
@@ -415,9 +416,10 @@ extends Iso[Unit] {
 
 class ChannelsAskIso(val p: Promise[Boolean]) extends Iso[Unit] {
   import implicits.canLeak
+  val answer = system.channels.daemon.open[Option[Channel[_]]]
   system.isolate.finder ! (("chaki#main", answer.channel))
   answer.events onMatch {
-    case Some(ch: Channel[Unit]) => ch ! (())
+    case Some(ch: Channel[Unit] @unchecked) => ch ! (())
     case None => sys.error("chaki#main not found")
   }
   main.events on {
@@ -519,7 +521,7 @@ class IsoSystemTest extends FunSuite with Matchers {
     val system = IsoSystem.default("test")
     val proto = Proto[TestIso]
     system.isolate(proto)
-    assert(system.frames.forName("isolate-1") != null)
+    assert(system.frames.forName("isolate-0") != null)
   }
 
   test("system should return without throwing and use custom name") {
