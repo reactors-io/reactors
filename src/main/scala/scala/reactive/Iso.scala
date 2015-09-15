@@ -68,7 +68,6 @@ import isolate._
  */
 trait Iso[@spec(Int, Long, Double) T] {
   @volatile private[reactive] var frame: Frame = _
-  @volatile private[reactive] var eventSources: mutable.Set[EventSource] = _
   @volatile private[reactive] var sysEventSub: Events.Subscription = _
   private[reactive] val sysEmitter = new Events.Emitter[SysEvent]
   val implicits = new Iso.Implicits
@@ -84,7 +83,6 @@ trait Iso[@spec(Int, Long, Double) T] {
       case eq => eq.asInstanceOf[Frame]
     }
     frame.iso = this
-    eventSources = mutable.Set[EventSource]()
     sysEventSub = internal.events.foreach(x => sysEmitter react x)
     Iso.selfIso.set(this)
   }

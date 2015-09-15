@@ -847,7 +847,10 @@ trait Events[@spec(Int, Long, Double) +T] {
   }
 
   /** Invokes a side-effect every time an event gets produced.
-   *  
+   *
+   *  '''Note:'''
+   *  An exception thrown by the side-effect will be emitted on the event stream.
+   *
    *  @param f          an effect to invoke when an event is produced
    *  @return           an event stream with the same events as this event stream
    */
@@ -1232,7 +1235,7 @@ object Events {
   with Events.ProxySubscription {
     def react(value: T) {}
     def except(t: Throwable) {
-      throw t
+      throw new Exception(t)
     }
     def unreact() {
       try {

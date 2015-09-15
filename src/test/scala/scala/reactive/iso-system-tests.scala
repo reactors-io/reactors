@@ -429,6 +429,44 @@ class ChannelsAskIso(val p: Promise[Boolean]) extends Iso[Unit] {
 }
 
 
+class RequestIso(val p: Promise[Boolean]) extends Iso[Unit] {
+  import implicits.canLeak
+  import isolate.Patterns._
+  import scala.concurrent.duration._
+  val server = system.channels.daemon.open[(String, Channel[String])]
+  server.events onMatch {
+    case ("request", r) => r ! "reply"
+  }
+  sysEvents onMatch {
+    case IsoStarted =>
+      server.channel.request("request", 2.seconds) onMatch {
+        case "reply" =>
+          main.seal()
+          p.success(true)
+      }
+  }
+}
+
+
+class TimeoutRequestIso(val p: Promise[Boolean]) extends Iso[Unit] {
+  import implicits.canLeak
+  import isolate.Patterns._
+  import scala.concurrent.duration._
+  val server = system.channels.daemon.open[(String, Channel[String])]
+  server.events onMatch {
+    case ("request", r) => // staying silent
+  }
+  sysEvents onMatch {
+    case IsoStarted =>
+      server.channel.request("request", 1.seconds) onExcept {
+        case t =>
+          main.seal()
+          p.success(true)
+      }
+  }
+}
+
+
 abstract class BaseIsoSystemCheck(name: String) extends Properties(name) {
 
   val system = IsoSystem.default("check-system")  
@@ -715,6 +753,20 @@ class IsoSystemTest extends FunSuite with Matchers {
     val system = IsoSystem.default("test")
     val p = Promise[Boolean]
     system.isolate(Proto[ChannelsAskIso](p).withName("chaki"))
+    assert(Await.result(p.future, 5.seconds))
+  }
+
+  test("request should return the result once") {
+    val system = IsoSystem.default("test")
+    val p = Promise[Boolean]
+    system.isolate(Proto[RequestIso](p))
+    assert(Await.result(p.future, 5.seconds))
+  }
+
+  test("request should timeout once") {
+    val system = IsoSystem.default("test")
+    val p = Promise[Boolean]
+    system.isolate(Proto[TimeoutRequestIso](p))
     assert(Await.result(p.future, 5.seconds))
   }
 

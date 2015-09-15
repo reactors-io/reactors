@@ -59,7 +59,6 @@ abstract class Services {
     }
     extensions(tag).asInstanceOf[T]
   }
-
 }
 
 
@@ -175,6 +174,7 @@ object Services {
       val task = new TimerTask {
         def run() {
           connector.channel ! (())
+          connector.seal()
         }
       }
       timer.schedule(task, d.toMillis)
@@ -233,6 +233,8 @@ object Services {
   }
 
   /** The channel register used for channel lookup by name.
+   *
+   *  It can be used to query the channels in the local isolate system.
    */
   class Channels(val system: IsoSystem)
   extends IsoSystem.ChannelBuilder(null, false, EventQueue.UnrolledRing.Factory)
