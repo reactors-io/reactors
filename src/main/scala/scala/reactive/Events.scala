@@ -1235,7 +1235,7 @@ object Events {
   with Events.ProxySubscription {
     def react(value: T) {}
     def except(t: Throwable) {
-      throw new Exception(t)
+      throw t
     }
     def unreact() {
       try {
