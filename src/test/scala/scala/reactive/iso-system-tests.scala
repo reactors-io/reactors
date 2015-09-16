@@ -275,7 +275,7 @@ class MultiChannelIso(val p: Promise[Boolean], val n: Int) extends Iso[Int] {
     i => connectors(i).channel ! i
   }
   main.events.scanPast(n)((count, _) => count - 1) onEvent { i =>
-    main.seal()
+    if (i == 0) main.seal()
   }
   sysEvents onMatch {
     case IsoTerminated => p.success(true)
@@ -476,7 +476,7 @@ abstract class BaseIsoSystemCheck(name: String) extends Properties(name) {
   property("should send itself messages") = forAllNoShrink(choose(1, 1024)) { n =>
     val p = Promise[Boolean]()
     system.isolate(Proto[LooperIso](p, n).withScheduler(scheduler))
-    Await.result(p.future, 5.seconds)
+    Await.result(p.future, 10.seconds)
   }
 
 }
@@ -488,7 +488,7 @@ abstract class IsoSystemCheck(name: String) extends BaseIsoSystemCheck(name) {
     val p = Promise[Boolean]()
     val ch = system.isolate(Proto[ManyIso](p, n).withScheduler(scheduler))
     for (i <- 0 until n) ch ! "count"
-    Await.result(p.future, 5.seconds)
+    Await.result(p.future, 10.seconds)
   }
 
   property("should receive many events through different sources") =
@@ -496,29 +496,32 @@ abstract class IsoSystemCheck(name: String) extends BaseIsoSystemCheck(name) {
       val p = Promise[Boolean]()
       val ch = system.isolate(Proto[EvenOddIso](p, n).withScheduler(scheduler))
       for (i <- 0 until n) ch ! i
-      Await.result(p.future, 5.seconds)
+      Await.result(p.future, 10.seconds)
     }
 
   property("should be terminated after all its channels are sealed") =
     forAllNoShrink(choose(1, 128)) { n =>
       val p = Promise[Boolean]()
       val ch = system.isolate(Proto[MultiChannelIso](p, n).withScheduler(scheduler))
-      for (i <- 0 until n) ch ! i
-      Await.result(p.future, 5.seconds)
+      for (i <- 0 until n) {
+        Thread.sleep(0)
+        ch ! i
+      }
+      Await.result(p.future, 10.seconds)
     }
 
   property("should create another isolate and send it messages") =
     forAllNoShrink(choose(1, 512)) { n =>
       val p = Promise[Boolean]()
       system.isolate(Proto[ParentIso](p, n, scheduler).withScheduler(scheduler))
-      Await.result(p.future, 5.seconds)
+      Await.result(p.future, 10.seconds)
     }
 
   property("should play ping-pong with another isolate") =
     forAllNoShrink(choose(1, 512)) { n =>
       val p = Promise[Boolean]()
       system.isolate(Proto[PingIso](p, n, scheduler).withScheduler(scheduler))
-      Await.result(p.future, 5.seconds)
+      Await.result(p.future, 10.seconds)
     }
 
   property("a ring of isolates should correctly propagate messages") =
@@ -527,7 +530,7 @@ abstract class IsoSystemCheck(name: String) extends BaseIsoSystemCheck(name) {
       val proto = Proto[RingIso](0, n, Left(p), scheduler).withScheduler(scheduler)
       val ch = system.isolate(proto)
       ch ! "start"
-      Await.result(p.future, 5.seconds)
+      Await.result(p.future, 10.seconds)
     }
 
 }
@@ -600,21 +603,21 @@ class IsoSystemTest extends FunSuite with Matchers {
     val system = IsoSystem.default("test")
     val p = Promise[Unit]()
     system.isolate(Proto[PromiseIso](p))
-    Await.result(p.future, 5.seconds)
+    Await.result(p.future, 10.seconds)
   }
 
   test("system should invoke the ctor with the Iso.self set") {
     val system = IsoSystem.default("test")
     val p = Promise[Boolean]()
     system.isolate(Proto[IsoSelfIso](p))
-    assert(Await.result(p.future, 5.seconds))
+    assert(Await.result(p.future, 10.seconds))
   }
 
   test("iso should ensure the IsoStarted event") {
     val system = IsoSystem.default("test")
     val p = Promise[Boolean]()
     system.isolate(Proto[IsoStartedIso](p))
-    assert(Await.result(p.future, 5.seconds))
+    assert(Await.result(p.future, 10.seconds))
   }
 
   test("iso should process an event that arrives after the first batch") {
@@ -623,14 +626,14 @@ class IsoSystemTest extends FunSuite with Matchers {
     val ch = system.isolate(Proto[AfterFirstBatchIso](p))
     Thread.sleep(250)
     ch ! "success"
-    assert(Await.result(p.future, 5.seconds))
+    assert(Await.result(p.future, 10.seconds))
   }
 
   test("iso should process an event that arrives during the first batch") {
     val system = IsoSystem.default("test")
     val p = Promise[Boolean]()
     val ch = system.isolate(Proto[DuringFirstBatchIso](p))
-    assert(Await.result(p.future, 5.seconds))
+    assert(Await.result(p.future, 10.seconds))
   }
 
   test("iso should process an event that arrives during the first event") {
@@ -638,7 +641,7 @@ class IsoSystemTest extends FunSuite with Matchers {
     val p = Promise[Boolean]()
     val ch = system.isolate(Proto[DuringFirstEventIso](p))
     ch ! "message"
-    assert(Await.result(p.future, 5.seconds))
+    assert(Await.result(p.future, 10.seconds))
   }
 
   test("iso should process two events that arrive during the first event") {
@@ -646,7 +649,7 @@ class IsoSystemTest extends FunSuite with Matchers {
     val p = Promise[Boolean]()
     val ch = system.isolate(Proto[TwoDuringFirstIso](p))
     ch ! "start"
-    assert(Await.result(p.future, 5.seconds))
+    assert(Await.result(p.future, 10.seconds))
   }
 
   test("iso should process 100 incoming events") {
@@ -655,7 +658,7 @@ class IsoSystemTest extends FunSuite with Matchers {
     val ch = system.isolate(Proto[CountdownIso](p, 100))
     Thread.sleep(250)
     for (i <- 0 until 100) ch ! "dec"
-    assert(Await.result(p.future, 5.seconds))
+    assert(Await.result(p.future, 10.seconds))
   }
 
   test("iso should terminate after sealing its channel") {
@@ -663,14 +666,14 @@ class IsoSystemTest extends FunSuite with Matchers {
     val p = Promise[Boolean]()
     val ch = system.isolate(Proto[AfterSealTerminateIso](p))
     ch ! "seal"
-    assert(Await.result(p.future, 5.seconds))
+    assert(Await.result(p.future, 10.seconds))
   }
 
   test("iso should be able to open a new channel") {
     val system = IsoSystem.default("test")
     val p = Promise[Boolean]()
     system.isolate(Proto[NewChannelIso](p))
-    assert(Await.result(p.future, 5.seconds))
+    assert(Await.result(p.future, 10.seconds))
   }
 
   test("iso should get IsoScheduled events") {
@@ -681,21 +684,21 @@ class IsoSystemTest extends FunSuite with Matchers {
       Thread.sleep(60)
       ch ! "dummy"
     }
-    assert(Await.result(p.future, 5.seconds))
+    assert(Await.result(p.future, 10.seconds))
   }
 
   test("iso should get IsoPreempted events") {
     val system = IsoSystem.default("test")
     val p = Promise[Boolean]()
     system.isolate(Proto[IsoPreemptedIso](p))
-    assert(Await.result(p.future, 5.seconds))
+    assert(Await.result(p.future, 10.seconds))
   }
 
   test("iso should terminate on ctor exception") {
     val system = IsoSystem.default("test")
     val p = Promise[(Boolean, Boolean)]()
     system.isolate(Proto[CtorExceptionIso](p))
-    assert(Await.result(p.future, 5.seconds) == (true, true))
+    assert(Await.result(p.future, 10.seconds) == (true, true))
   }
 
   test("iso does not raise termination-related IsoDied events after IsoTerminated") {
@@ -711,28 +714,28 @@ class IsoSystemTest extends FunSuite with Matchers {
     val p = Promise[Throwable]()
     val ch = system.isolate(Proto[RunningExceptionIso](p))
     ch ! "die"
-    assert(Await.result(p.future, 5.seconds).getMessage == "exception thrown")
+    assert(Await.result(p.future, 10.seconds).getMessage == "exception thrown")
   }
 
   test("Iso.self should be correctly set") {
     val system = IsoSystem.default("test")
     val p = Promise[Boolean]()
     system.isolate(Proto[SelfIso](p))
-    assert(Await.result(p.future, 5.seconds))
+    assert(Await.result(p.future, 10.seconds))
   }
 
   test("piggyback scheduler should throw an exception if called from an isolate") {
     val system = IsoSystem.default("test")
     val p = Promise[Boolean]()
     system.isolate(Proto[PiggyIso](p))
-    assert(Await.result(p.future, 5.seconds))
+    assert(Await.result(p.future, 10.seconds))
   }
 
   test("after termination and before IsoTerminated, isolate name should be released") {
     val system = IsoSystem.default("test")
     val p = Promise[Boolean]()
     system.isolate(Proto[TerminatedIso](p).withName("ephemo"))
-    assert(Await.result(p.future, 5.seconds))
+    assert(Await.result(p.future, 10.seconds))
     assert(system.frames.forName("ephemo") == null)
   }
 
@@ -741,33 +744,33 @@ class IsoSystemTest extends FunSuite with Matchers {
     val started = Promise[Boolean]()
     val ended = Promise[Boolean]()
     val channel = system.isolate(Proto[LookupChannelIso](started, ended).withName("pi"))
-    assert(Await.result(started.future, 5.seconds))
+    assert(Await.result(started.future, 10.seconds))
     system.channels.find[String]("pi#terminator") match {
       case Some(ch) => ch ! "end"
       case None => sys.error("channel not found")
     }
-    assert(Await.result(ended.future, 5.seconds))
+    assert(Await.result(ended.future, 10.seconds))
   }
 
   test("channels iso should look up channels when asked") {
     val system = IsoSystem.default("test")
     val p = Promise[Boolean]
     system.isolate(Proto[ChannelsAskIso](p).withName("chaki"))
-    assert(Await.result(p.future, 5.seconds))
+    assert(Await.result(p.future, 10.seconds))
   }
 
   test("request should return the result once") {
     val system = IsoSystem.default("test")
     val p = Promise[Boolean]
     system.isolate(Proto[RequestIso](p))
-    assert(Await.result(p.future, 5.seconds))
+    assert(Await.result(p.future, 10.seconds))
   }
 
   test("request should timeout once") {
     val system = IsoSystem.default("test")
     val p = Promise[Boolean]
     system.isolate(Proto[TimeoutRequestIso](p))
-    assert(Await.result(p.future, 5.seconds))
+    assert(Await.result(p.future, 10.seconds))
   }
 
 }
