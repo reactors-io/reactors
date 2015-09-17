@@ -7,7 +7,7 @@ import scala.collection._
 
 
 
-abstract class SubscriptionSet {
+abstract class SubscriptionSet extends Events.Subscription {
 
   def +=(s: Events.Subscription): Unit
 

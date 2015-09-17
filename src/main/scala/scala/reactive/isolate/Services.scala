@@ -138,11 +138,9 @@ object Services {
      *  The channel through which the events arrive is daemon.
      *
      *  @param d        duration between events
-     *  @param canLeak  the object that contains the leaky subscriptions
      *  @return         an event stream and subscription
      */
-    def periodic(d: Duration)(implicit canLeak: CanLeak):
-      Events[Unit] with Events.Subscription = {
+    def periodic(d: Duration): Events[Unit] with Events.Subscription = {
       val connector = system.channels.daemon.open[Unit]
       val task = new TimerTask {
         def run() {
@@ -165,11 +163,9 @@ object Services {
      *  The channel through which the event arrives is daemon.
      *
      *  @param d        duration after which the timeout event fires
-     *  @param canLeak  the object that contains the leaky subscriptions
      *  @return         an event stream and subscription
      */
-    def timeout(d: Duration)(implicit canLeak: CanLeak):
-      Events[Unit] with Events.Subscription = {
+    def timeout(d: Duration): Events[Unit] with Events.Subscription = {
       val connector = system.channels.daemon.open[Unit]
       val task = new TimerTask {
         def run() {
@@ -197,11 +193,9 @@ object Services {
      *
      *  @param n        the starting value of the countdown
      *  @param d        period between countdowns
-     *  @param canLeak  the object that contains leaky subscriptions
      *  @return         an event stream and subscription
      */
-    def countdown(n: Int, d: Duration)(implicit canLeak: CanLeak):
-      Events[Int] with Events.Subscription = {
+    def countdown(n: Int, d: Duration): Events[Int] with Events.Subscription = {
       assert(n > 0)
       val connector = system.channels.daemon.open[Int]
       val task = new TimerTask {
