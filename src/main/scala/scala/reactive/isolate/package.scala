@@ -45,12 +45,22 @@ package object isolate {
               retry(timesLeft - 1)
             }
           }
-          val r = new Reactor[S] {
-            def react(x: S) = if (p(x)) emitter.react(x) else fail()
-            def except(t: Throwable) = fail()
-            def unreact() = {}
+          if (timesLeft == 0) {
+            emitter.except(new RuntimeException(s"Timed out after $times retries."))
+            emitter.unreact()
+          } else {
+            val r = new Reactor[S] {
+              def react(x: S) = {
+                if (p(x)) {
+                  emitter.react(x)
+                  emitter.unreact()
+                } else fail()
+              }
+              def except(t: Throwable) = fail()
+              def unreact() = {}
+            }
+            reply.onReaction(r)
           }
-          reply.onReaction(r)
         }
         retry(times)
         emitter.withSubscription(canLeak)

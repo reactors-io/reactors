@@ -484,7 +484,7 @@ class SecondRetryAfterTimeoutIso(val p: Promise[Int]) extends Iso[Unit] {
   }
   sysEvents onMatch {
     case IsoStarted =>
-      requests.channel.retry("try", test, 4, 1.seconds) onEvent {
+      requests.channel.retry("try", test, 4, 200.millis) onMatch {
         case "yes" => p.success(numAttempts)
       }
   }
@@ -505,9 +505,31 @@ class SecondRetryAfterDropIso(val p: Promise[Boolean]) extends Iso[Unit] {
   }
   sysEvents onMatch {
     case IsoStarted =>
-      requests.channel.retry("try", test, 4, 1.seconds) onEvent {
+      requests.channel.retry("try", test, 4, 200.millis) onMatch {
         case "yes" => p.success(true)
       }
+  }
+}
+
+
+class FailedRetryIso(val p: Promise[Boolean]) extends Iso[Unit] {
+  import implicits.canLeak
+  import isolate.Patterns._
+  val requests = system.channels.daemon.open[(String, Channel[String])]
+  requests.events onMatch {
+    case ("try", answer) => answer ! "yes"
+  }
+  sysEvents onMatch {
+    case IsoStarted =>
+      requests.channel.retry("try", _ => false, 4, 50.millis).onReaction(
+        new Reactor[String] {
+          def react(x: String) = p.success(false)
+          def except(t: Throwable) = t match {
+            case r: RuntimeException => p.success(true)
+            case _ => p.success(false)
+          }
+          def unreact() = {}
+        })
   }
 }
 
@@ -829,6 +851,13 @@ class IsoSystemTest extends FunSuite with Matchers {
     val system = IsoSystem.default("test")
     val p = Promise[Boolean]
     system.isolate(Proto[SecondRetryAfterDropIso](p))
+    assert(Await.result(p.future, 10.seconds))
+  }
+
+  test("retry should fail after 5 retries") {
+    val system = IsoSystem.default("test")
+    val p = Promise[Boolean]
+    system.isolate(Proto[FailedRetryIso](p))
     assert(Await.result(p.future, 10.seconds))
   }
 
