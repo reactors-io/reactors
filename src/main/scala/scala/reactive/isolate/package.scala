@@ -8,9 +8,9 @@ import scala.concurrent.duration._
 
 
 package object isolate {
-  /** Contains common communication patterns
+  /** Contains common communication patterns.
    */
-  object Patterns {
+  class Patterns {
     implicit class ServerChannel[T, S: Arrayable](val c: Channel[(T, Channel[S])]) {
       def request(x: T, maxTime: Duration): Events[S] = {
         val system = Iso.self.system
@@ -67,4 +67,7 @@ package object isolate {
       }
     }
   }
+
+  /** Instance of the `Patterns` object. */
+  val patterns = new Patterns
 }

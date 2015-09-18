@@ -34,13 +34,17 @@ class IsoSystem(
 
   /** Contains channels of various system isolates.
    */
-  object isolate {
+  object iso {
     /** Replies to channel lookup requests.
      */
-    val finder =
-      isolate(Proto[Services.ChannelsIso].withName("channels").withChannelName("find"))
+    val resolver = {
+      val p = Proto[Services.NameResolverIso]
+        .withName("channels")
+        .withChannelName("find")
+      isolate(p)
+    }
   }
-  isolate
+  iso
 
   /** Creates a new isolate instance in this isolate system.
    *

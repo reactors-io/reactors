@@ -417,7 +417,7 @@ extends Iso[Unit] {
 class ChannelsAskIso(val p: Promise[Boolean]) extends Iso[Unit] {
   import implicits.canLeak
   val answer = system.channels.daemon.open[Option[Channel[_]]]
-  system.isolate.finder ! (("chaki#main", answer.channel))
+  system.iso.resolver ! (("chaki#main", answer.channel))
   answer.events onMatch {
     case Some(ch: Channel[Unit] @unchecked) => ch ! (())
     case None => sys.error("chaki#main not found")
@@ -431,7 +431,7 @@ class ChannelsAskIso(val p: Promise[Boolean]) extends Iso[Unit] {
 
 class RequestIso(val p: Promise[Boolean]) extends Iso[Unit] {
   import implicits.canLeak
-  import isolate.Patterns._
+  import patterns._
   import scala.concurrent.duration._
   val server = system.channels.daemon.open[(String, Channel[String])]
   server.events onMatch {
@@ -450,7 +450,7 @@ class RequestIso(val p: Promise[Boolean]) extends Iso[Unit] {
 
 class TimeoutRequestIso(val p: Promise[Boolean]) extends Iso[Unit] {
   import implicits.canLeak
-  import isolate.Patterns._
+  import patterns._
   import scala.concurrent.duration._
   val server = system.channels.daemon.open[(String, Channel[String])]
   server.events onMatch {
@@ -469,7 +469,7 @@ class TimeoutRequestIso(val p: Promise[Boolean]) extends Iso[Unit] {
 
 class SecondRetryAfterTimeoutIso(val p: Promise[Int]) extends Iso[Unit] {
   import implicits.canLeak
-  import isolate.Patterns._
+  import patterns._
   val requests = system.channels.daemon.open[(String, Channel[String])]
   var firstRequest = true
   var numAttempts = 0
@@ -493,7 +493,7 @@ class SecondRetryAfterTimeoutIso(val p: Promise[Int]) extends Iso[Unit] {
 
 class SecondRetryAfterDropIso(val p: Promise[Boolean]) extends Iso[Unit] {
   import implicits.canLeak
-  import isolate.Patterns._
+  import patterns._
   val requests = system.channels.daemon.open[(String, Channel[String])]
   var numReplies = 0
   requests.events onMatch {
@@ -514,7 +514,7 @@ class SecondRetryAfterDropIso(val p: Promise[Boolean]) extends Iso[Unit] {
 
 class FailedRetryIso(val p: Promise[Boolean]) extends Iso[Unit] {
   import implicits.canLeak
-  import isolate.Patterns._
+  import patterns._
   val requests = system.channels.daemon.open[(String, Channel[String])]
   requests.events onMatch {
     case ("try", answer) => answer ! "yes"
@@ -530,6 +530,27 @@ class FailedRetryIso(val p: Promise[Boolean]) extends Iso[Unit] {
           }
           def unreact() = {}
         })
+  }
+}
+
+
+class NameFinderIso extends Iso[Unit] {
+  import implicits.canLeak
+  import patterns._
+  system.iso.resolver.retry("fluffy#main", _ != None, 20, 50.millis) onMatch {
+    case Some(ch: Channel[String] @unchecked) =>
+      ch ! "die"
+      main.seal()
+  }
+}
+
+
+class NamedIso(val p: Promise[Boolean]) extends Iso[String] {
+  import implicits.canLeak
+  val sub = main.events onMatch {
+    case "die" =>
+      main.seal()
+      p.success(true)
   }
 }
 
@@ -858,6 +879,15 @@ class IsoSystemTest extends FunSuite with Matchers {
     val system = IsoSystem.default("test")
     val p = Promise[Boolean]
     system.isolate(Proto[FailedRetryIso](p))
+    assert(Await.result(p.future, 10.seconds))
+  }
+
+  test("should resolve name in 10 retries") {
+    val system = IsoSystem.default("test")
+    val p = Promise[Boolean]
+    system.isolate(Proto[NameFinderIso])
+    Thread.sleep(100)
+    system.isolate(Proto[NamedIso](p).withName("fluffy"))
     assert(Await.result(p.future, 10.seconds))
   }
 

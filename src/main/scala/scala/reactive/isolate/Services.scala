@@ -218,7 +218,7 @@ object Services {
     }
   }
 
-  private[reactive] class ChannelsIso
+  private[reactive] class NameResolverIso
   extends Iso[(String, Channel[Option[Channel[_]]])] {
     import implicits.canLeak
     main.events onMatch {

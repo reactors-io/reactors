@@ -71,6 +71,7 @@ trait Iso[@spec(Int, Long, Double) T] {
   @volatile private[reactive] var sysEventSub: Events.Subscription = _
   private[reactive] val sysEmitter = new Events.Emitter[SysEvent]
   val implicits = new Iso.Implicits
+  val patterns = scala.reactive.isolate.patterns
 
   private def illegal() =
     throw new IllegalStateException("Only isolate systems can create isolates.")
