@@ -39,7 +39,7 @@ class IsoSystem(
      */
     val resolver = {
       val p = Proto[Services.NameResolverIso]
-        .withName("channels")
+        .withName("resolver")
         .withChannelName("find")
       isolate(p)
     }
