@@ -32,10 +32,6 @@ package object reactive {
     final def mult(thiz: XY, v: Int) = XY(thiz.x * v, thiz.y * v)
   }
 
-  type SubscriptionSet = container.SubscriptionSet
-
-  val SubscriptionSet = container.SubscriptionSet
-
   type RCell[T] = container.RCell[T]
 
   val RCell = container.RCell
@@ -196,11 +192,11 @@ package object reactive {
     "implicits.canLeak or scala.reactive.Iso.canLeak from within an isolate, " +
     "or instantiate a fresh canLeak object if calling outside of an isolate. " +
     "Otherwise, consider using observe or foreach.")
-  sealed trait CanLeak {
+  sealed trait CanLeak extends Events.Subscription {
     val leakySubscriptions = mutable.Set[Events.Subscription]()
 
     /** Unsubscribes all the subscriptions, and removes them from this object. */
-    def dispose() = {
+    def unsubscribe() = {
       val copiedLeakySubscriptions = leakySubscriptions.toList
       for (s <- copiedLeakySubscriptions) {
         s.unsubscribe()

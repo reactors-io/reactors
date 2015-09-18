@@ -467,6 +467,30 @@ class TimeoutRequestIso(val p: Promise[Boolean]) extends Iso[Unit] {
 }
 
 
+class SecondRetryIso(val p: Promise[Int]) extends Iso[Unit] {
+  import implicits.canLeak
+  import isolate.Patterns._
+  val requests = system.channels.daemon.open[(String, Channel[String])]
+  var firstRequest = true
+  var numAttempts = 0
+  def test(x: String) = {
+    numAttempts += 1
+    true
+  }
+  requests.events onMatch {
+    case ("try", answer) =>
+      if (firstRequest) firstRequest = false
+      else answer ! "yes"
+  }
+  sysEvents onMatch {
+    case IsoStarted =>
+      requests.channel.retry("try", test, 4, 1.seconds) onEvent {
+        case "yes" => p.success(numAttempts)
+      }
+  }
+}
+
+
 abstract class BaseIsoSystemCheck(name: String) extends Properties(name) {
 
   val system = IsoSystem.default("check-system")  
@@ -771,6 +795,13 @@ class IsoSystemTest extends FunSuite with Matchers {
     val p = Promise[Boolean]
     system.isolate(Proto[TimeoutRequestIso](p))
     assert(Await.result(p.future, 10.seconds))
+  }
+
+  test("retry should succeed the second time") {
+    val system = IsoSystem.default("test")
+    val p = Promise[Int]
+    system.isolate(Proto[SecondRetryIso](p))
+    assert(Await.result(p.future, 5.seconds) == 1)
   }
 
 }

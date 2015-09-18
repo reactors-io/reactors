@@ -17,44 +17,43 @@ package object isolate {
         val emitter = new Events.Emitter[S]
         val reply = system.channels.daemon.open[S]
         c ! (x, reply.channel)
-        val subs = SubscriptionSet()
-        subs += reply.events.once foreach { x =>
+        implicit val canLeak = Permission.newCanLeak
+        reply.events.once onEvent { x =>
           reply.seal()
           emitter.react(x)
           emitter.unreact()
-          subs.unsubscribe()
+          canLeak.unsubscribe()
         }
-        subs += system.clock.timeout(maxTime) foreach { x =>
+        system.clock.timeout(maxTime) on {
           reply.seal()
           emitter.except(new TimeoutException)
           emitter.unreact()
-          subs.unsubscribe()
+          canLeak.unsubscribe()
         }
-        emitter.withSubscription(subs)
+        emitter.withSubscription(canLeak)
       }
 
       def retry(x: T, p: S => Boolean, times: Int, minCooldown: Duration): Events[S] = {
         val system = Iso.self.system
         val emitter = new Events.Emitter[S]
-        val subs = SubscriptionSet()
+        implicit val canLeak = Permission.newCanLeak
         def retry(timesLeft: Int) {
           val reply = request(x, minCooldown)
           def fail() {
-            subs.unsubscribe()
-            subs += system.clock.timeout(minCooldown) foreach { x =>
+            canLeak.unsubscribe()
+            system.clock.timeout(minCooldown) on {
               retry(timesLeft - 1)
             }
           }
-          subs += reply foreach { x =>
-            if (p(x)) emitter.react(x)
-            else fail()
+          val r = new Reactor[S] {
+            def react(x: S) = if (p(x)) emitter.react(x) else fail()
+            def except(t: Throwable) = fail()
+            def unreact() = {}
           }
-          subs += reply handle { case t =>
-            fail()
-          }
+          reply.onReaction(r)
         }
         retry(times)
-        emitter.withSubscription(subs)
+        emitter.withSubscription(canLeak)
       }
     }
   }
