@@ -7,6 +7,8 @@ import java.util.concurrent.atomic._
 import scala.annotation.tailrec
 import scala.collection._
 import scala.reactive.isolate._
+import scala.reactive.remoting.SystemUrl
+import scala.reactive.remoting.IsoUrl
 import scala.reactive.util.Monitor
 
 
@@ -34,7 +36,7 @@ class IsoSystem(
 
   /** Contains channels of various system isolates.
    */
-  object iso {
+  class StandardIsolates {
     /** Replies to channel lookup requests.
      */
     val resolver = {
@@ -44,7 +46,9 @@ class IsoSystem(
       isolate(p)
     }
   }
-  iso
+
+  /** Contains channels for standard isolates. */
+  val iso = new StandardIsolates
 
   /** Creates a new isolate instance in this isolate system.
    *
@@ -91,6 +95,7 @@ class IsoSystem(
     try {
       // 3. allocate the standard connectors
       frame.name = uname
+      frame.url = IsoUrl(bundle.url, uname)
       frame.defaultConnector = frame.openConnector[T](proto.channelName, factory, false)
       frame.internalConnector = frame.openConnector[SysEvent]("system", factory, true)
 
@@ -118,7 +123,7 @@ object IsoSystem {
   /** Creates the default isolate system.
    *  
    *  @param name       the name for the isolate system instance
-   *  @param scheduler  the default scheduler
+   *  @param bundle     the isolate system bundle object
    *  @return           a new isolate system instance
    */
   def default(name: String, bundle: IsoSystem.Bundle = IsoSystem.defaultBundle) =
@@ -131,6 +136,13 @@ object IsoSystem {
    */
   val defaultConfig: Config = {
     ConfigFactory.parseString("""
+      remoting = {
+        url = {
+          schema = ""
+          host = "localhost"
+          port = 17172
+        }
+      }
       system = {
         net = {
           parallelism = 8
@@ -139,14 +151,27 @@ object IsoSystem {
     """)
   }
 
-  /** Contains a set of schedulers registered with each isolate system.
+  /** Contains various configuration values related to the isolate system,
+   *  such as the set of registered schedulers and the system url.
    */
-  class Bundle(val defaultScheduler: Scheduler, private val customConfig: Config) {
+  class Bundle(
+    val defaultScheduler: Scheduler,
+    private val customConfig: Config
+  ) {
     private val schedulers = mutable.Map[String, Scheduler]()
+
+    def this(s: Scheduler, config: String) = this(s, ConfigFactory.parseString(config))
 
     /** The set of configuration variables for the isolate system.
      */
     val config = customConfig.withFallback(defaultConfig)
+
+    /** Url that resolves to this isolate system.
+     */
+    val url = SystemUrl(
+      config.getString("remoting.url.schema"),
+      config.getString("remoting.url.host"),
+      config.getInt("remoting.url.port"))
 
     /** Retrieves the scheduler registered under the specified name.
      *  

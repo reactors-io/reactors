@@ -7,6 +7,7 @@ import java.util.concurrent.atomic._
 import scala.annotation.tailrec
 import scala.collection._
 import scala.reactive.core.UnrolledRing
+import scala.reactive.remoting._
 import scala.reactive.util.Monitor
 
 
@@ -26,6 +27,7 @@ final class Frame(
 
   @volatile var iso: Iso[_] = _
   @volatile var name: String = _
+  @volatile var url: IsoUrl = _
   @volatile var defaultConnector: Connector[_] = _
   @volatile var internalConnector: Connector[_] = _
   @volatile var schedulerState: Scheduler.State = _
@@ -38,7 +40,8 @@ final class Frame(
     // 1. prepare and ensure a unique id
     val uid = connectors.reserveId()
     val queue = factory.newInstance[Q]
-    val chan = new Channel.Local[Q](uid, queue, this)
+    val chanUrl = ChannelUrl(url, name)
+    val chan = new Channel.Shared(uid, chanUrl, new Channel.Local[Q](uid, queue, this))
     val events = new Events.Emitter[Q]
     val conn = new Connector(chan, queue, events, this, isDaemon)
 
@@ -224,7 +227,7 @@ final class Frame(
     val conn = connectors.forId(uid)
     if (conn == connectors.nil) false
     else {
-      conn.localChannel.isOpen = false
+      conn.sharedChannel.asLocal.isOpen = false
       if (!conn.isDaemon) nonDaemonCount -= 1
       assert(connectors.tryReleaseById(uid))
       true
