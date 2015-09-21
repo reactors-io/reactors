@@ -5,6 +5,7 @@ package scala.reactive
 import scala.collection._
 import scala.reactive.isolate.Frame
 import scala.reactive.remoting.ChannelUrl
+import scala.reactive.remoting.Remoting
 
 
 
@@ -29,7 +30,7 @@ object Channel {
           case None => underlying = new Failed(uid)
         }
       } else {
-        ???
+        underlying = system.service[Remoting].resolve(url)
       }
     }
 
