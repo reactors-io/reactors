@@ -882,7 +882,7 @@ class IsoSystemTest extends FunSuite with Matchers {
     assert(Await.result(p.future, 10.seconds))
   }
 
-  test("should resolve name in 10 retries") {
+  test("should resolve name before failing") {
     val system = IsoSystem.default("test")
     val p = Promise[Boolean]
     system.isolate(Proto[NameFinderIso])
