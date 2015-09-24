@@ -9,7 +9,9 @@ import scala.reactive.core.BinaryHeap
 
 
 
-class RBinaryHeap[@spec(Int, Long, Double) T](val initialSize: Int = 16)(implicit val arrayable: Arrayable[T], val order: Order[T])
+class RBinaryHeap[@spec(Int, Long, Double) T]
+  (val initialSize: Int = 16)
+  (implicit val arrayable: Arrayable[T], val order: Order[T])
 extends RPriorityQueue[T] {
   private var heap: BinaryHeap[T] = _
   private var insertsEmitter: Events.Emitter[T] = _

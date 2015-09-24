@@ -6,7 +6,9 @@ package core
 
 
 
-class BinaryHeap[@specialized(Int, Long, Double) T](val initialSize: Int = 16)(implicit val arrayable: Arrayable[T], val order: Order[T]) {
+class BinaryHeap[@specialized(Int, Long, Double) T]
+  (val initialSize: Int = 16)
+  (implicit val arrayable: Arrayable[T], val order: Order[T]) {
   private var array: Array[T] = _
   private var sz = 0
 
@@ -100,6 +102,8 @@ class BinaryHeap[@specialized(Int, Long, Double) T](val initialSize: Int = 16)(i
 
 object BinaryHeap {
 
-  def orderedWith[@specialized(Int, Long, Double) T: Arrayable](initSize: Int = 16, ord: Order[T]) = new BinaryHeap(initSize)(implicitly[Arrayable[T]], ord)
+  def orderedWith[@specialized(Int, Long, Double) T: Arrayable]
+    (initSize: Int = 16, ord: Order[T]) =
+    new BinaryHeap(initSize)(implicitly[Arrayable[T]], ord)
 
 }
