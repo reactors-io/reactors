@@ -7,6 +7,7 @@ import org.scalacheck.Prop.forAllNoShrink
 import org.scalacheck.Gen.choose
 import org.scalatest.{FunSuite, Matchers}
 import scala.annotation.unchecked
+import scala.collection._
 import scala.concurrent._
 import scala.concurrent.duration._
 
@@ -547,10 +548,23 @@ class NameFinderIso extends Iso[Unit] {
 
 class NamedIso(val p: Promise[Boolean]) extends Iso[String] {
   import implicits.canLeak
-  val sub = main.events onMatch {
+  main.events onMatch {
     case "die" =>
       main.seal()
       p.success(true)
+  }
+}
+
+
+class SysEventsIso(val p: Promise[Boolean]) extends Iso[String] {
+  import implicits.canLeak
+  val events = mutable.Buffer[SysEvent]()
+  sysEvents onMatch {
+    case IsoTerminated =>
+      p.trySuccess(events == Seq(IsoStarted, IsoScheduled, IsoPreempted))
+    case e =>
+      events += e
+      if (events.size == 3) main.seal()
   }
 }
 
@@ -618,6 +632,14 @@ abstract class IsoSystemCheck(name: String) extends BaseIsoSystemCheck(name) {
       val proto = Proto[RingIso](0, n, Left(p), scheduler).withScheduler(scheduler)
       val ch = system.isolate(proto)
       ch ! "start"
+      Await.result(p.future, 10.seconds)
+    }
+
+  property("should receive all possible system events") =
+    forAllNoShrink(choose(1, 128)) { n =>
+      val p = Promise[Boolean]()
+      val proto = Proto[SysEventsIso](p).withScheduler(scheduler)
+      system.isolate(proto)
       Await.result(p.future, 10.seconds)
     }
 
