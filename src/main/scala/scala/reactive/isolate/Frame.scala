@@ -161,14 +161,14 @@ final class Frame(
       schedulerState.onBatchEvent(this)
       if (schedulerState.canConsume) {
         // need to consume some more
-        if (remaining > 0) loop(c)
+        if (remaining > 0 && !c.sharedChannel.isSealed) loop(c)
         else {
           val nc = popNextPending()
           if (nc != null) loop(nc)
         }
       } else {
         // done consuming -- see if the connector needs to be enqueued
-        if (remaining > 0) monitor.synchronized {
+        if (remaining > 0 && !c.sharedChannel.isSealed) monitor.synchronized {
           pendingQueues.enqueue(c)
         }
       }

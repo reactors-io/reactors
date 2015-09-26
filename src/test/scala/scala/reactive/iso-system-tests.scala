@@ -10,6 +10,7 @@ import scala.annotation.unchecked
 import scala.collection._
 import scala.concurrent._
 import scala.concurrent.duration._
+import scala.util.Success
 
 
 
@@ -569,6 +570,30 @@ class SysEventsIso(val p: Promise[Boolean]) extends Iso[String] {
 }
 
 
+class TerminateEarlyIso(
+  val p: Promise[Boolean], val fail: Promise[Boolean], val max: Int
+) extends Iso[String] {
+  import implicits.canLeak
+  var seen = 0
+  var terminated = false
+  main.events onEvent { s =>
+    if (terminated) {
+      fail.success(true)
+    } else {
+      seen += 1
+      if (seen >= max) {
+        terminated = true
+        main.seal()
+      }
+    }
+  }
+  sysEvents onMatch {
+    case IsoTerminated =>
+      p.success(true)
+  }
+}
+
+
 abstract class BaseIsoSystemCheck(name: String) extends Properties(name) {
 
   val system = IsoSystem.default("check-system")  
@@ -635,12 +660,23 @@ abstract class IsoSystemCheck(name: String) extends BaseIsoSystemCheck(name) {
       Await.result(p.future, 10.seconds)
     }
 
-  property("should receive all possible system events") =
+  property("should receive all system events") =
     forAllNoShrink(choose(1, 128)) { n =>
       val p = Promise[Boolean]()
       val proto = Proto[SysEventsIso](p).withScheduler(scheduler)
       system.isolate(proto)
       Await.result(p.future, 10.seconds)
+    }
+
+  property("should not process any events after terminating") =
+    forAllNoShrink(choose(1, 32000)) { n =>
+      val total = 32000
+      val p = Promise[Boolean]()
+      val fail = Promise[Boolean]()
+      val proto = Proto[TerminateEarlyIso](p, fail, n).withScheduler(scheduler)
+      val ch = system.isolate(proto)
+      for (i <- 0 until total) ch ! "msg"
+      Await.result(p.future, 10.seconds) && fail.future.value != Some(Success(true))
     }
 
 }
