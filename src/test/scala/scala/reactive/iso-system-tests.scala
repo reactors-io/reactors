@@ -668,7 +668,7 @@ abstract class IsoSystemCheck(name: String) extends BaseIsoSystemCheck(name) {
       Await.result(p.future, 10.seconds)
     }
 
-  property("should not process any events after terminating") =
+  property("should not process any events after sealing") =
     forAllNoShrink(choose(1, 32000)) { n =>
       val total = 32000
       val p = Promise[Boolean]()
