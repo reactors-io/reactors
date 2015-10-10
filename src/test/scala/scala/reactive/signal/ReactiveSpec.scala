@@ -662,4 +662,14 @@ class ReactiveSpec extends FlatSpec with Matchers {
     }
   }
 
+  it should "recover from errors" in {
+    val e = new Events.Emitter[String]
+    val recovered = e.recover({
+      case e: Exception => e.getMessage
+    }).to[RSet[String]]
+    e.except(new Exception("false positive"))
+    assert(recovered.size == 1)
+    assert(recovered("false positive"))
+  }
+
 }
