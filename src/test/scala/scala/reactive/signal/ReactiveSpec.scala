@@ -668,8 +668,8 @@ class ReactiveSpec extends FlatSpec with Matchers {
       case e: Exception => e.getMessage
     }).to[RSet[String]]
     e.except(new Exception("false positive"))
-    assert(recovered.size == 1)
-    assert(recovered("false positive"))
+    recovered.size should equal (1)
+    recovered("false positive") should equal (true)
   }
 
 }
