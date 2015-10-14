@@ -24,9 +24,11 @@ extends ReactMutable.Subscriptions {
    */
   def mutation() {}
 
-  /** By default, containers ignore exceptions that occur during their mutation.
+  /** By default, containers throw exceptions that occur during their mutation.
    */
-  def exception(t: Throwable) {}
+  def exception(t: Throwable) {
+    throw t
+  }
 
   def count(p: T => Boolean): Int = {
     var num = 0

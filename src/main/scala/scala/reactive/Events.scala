@@ -292,8 +292,8 @@ trait Events[@spec(Int, Long, Double) +T] {
    *  @return            an event stream that emits all incoming events,
    *                     and ignores all incoming exceptions
    */
-  def recoverAll: Events[T] with Events.Subscription = {
-    val rr = new Events.RecoverAll(self)
+  def ignoreExceptions: Events[T] with Events.Subscription = {
+    val rr = new Events.IgnoreExceptions(self)
     rr.subscription = self observe rr
     rr
   }
@@ -1286,7 +1286,7 @@ object Events {
     var subscription = Subscription.empty
   }
 
-  private[reactive] class RecoverAll[@spec(Int, Long, Double) T](val self: Events[T])
+  private[reactive] class IgnoreExceptions[@spec(Int, Long, Double) T](val self: Events[T])
   extends Events.Default[T] with Reactor[T] with Events.ProxySubscription {
     def react(value: T) {
       reactAll(value)

@@ -43,7 +43,7 @@ extends Iso[Unit] {
   import implicits.canLeak
   val net = new Services.Net(system, resolver)
   val response = net.resource.string("http://dummy.url/resource.txt")
-  response.recoverAll onEvent { s =>
+  response.ignoreExceptions onEvent { s =>
     res success s
     main.seal()
   }

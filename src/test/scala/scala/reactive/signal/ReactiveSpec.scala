@@ -672,4 +672,11 @@ class ReactiveSpec extends FlatSpec with Matchers {
     recovered("false positive") should equal (true)
   }
 
+  it should "ignore all incoming exceptions" in {
+    val e = new Events.Emitter[String]
+    val recovered = e.ignoreExceptions.to[RSet[String]]
+    e.except(new Exception)
+    recovered.size should equal (0)
+  }
+
 }
