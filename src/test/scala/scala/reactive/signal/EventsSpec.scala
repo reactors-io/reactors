@@ -9,7 +9,7 @@ import scala.collection._
 
 
 
-class ReactiveSpec extends FlatSpec with Matchers {
+class EventsSpec extends FlatSpec with Matchers {
 
   class ReactiveTest {
     val x = RCell(0)
