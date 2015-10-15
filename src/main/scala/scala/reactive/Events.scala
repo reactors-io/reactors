@@ -585,8 +585,7 @@ trait Events[@spec(Int, Long, Double) +T] {
    *  @return           a subscription and an event stream with the partially
    *                    mapped events
    */
-  def collect[S <: AnyRef](pf: PartialFunction[T, S])
-    (implicit evidence: T <:< AnyRef):
+  def collect[S <: AnyRef](pf: PartialFunction[T, S])(implicit evidence: T <:< AnyRef):
     Events[S] with Events.Subscription = {
     val cf = new Events.Collect[T, S](self, pf)
     cf.subscription = self observe cf

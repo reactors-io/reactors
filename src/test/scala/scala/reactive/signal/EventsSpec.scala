@@ -31,8 +31,8 @@ class EventsSpec extends FlatSpec with Matchers {
     rt.x := 2
   }
 
-  def assertExceptionPropagated[S](create: Events[Int] => Events[S],
-    effect: () => Unit) {
+  def assertExceptionPropagated[S]
+    (create: Events[Int] => Events[S], effect: () => Unit) {
     val e = new Events.Emitter[Int]
     val s = create(e)
     
@@ -677,6 +677,14 @@ class EventsSpec extends FlatSpec with Matchers {
     val recovered = e.ignoreExceptions.to[RSet[String]]
     e.except(new Exception)
     recovered.size should equal (0)
+  }
+
+  it should "perform a side effect" in {
+    val e = new Events.Emitter[Int]
+    val buffer = mutable.Buffer[Int]()
+    val sub = e.effect(x => buffer += x)
+    e.react(1)
+    buffer should equal (Seq(1))
   }
 
 }
