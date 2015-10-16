@@ -196,10 +196,7 @@ final class Frame(
   }
 
   private def processBatch() {
-    try checkFresh()
-    catch { case t: Throwable =>
-      throw new IsolateError("Isolate constructor raised an exception.", t)
-    }
+    checkFresh()
     try {
       iso.sysEmitter.react(IsoScheduled)
       processEvents()
