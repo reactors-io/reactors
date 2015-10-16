@@ -351,12 +351,13 @@ object Scheduler {
             if (frame.hasTerminated) {
               timerTask.cancel()
               removeFrame(frame)
-            }
-            frame.executeBatch()
+            } else {
+              frame.executeBatch()
 
-            // we put into the "executing" state to be consistent,
-            // although this is not strictly necessary
-            frame.scheduleForExecution()
+              // we put into the "executing" state to be consistent,
+              // although this is not strictly necessary
+              frame.scheduleForExecution()
+            }
           } catch handler
         }
       }
