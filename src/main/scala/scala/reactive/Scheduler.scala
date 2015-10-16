@@ -348,11 +348,11 @@ object Scheduler {
         timerTask =>
         def run() {
           try {
-            frame.executeBatch()
             if (frame.hasTerminated) {
               timerTask.cancel()
               removeFrame(frame)
             }
+            frame.executeBatch()
 
             // we put into the "executing" state to be consistent,
             // although this is not strictly necessary
