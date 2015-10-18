@@ -12,6 +12,8 @@ import scala.reactive.util.Monitor
 
 
 
+/** Placeholder for the isolate's system state.
+ */
 final class Frame(
   val uid: Long,
   val proto: Proto[Iso[_]],
