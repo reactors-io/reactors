@@ -11,8 +11,6 @@ import scala.reactive.remoting.Remoting
 
 trait Channel[@spec(Int, Long, Double) T] extends Identifiable {
   def !(x: T): Unit
-
-  def isSealed: Boolean
 }
 
 

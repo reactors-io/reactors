@@ -39,7 +39,7 @@ final class Frame(
     factory: EventQueue.Factory,
     isDaemon: Boolean
   ): Connector[Q] = {
-    // 1. prepare and ensure a unique id
+    // 1. prepare and ensure a unique id for the channel
     val uid = connectors.reserveId()
     val queue = factory.newInstance[Q]
     val chanUrl = ChannelUrl(url, name)
