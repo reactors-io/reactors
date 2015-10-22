@@ -43,11 +43,11 @@ final class Frame(
     val uid = connectors.reserveId()
     val queue = factory.newInstance[Q]
     val chanUrl = ChannelUrl(url, name)
-    val chan = new Channel.Shared(uid, chanUrl, new Channel.Local[Q](uid, queue, this))
+    val chan = new Channel.Shared(chanUrl, new Channel.Local[Q](uid, queue, this))
     val events = new Events.Emitter[Q]
     val conn = new Connector(chan, queue, events, this, isDaemon)
 
-    // 2. acquire a unique name or break
+    // 2. acquire a unique name or break if not unique
     val uname = monitor.synchronized {
       val u = connectors.tryStore(name, conn)
       if (!isDaemon) nonDaemonCount += 1
@@ -163,14 +163,14 @@ final class Frame(
       schedulerState.onBatchEvent(this)
       if (schedulerState.canConsume) {
         // need to consume some more
-        if (remaining > 0 && !c.sharedChannel.isSealed) loop(c)
+        if (remaining > 0 && !c.sharedChannel.asLocal.isSealed) loop(c)
         else {
           val nc = popNextPending()
           if (nc != null) loop(nc)
         }
       } else {
         // done consuming -- see if the connector needs to be enqueued
-        if (remaining > 0 && !c.sharedChannel.isSealed) monitor.synchronized {
+        if (remaining > 0 && !c.sharedChannel.asLocal.isSealed) monitor.synchronized {
           pendingQueues.enqueue(c)
         }
       }

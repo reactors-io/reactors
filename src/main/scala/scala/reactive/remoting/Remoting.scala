@@ -19,7 +19,7 @@ class Remoting(val system: IsoSystem) extends Protocol {
 
   def resolve[T](channelUrl: ChannelUrl): Channel[T] = {
     channelUrl.isoUrl.systemUrl.schema match {
-      case "rc.udp" => new UdpChannel(url)
+      case "rc.udp" => new UdpChannel(channelUrl)
       case s => sys.error("Unknown channel schema: $s")
     }
   }
