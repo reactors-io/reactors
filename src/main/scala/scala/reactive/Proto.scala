@@ -17,7 +17,8 @@ final class Proto[+I <: Iso[_]] private[reactive] (
   val scheduler: String = null,
   val eventQueueFactory: EventQueue.Factory = null,
   val name: String = null,
-  val channelName: String = "main"
+  val channelName: String = "main",
+  val transport: String = "iso.udp"
 ) {
 
   /** Instantiates and returns the isolate.
@@ -32,7 +33,7 @@ final class Proto[+I <: Iso[_]] private[reactive] (
    *  @return                    a new `Proto` object
    */
   def withScheduler(sname: String): Proto[I] =
-    new Proto(clazz, params, sname, eventQueueFactory, name, channelName)
+    new Proto(clazz, params, sname, eventQueueFactory, name, channelName, transport)
 
   /** Associates the specified event queue type and returns the new `Proto` object.
    *  
@@ -41,15 +42,22 @@ final class Proto[+I <: Iso[_]] private[reactive] (
    *  @return                    a new `Proto` object
    */
   def withEventQueue(f: EventQueue.Factory): Proto[I] =
-    new Proto(clazz, params, scheduler, f, name, channelName)
+    new Proto(clazz, params, scheduler, f, name, channelName, transport)
 
   /** Associates the name for the new isolate and returns the new `Proto` object.
    */
   def withName(nm: String): Proto[I] =
-    new Proto(clazz, params, scheduler, eventQueueFactory, nm, channelName)
+    new Proto(clazz, params, scheduler, eventQueueFactory, nm, channelName, transport)
 
+  /** Associates the main channel name to the new isolate, and returns the `Proto`.
+   */
   def withChannelName(cnm: String): Proto[I] =
-    new Proto(clazz, params, scheduler, eventQueueFactory, name, cnm)
+    new Proto(clazz, params, scheduler, eventQueueFactory, name, cnm, transport)
+
+  /** Associates the transport name, and returns the new `Proto`.
+   */
+  def withTransport(tname: String): Proto[I] =
+    new Proto(clazz, params, scheduler, eventQueueFactory, name, channelName, tname)
 
 }
 
@@ -78,4 +86,3 @@ object Proto {
     new Proto[I](implicitly[ClassTag[I]].runtimeClass.asInstanceOf[Class[I]], params)
 
 }
-

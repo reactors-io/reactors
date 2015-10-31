@@ -21,7 +21,7 @@ object Channel {
   ) extends Channel[T] with Serializable {
     private def resolve(): Unit = {
       val system = Iso.self.system
-      if (system.bundle.url == url.isoUrl.systemUrl) {
+      if (system.bundle.urls.contains(url.isoUrl.systemUrl)) {
         system.channels.find[T](url.channelName) match {
           case Some(ch) => underlying = ch
           case None => underlying = new Failed

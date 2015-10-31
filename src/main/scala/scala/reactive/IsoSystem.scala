@@ -6,6 +6,7 @@ import com.typesafe.config._
 import java.util.concurrent.atomic._
 import scala.annotation.tailrec
 import scala.collection._
+import scala.collection.JavaConverters._
 import scala.reactive.isolate._
 import scala.reactive.remoting.SystemUrl
 import scala.reactive.remoting.IsoUrl
@@ -95,7 +96,7 @@ class IsoSystem(
     try {
       // 3. allocate the standard connectors
       frame.name = uname
-      frame.url = IsoUrl(bundle.url, uname)
+      frame.url = IsoUrl(bundle.urlsBySchema(proto.transport), uname)
       frame.defaultConnector = frame.openConnector[T](proto.channelName, factory, false)
       frame.internalConnector = frame.openConnector[SysEvent]("system", factory, true)
 
@@ -137,11 +138,18 @@ object IsoSystem {
   val defaultConfig: Config = {
     ConfigFactory.parseString("""
       remoting = {
-        url = {
-          schema = ""
-          host = "localhost"
-          port = 17172
-        }
+        transports = [
+          {
+            schema = "iso.udp"
+            host = "localhost"
+            port = 17771
+          }
+          {
+            schema = "iso.tcp"
+            host = "localhost"
+            port = 17773
+          }
+        ]
       }
       system = {
         net = {
@@ -166,12 +174,20 @@ object IsoSystem {
      */
     val config = customConfig.withFallback(defaultConfig)
 
-    /** Url that resolves to this isolate system.
+    val urlsBySchema = config.getConfigList("remoting.transports").asScala.map(c =>
+      (c.getString("schema"),
+        SystemUrl(c.getString("schema"), c.getString("host"), c.getInt("port")))
+    ).toMap
+
+    val urls = urlsBySchema.map(_._2).toSet
+
+    /** TCP url that resolves to this isolate system.
      */
-    val url = SystemUrl(
-      config.getString("remoting.url.schema"),
-      config.getString("remoting.url.host"),
-      config.getInt("remoting.url.port"))
+    val tcpUrl = urlsBySchema("iso.tcp")
+
+    /** UDP url that resolves to this isolate system.
+     */
+    val udpUrl = urlsBySchema("iso.udp")
 
     /** Retrieves the scheduler registered under the specified name.
      *  
