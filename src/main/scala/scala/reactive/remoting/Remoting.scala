@@ -12,9 +12,10 @@ import scala.reactive.core.UnrolledRing
 class Remoting(val system: IsoSystem) extends Protocol {
   object Udp extends Remoting.Transport {
     val socket = new DatagramSocket(system.bundle.udpUrl.port)
+    val datagramChannel = socket.getChannel
 
     def newChannel[@spec(Int, Long, Double) T](url: ChannelUrl): Channel[T] = {
-      ???
+      new UdpChannel[T](url)
     }
   }
 
@@ -23,9 +24,9 @@ class Remoting(val system: IsoSystem) extends Protocol {
     def !(x: T): Unit = ???
   }
 
-  def resolve[T](channelUrl: ChannelUrl): Channel[T] = {
+  def resolve[@spec(Int, Long, Double) T](channelUrl: ChannelUrl): Channel[T] = {
     channelUrl.isoUrl.systemUrl.schema match {
-      case "iso.udp" => new UdpChannel(channelUrl)
+      case "iso.udp" => Udp.newChannel[T](channelUrl)
       case s => sys.error("Unknown channel schema: $s")
     }
   }
