@@ -3,6 +3,7 @@ package remoting
 
 
 
+import java.io.OutputStream
 import java.net._
 import java.nio.ByteBuffer
 import java.nio.channels.DatagramChannel
@@ -24,7 +25,7 @@ class Remoting(val system: IsoSystem) extends Protocol {
       new UdpChannel[T](url)
     }
 
-    def serialize(name: String, anchor: String, x: Any): ByteBuffer = {
+    private def serialize(name: String, anchor: String, x: Any): ByteBuffer = {
       ???
     }
 
@@ -50,5 +51,13 @@ class Remoting(val system: IsoSystem) extends Protocol {
 object Remoting {
   trait Transport {
     def newChannel[@spec(Int, Long, Double) T](url: ChannelUrl): Channel[T]
+  }
+
+  private class ByteBufferOutputStream(val buf: ByteBuffer) extends OutputStream {
+    def write(b: Int): Unit = buf.put(b.toByte)
+    override def write(bytes: Array[Byte], off: Int, len: Int): Unit = {
+      buf.put(bytes, off, len)
+    }
+    
   }
 }
