@@ -4,6 +4,8 @@ package remoting
 
 
 import java.net._
+import java.nio.ByteBuffer
+import java.nio.channels.DatagramChannel
 import scala.collection._
 import scala.reactive.core.UnrolledRing
 
@@ -11,17 +13,29 @@ import scala.reactive.core.UnrolledRing
 
 class Remoting(val system: IsoSystem) extends Protocol {
   object Udp extends Remoting.Transport {
-    val socket = new DatagramSocket(system.bundle.udpUrl.port)
-    val datagramChannel = socket.getChannel
+    val datagramChannel = {
+      val url = system.bundle.udpUrl
+      val ch = DatagramChannel.open()
+      ch.bind(url.inetSocketAddress)
+      ch
+    }
 
     def newChannel[@spec(Int, Long, Double) T](url: ChannelUrl): Channel[T] = {
       new UdpChannel[T](url)
     }
-  }
 
-  private class UdpChannel[@spec(Int, Long, Double) T](url: ChannelUrl)
-  extends Channel[T] {
-    def !(x: T): Unit = ???
+    def serialize(name: String, anchor: String, x: Any): ByteBuffer = {
+      ???
+    }
+
+    private class UdpChannel[@spec(Int, Long, Double) T](url: ChannelUrl)
+    extends Channel[T] {
+      def !(x: T): Unit = {
+        val bytes = serialize(url.isoUrl.name, url.anchor, x)
+        val sysUrl = url.isoUrl.systemUrl
+        datagramChannel.send(bytes, sysUrl.inetSocketAddress)
+      }
+    }
   }
 
   def resolve[@spec(Int, Long, Double) T](channelUrl: ChannelUrl): Channel[T] = {
