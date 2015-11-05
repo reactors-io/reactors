@@ -8,8 +8,9 @@ import scala.annotation.tailrec
 import scala.collection._
 import scala.collection.JavaConverters._
 import scala.reactive.isolate._
-import scala.reactive.remoting.SystemUrl
 import scala.reactive.remoting.IsoUrl
+import scala.reactive.remoting.Remoting
+import scala.reactive.remoting.SystemUrl
 import scala.reactive.util.Monitor
 
 
@@ -188,6 +189,10 @@ object IsoSystem {
     /** UDP url that resolves to this isolate system.
      */
     val udpUrl = urlsBySchema("iso.udp")
+
+    /** Pickler implementation for this isolate system.
+     */
+    val pickler = new Remoting.JavaSerializationPickler
 
     /** Retrieves the scheduler registered under the specified name.
      *  

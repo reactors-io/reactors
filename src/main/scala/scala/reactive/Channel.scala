@@ -15,7 +15,7 @@ trait Channel[@spec(Int, Long, Double) T] {
 
 
 object Channel {
-  class Shared[@spec(Int, Long, Double) T](
+  class Shared[@spec(Int, Long, Double) T: Arrayable](
     val url: ChannelUrl,
     @transient var underlying: Channel[T]
   ) extends Channel[T] with Serializable {
@@ -27,7 +27,7 @@ object Channel {
           case None => underlying = new Failed
         }
       } else {
-        underlying = system.service[Remoting].resolve(url)
+        underlying = system.service[Remoting].resolve[T](url)
       }
     }
 

@@ -3,9 +3,9 @@ package container
 
 
 
-import scala.collection._
 import scala.annotation.implicitNotFound
-import core.UnrolledRing
+import scala.collection._
+import scala.reactive.core.UnrolledRing
 
 
 
