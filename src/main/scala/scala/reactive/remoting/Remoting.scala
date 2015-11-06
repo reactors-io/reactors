@@ -84,17 +84,24 @@ object Remoting {
           udpTransport.datagramChannel.send(buffer, sysUrl.inetSocketAddress)
         }
 
-        def enqueue[@spec(Int, Long, Double) T](x: T, url: ChannelUrl) {
+        def enqueue(x: T, url: ChannelUrl) {
           this.synchronized {
-            // TODO
+            urls.enqueue(url)
+            events.enqueue(x)
+            this.notify()
           }
         }
 
         @tailrec
         final override def run() {
+          var url: ChannelUrl = null
+          var x: T = null.asInstanceOf[T]
           this.synchronized {
-            this.wait()
+            while (urls.isEmpty) this.wait()
+            url = urls.dequeue()
+            x = events.dequeue()
           }
+          send(x, url)
           run()
         }
       }
