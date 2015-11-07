@@ -192,7 +192,7 @@ object IsoSystem {
 
     /** Pickler implementation for this isolate system.
      */
-    val pickler = new Remoting.JavaSerializationPickler
+    val pickler = new Remoting.Pickler.JavaSerialization
 
     /** Retrieves the scheduler registered under the specified name.
      *  

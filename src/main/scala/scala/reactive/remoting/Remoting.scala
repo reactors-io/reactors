@@ -4,6 +4,7 @@ package remoting
 
 
 import java.io.OutputStream
+import java.io.ObjectOutputStream
 import java.net._
 import java.nio.ByteBuffer
 import java.nio.channels.DatagramChannel
@@ -70,11 +71,11 @@ object Remoting {
         setDaemon(true)
 
         private[remoting] def pickle[@spec(Int, Long, Double) T]
-          (iso: String, ch: String, x: T) {
+          (isoName: String, anchor: String, x: T) {
           val pickler = udpTransport.system.bundle.pickler
           buffer.clear()
-          pickler.pickle(iso, buffer)
-          pickler.pickle(ch, buffer)
+          pickler.pickle(isoName, buffer)
+          pickler.pickle(anchor, buffer)
           pickler.pickle(x, buffer)
         }
 
@@ -114,12 +115,22 @@ object Remoting {
     }
   }
 
+  /** Pickles an object into a byte buffer, so that it can be sent over the wire.
+   */
   trait Pickler {
     def pickle[@spec T](x: T, buffer: ByteBuffer): Unit
   }
 
-  class JavaSerializationPickler extends Pickler {
-    def pickle[@spec T](x: T, buffer: ByteBuffer) = ???
+  object Pickler {
+    /** Pickler implementation based on Java serialization.
+     */
+    class JavaSerialization extends Pickler {
+      def pickle[@spec T](x: T, buffer: ByteBuffer) = {
+        val outputStream = new ByteBufferOutputStream(buffer)
+        val objectOutputStream = new ObjectOutputStream(outputStream)
+        objectOutputStream.writeObject(x)
+      }
+    }
   }
 
   private class ByteBufferOutputStream(val buf: ByteBuffer) extends OutputStream {
