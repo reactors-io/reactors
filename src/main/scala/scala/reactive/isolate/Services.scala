@@ -17,6 +17,7 @@ import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.reactive.isolate._
+import scala.reactive.remoting.Remoting
 import scala.reflect.ClassTag
 import scala.util.DynamicVariable
 import scala.util.Success
@@ -43,6 +44,9 @@ abstract class Services {
 
   /** Network services. */
   val net = new Services.Net(system)
+
+  /** Remoting services, used to contact other isolate systems. */
+  val remoting = new Remoting(system)
 
   /** The register of channels in this isolate system.
    *

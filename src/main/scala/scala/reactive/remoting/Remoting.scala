@@ -40,34 +40,57 @@ object Remoting {
         ch.bind(url.inetSocketAddress)
         ch
       }
-      val senderMap = Map[Arrayable[_], Udp.Sender[_]](
-        implicitly[Arrayable[Int]] -> newSender[Int],
-        implicitly[Arrayable[Long]] -> newSender[Long],
-        implicitly[Arrayable[Double]] -> newSender[Double],
-        implicitly[Arrayable[AnyRef]] -> newSender[AnyRef]
-      )
-
-      def sender[T](a: Arrayable[T]) = senderMap(a).asInstanceOf[Udp.Sender[T]]
+      private val refSenderInstance = {
+        val t = new Udp.Sender[AnyRef](
+          this,
+          new UnrolledRing[ChannelUrl],
+          new UnrolledRing[AnyRef],
+          ByteBuffer.allocateDirect(65535))
+        t.start()
+        t
+      }
+      implicit def refSender[T] = refSenderInstance.asInstanceOf[Udp.Sender[T]]
+      implicit val intSender = {
+        val t = new Udp.Sender[Int](
+          this,
+          new UnrolledRing[ChannelUrl],
+          new UnrolledRing[Int],
+          ByteBuffer.allocateDirect(65535))
+        t.start()
+        t
+      }
+      implicit val longSender = {
+        val t = new Udp.Sender[Long](
+          this,
+          new UnrolledRing[ChannelUrl],
+          new UnrolledRing[Long],
+          ByteBuffer.allocateDirect(65535))
+        t.start()
+        t
+      }
+      implicit val doubleSender = {
+        val t = new Udp.Sender[Double](
+          this,
+          new UnrolledRing[ChannelUrl],
+          new UnrolledRing[Double],
+          ByteBuffer.allocateDirect(65535))
+        t.start()
+        t
+      }
 
       def newChannel[@spec(Int, Long, Double) T: Arrayable]
         (url: ChannelUrl): Channel[T] = {
-        new UdpChannel[T](sender(implicitly[Arrayable[T]]), url)
-      }
-
-      def newSender[@spec(Int, Long, Double) T: Arrayable]: Udp.Sender[T] = {
-        val t = new Udp.Sender[T](this)
-        t.start()
-        t
+        new UdpChannel[T](implicitly[Udp.Sender[T]], url)
       }
     }
 
     object Udp {
-      class Sender[@spec(Int, Long, Double) T: Arrayable](val udpTransport: Udp)
-      extends Thread {
-        val urls = new UnrolledRing[ChannelUrl]
-        val events = new UnrolledRing[T]
-        val buffer = ByteBuffer.allocateDirect(65535)
-
+      class Sender[@spec(Int, Long, Double) T: Arrayable](
+        val udpTransport: Udp,
+        val urls: UnrolledRing[ChannelUrl],
+        val events: UnrolledRing[T],
+        val buffer: ByteBuffer
+      ) extends Thread {
         setDaemon(true)
 
         private[remoting] def pickle[@spec(Int, Long, Double) T]
@@ -77,6 +100,8 @@ object Remoting {
           pickler.pickle(isoName, buffer)
           pickler.pickle(anchor, buffer)
           pickler.pickle(x, buffer)
+          buffer.limit(buffer.position())
+          buffer.position(0)
         }
 
         private[remoting] def send[@spec(Int, Long, Double) T](x: T, url: ChannelUrl) {
@@ -118,14 +143,14 @@ object Remoting {
   /** Pickles an object into a byte buffer, so that it can be sent over the wire.
    */
   trait Pickler {
-    def pickle[@spec T](x: T, buffer: ByteBuffer): Unit
+    def pickle[@spec(Int, Long, Double) T](x: T, buffer: ByteBuffer): Unit
   }
 
   object Pickler {
     /** Pickler implementation based on Java serialization.
      */
     class JavaSerialization extends Pickler {
-      def pickle[@spec T](x: T, buffer: ByteBuffer) = {
+      def pickle[@spec(Int, Long, Double) T](x: T, buffer: ByteBuffer) = {
         val outputStream = new ByteBufferOutputStream(buffer)
         val objectOutputStream = new ObjectOutputStream(outputStream)
         objectOutputStream.writeObject(x)
