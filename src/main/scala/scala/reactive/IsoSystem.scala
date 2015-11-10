@@ -52,6 +52,11 @@ class IsoSystem(
   /** Contains channels for standard isolates. */
   val iso = new StandardIsolates
 
+  /** Shuts down services. */
+  def shutdown() {
+    shutdownServices()
+  }
+
   /** Creates a new isolate instance in this isolate system.
    *
    *  '''Use case:'''

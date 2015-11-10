@@ -131,8 +131,10 @@ class CustomServiceTest extends FunSuite with Matchers {
 }
 
 
-class CustomService(val system: IsoSystem) extends Protocol {
+class CustomService(val system: IsoSystem) extends Protocol.Service {
   val cell = RCell(0)
+
+  def shutdown() {}
 }
 
 

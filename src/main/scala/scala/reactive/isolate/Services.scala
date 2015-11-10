@@ -31,38 +31,46 @@ import scala.util.Try
 abstract class Services {
   system: IsoSystem =>
 
-  private val extensions = mutable.Map[ClassTag[_], AnyRef]()
+  private val services = mutable.Map[ClassTag[_], AnyRef]()
 
   /** System configuration */
   def config = system.bundle.config
 
   /** Clock services. */
-  val clock = new Services.Clock(system)
+  val clock = service[Services.Clock]
 
   /** I/O services. */
-  val io = new Services.Io(system)
+  val io = service[Services.Io]
 
   /** Network services. */
-  val net = new Services.Net(system)
+  val net = service[Services.Net]
 
   /** Remoting services, used to contact other isolate systems. */
-  val remoting = new Remoting(system)
+  val remoting = service[Remoting]
 
   /** The register of channels in this isolate system.
    *
    *  Used for creating and finding channels.
    */
-  val channels: Services.Channels = new Services.Channels(this)
+  val channels: Services.Channels = service[Services.Channels]
 
   /** Arbitrary service. */
-  def service[T <: Protocol: ClassTag] = {
+  def service[T <: Protocol.Service: ClassTag] = {
     val tag = implicitly[ClassTag[T]]
-    if (!extensions.contains(tag)) {
+    if (!services.contains(tag)) {
       val ctor = tag.runtimeClass.getConstructor(classOf[IsoSystem])
-      extensions(tag) = ctor.newInstance(system).asInstanceOf[AnyRef]
+      services(tag) = ctor.newInstance(system).asInstanceOf[AnyRef]
     }
-    extensions(tag).asInstanceOf[T]
+    services(tag).asInstanceOf[T]
   }
+
+  /** Shut down all services. */
+  protected def shutdownServices() {
+    for ((_, service) <- services) {
+      service.asInstanceOf[Protocol.Service].shutdown()
+    }
+  }
+
 }
 
 
@@ -72,20 +80,28 @@ object Services {
 
   /** Contains I/O-related services.
    */
-  class Io(val system: IsoSystem) extends Protocol {
+  class Io(val system: IsoSystem) extends Protocol.Service {
     val defaultCharset = Charset.defaultCharset.name
+
+    def shutdown() {}
   }
 
   /** Contains common network protocol services.
    */
   class Net(val system: IsoSystem, private val resolver: URL => InputStream)
-  extends Protocol {
-    private implicit val networkRequestPool: ExecutionContext = {
+  extends Protocol.Service {
+    private val networkRequestForkJoinPool = {
       val parallelism = system.config.getInt("system.net.parallelism")
-      ExecutionContext.fromExecutor(new ForkJoinPool(parallelism))
+      new ForkJoinPool(parallelism)
     }
+    private implicit val networkRequestContext: ExecutionContext =
+      ExecutionContext.fromExecutor(networkRequestForkJoinPool)
 
     def this(s: IsoSystem) = this(s, url => url.openStream())
+
+    def shutdown() {
+      networkRequestForkJoinPool.shutdown()
+    }
 
     /** Contains various methods used to retrieve remote resources.
      */
@@ -131,8 +147,12 @@ object Services {
   /** Contains various time-related services.
    */
   class Clock(val system: IsoSystem)
-  extends Protocol {
+  extends Protocol.Service {
     private val timer = new Timer(s"${system.name}.timer-service", true)
+
+    def shutdown() {
+      timer.cancel()
+    }
 
     /** Emits an event periodically, with the duration between events equal to `d`.
      *
@@ -236,7 +256,11 @@ object Services {
    */
   class Channels(val system: IsoSystem)
   extends IsoSystem.ChannelBuilder(null, false, EventQueue.UnrolledRing.Factory)
-  with Protocol {
+  with Protocol.Service {
+    def shutdown() {
+      // TODO: shut down the name resolver iso
+    }
+
     /** Optionally returns the channel with the given name, if it exists.
      */
     def find[T](name: String): Option[Channel[T]] = {

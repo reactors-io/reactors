@@ -14,7 +14,7 @@ import scala.reactive.core.UnrolledRing
 
 
 
-class Remoting(val system: IsoSystem) extends Protocol {
+class Remoting(val system: IsoSystem) extends Protocol.Service {
   val udpTransport = new Remoting.Transport.Udp(system)
 
   def resolve[@spec(Int, Long, Double) T: Arrayable]
@@ -24,12 +24,17 @@ class Remoting(val system: IsoSystem) extends Protocol {
       case s => sys.error("Unknown channel schema: $s")
     }
   }
+
+  def shutdown() {
+    udpTransport.shutdown()
+  }
 }
 
 
 object Remoting {
   trait Transport {
     def newChannel[@spec(Int, Long, Double) T: Arrayable](url: ChannelUrl): Channel[T]
+    def shutdown(): Unit
   }
 
   object Transport {
@@ -82,6 +87,14 @@ object Remoting {
         (url: ChannelUrl): Channel[T] = {
         new UdpChannel[T](implicitly[Udp.Sender[T]], url)
       }
+
+      def shutdown() {
+        datagramChannel.socket.close()
+        refSender.notifyEnd()
+        intSender.notifyEnd()
+        longSender.notifyEnd()
+        doubleSender.notifyEnd()
+      }
     }
 
     object Udp {
@@ -118,17 +131,26 @@ object Remoting {
           }
         }
 
+        def notifyEnd() {
+          this.synchronized {
+            this.notify()
+          }
+        }
+
         @tailrec
         final override def run() {
           var url: ChannelUrl = null
           var x: T = null.asInstanceOf[T]
+          def mustEnd = udpTransport.datagramChannel.socket.isClosed
           this.synchronized {
-            while (urls.isEmpty) this.wait()
-            url = urls.dequeue()
-            x = events.dequeue()
+            while (urls.isEmpty && !mustEnd) this.wait()
+            if (urls.nonEmpty) {
+              url = urls.dequeue()
+              x = events.dequeue()
+            }
           }
-          send(x, url)
-          run()
+          if (url != null) send(x, url)
+          if (!mustEnd) run()
         }
       }
     }
