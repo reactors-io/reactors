@@ -596,7 +596,7 @@ class TerminateEarlyIso(
 
 abstract class BaseIsoSystemCheck(name: String) extends Properties(name) {
 
-  val system = IsoSystem.default("check-system")  
+  val system = IsoSystem.default("check-system")
 
   val scheduler: String
 
@@ -684,21 +684,41 @@ abstract class IsoSystemCheck(name: String) extends BaseIsoSystemCheck(name) {
 
 object NewThreadIsoSystemCheck extends IsoSystemCheck("NewThreadSystem") {
   val scheduler = IsoSystem.Bundle.schedulers.newThread
+
+  property("shutdown system hack") = forAllNoShrink(choose(0, 0)) { x =>
+    system.shutdown()
+    true
+  }
 }
 
 
 object GlobalExecutionContextIsoSystemCheck extends IsoSystemCheck("ECSystem") {
   val scheduler = IsoSystem.Bundle.schedulers.globalExecutionContext
+
+  property("shutdown system hack") = forAllNoShrink(choose(0, 0)) { x =>
+    system.shutdown()
+    true
+  }
 }
 
 
 object DefaultSchedulerIsoSystemCheck extends IsoSystemCheck("DefaultSchedulerSystem") {
   val scheduler = IsoSystem.Bundle.schedulers.default
+
+  property("shutdown system hack") = forAllNoShrink(choose(0, 0)) { x =>
+    system.shutdown()
+    true
+  }
 }
 
 
 object PiggybackIsoSystemCheck extends BaseIsoSystemCheck("PiggybackSystem") {
   val scheduler = IsoSystem.Bundle.schedulers.piggyback
+
+  property("shutdown system hack") = forAllNoShrink(choose(0, 0)) { x =>
+    system.shutdown()
+    true
+  }
 }
 
 
