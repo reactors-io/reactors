@@ -7,14 +7,13 @@ import java.io.InputStream
 import java.net.URL
 import org.apache.commons.io._
 import org.scalatest._
-import org.scalatest.Matchers
 import scala.concurrent._
 import scala.concurrent.duration._
 import scala.util.Failure
 
 
 
-class NetTest extends FunSuite with Matchers {
+class NetTest extends FunSuite with Matchers with BeforeAndAfterAll {
 
   val system = IsoSystem.default("TestSystem")
 
@@ -33,6 +32,10 @@ class NetTest extends FunSuite with Matchers {
     system.isolate(Proto[ResourceStringIso](res, resolver)
       .withScheduler(IsoSystem.Bundle.schedulers.piggyback))
     assert(res.future.value.get == Failure(testError), s"got ${res.future.value}")
+  }
+
+  override def afterAll() {
+    system.shutdown()
   }
 
 }
@@ -54,7 +57,7 @@ extends Iso[Unit] {
 }
 
 
-class ClockTest extends FunSuite with Matchers {
+class ClockTest extends FunSuite with Matchers with BeforeAndAfterAll {
 
   val system = IsoSystem.default("TestSystem")
 
@@ -71,12 +74,16 @@ class ClockTest extends FunSuite with Matchers {
       s"Total timeouts: ${timeoutCount.future.value}")
   }
 
-  test("Countdown should accumulate 55") {
+  test("Countdown should accumulate 45") {
     val total = Promise[Int]()
     system.isolate(Proto[CountdownIso](total).withScheduler(
       IsoSystem.Bundle.schedulers.piggyback))
     assert(total.future.value.get.get == 45,
       s"Total sum of countdowns = ${total.future.value}")
+  }
+
+  override def afterAll() {
+    system.shutdown()
   }
 
 }
@@ -117,7 +124,7 @@ class CountdownIso(val total: Promise[Int]) extends Iso[Unit] {
 }
 
 
-class CustomServiceTest extends FunSuite with Matchers {
+class CustomServiceTest extends FunSuite with Matchers with BeforeAndAfterAll {
 
   val system = IsoSystem.default("TestSystem")
 
@@ -126,6 +133,10 @@ class CustomServiceTest extends FunSuite with Matchers {
     system.isolate(Proto[CustomServiceIso](done).withScheduler(
       IsoSystem.Bundle.schedulers.piggyback))
     assert(done.future.value.get.get, s"Status: ${done.future.value}")
+  }
+
+  override def afterAll() {
+    system.shutdown()
   }
 
 }
