@@ -59,20 +59,22 @@ class RemotingTest extends FunSuite with Matchers {
 
     // start iso system
     val system = IsoSystem.default("test-system")
-    val sysUrl = SystemUrl("iso.udp", "localhost", 21357)
-    val channelUrl = ChannelUrl(IsoUrl(sysUrl, "test-iso"), "test-anchor")
-    val channel = system.remoting.resolve[String](channelUrl)
+    try {
+      val sysUrl = SystemUrl("iso.udp", "localhost", 21357)
+      val channelUrl = ChannelUrl(IsoUrl(sysUrl, "test-iso"), "test-anchor")
+      val channel = system.remoting.resolve[String](channelUrl)
 
-    // send message
-    channel ! "test-event"
+      // send message
+      channel ! "test-event"
 
-    // stop iso system
+      // stop iso system
 
-    // wait for server shutdown
-    server.join(2000)
+      // wait for server shutdown
+      server.join(2000)
 
-    // check that server completed normally
-    assert(server.success)
+      // check that server completed normally
+      assert(server.success)
+    } finally system.shutdown()
   }
 
 }
