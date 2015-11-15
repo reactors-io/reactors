@@ -15,7 +15,7 @@ object Plugins extends Build {
   }
   
   lazy val build = Project(
-    "reactive-collections-build",
+    "reactors-build",
     file(".")
   ).dependsOn(mechaPlugin)
 

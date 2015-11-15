@@ -9,33 +9,33 @@ import org.stormenroute.mecha._
 
 
 
-object ReactiveCollectionsBuild extends MechaRepoBuild {
+object ReactorsBuild extends MechaRepoBuild {
 
-  def repoName = "reactive-collections"
+  def repoName = "reactors"
 
   val frameworkVersion = Def.setting {
     ConfigParsers.versionFromFile(
-        (baseDirectory in reactiveCollections).value / "version.conf",
-        List("reactive_collections_major", "reactive_collections_minor"))
+        (baseDirectory in reactors).value / "version.conf",
+        List("reactors_major", "reactors_minor"))
   }
 
-  val reactiveCollectionsCrossScalaVersions = Def.setting {
-    val dir = (baseDirectory in reactiveCollections).value
+  val reactorsCrossScalaVersions = Def.setting {
+    val dir = (baseDirectory in reactors).value
     val path = dir + File.separator + "cross.conf"
     scala.io.Source.fromFile(path).getLines.filter(_.trim != "").toSeq
   }
 
-  val reactiveCollectionsScalaVersion = Def.setting {
-    reactiveCollectionsCrossScalaVersions.value.head
+  val reactorsScalaVersion = Def.setting {
+    reactorsCrossScalaVersions.value.head
   }
 
-  val reactiveCollectionsSettings = Defaults.defaultSettings ++
+  val reactorsSettings = Defaults.defaultSettings ++
     MechaRepoPlugin.defaultSettings ++ Seq(
-    name := "reactive-collections",
+    name := "reactors",
     version <<= frameworkVersion,
     organization := "com.storm-enroute",
-    scalaVersion <<= reactiveCollectionsScalaVersion,
-    crossScalaVersions <<= reactiveCollectionsCrossScalaVersions,
+    scalaVersion <<= reactorsScalaVersion,
+    crossScalaVersions <<= reactorsCrossScalaVersions,
     libraryDependencies <++= (scalaVersion)(sv => dependencies(sv)),
     testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
     parallelExecution in Test := false,
@@ -69,7 +69,7 @@ object ReactiveCollectionsBuild extends MechaRepoBuild {
     publishArtifact in Test := false,
     pomIncludeRepository := { _ => false },
     pomExtra :=
-      <url>http://reactive-collections.com/</url>
+      <url>http://reactors.io/</url>
       <licenses>
         <license>
           <name>BSD-style</name>
@@ -78,9 +78,9 @@ object ReactiveCollectionsBuild extends MechaRepoBuild {
         </license>
       </licenses>
       <scm>
-        <url>git@github.com:storm-enroute/reactive-collections.git</url>
+        <url>git@github.com:reactors-io/reactors.git</url>
         <connection>
-          scm:git:git@github.com:storm-enroute/reactive-collections.git
+          scm:git:git@github.com:reactors-io/reactors.git
         </connection>
       </scm>
       <developers>
@@ -91,12 +91,12 @@ object ReactiveCollectionsBuild extends MechaRepoBuild {
         </developer>
       </developers>,
     (test in Test) <<= (test in Test)
-      .dependsOn(test in (reactiveCollectionsCore, Test)),
-    publish <<= publish.dependsOn(publish in reactiveCollectionsCore),
+      .dependsOn(test in (reactorsCore, Test)),
+    publish <<= publish.dependsOn(publish in reactorsCore),
     mechaPublishKey := { publish.value },
     mechaDocsRepoKey := "git@github.com:storm-enroute/apidocs.git",
     mechaDocsBranchKey := "gh-pages",
-    mechaDocsPathKey := "reactive-collections"
+    mechaDocsPathKey := "reactors"
   )
 
   def dependencies(scalaVersion: String) =
@@ -120,12 +120,12 @@ object ReactiveCollectionsBuild extends MechaRepoBuild {
     case _ => Nil
   }
 
-  val reactiveCollectionsCoreSettings = Defaults.defaultSettings ++ Seq (
-    name := "reactive-collections-core",
+  val reactorsCoreSettings = Defaults.defaultSettings ++ Seq (
+    name := "reactors-core",
     version <<= frameworkVersion,
     organization := "com.storm-enroute",
-    scalaVersion <<= reactiveCollectionsScalaVersion,
-    crossScalaVersions <<= reactiveCollectionsCrossScalaVersions,
+    scalaVersion <<= reactorsScalaVersion,
+    crossScalaVersions <<= reactorsCrossScalaVersions,
     libraryDependencies <++= (scalaVersion)(sv => coreDependencies(sv)),
     testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
     parallelExecution in Test := false,
@@ -158,7 +158,7 @@ object ReactiveCollectionsBuild extends MechaRepoBuild {
     publishArtifact in Test := false,
     pomIncludeRepository := { _ => false },
     pomExtra :=
-      <url>http://reactive-collections.com/</url>
+      <url>http://reactors.io/</url>
       <licenses>
         <license>
           <name>BSD-style</name>
@@ -167,9 +167,9 @@ object ReactiveCollectionsBuild extends MechaRepoBuild {
         </license>
       </licenses>
       <scm>
-        <url>git@github.com:storm-enroute/reactive-collections.git</url>
+        <url>git@github.com:reactors-io/reactors.git</url>
         <connection>
-          scm:git:git@github.com:storm-enroute/reactive-collections.git
+          scm:git:git@github.com:reactors-io/reactors.git
         </connection>
       </scm>
       <developers>
@@ -181,7 +181,7 @@ object ReactiveCollectionsBuild extends MechaRepoBuild {
       </developers>,
     mechaDocsRepoKey := "git@github.com:storm-enroute/apidocs.git",
     mechaDocsBranchKey := "gh-pages",
-    mechaDocsPathKey := "reactive-collections-core"
+    mechaDocsPathKey := "reactors-core"
   )
 
   def coreDependencies(scalaVersion: String) =
@@ -201,24 +201,24 @@ object ReactiveCollectionsBuild extends MechaRepoBuild {
 
   lazy val Benchmarks = config("bench") extend (Test)
 
-  lazy val reactiveCollectionsCore = Project(
-    "reactive-collections-core",
-    file("reactive-collections-core"),
-    settings = reactiveCollectionsCoreSettings
+  lazy val reactorsCore = Project(
+    "reactors-core",
+    file("reactors-core"),
+    settings = reactorsCoreSettings
   ) configs(
     Benchmarks
   ) settings(
     inConfig(Benchmarks)(Defaults.testSettings): _*
   ) dependsOnSuperRepo
 
-  lazy val reactiveCollections: Project = Project(
-    "reactive-collections",
+  lazy val reactors: Project = Project(
+    "reactors",
     file("."),
-    settings = reactiveCollectionsSettings
+    settings = reactorsSettings
   ) configs(
     Benchmarks
   ) dependsOn(
-    reactiveCollectionsCore % "compile->compile;test->test"
+    reactorsCore % "compile->compile;test->test"
   ) dependsOnSuperRepo
 
 }
