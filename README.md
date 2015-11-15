@@ -1,6 +1,6 @@
 <img src='reactress-title-96.png'></img>
 
-[Reactive Collections](http://reactive-collections.com) is a concurrent and distributed 
+[Reactors](http://reactive-collections.com) is a concurrent and distributed 
 reactive programming framework for Scala.
 
 - [documentation](http://reactive-collections.com/learn/)
