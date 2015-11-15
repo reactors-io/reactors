@@ -67,8 +67,6 @@ class RemotingTest extends FunSuite with Matchers {
       // send message
       channel ! "test-event"
 
-      // stop iso system
-
       // wait for server shutdown
       server.join(2000)
 
