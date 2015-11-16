@@ -262,13 +262,24 @@ object Services {
     }
 
     /** Optionally returns the channel with the given name, if it exists.
+     *
+     *  @param name      name of the isolate and channel, separate with a `#` character
      */
     def find[T](name: String): Option[Channel[T]] = {
       val parts = name.split("#")
-      val frame = system.frames.forName(parts(0))
+      find[T](parts(0), parts(1))
+    }
+
+    /** Optionally returns the channel with the given name, if it exists.
+     *
+     *  @param isoName      name of the isolate
+     *  @param channelName  name of the channel
+     */
+    def find[T](isoName: String, channelName: String): Option[Channel[T]] = {
+      val frame = system.frames.forName(isoName)
       if (frame == null) None
       else {
-        val conn = frame.connectors.forName(parts(1))
+        val conn = frame.connectors.forName(channelName)
         if (conn == null) None
         else Some(conn.channel.asInstanceOf[Channel[T]])
       }

@@ -38,12 +38,13 @@ object Remoting {
 
   object Transport {
     class Udp(val system: IsoSystem) extends Transport {
-      val datagramChannel = {
+      private[remoting] val datagramChannel = {
         val url = system.bundle.udpUrl
         val ch = DatagramChannel.open()
         ch.bind(url.inetSocketAddress)
         ch
       }
+
       private val refSenderInstance = {
         val t = new Udp.Sender[AnyRef](
           this,
@@ -53,8 +54,10 @@ object Remoting {
         t.start()
         t
       }
-      implicit def refSender[T] = refSenderInstance.asInstanceOf[Udp.Sender[T]]
-      implicit val intSender = {
+
+      private implicit def refSender[T] = refSenderInstance.asInstanceOf[Udp.Sender[T]]
+
+      private implicit val intSender = {
         val t = new Udp.Sender[Int](
           this,
           new UnrolledRing[ChannelUrl],
@@ -63,7 +66,8 @@ object Remoting {
         t.start()
         t
       }
-      implicit val longSender = {
+
+      private implicit val longSender = {
         val t = new Udp.Sender[Long](
           this,
           new UnrolledRing[ChannelUrl],
@@ -72,12 +76,19 @@ object Remoting {
         t.start()
         t
       }
-      implicit val doubleSender = {
+
+      private implicit val doubleSender = {
         val t = new Udp.Sender[Double](
           this,
           new UnrolledRing[ChannelUrl],
           new UnrolledRing[Double],
           ByteBuffer.allocateDirect(65535))
+        t.start()
+        t
+      }
+
+      private val receiver = {
+        val t = new Udp.Receiver(this, ByteBuffer.allocateDirect(65535))
         t.start()
         t
       }
@@ -93,11 +104,12 @@ object Remoting {
         intSender.notifyEnd()
         longSender.notifyEnd()
         doubleSender.notifyEnd()
+        receiver.notifyEnd()
       }
     }
 
     object Udp {
-      class Sender[@spec(Int, Long, Double) T: Arrayable](
+      private[remoting] class Sender[@spec(Int, Long, Double) T: Arrayable](
         val udpTransport: Udp,
         val urls: UnrolledRing[ChannelUrl],
         val events: UnrolledRing[T],
@@ -150,6 +162,40 @@ object Remoting {
           }
           if (url != null) send(x, url)
           if (!mustEnd) run()
+        }
+      }
+
+      private[remoting] class Receiver(
+        val udpTransport: Udp,
+        val buffer: ByteBuffer
+      ) extends Thread {
+        def notifyEnd() {
+          // no op
+        }
+
+        def receive() {
+          val socketAddress = udpTransport.datagramChannel.receive(buffer)
+          val pickler = udpTransport.system.bundle.pickler
+          val isoName = pickler.depickle[String](buffer)
+          val channelName = pickler.depickle[String](buffer)
+          val event = pickler.depickle[AnyRef](buffer)
+          udpTransport.system.channels.find[AnyRef](isoName, channelName) match {
+            case Some(ch) => ch ! event
+            case None => // drop event -- no such channel here
+          }
+        }
+
+        @tailrec
+        override final def run() {
+          var success = false
+          try {
+            buffer.clear()
+            receive()
+            success = true
+          } catch {
+            case e: Exception => // not ok
+          }
+          if (success) run()
         }
       }
     }
