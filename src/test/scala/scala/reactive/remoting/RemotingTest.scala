@@ -36,21 +36,15 @@ class RemotingTest extends FunSuite with Matchers {
         socket.receive(packet)
         val buffer = ByteBuffer.wrap(packet.getData, packet.getOffset, packet.getLength)
         
-        {
+        def read(): Any = {
           val inputStream = new ByteBufferInputStream(buffer)
           val objectInputStream = new ObjectInputStream(inputStream)
-          assert(objectInputStream.readObject() == "test-iso")
+          objectInputStream.readObject()
         }
-        {
-          val inputStream = new ByteBufferInputStream(buffer)
-          val objectInputStream = new ObjectInputStream(inputStream)
-          assert(objectInputStream.readObject() == "test-anchor")
-        }
-        {
-          val inputStream = new ByteBufferInputStream(buffer)
-          val objectInputStream = new ObjectInputStream(inputStream)
-          assert(objectInputStream.readObject() == "test-event")
-        }
+
+        assert(read() == "test-iso")
+        assert(read() == "test-anchor")
+        assert(read() == "test-event")
 
         success = true
       }
