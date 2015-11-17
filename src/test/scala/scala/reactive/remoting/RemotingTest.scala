@@ -15,6 +15,7 @@ class RemotingTest extends FunSuite with Matchers {
 
   test("UDP transport should send events correctly") {
     // start server
+    val socket = new DatagramSocket
     val server = new Thread {
       var success = false
 
@@ -31,7 +32,6 @@ class RemotingTest extends FunSuite with Matchers {
       }
 
       override def run() {
-        val socket = new DatagramSocket(21357)
         val packet = new DatagramPacket(new Array[Byte](1024), 1024)
         socket.receive(packet)
         val buffer = ByteBuffer.wrap(packet.getData, packet.getOffset, packet.getLength)
@@ -54,7 +54,8 @@ class RemotingTest extends FunSuite with Matchers {
     // start iso system
     val system = IsoSystem.default("test-system")
     try {
-      val sysUrl = SystemUrl("iso.udp", "localhost", 21357)
+      val port = socket.getLocalPort
+      val sysUrl = SystemUrl("iso.udp", "localhost", port)
       val channelUrl = ChannelUrl(IsoUrl(sysUrl, "test-iso"), "test-anchor")
       val channel = system.remoting.resolve[String](channelUrl)
 
