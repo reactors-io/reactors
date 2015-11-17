@@ -9,7 +9,7 @@ import scala.reflect.ClassTag
 /** A typeclass that describes how to instantiate an array for the given type `T`.
  *  
  *  This is a class tag on steroids.
- *  It is used in reactive collections that have to do a lot of array allocations.
+ *  It is used in reactive containers that have to do a lot of array allocations.
  * 
  *  @tparam T       type for which we want to instantiate an array
  */
