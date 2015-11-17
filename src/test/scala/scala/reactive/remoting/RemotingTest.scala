@@ -62,7 +62,7 @@ class RemotingTest extends FunSuite with Matchers {
       channel ! "test-event"
 
       // wait for server shutdown
-      server.join(5000)
+      server.join(9000)
 
       // check that server completed normally
       assert(server.success)
