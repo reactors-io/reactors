@@ -8,6 +8,8 @@ import java.net._
 import java.nio._
 import org.scalatest.FunSuite
 import org.scalatest.Matchers
+import scala.concurrent._
+import scala.concurrent.duration._
 
 
 
@@ -70,4 +72,52 @@ class RemotingTest extends FunSuite with Matchers {
     } finally system.shutdown()
   }
 
+  test("UDP transport should send and receive events correctly") {
+    // start two iso systems
+    val sendSys = IsoSystem.default(
+      "test-send-sys",
+      new IsoSystem.Bundle(Scheduler.default, "remoting.udp.port = 0"))
+    val recvSys = IsoSystem.default(
+      "test-recv-sys",
+      new IsoSystem.Bundle(Scheduler.default, "remoting.udp.port = 0"))
+    try {
+      // prepare channel
+      val sysUrl =
+        SystemUrl("iso.udp", "localhost", recvSys.remoting.udpTransport.port)
+      val channelUrl =
+        ChannelUrl(IsoUrl(sysUrl, "test-iso"), "test-anchor")
+      val ch = sendSys.remoting.resolve[String](channelUrl)
+
+      // start receiving isolate
+      val started = Promise[Boolean]()
+      val received = Promise[Boolean]()
+      val receiverProto =
+        Proto[RemotingTest.UdpReceiver](started, received)
+          .withName("test-iso").withChannelName("test-anchor")
+      recvSys.isolate(receiverProto)
+      assert(Await.result(started.future, 10.seconds))
+      
+      // send event and wait
+      ch ! "test-event"
+      assert(Await.result(received.future, 10.seconds))
+    } finally {
+      sendSys.shutdown()
+      recvSys.shutdown()
+    }
+  }
+
+}
+
+
+object RemotingTest {
+  class UdpReceiver(val started: Promise[Boolean], val received: Promise[Boolean])
+  extends Iso[String] {
+    import implicits.canLeak
+    sysEvents onMatch {
+      case IsoStarted => started.success(true)
+    }
+    main.events onMatch {
+      case "test-event" => received.success(true)
+    }
+  }
 }

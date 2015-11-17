@@ -39,11 +39,13 @@ object Remoting {
   object Transport {
     class Udp(val system: IsoSystem) extends Transport {
       private[remoting] val datagramChannel = {
-        val url = system.bundle.udpUrl
+        val url = system.bundle.urlsBySchema("iso.udp")
         val ch = DatagramChannel.open()
         ch.bind(url.inetSocketAddress)
         ch
       }
+
+      def port: Int = datagramChannel.socket.getLocalPort
 
       private val refSenderInstance = {
         val t = new Udp.Sender[AnyRef](
@@ -175,6 +177,7 @@ object Remoting {
 
         def receive() {
           val socketAddress = udpTransport.datagramChannel.receive(buffer)
+          buffer.flip()
           val pickler = udpTransport.system.bundle.pickler
           val isoName = pickler.depickle[String](buffer)
           val channelName = pickler.depickle[String](buffer)

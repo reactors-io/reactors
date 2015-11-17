@@ -144,18 +144,16 @@ object IsoSystem {
   val defaultConfig: Config = {
     ConfigFactory.parseString("""
       remoting = {
-        transports = [
-          {
-            schema = "iso.udp"
-            host = "localhost"
-            port = 17771
-          }
-          {
-            schema = "iso.tcp"
-            host = "localhost"
-            port = 17773
-          }
-        ]
+        udp = {
+          schema = "iso.udp"
+          host = "localhost"
+          port = 17771
+        }
+        tcp = {
+          schema = "iso.tcp"
+          host = "localhost"
+          port = 17773
+        }
       }
       system = {
         net = {
@@ -180,20 +178,14 @@ object IsoSystem {
      */
     val config = customConfig.withFallback(defaultConfig)
 
-    val urlsBySchema = config.getConfigList("remoting.transports").asScala.map(c =>
+    val urlsBySchema = config.getConfig("remoting").root.values.asScala.collect {
+      case c: ConfigObject => c.toConfig
+    } map { c =>
       (c.getString("schema"),
         SystemUrl(c.getString("schema"), c.getString("host"), c.getInt("port")))
-    ).toMap
+    } toMap
 
     val urls = urlsBySchema.map(_._2).toSet
-
-    /** TCP url that resolves to this isolate system.
-     */
-    val tcpUrl = urlsBySchema("iso.tcp")
-
-    /** UDP url that resolves to this isolate system.
-     */
-    val udpUrl = urlsBySchema("iso.udp")
 
     /** Pickler implementation for this isolate system.
      */
