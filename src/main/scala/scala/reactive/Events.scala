@@ -5,6 +5,7 @@ package scala.reactive
 import scala.annotation.tailrec
 import scala.collection._
 import scala.reactive.calc.RVFun
+import scala.reactive.core.UnrolledRing
 import scala.reactive.util._
 
 
@@ -1517,8 +1518,8 @@ object Events {
     val self: Events[T], val that: Events[S], val f: (T, S) => R,
     val at: Arrayable[T], val as: Arrayable[S]
   ) extends Events.Default[R] with Events.ProxySubscription {
-    val tbuffer = new UnrolledBuffer[T]()(at)
-    val sbuffer = new UnrolledBuffer[S]()(as)
+    val tbuffer = new UnrolledRing[T]()(at)
+    val sbuffer = new UnrolledRing[S]()(as)
     def unreactBoth() {
       tbuffer.clear()
       sbuffer.clear()
@@ -1526,7 +1527,7 @@ object Events {
     }
     val selfReactor = new Reactor[T] {
       def react(tvalue: T) {
-        if (sbuffer.isEmpty) tbuffer += tvalue
+        if (sbuffer.isEmpty) tbuffer.enqueue(tvalue)
         else {
           val svalue = sbuffer.dequeue()
           val event = try {
@@ -1546,7 +1547,7 @@ object Events {
     }
     val thatReactor = new Reactor[S] {
       def react(svalue: S) {
-        if (tbuffer.isEmpty) sbuffer += svalue
+        if (tbuffer.isEmpty) sbuffer.enqueue(svalue)
         else {
           val tvalue = tbuffer.dequeue()
           val event = try {
