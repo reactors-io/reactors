@@ -6,7 +6,6 @@ package examples
 import scala.collection._
 import scala.concurrent.duration._
 import org.scalatest._
-import org.scalatest.Matchers
 
 
 
@@ -15,8 +14,12 @@ import org.scalatest.Matchers
  *  Note: if you are changing this file, please take care to update the website
  *  frontpage.
  */
-class FrontpageTest extends FunSuite with Matchers {
+class FrontpageTest extends FunSuite with Matchers with BeforeAndAfterAll {
   val system = IsoSystem.default("TestSystem")
+
+  override def afterAll() {
+    system.shutdown()
+  }
 
   test("Half-adder reacts to input changes") {
     implicit val canLeak = Permission.newCanLeak
