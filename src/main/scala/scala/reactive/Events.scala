@@ -5,7 +5,7 @@ package scala.reactive
 import scala.annotation.tailrec
 import scala.collection._
 import scala.reactive.calc.RVFun
-import scala.reactive.core.UnrolledRing
+import scala.reactive.common.UnrolledRing
 import scala.reactive.util._
 
 

@@ -5,7 +5,7 @@ package container
 
 import scala.collection._
 import scala.annotation.implicitNotFound
-import scala.reactive.core.BinaryHeap
+import scala.reactive.common.BinaryHeap
 
 
 

@@ -5,7 +5,7 @@ package container
 
 import scala.annotation.implicitNotFound
 import scala.collection._
-import scala.reactive.core.UnrolledRing
+import scala.reactive.common.UnrolledRing
 
 
 

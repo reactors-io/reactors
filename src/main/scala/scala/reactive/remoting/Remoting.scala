@@ -9,7 +9,7 @@ import java.nio.ByteBuffer
 import java.nio.channels.DatagramChannel
 import scala.annotation.tailrec
 import scala.collection._
-import scala.reactive.core.UnrolledRing
+import scala.reactive.common.UnrolledRing
 
 
 
