@@ -1,5 +1,5 @@
 package scala.reactive
-package core
+package common
 package concurrent
 
 
