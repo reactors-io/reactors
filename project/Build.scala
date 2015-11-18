@@ -91,8 +91,8 @@ object ReactorsBuild extends MechaRepoBuild {
         </developer>
       </developers>,
     (test in Test) <<= (test in Test)
-      .dependsOn(test in (reactorsCore, Test)),
-    publish <<= publish.dependsOn(publish in reactorsCore),
+      .dependsOn(test in (reactorsCommon, Test)),
+    publish <<= publish.dependsOn(publish in reactorsCommon),
     mechaPublishKey := { publish.value },
     mechaDocsRepoKey := "git@github.com:storm-enroute/apidocs.git",
     mechaDocsBranchKey := "gh-pages",
@@ -120,8 +120,8 @@ object ReactorsBuild extends MechaRepoBuild {
     case _ => Nil
   }
 
-  val reactorsCoreSettings = Defaults.defaultSettings ++ Seq (
-    name := "reactors-core",
+  val reactorsCommonSettings = Defaults.defaultSettings ++ Seq (
+    name := "reactors-common",
     version <<= frameworkVersion,
     organization := "com.storm-enroute",
     scalaVersion <<= reactorsScalaVersion,
@@ -181,7 +181,7 @@ object ReactorsBuild extends MechaRepoBuild {
       </developers>,
     mechaDocsRepoKey := "git@github.com:storm-enroute/apidocs.git",
     mechaDocsBranchKey := "gh-pages",
-    mechaDocsPathKey := "reactors-core"
+    mechaDocsPathKey := "reactors-common"
   )
 
   def coreDependencies(scalaVersion: String) =
@@ -201,10 +201,10 @@ object ReactorsBuild extends MechaRepoBuild {
 
   lazy val Benchmarks = config("bench") extend (Test)
 
-  lazy val reactorsCore = Project(
-    "reactors-core",
-    file("reactors-core"),
-    settings = reactorsCoreSettings
+  lazy val reactorsCommon = Project(
+    "reactors-common",
+    file("reactors-common"),
+    settings = reactorsCommonSettings
   ) configs(
     Benchmarks
   ) settings(
@@ -218,7 +218,7 @@ object ReactorsBuild extends MechaRepoBuild {
   ) configs(
     Benchmarks
   ) dependsOn(
-    reactorsCore % "compile->compile;test->test"
+    reactorsCommon % "compile->compile;test->test"
   ) dependsOnSuperRepo
 
 }
