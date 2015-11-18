@@ -5,7 +5,7 @@
 
 function publish() {
 	SCALA_VERSION=$1
-	sbt "++ $SCALA_VERSION" "reactive-collections-core/publishSigned" "publishSigned"
+	sbt "++ $SCALA_VERSION" "reactors-core/publishSigned" "publishSigned"
 }
 
 publish 2.10.4
