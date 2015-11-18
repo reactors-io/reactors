@@ -1,8 +1,8 @@
-package scala.reactive.core.concurrent;
+package scala.reactive.common.concurrent;
 
 
 
-import static scala.reactive.core.concurrent.unsafe.instance;
+import static scala.reactive.common.concurrent.unsafe.instance;
 
 
 

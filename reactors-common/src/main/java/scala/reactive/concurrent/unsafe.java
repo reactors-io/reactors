@@ -1,4 +1,4 @@
-package scala.reactive.core.concurrent;
+package scala.reactive.common.concurrent;
 
 
 
