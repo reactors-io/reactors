@@ -46,7 +46,7 @@ abstract class Services {
   val net = service[Services.Net]
 
   /** Remoting services, used to contact other isolate systems. */
-  val remoting = service[Remoting]
+  lazy val remoting = service[Remoting]
 
   /** The register of channels in this isolate system.
    *
