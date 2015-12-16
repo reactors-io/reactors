@@ -947,6 +947,7 @@ class IsoSystemTest extends FunSuite with Matchers {
       val p = Promise[Boolean]()
       system.isolate(Proto[TerminatedIso](p).withName("ephemo"))
       assert(Await.result(p.future, 10.seconds))
+      Thread.sleep(1200)
       assert(system.frames.forName("ephemo") == null)
     } finally system.shutdown()
   }
