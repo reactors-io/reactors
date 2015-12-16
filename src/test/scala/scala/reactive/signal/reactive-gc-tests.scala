@@ -21,6 +21,8 @@ class ReactiveGCSpec extends FlatSpec with Matchers {
     // flaky test - GC is not obliged to collect
     sys.runtime.gc()
     sys.runtime.gc()
+    sys.runtime.gc()
+    sys.runtime.gc()
 
     emitter react 1
 
