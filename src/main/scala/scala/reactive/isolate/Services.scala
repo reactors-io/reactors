@@ -26,7 +26,7 @@ import scala.util.Try
 
 
 
-/** Contains services used by an isolate system.
+/** Defines services used by an isolate system.
  */
 abstract class Services {
   system: IsoSystem =>
