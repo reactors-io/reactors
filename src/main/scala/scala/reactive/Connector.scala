@@ -7,6 +7,10 @@ import scala.reactive.isolate.Frame
 
 
 
+/** A pair of a channel and its event stream.
+ *
+ *  Allows closing the channel with its `seal` operation.
+ */
 class Connector[@spec(Int, Long, Double) T](
   private[reactive] val sharedChannel: Channel.Shared[T],
   private[reactive] val queue: EventQueue[T],
