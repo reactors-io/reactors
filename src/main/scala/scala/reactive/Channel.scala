@@ -9,6 +9,12 @@ import scala.reactive.remoting.Remoting
 
 
 
+/** `Channel` is a shareable reference to a writing endpoint of an isolate.
+ *
+ *  By calling the channel's `!` method, an event is sent to the channel. The event is
+ *  eventually emitted on the channel's corresponding event stream, which is readable
+ *  only by the isolate that owns that channel.
+ */
 trait Channel[@spec(Int, Long, Double) T] {
   def !(x: T): Unit
 }
