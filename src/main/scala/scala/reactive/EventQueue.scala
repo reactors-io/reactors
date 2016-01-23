@@ -7,6 +7,8 @@ import scala.reactive.util.Monitor
 
 
 
+/** A queue that buffers events that arrive on the corresponding channel.
+ */
 trait EventQueue[@spec(Int, Long, Double) T] {
 
   def enqueue(x: T): Int
