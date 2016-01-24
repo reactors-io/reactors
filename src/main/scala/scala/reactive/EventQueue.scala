@@ -8,6 +8,9 @@ import scala.reactive.util.Monitor
 
 
 /** A queue that buffers events that arrive on the corresponding channel.
+ *
+ *  The `enqueue` method may have FIFO queue, priority queue, or some other semantics,
+ *  depending on the implementation.
  */
 trait EventQueue[@spec(Int, Long, Double) T] {
 
@@ -20,12 +23,16 @@ trait EventQueue[@spec(Int, Long, Double) T] {
 }
 
 
+/** Contains default event queue implementations.
+ */
 object EventQueue {
 
   abstract class Factory extends Serializable {
     def newInstance[@spec(Int, Long, Double) T: Arrayable]: EventQueue[T]
   }
 
+  /** Drops all enqueued events.
+   */
   class Zero[@spec(Int, Long, Double) T: Arrayable]
   extends EventQueue[T] {
     def enqueue(x: T) = 0
@@ -35,6 +42,8 @@ object EventQueue {
 
   def isZero(q: EventQueue[_]): Boolean = q.isInstanceOf[Zero[_]]
 
+  /** Event queue backed by a synchronized, expandable unrolled ring.
+   */
   class UnrolledRing[@spec(Int, Long, Double) T: Arrayable](
     private[reactive] val monitor: Monitor = new Monitor
   ) extends EventQueue[T] {
