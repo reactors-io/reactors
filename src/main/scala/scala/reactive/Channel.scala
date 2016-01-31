@@ -20,6 +20,8 @@ trait Channel[@spec(Int, Long, Double) T] {
 }
 
 
+/** Default channel implementations.
+ */
 object Channel {
   class Shared[@spec(Int, Long, Double) T: Arrayable](
     val url: ChannelUrl,

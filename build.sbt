@@ -1,6 +1,4 @@
 
-
-
 // set environment variables to publish
 // in newer SBT versions, this apparently has to go to `build.sbt`
 
