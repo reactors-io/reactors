@@ -3,6 +3,7 @@ package org.reactors
 
 
 import org.scalatest._
+import scala.collection._
 
 
 
@@ -138,13 +139,65 @@ class EventsSpec extends FunSuite {
   test("onDone") {
     var done = false
     val emitter = new Events.Emitter[String]
-    val sub = emitter.onDone(count += 1)
+    val sub = emitter.onDone(done = true)
 
     emitter.react("bam")
     assert(!done)
 
     emitter.unreact()
     assert(done)
+  }
+
+  test("onDone unsubscribe") {
+    var done = false
+    val emitter = new Events.Emitter[String]
+    val sub = emitter.onDone(done = true)
+
+    emitter.react("ok")
+    assert(!done)
+
+    sub.unsubscribe()
+
+    emitter.unreact()
+    assert(!done)
+  }
+
+  test("onExcept") {
+    var found = false
+    val emitter = new Events.Emitter[String]
+    val sub = emitter onExcept {
+      case e: IllegalArgumentException => found = true
+      case _ => // ignore
+    }
+
+    emitter.except(new RuntimeException)
+    assert(!found)
+
+    emitter.except(new IllegalArgumentException)
+    assert(found)
+  }
+
+  test("recover") {
+    val buffer = mutable.Buffer[String]()
+    val emitter = new Events.Emitter[String]
+    val sub = emitter recover {
+      case e: IllegalArgumentException => "kaboom"
+    } onEvent(buffer += _)
+
+    emitter.react("ok")
+    assert(buffer == Seq("ok"))
+
+    emitter.except(new IllegalArgumentException)
+    assert(buffer == Seq("ok", "kaboom"))
+
+    intercept[RuntimeException] {
+      emitter.except(new RuntimeException)
+    }
+    
+    sub.unsubscribe()
+    
+    emitter.except(new RuntimeException)
+    assert(buffer == Seq("ok", "kaboom"))
   }
 
 }

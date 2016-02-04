@@ -69,7 +69,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  @return            a subscription for unsubscribing from reactions
    */
   def onEventOrDone(reactFunc: T => Unit)(unreactFunc: =>Unit): Subscription = {
-    val observer = new Events.OnReactUnreact(reactFunc, () => unreactFunc)
+    val observer = new Events.OnEventOrDone(reactFunc, () => unreactFunc)
     onReaction(observer)
   }
 
@@ -162,6 +162,35 @@ trait Events[@spec(Int, Long, Double) T] {
     })
   }
 
+  /** Executes the specified block when `this` event stream forwards an exception.
+   *
+   *  @param pf          the partial function used to handle the exception
+   *  @return            a subscription for the exception notifications
+   */
+  def onExcept(pf: PartialFunction[Throwable, Unit]): Subscription = {
+    onReaction(new Observer[T] {
+      def react(value: T) {}
+      def except(t: Throwable) {
+        if (pf.isDefinedAt(t)) pf(t)
+        else throw t
+      }
+      def unreact() {}
+    })
+  }
+
+  /** Transforms emitted exceptions into an event stream.
+   *
+   *  If the specified partial function is defined for the exception,
+   *  an event is emitted.
+   *  Otherwise, the same exception is forwarded.
+   *  
+   *  @param  pf         partial mapping from functions to events
+   *  @return            an event stream that emits events when an exception arrives
+   */
+  def recover(pf: PartialFunction[Throwable, T])(implicit evid: T <:< AnyRef):
+    Events[T] =
+    new Events.Recover(this, pf, evid)
+
 }
 
 
@@ -183,7 +212,7 @@ object Events {
   private[reactors] trait Default[@spec(Int, Long, Double) T] extends Events[T] {
     private[reactors] var demux: AnyRef = null
     private[reactors] var eventsUnreacted: Boolean = false
-    def onReaction(observer: Observer[T]) = {
+    def onReaction(observer: Observer[T]): Subscription = {
       if (eventsUnreacted) {
         observer.unreact()
         Subscription.empty
@@ -433,12 +462,54 @@ object Events {
     }
   }
 
-  private[reactors] class OnReactUnreact[@spec(Int, Long, Double) T]
-    (val reactFunc: T => Unit, val unreactFunc: () => Unit)
-  extends Observer[T] {
+  private[reactors] class OnEventOrDone[@spec(Int, Long, Double) T](
+    val reactFunc: T => Unit, val unreactFunc: () => Unit
+  ) extends Observer[T] {
     def react(x: T) = reactFunc(x)
-    def except(t: Throwable) = {}
+    def except(t: Throwable) = throw t
     def unreact() = unreactFunc()
+  }
+
+  private[reactors] class Recover[T](
+    val self: Events[T],
+    val pf: PartialFunction[Throwable, T],
+    val evid: T <:< AnyRef
+  ) extends Events[T] {
+    def onReaction(observer: Observer[T]): Subscription =
+      self.onReaction(new RecoverObserver(observer, pf, evid))
+  }
+
+  private[reactors] class RecoverObserver[T](
+    val target: Observer[T],
+    val pf: PartialFunction[Throwable, T],
+    val evid: T <:< AnyRef
+  ) extends Observer[T] {
+    def react(value: T) {
+      target.react(value)
+    }
+    def except(t: Throwable) {
+      val isDefined = try {
+        pf.isDefinedAt(t)
+      } catch {
+        case other if isNonLethal(other) =>
+          target.except(other)
+          return
+      }
+      if (!isDefined) target.except(t)
+      else {
+        val event = try {
+          pf(t)
+        } catch {
+          case other if isNonLethal(other) =>
+            target.except(other)
+            return
+        }
+        target.react(event)
+      }
+    }
+    def unreact() {
+      target.unreact()
+    }
   }
 
 }

@@ -191,7 +191,7 @@ trait Events[@spec(Int, Long, Double) +T] {
    *  @param f           the callback invoked when `this` unreacts
    *  @return            a subscription for the unreaction notification
    */
-  def onDone(reactor: =>Unit)(implicit canLeak: CanLeak): Events.Subscription = {
+  def onUnreact(reactor: =>Unit)(implicit canLeak: CanLeak): Events.Subscription = {
     onReaction(new Reactor[T] {
       def react(value: T) {}
       def except(t: Throwable) {
