@@ -204,6 +204,15 @@ class EventsSpec extends FunSuite {
     assert(buffer == Seq("ok", "kaboom"))
   }
 
+  test("ignoreExceptions") {
+    var seen = false
+    val emitter = new Events.Emitter[String]
+    val sub = emitter.ignoreExceptions.on(seen = true)
+
+    emitter.except(new RuntimeException)
+    assert(!seen)
+  }
+
 }
 
 

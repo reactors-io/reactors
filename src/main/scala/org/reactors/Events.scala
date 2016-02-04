@@ -192,6 +192,13 @@ trait Events[@spec(Int, Long, Double) T] {
     Events[U] =
     new Events.Recover(this, pf, evid)
 
+  /** Returns an event stream that ignores all exceptions in this event stream.
+   *
+   *  @return            an event stream that forwards all events,
+   *                     and ignores all exceptions
+   */
+  def ignoreExceptions: Events[T] = new Events.IgnoreExceptions(this)
+
 }
 
 
@@ -507,6 +514,23 @@ object Events {
         }
         target.react(event)
       }
+    }
+    def unreact() {
+      target.unreact()
+    }
+  }
+
+  private[reactors] class IgnoreExceptions[T](val self: Events[T]) extends Events[T] {
+    def onReaction(observer: Observer[T]): Subscription =
+      self.onReaction(new IgnoreExceptionsObserver(observer))
+  }
+
+  private[reactors] class IgnoreExceptionsObserver[T](val target: Observer[T])
+  extends Observer[T] {
+    def react(value: T) {
+      target.react(value)
+    }
+    def except(t: Throwable) {
     }
     def unreact() {
       target.unreact()
