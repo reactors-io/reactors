@@ -231,10 +231,6 @@ trait Events[@spec(Int, Long, Double) T] {
    *  `3 :: 2 :: 1 :: Nil`.
    *  '''Note:''' the initial value `Nil` is '''not emitted'''.
    *
-   *  The resulting event stream is not only an event stream, but also a
-   *  `Signal`, so the value of the previous event can be obtained by calling
-   *  `apply` at any time.
-   *
    *  This operation is closely related to a `scanLeft` on a collection --
    *  if an event stream were a sequence of elements, then `scanLeft` would
    *  produce a new sequence whose elements correspond to the events of the
@@ -249,6 +245,28 @@ trait Events[@spec(Int, Long, Double) T] {
    */
   def scanPast[@spec(Int, Long, Double) S](z: S)(op: (S, T) => S): Events[S] =
     new Events.ScanPast(this, z, op)
+
+  /** Converts this event stream into a `Signal`.
+   *
+   *  The resulting signal initially does not contain an event,
+   *  and subsequently contains any event that `this` event stream produces.
+   *
+   *  @param init      an initial value for the signal
+   *  @return          the signal version of the current event stream
+   */
+  def toSignal: Signal[T] with Subscription =
+    new Events.ToSignal(this, false, null.asInstanceOf[T])
+
+  /** Given an initial event `init`, converts this event stream into a `Signal`.
+   *
+   *  The resulting signal initially contains the event `init`,
+   *  and subsequently any event that `this` event stream produces.
+   *
+   *  @param init      an initial value for the signal
+   *  @return          the signal version of the current event stream
+   */
+  def toSignalWith(init: T): Signal[T] with Subscription =
+    new Events.ToSignal(this, true, init)
 
 }
 
@@ -603,7 +621,7 @@ object Events {
       self.onReaction(new ScanPastObserver(observer, z, op))
   }
 
-  private class ScanPastObserver[
+  private[reactors] class ScanPastObserver[
     @spec(Int, Long, Double) T,
     @spec(Int, Long, Double) S
   ](
@@ -628,6 +646,30 @@ object Events {
     def unreact() {
       target.unreact()
     }
+  }
+
+  private[reactors] class ToSignal[@spec(Int, Long, Double) T](
+    val self: Events[T],
+    private var full: Boolean,
+    private var cached: T
+  ) extends Signal[T] with Observer[T] with Default[T] with Subscription.Proxy {
+    private var rawSubscription = Subscription.empty
+    def subscription = rawSubscription
+    def init(dummy: T) {
+      rawSubscription = self.onReaction(this)
+    }
+    init(cached)
+    def apply(): T = {
+      if (full) cached
+      else throw new NoSuchElementException
+    }
+    def react(x: T) {
+      cached = x
+      if (!full) full = true
+      reactAll(x)
+    }
+    def except(t: Throwable) = exceptAll(t)
+    def unreact() = unreactAll()
   }
 
 }

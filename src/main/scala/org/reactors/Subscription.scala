@@ -30,4 +30,12 @@ object Subscription {
     def unsubscribe() = {}
   }
 
+  /** Forwards `unsubscribe` to another subscription.
+   */
+  trait Proxy extends Subscription {
+    def subscription: Subscription
+    def unsubscribe() {
+      subscription.unsubscribe()
+    }
+  }
 }

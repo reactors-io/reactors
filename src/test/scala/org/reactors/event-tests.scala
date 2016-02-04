@@ -247,6 +247,38 @@ class EventsSpec extends FunSuite {
     assert(buffer == Seq(0, 1, 3, 6, 10, 15))
   }
 
+  test("toSignal") {
+    val emitter = new Events.Emitter[Int]
+    val signal = emitter.toSignal
+
+    intercept[NoSuchElementException] {
+      signal()
+    }
+
+    emitter.react(7)
+    assert(signal() == 7)
+
+    signal.unsubscribe()
+
+    emitter.react(11)
+    assert(signal() == 7)
+  }
+
+  test("toSignalWith") {
+    val emitter = new Events.Emitter[Int]
+    val signal = emitter.toSignalWith(1)
+
+    assert(signal() == 1)
+
+    emitter.react(7)
+    assert(signal() == 7)
+
+    signal.unsubscribe()
+
+    emitter.react(11)
+    assert(signal() == 7)
+  }
+
 }
 
 
