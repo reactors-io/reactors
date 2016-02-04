@@ -223,4 +223,17 @@ class EventsCheck extends Properties("Events") with ExtendedProperties {
     }
   }
 
+  property("should deregister observers") = forAllNoShrink(sizes, sizes) { (add, rem) =>
+    stackTraced {
+      val buffer = mutable.Buffer[Int]()
+      val emitter = new Events.Emitter[String]
+      val subs = for (i <- 0 until add) yield emitter.onEvent(x => buffer += i)
+      for (i <- 0 until math.min(add, rem)) subs(i).unsubscribe()
+  
+      emitter.react("ok")
+  
+      buffer.toSet == (math.min(add, rem) until add).toSet
+    }
+  }
+
 }
