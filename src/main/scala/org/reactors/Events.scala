@@ -2,6 +2,7 @@ package org.reactors
 
 
 
+import org.reactors.common._
 
 
 
@@ -78,9 +79,270 @@ trait Events[@spec(Int, Long, Double) T] {
 /** Contains useful `Events` implementations and factory methods.
  */
 object Events {
+  private val bufferUpperBound = 8
 
-  // class Emitter[@spec(Int, Long, Double) T] extends Events[T] with Reactor[T] {
-  // }
+  private val hashTableLowerBound = 5
+
+  /** The default implementation of a event stream value.
+   *
+   *  Keeps an optimized weak collection of weak references to subscribers.
+   *  References to subscribers that are no longer reachable in the application
+   *  will be removed eventually.
+   *
+   *  @tparam T       type of the events in this event stream value
+   */
+  private[reactors] trait Default[@spec(Int, Long, Double) T] extends Events[T] {
+    private[reactors] var demux: AnyRef = null
+    private[reactors] var eventsUnreacted: Boolean = false
+    def onReaction(observer: Observer[T]) = {
+      if (eventsUnreacted) {
+        observer.unreact()
+        Subscription.empty
+      } else {
+        demux match {
+          case null =>
+            demux = new Ref(observer)
+          case w: Ref[Observer[T] @unchecked] =>
+            val wb = new FastBuffer[Observer[T]]
+            wb.addRef(w)
+            wb.addEntry(observer)
+            demux = wb
+          case wb: FastBuffer[Observer[T] @unchecked] =>
+            if (wb.size < bufferUpperBound) {
+              wb.addEntry(observer)
+            } else {
+              val wht = toHashTable(wb)
+              wht.addEntry(observer)
+              demux = wht
+            }
+          case wht: FastHashTable[Observer[T] @unchecked] =>
+            wht.addEntry(observer)
+        }
+        newSubscription(observer)
+      }
+    }
+    private def newSubscription(r: Observer[T]) = new Subscription {
+      def unsubscribe() {
+        removeReaction(r)
+      }
+    }
+    private def removeReaction(r: Observer[T]) {
+      demux match {
+        case null =>
+          // nothing to invalidate
+        case w: Ref[Observer[T] @unchecked] =>
+          if (w.get eq r) w.clear()
+        case wb: FastBuffer[Observer[T] @unchecked] =>
+          wb.invalidateEntry(r)
+        case wht: FastHashTable[Observer[T] @unchecked] =>
+          wht.invalidateEntry(r)
+      }
+    }
+    def reactAll(value: T) {
+      demux match {
+        case null =>
+          // no need to inform anybody
+        case w: Ref[Observer[T] @unchecked] =>
+          val r = w.get
+          if (r != null) r.react(value)
+          else demux = null
+        case wb: FastBuffer[Observer[T] @unchecked] =>
+          bufferReactAll(wb, value)
+        case wht: FastHashTable[Observer[T] @unchecked] =>
+          tableReactAll(wht, value)
+      }
+    }
+    def exceptAll(t: Throwable) {
+      demux match {
+        case null =>
+          // no need to inform anybody
+        case w: Ref[Observer[T] @unchecked] =>
+          val r = w.get
+          if (r != null) r.except(t)
+          else demux = null
+        case wb: FastBuffer[Observer[T] @unchecked] =>
+          bufferExceptAll(wb, t)
+        case wht: FastHashTable[Observer[T] @unchecked] =>
+          tableExceptAll(wht, t)
+      }
+    }
+    def unreactAll() {
+      eventsUnreacted = true
+      demux match {
+        case null =>
+          // no need to inform anybody
+        case w: Ref[Observer[T] @unchecked] =>
+          val r = w.get
+          if (r != null) r.unreact()
+          else demux = null
+        case wb: FastBuffer[Observer[T] @unchecked] =>
+          bufferUnreactAll(wb)
+        case wht: FastHashTable[Observer[T] @unchecked] =>
+          tableUnreactAll(wht)
+      }
+    }
+    private def checkBuffer(wb: FastBuffer[Observer[T]]) {
+      if (wb.size <= 1) {
+        if (wb.size == 1) demux = new Ref(wb(0))
+        else if (wb.size == 0) demux = null
+      }
+    }
+    private def bufferReactAll(wb: FastBuffer[Observer[T]], value: T) {
+      val array = wb.array
+      var until = wb.size
+      var i = 0
+      while (i < until) {
+        val ref = array(i)
+        val r = ref.get
+        if (r ne null) {
+          r.react(value)
+          i += 1
+        } else {
+          wb.removeEntryAt(i)
+          until -= 1
+        }
+      }
+      checkBuffer(wb)
+    }
+    private def bufferExceptAll(wb: FastBuffer[Observer[T]], t: Throwable) {
+      val array = wb.array
+      var until = wb.size
+      var i = 0
+      while (i < until) {
+        val ref = array(i)
+        val r = ref.get
+        if (r ne null) {
+          r.except(t)
+          i += 1
+        } else {
+          wb.removeEntryAt(i)
+          until -= 1
+        }
+      }
+      checkBuffer(wb)
+    }
+    private def bufferUnreactAll(wb: FastBuffer[Observer[T]]) {
+      val array = wb.array
+      var until = wb.size
+      var i = 0
+      while (i < until) {
+        val ref = array(i)
+        val r = ref.get
+        if (r ne null) {
+          r.unreact()
+          i += 1
+        } else {
+          wb.removeEntryAt(i)
+          until -= 1
+        }
+      }
+      checkBuffer(wb)
+    }
+    private def toHashTable(wb: FastBuffer[Observer[T]]) = {
+      val wht = new FastHashTable[Observer[T]]
+      val array = wb.array
+      val until = wb.size
+      var i = 0
+      while (i < until) {
+        val r = array(i).get
+        if (r != null) wht.addEntry(r)
+        i += 1
+      }
+      wht
+    }
+    private def toBuffer(wht: FastHashTable[Observer[T]]) = {
+      val wb = new FastBuffer[Observer[T]](bufferUpperBound)
+      val table = wht.table
+      var i = 0
+      while (i < table.length) {
+        var ref = table(i)
+        if (ref != null && ref.get != null) wb.addRef(ref)
+        i += 1
+      }
+      wb
+    }
+    private def cleanHashTable(wht: FastHashTable[Observer[T]]) {
+      val table = wht.table
+      var i = 0
+      while (i < table.length) {
+        val ref = table(i)
+        if (ref ne null) {
+          val r = ref.get
+          if (r eq null) wht.removeEntryAt(i, null)
+        }
+        i += 1
+      }
+    }
+    private def checkHashTable(wht: FastHashTable[Observer[T]]) {
+      if (wht.size < hashTableLowerBound) {
+        val wb = toBuffer(wht)
+        demux = wb
+        checkBuffer(wb)
+      }
+    }
+    private def tableReactAll(wht: FastHashTable[Observer[T]], value: T) {
+      val table = wht.table
+      var i = 0
+      while (i < table.length) {
+        val ref = table(i)
+        if (ref ne null) {
+          val r = ref.get
+          if (r ne null) r.react(value)
+        }
+        i += 1
+      }
+      cleanHashTable(wht)
+      checkHashTable(wht)
+    }
+    private def tableExceptAll(wht: FastHashTable[Observer[T]], t: Throwable) {
+      val table = wht.table
+      var i = 0
+      while (i < table.length) {
+        val ref = table(i)
+        if (ref ne null) {
+          val r = ref.get
+          if (r ne null) r.except(t)
+        }
+        i += 1
+      }
+      cleanHashTable(wht)
+      checkHashTable(wht)
+    }
+    private def tableUnreactAll(wht: FastHashTable[Observer[T]]) {
+      val table = wht.table
+      var i = 0
+      while (i < table.length) {
+        val ref = table(i)
+        if (ref ne null) {
+          val r = ref.get
+          if (r ne null) r.unreact()
+        }
+        i += 1
+      }
+      cleanHashTable(wht)
+      checkHashTable(wht)
+    }
+  }
+
+  /** Event source that emits events when `react`, `except` or `unreact` is called.
+   *
+   *  Emitter is simultaneously an event stream, and an observer.
+   */
+  class Emitter[@spec(Int, Long, Double) T]
+  extends Default[T] with Events[T] with Observer[T] {
+    private var table = new FastHashTable[Observer[T]]
+    private var closed = false
+    def react(x: T) = if (!closed) {
+      reactAll(x)
+    }
+    def except(t: Throwable) = if (!closed) {
+      exceptAll(t)
+    }
+    def unreact() = if (!closed) {
+      closed = true
+      unreactAll()
+    }
+  }
 
   private[reactors] class OnReactUnreact[@spec(Int, Long, Double) T]
     (val reactFunc: T => Unit, val unreactFunc: () => Unit)

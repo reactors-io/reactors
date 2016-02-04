@@ -19,3 +19,15 @@ trait Subscription {
   def unsubscribe(): Unit  
 
 }
+
+
+/** Default subscription implementations.
+ */
+object Subscription {
+
+  /** Does not unsubscribe from anything. */
+  val empty = new Subscription {
+    def unsubscribe() = {}
+  }
+
+}
