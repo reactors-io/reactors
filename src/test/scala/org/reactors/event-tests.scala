@@ -6,7 +6,7 @@ import org.scalacheck._
 import org.scalacheck.Prop.forAllNoShrink
 import org.scalacheck.Gen.choose
 import org.scalatest._
-import org.testx._
+import org.reactors.test._
 import scala.collection._
 
 

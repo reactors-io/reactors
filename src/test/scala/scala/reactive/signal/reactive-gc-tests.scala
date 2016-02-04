@@ -4,7 +4,7 @@ package signal
 
 
 import org.scalatest._
-import org.testx._
+import org.reactors.test._
 import scala.reactive.util._
 
 

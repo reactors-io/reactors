@@ -6,7 +6,7 @@ import scala.annotation.tailrec
 import scala.collection._
 import org.scalacheck._
 import org.scalacheck.Prop._
-import org.testx._
+import org.reactors.test._
 import Conc._
 import ConcRope._
 import Conqueue._

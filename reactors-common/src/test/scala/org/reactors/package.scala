@@ -1,4 +1,4 @@
-package org
+package org.reactors
 
 
 
@@ -8,7 +8,7 @@ import org.scalacheck.Prop._
 
 
 
-package testx {
+package test {
 
   trait ExtendedProperties {
     val deterministicRandom = new scala.util.Random(24)
@@ -43,7 +43,7 @@ package testx {
 }
 
 
-package object testx {
+package object test {
 
   def stackTraced[T](p: =>T): T = {
     try {
