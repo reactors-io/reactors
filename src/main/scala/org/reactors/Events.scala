@@ -56,6 +56,38 @@ trait Events[@spec(Int, Long, Double) T] {
    *  @param ovserver    the observer for `react`, `except` and `unreact` events
    *  @return            a subscription for unsubscribing from reactions
    */
-  def observe(observer: Observer[T]): Subscription
+  def onReaction(observer: Observer[T]): Subscription
+
+  /** Registers callbacks for react and unreact events.
+   *
+   *  A shorthand for `onReaction` -- the specified functions are invoked whenever there
+   *  is an event or an unreaction.
+   *
+   *  @param reactFunc   called when this event stream produces an event
+   *  @param unreactFunc called when this event stream unreacts
+   *  @return            a subscription for unsubscribing from reactions
+   */
+  def onReactUnreact(reactFunc: T => Unit)(unreactFunc: =>Unit): Subscription = {
+    val observer = new Events.OnReactUnreact(reactFunc, () => unreactFunc)
+    onReaction(observer)
+  }
+
+}
+
+
+/** Contains useful `Events` implementations and factory methods.
+ */
+object Events {
+
+  // class Emitter[@spec(Int, Long, Double) T] extends Events[T] with Reactor[T] {
+  // }
+
+  private[reactors] class OnReactUnreact[@spec(Int, Long, Double) T]
+    (val reactFunc: T => Unit, val unreactFunc: () => Unit)
+  extends Observer[T] {
+    def react(x: T) = reactFunc(x)
+    def except(t: Throwable) = {}
+    def unreact() = unreactFunc()
+  }
 
 }
