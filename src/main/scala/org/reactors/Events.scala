@@ -199,6 +199,57 @@ trait Events[@spec(Int, Long, Double) T] {
    */
   def ignoreExceptions: Events[T] = new Events.IgnoreExceptions(this)
 
+  /** Creates a new event stream `s` that produces events by consecutively
+   *  applying the specified operator `op` to the previous event that `s`
+   *  produced and the current event that this event stream value produced.
+   *
+   *  The `scanPast` operation allows the current event from this event stream to be
+   *  mapped into a different event by looking "into the past", i.e. at the
+   *  event previously emitted by the resulting event stream.
+   *
+   *  Example -- assume that an event stream `r` produces events `1`, `2` and
+   *  `3`. The following `s`:
+   *
+   *  {{{
+   *  val s = r.scanPast(0)((sum, n) => sum + n)
+   *  }}}
+   *
+   *  will produce events `1`, `3` (`1 + 2`) and `6` (`3 + 3`).
+   *  '''Note:''' the initial value `0` is '''not emitted'''.
+   *  
+   *  The `scanPast` can also be used to produce an event stream of a different
+   *  type. The following produces a complete history of all the events seen so
+   *  far:
+   *
+   *  {{{
+   *  val s2 = r.scanPast(List[Int]()) {
+   *    (history, n) => n :: history
+   *  }
+   *  }}}
+   *  
+   *  The `s2` will produce events `1 :: Nil`, `2 :: 1 :: Nil` and
+   *  `3 :: 2 :: 1 :: Nil`.
+   *  '''Note:''' the initial value `Nil` is '''not emitted'''.
+   *
+   *  The resulting event stream is not only an event stream, but also a
+   *  `Signal`, so the value of the previous event can be obtained by calling
+   *  `apply` at any time.
+   *
+   *  This operation is closely related to a `scanLeft` on a collection --
+   *  if an event stream were a sequence of elements, then `scanLeft` would
+   *  produce a new sequence whose elements correspond to the events of the
+   *  resulting event stream.
+   *
+   *  @tparam S        the type of the events in the resulting event stream
+   *  @param z         the initial value of the scan past
+   *  @param op        the operator the combines the last produced and the
+   *                   current event into a new one
+   *  @return          a subscription that is also an event stream that scans
+   *                   events from `this` event stream
+   */
+  def scanPast[@spec(Int, Long, Double) S](z: S)(op: (S, T) => S): Events[S] =
+    new Events.ScanPast(this, z, op)
+
 }
 
 
@@ -520,17 +571,59 @@ object Events {
     }
   }
 
-  private[reactors] class IgnoreExceptions[T](val self: Events[T]) extends Events[T] {
+  private[reactors] class IgnoreExceptions[@spec(Int, Long, Double) T](
+    val self: Events[T]
+  ) extends Events[T] {
     def onReaction(observer: Observer[T]): Subscription =
       self.onReaction(new IgnoreExceptionsObserver(observer))
   }
 
-  private[reactors] class IgnoreExceptionsObserver[T](val target: Observer[T])
-  extends Observer[T] {
+  private[reactors] class IgnoreExceptionsObserver[@spec(Int, Long, Double) T](
+    val target: Observer[T]
+  ) extends Observer[T] {
     def react(value: T) {
       target.react(value)
     }
     def except(t: Throwable) {
+    }
+    def unreact() {
+      target.unreact()
+    }
+  }
+
+  private[reactors] class ScanPast[
+    @spec(Int, Long, Double) T,
+    @spec(Int, Long, Double) S
+  ](
+    val self: Events[T],
+    val z: S,
+    val op: (S, T) => S
+  ) extends Events[S] {
+    def onReaction(observer: Observer[S]): Subscription =
+      self.onReaction(new ScanPastObserver(observer, z, op))
+  }
+
+  private class ScanPastObserver[
+    @spec(Int, Long, Double) T,
+    @spec(Int, Long, Double) S
+  ](
+    val target: Observer[S],
+    private var cached: S,
+    val op: (S, T) => S
+  ) extends Observer[T] {
+    def apply() = cached
+    def react(value: T) {
+      try {
+        cached = op(cached, value)
+      } catch {
+        case t if isNonLethal(t) =>
+          target.except(t)
+          return
+      }
+      target.react(cached)
+    }
+    def except(t: Throwable) {
+      target.except(t)
     }
     def unreact() {
       target.unreact()

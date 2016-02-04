@@ -213,6 +213,40 @@ class EventsSpec extends FunSuite {
     assert(!seen)
   }
 
+  test("scanPast") {
+    val buffer = mutable.Buffer[String]()
+    val emitter = new Events.Emitter[String]
+    val longest = emitter.scanPast("") { (prev, x) =>
+      if (prev.length < x.length) x else prev
+    }
+    val sub = longest.onEvent(buffer += _)
+
+    emitter.react("one")
+    emitter.react("two")
+    emitter.react("three")
+    emitter.react("five")
+    emitter.react("seven")
+    emitter.react("eleven")
+
+    assert(buffer == Seq("one", "one", "three", "three", "three", "eleven"))
+  }
+
+  test("scanPast with Int") {
+    val buffer = mutable.Buffer[Int]()
+    val emitter = new Events.Emitter[Int]
+    val sum = emitter.scanPast(0)(_ + _)
+    val sub = sum.onEvent(buffer += _)
+
+    emitter.react(0)
+    emitter.react(1)
+    emitter.react(2)
+    emitter.react(3)
+    emitter.react(4)
+    emitter.react(5)
+
+    assert(buffer == Seq(0, 1, 3, 6, 10, 15))
+  }
+
 }
 
 
