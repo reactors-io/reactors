@@ -2,7 +2,11 @@ package org.reactors
 
 
 
+import org.scalacheck._
+import org.scalacheck.Prop.forAllNoShrink
+import org.scalacheck.Gen.choose
 import org.scalatest._
+import org.testx._
 import scala.collection._
 
 
@@ -198,6 +202,25 @@ class EventsSpec extends FunSuite {
     
     emitter.except(new RuntimeException)
     assert(buffer == Seq("ok", "kaboom"))
+  }
+
+}
+
+
+class EventsCheck extends Properties("Events") with ExtendedProperties {
+
+  val sizes = detChoose(0, 1000)
+
+  property("should register observers") = forAllNoShrink(sizes) { size =>
+    stackTraced {
+      val buffer = mutable.Buffer[Int]()
+      val emitter = new Events.Emitter[String]
+      for (i <- 0 until size) emitter.onEvent(x => buffer += i)
+  
+      emitter.react("ok")
+  
+      buffer.toSet == (0 until size).toSet
+    }
   }
 
 }
