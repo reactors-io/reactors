@@ -183,12 +183,13 @@ trait Events[@spec(Int, Long, Double) T] {
    *  If the specified partial function is defined for the exception,
    *  an event is emitted.
    *  Otherwise, the same exception is forwarded.
-   *  
+   * 
+   *  @tparam U          type of events exceptions are mapped to
    *  @param  pf         partial mapping from functions to events
    *  @return            an event stream that emits events when an exception arrives
    */
-  def recover(pf: PartialFunction[Throwable, T])(implicit evid: T <:< AnyRef):
-    Events[T] =
+  def recover[U >: T](pf: PartialFunction[Throwable, U])(implicit evid: U <:< AnyRef):
+    Events[U] =
     new Events.Recover(this, pf, evid)
 
 }
@@ -470,19 +471,19 @@ object Events {
     def unreact() = unreactFunc()
   }
 
-  private[reactors] class Recover[T](
+  private[reactors] class Recover[T, U >: T](
     val self: Events[T],
-    val pf: PartialFunction[Throwable, T],
-    val evid: T <:< AnyRef
-  ) extends Events[T] {
-    def onReaction(observer: Observer[T]): Subscription =
+    val pf: PartialFunction[Throwable, U],
+    val evid: U <:< AnyRef
+  ) extends Events[U] {
+    def onReaction(observer: Observer[U]): Subscription =
       self.onReaction(new RecoverObserver(observer, pf, evid))
   }
 
-  private[reactors] class RecoverObserver[T](
-    val target: Observer[T],
-    val pf: PartialFunction[Throwable, T],
-    val evid: T <:< AnyRef
+  private[reactors] class RecoverObserver[T, U >: T](
+    val target: Observer[U],
+    val pf: PartialFunction[Throwable, U],
+    val evid: U <:< AnyRef
   ) extends Observer[T] {
     def react(value: T) {
       target.react(value)
