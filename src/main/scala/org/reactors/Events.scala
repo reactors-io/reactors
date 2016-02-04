@@ -68,9 +68,98 @@ trait Events[@spec(Int, Long, Double) T] {
    *  @param unreactFunc called when this event stream unreacts
    *  @return            a subscription for unsubscribing from reactions
    */
-  def onReactUnreact(reactFunc: T => Unit)(unreactFunc: =>Unit): Subscription = {
+  def onEventOrDone(reactFunc: T => Unit)(unreactFunc: =>Unit): Subscription = {
     val observer = new Events.OnReactUnreact(reactFunc, () => unreactFunc)
     onReaction(observer)
+  }
+
+  /** Registers callback for react events.
+   *
+   *  A shorthand for `onReaction` -- the specified function is invoked whenever
+   *  there is an event.
+   *
+   *  @param observer    the callback for events
+   *  @return            a subcriptions for unsubscribing from reactions
+   */
+  def onEvent(observer: T => Unit): Subscription = {
+    onEventOrDone(observer)(() => {})
+  }
+
+  /** Registers callback for events that match the specified patterns.
+   *
+   *  A shorthand for `onReaction` -- the specified partial function is applied
+   *  to only those events for which it is defined.
+   *  
+   *  This method only works for `AnyRef` values.
+   *
+   *  Example:
+   *
+   *  {{{
+   *  r onMatch {
+   *    case s: String => println(s)
+   *    case n: Int    => println("number " + s)
+   *  }
+   *  }}}
+   *
+   *  '''Use case''':
+   *
+   *  {{{
+   *  def onMatch(reactor: PartialFunction[T, Unit]): Subscription
+   *  }}}
+   *  
+   *  @param observer    the callback for those events for which it is defined
+   *  @return            a subscription for unsubscribing from reactions
+   */
+  def onMatch(observer: PartialFunction[T, Unit])(implicit sub: T <:< AnyRef):
+    Subscription = {
+    onReaction(new Observer[T] {
+      def react(event: T) = {
+        if (observer.isDefinedAt(event)) observer(event)
+      }
+      def except(t: Throwable) {
+        throw t
+      }
+      def unreact() {}
+    })
+  }
+
+  /** Registers a callback for react events, disregarding their values
+   *
+   *  A shorthand for `onReaction` -- called whenever an event occurs.
+   *
+   *  This method is handy when the precise event value is not important,
+   *  or the type of the event is `Unit`.
+   *
+   *  @param observer    the callback invoked when an event arrives
+   *  @return            a subscription for unsubscribing from reactions
+   */
+  def on(observer: =>Unit): Subscription = {
+    onReaction(new Observer[T] {
+      def react(value: T) {
+        observer
+      }
+      def except(t: Throwable) {
+        throw t
+      }
+      def unreact() {}
+    })
+  }
+
+  /** Executes the specified block when `this` event stream unreacts.
+   *
+   *  @param observer    the callback invoked when `this` unreacts
+   *  @return            a subscription for the unreaction notification
+   */
+  def onDone(observer: =>Unit): Subscription = {
+    onReaction(new Observer[T] {
+      def react(value: T) {}
+      def except(t: Throwable) {
+        throw t
+      }
+      def unreact() {
+        observer
+      }
+    })
   }
 
 }

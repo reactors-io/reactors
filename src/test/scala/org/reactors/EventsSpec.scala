@@ -66,11 +66,11 @@ class EventsSpec extends FunSuite {
     assert(!done)
   }
 
-  test("onReactUnreact") {
+  test("onEventOrDone") {
     var event: String = null
     var done = false
     val emitter = new Events.Emitter[String]
-    val sub = emitter.onReactUnreact {
+    val sub = emitter.onEventOrDone {
       event = _
     } {
       done = true
@@ -82,6 +82,68 @@ class EventsSpec extends FunSuite {
 
     emitter.unreact()
     assert(event == "ok")
+    assert(done)
+  }
+
+  test("onEvent") {
+    var event: String = null
+    val emitter = new Events.Emitter[String]
+    val sub = emitter.onEvent(event = _)
+  
+    emitter.react("ok")
+    assert(event == "ok")
+    
+    sub.unsubscribe()
+    
+    emitter.react("lost")
+    assert(event == "ok")
+  }
+
+  test("onMatch") {
+    var event: String = null
+    val emitter = new Events.Emitter[String]
+    val sub = emitter onMatch {
+      case x if x.length < 5 => event = x
+    }
+
+    emitter.react("ok")
+    assert(event == "ok")
+
+    emitter.react("long'n'lost")
+    assert(event == "ok")
+
+    sub.unsubscribe()
+
+    emitter.react("boom")
+    assert(event == "ok")
+  }
+
+  test("on") {
+    var count = 0
+    val emitter = new Events.Emitter[String]
+    val sub = emitter.on(count += 1)
+
+    emitter.react("bam")
+    assert(count == 1)
+
+    emitter.react("babaluj")
+    assert(count == 2)
+
+    sub.unsubscribe()
+    
+    emitter.react("foo")
+    assert(count == 2)
+  }
+
+  test("onDone") {
+    var done = false
+    val emitter = new Events.Emitter[String]
+    val sub = emitter.onDone(count += 1)
+
+    emitter.react("bam")
+    assert(!done)
+
+    emitter.unreact()
     assert(done)
   }
 
