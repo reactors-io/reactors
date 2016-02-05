@@ -260,6 +260,22 @@ trait Events[@spec(Int, Long, Double) T] {
   def toSignalWith(init: T): Signal[T] with Subscription =
     new Events.ToSignal(this, true, init)
 
+  /** Emits the total number of events produced by this event stream.
+   *
+   *  The returned value is a [[scala.reactive.Signal]] that holds the total number of
+   *  emitted events.
+   *
+   *  {{{
+   *  time  ---------------->
+   *  this  ---x---y--z--|
+   *  count ---1---2--3--|
+   *  }}}
+   *
+   *  @return           a subscription and an event stream that emits the total number
+   *                    of events emitted since `card` was called
+   */
+  def count(implicit dummy: Dummy[T]): Events[Int] = new Events.Count[T](this)
+
 }
 
 
@@ -670,6 +686,35 @@ object Events {
     }
     def except(t: Throwable) = exceptAll(t)
     def unreact() = unreactAll()
+  }
+
+  private[reactors] class Count[@spec(Int, Long, Double) T](val self: Events[T])
+  extends Events[Int] {
+    private def newCountObserver(observer: Observer[Int]): Observer[T] =
+      new CountObserver[T](observer)
+    def onReaction(observer: Observer[Int]): Subscription =
+      self.onReaction(newCountObserver(observer))
+  }
+
+  private[reactors] class CountObserver[@spec(Int, Long, Double) T](
+    val target: Observer[Int]
+  ) extends Observer[T] {
+    private var cnt: Int = _
+    def init(dummy: Observer[T]) {
+      cnt = 0
+    }
+    init(this)
+    def apply() = cnt
+    def react(value: T) {
+      cnt += 1
+      target.react(cnt)
+    }
+    def except(t: Throwable) {
+      target.except(t)
+    }
+    def unreact() {
+      target.unreact()
+    }
   }
 
 }

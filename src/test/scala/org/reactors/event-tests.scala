@@ -279,6 +279,18 @@ class EventsSpec extends FunSuite {
     assert(signal() == 7)
   }
 
+  test("count") {
+    val buffer = mutable.Buffer[Int]()
+    val emitter = new Events.Emitter[String]
+    val sub = emitter.count.onEvent(buffer += _)
+
+    emitter.react("a")
+    emitter.react("b")
+    emitter.react("c")
+
+    assert(buffer == Seq(1, 2, 3))
+  }
+
 }
 
 

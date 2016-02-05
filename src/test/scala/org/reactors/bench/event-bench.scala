@@ -43,7 +43,25 @@ class EventBoxingBench extends Bench.Forked[Long] {
     }
   }
 
-  measure method "Emitter.scanPast" config (
+  measure method "Emitter.toSignal" config (
+    reports.validation.predicate -> { (n: Any) => n == 4 }
+  ) in {
+    using(Gen.single("numEvents")(10000)) in { numEvents =>
+      val emitter = new Events.Emitter[Int]
+      val s0 = emitter.toSignal
+      val s1 = emitter.toSignalWith(-1)
+
+      var i = 0
+      while (i < numEvents) {
+        assert(s1() == i - 1)
+        emitter.react(i)
+        assert(s0() == i)
+        i += 1
+      }
+    }
+  }
+
+  measure method "Emitter.scanPast+onX" config (
     reports.validation.predicate -> { (n: Any) => n == 3 }
   ) in {
     using(Gen.single("numEvents")(10000)) in { numEvents =>
@@ -62,21 +80,20 @@ class EventBoxingBench extends Bench.Forked[Long] {
     }
   }
 
-  measure method "Emitter.toSignal" config (
-    reports.validation.predicate -> { (n: Any) => n == 4 }
+  measure method "Emitter.<combinators>" config (
+    reports.validation.predicate -> { (n: Any) => n == 2 }
   ) in {
     using(Gen.single("numEvents")(10000)) in { numEvents =>
       val emitter = new Events.Emitter[Int]
-      val s0 = emitter.toSignal
-      val s1 = emitter.toSignalWith(-1)
+      val count = emitter.count.toSignal
 
       var i = 0
       while (i < numEvents) {
-        assert(s1() == i - 1)
         emitter.react(i)
-        assert(s0() == i)
+        assert(count() == i + 1)
         i += 1
       }
+      emitter.unreact()
     }
   }
 
