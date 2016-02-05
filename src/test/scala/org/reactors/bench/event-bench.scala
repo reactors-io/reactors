@@ -62,4 +62,22 @@ class EventBoxingBench extends Bench.Forked[Long] {
     }
   }
 
+  measure method "Emitter.toSignal" config (
+    reports.validation.predicate -> { (n: Any) => n == 4 }
+  ) in {
+    using(Gen.single("numEvents")(10000)) in { numEvents =>
+      val emitter = new Events.Emitter[Int]
+      val s0 = emitter.toSignal
+      val s1 = emitter.toSignalWith(-1)
+
+      var i = 0
+      while (i < numEvents) {
+        assert(s1() == i - 1)
+        emitter.react(i)
+        assert(s0() == i)
+        i += 1
+      }
+    }
+  }
+
 }
