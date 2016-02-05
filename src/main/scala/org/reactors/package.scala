@@ -55,4 +55,14 @@ package object reactors {
     case t if isNonLethal(t) => // ignore
   }
 
+  class Dummy[@spec(Int, Long, Double) T]
+
+  implicit val intDummy = new Dummy[Int]
+
+  implicit val longDummy = new Dummy[Long]
+
+  implicit val doubleDummy = new Dummy[Double]
+
+  implicit def anyDummy[T] = new Dummy[T]
+
 }

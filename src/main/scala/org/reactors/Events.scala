@@ -133,16 +133,8 @@ trait Events[@spec(Int, Long, Double) T] {
    *  @param observer    the callback invoked when an event arrives
    *  @return            a subscription for unsubscribing from reactions
    */
-  def on(observer: =>Unit): Subscription = {
-    onReaction(new Observer[T] {
-      def react(value: T) {
-        observer
-      }
-      def except(t: Throwable) {
-        throw t
-      }
-      def unreact() {}
-    })
+  def on(observer: =>Unit)(implicit dummy: Dummy[T]): Subscription = {
+    onReaction(new Events.On[T](() => observer))
   }
 
   /** Executes the specified block when `this` event stream unreacts.
@@ -150,7 +142,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  @param observer    the callback invoked when `this` unreacts
    *  @return            a subscription for the unreaction notification
    */
-  def onDone(observer: =>Unit): Subscription = {
+  def onDone(observer: =>Unit)(implicit dummy: Dummy[T]): Subscription = {
     onReaction(new Observer[T] {
       def react(value: T) {}
       def except(t: Throwable) {
@@ -545,6 +537,14 @@ object Events {
     def react(x: T) = reactFunc(x)
     def except(t: Throwable) = throw t
     def unreact() = unreactFunc()
+  }
+
+  private[reactors] class On[@spec(Int, Long, Double) T](
+    val reactFunc: () => Unit
+  ) extends Observer[T] {
+    def react(x: T) = reactFunc()
+    def except(t: Throwable) = throw t
+    def unreact() = {}
   }
 
   private[reactors] class Recover[T, U >: T](
