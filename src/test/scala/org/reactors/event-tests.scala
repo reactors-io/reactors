@@ -291,6 +291,24 @@ class EventsSpec extends FunSuite {
     assert(buffer == Seq(1, 2, 3))
   }
 
+  test("mutate") {
+    var len = 0
+    val log = new Events.Mutable(mutable.Buffer[String]())
+    val emitter = new Events.Emitter[String]
+    val s1 = emitter.mutate(log) { buffer => s =>
+      buffer += s
+    }
+    val s2 = log.onEvent(x => len = x.length)
+
+    emitter.react("one")
+    assert(len == 1)
+
+    emitter.react("two")
+    assert(len == 2)
+
+    assert(log.content == Seq("one", "two"))
+  }
+
 }
 
 

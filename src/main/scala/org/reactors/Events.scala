@@ -276,6 +276,65 @@ trait Events[@spec(Int, Long, Double) T] {
    */
   def count(implicit dummy: Dummy[T]): Events[Int] = new Events.Count[T](this)
 
+  /** Mutates the target mutable event stream called `mutable` each time `this`
+   *  event stream produces an event.
+   *
+   *  Here is an example, given an event stream of type `r`:
+   *
+   *  {{{
+   *  val eventLog = new Events.Mutable(mutable.Buffer[String]())
+   *  val eventLogMutations = r.mutate(eventLog) { event =>
+   *    eventLog() += "at " + System.nanoTime + ": " + event
+   *  } // <-- eventLog event propagated
+   *  }}}
+   *
+   *  Whenever an event arrives on `r`, an entry is added to the buffer underlying
+   *  `eventLog`. After the `mutation` completes, a modification event is produced by
+   *  the `eventLog` and can be used subsequently:
+   *
+   *  {{{
+   *  val uiUpdates = eventLog onEvent { b =>
+   *    eventListWidget.add(b.last)
+   *  }
+   *  }}}
+   *
+   *  '''Note:'''
+   *  No two events will ever be concurrently processed by different threads on the same
+   *  event stream mutable, but an event that is propagated from within the `mutation`
+   *  can trigger an event on `this`.
+   *  The result is that `mutation` is invoked concurrently on the same thread.
+   *  The following code is problematic has a feedback loop in the dataflow graph:
+   *  
+   *  {{{
+   *  val emitter = new Events.Emitter[Int]
+   *  val mutable = new Events.Mutable[mutable.Buffer[Int]()]
+   *  emitter.mutate(mutable) { buffer => n =>
+   *    buffer += n
+   *    if (n == 0)
+   *      emitter.react(n + 1) // <-- event propagated
+   *    assert(buffer.last == n)
+   *  }
+   *  emitter.react(0)
+   *  }}}
+   *  
+   *  The statement `emitter.react(n + 1)` in the `mutate` block
+   *  suspends the current mutation, calls the mutation
+   *  recursively and changes the value of `cell`, and the assertion fails when
+   *  the first mutation resumes.
+   *
+   *  Care must be taken to avoid `mutation` from emitting events in feedback loops.
+   *
+   *  @tparam M   the type of the event stream mutable value
+   *  @param m    the target mutable to be mutated with events from this
+   *              stream
+   *  @param f    the function that modifies `mutable` given an event of
+   *              type `T`
+   *  @return     a subscription used to cancel this mutation
+   */
+  def mutate[M >: Null <: AnyRef](m: Events.Mutable[M])(f: M => T => Unit):
+    Subscription =
+    onReaction(new Events.MutateObserver(m, f))
+
 }
 
 
@@ -545,6 +604,56 @@ object Events {
       closed = true
       unreactAll()
     }
+  }
+
+  /** An event stream that emits events when the underlying mutable object is modified.
+   *
+   *  An event with underlying mutable value is emitted whenever the mutable value was
+   *  potentially mutated. This type of a signal provides a controlled way of
+   *  manipulating mutable values.
+   *
+   *  '''Note:'''
+   *  The underlying mutable object must '''never''' be mutated directly by accessing
+   *  the value of the signal and changing the mutable object. Instead, the `mutate`
+   *  operation of `Events` should be used to mutate the underlying mutable object.
+   *
+   *  Example:
+   *
+   *  {{{
+   *  val systemMessages = new Events.Emitter[String]
+   *  val log = new Events.Mutable(new mutable.ArrayBuffer[String])
+   *  val logMutations = systemMessages.mutate(log) { msg =>
+   *    log() += msg
+   *  }
+   *  systemMessages.react("New message arrived!") // buffer now contains the message
+   *  }}}
+   *
+   *  As long as there are no feedback loops in the dataflow graph,
+   *  the same thread will never modify the mutable object at the same time.
+   *  See the `mutate` method on `Events`s for more information.
+   *
+   *  Note that mutable event stream never unreacts.
+   *
+   *  @see [[scala.reactive.Events]]
+   *  @tparam M          the type of the underlying mutable object
+   *  @param content     the mutable object
+   */
+  class Mutable[M >: Null <: AnyRef](private[reactors] val content: M)
+  extends Default[M] with Events[M]
+
+  private[reactors] class MutateObserver[
+    @spec(Int, Long, Double) T, M >: Null <: AnyRef
+  ](val target: Mutable[M], f: M => T => Unit) extends Observer[T] {
+    val mutation = f(target.content)
+    def react(x: T) = {
+      try mutation(x)
+      catch {
+        case NonLethal(t) => target.exceptAll(t)
+      }
+      target.reactAll(target.content)
+    }
+    def except(t: Throwable) = target.exceptAll(t)
+    def unreact() = {}
   }
 
   private[reactors] class OnEventOrDone[@spec(Int, Long, Double) T](
