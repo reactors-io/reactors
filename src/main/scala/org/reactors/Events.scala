@@ -392,6 +392,23 @@ trait Events[@spec(Int, Long, Double) T] {
   def after[@spec(Int, Long, Double) S](that: Events[S]): Events[T] =
     new Events.After[T, S](this, that)
 
+  /** Creates a new event stream value that produces events from `this` event stream
+   *  value until `that` produces an event.
+   *  
+   *  If `this` unreacts before `that` produces a value, the resulting event stream
+   *  unreacts.
+   *  Otherwise, the resulting event stream unreacts whenever `that` produces a
+   *  value.
+   *
+   *  @tparam S         the type of `that` event stream
+   *  @param that       the event stream until whose first event the result
+   *                    propagates events
+   *  @return           a subscription and the resulting event stream that emits
+   *                    only until `that` emits
+   */
+  def until[@spec(Int, Long, Double) S](that: Events[S]): Events[T] =
+    new Events.Until[T, S](this, that)
+
 }
 
 
@@ -987,6 +1004,57 @@ object Events {
       if (!afterObserver.started) afterObserver.target.except(t)
     }
     def unreact() = if (!afterObserver.started) afterObserver.unreactBoth()
+  }
+
+  private[reactors] class Until[
+    @spec(Int, Long, Double) T,
+    @spec(Int, Long, Double) S
+  ](
+    val self: Events[T],
+    val that: Events[S]
+  ) extends Events[T] {
+    def onReaction(observer: Observer[T]): Subscription = {
+      val untilObserver = new UntilObserver(observer, that)
+      val untilThatObserver = new UntilThatObserver[T, S](untilObserver)
+      new Subscription.Composite(
+        self.onReaction(untilObserver),
+        that.onReaction(untilThatObserver)
+      )
+    }
+  }
+
+  private[reactors] class UntilObserver[
+    @spec(Int, Long, Double) T,
+    @spec(Int, Long, Double) S
+  ](
+    val target: Observer[T],
+    val that: Events[S]
+  ) extends Observer[T] {
+    private[reactors] var rawLive = true
+    def live = rawLive
+    def live_=(v: Boolean) = rawLive = v
+    def unreactBoth() = if (live) {
+      live = false
+      target.unreact()
+    }
+    def react(value: T) {
+      if (live) target.react(value)
+    }
+    def except(t: Throwable) {
+      if (live) target.except(t)
+    }
+    def unreact() = unreactBoth()
+  }
+
+  private[reactors] class UntilThatObserver[
+    @spec(Int, Long, Double) T,
+    @spec(Int, Long, Double) S
+  ](val untilObserver: UntilObserver[T, S]) extends Observer[S] {
+    def react(value: S) = untilObserver.unreactBoth()
+    def except(t: Throwable) {
+      if (untilObserver.live) untilObserver.target.except(t)
+    }
+    def unreact() = {}
   }
 
 }
