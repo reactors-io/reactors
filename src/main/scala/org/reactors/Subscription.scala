@@ -30,6 +30,12 @@ object Subscription {
     def unsubscribe() = {}
   }
 
+  class Composite(ss: Subscription*) extends Subscription {
+    def unsubscribe() {
+      for (s <- ss) s.unsubscribe()
+    }
+  }
+
   /** Forwards `unsubscribe` to another subscription.
    */
   trait Proxy extends Subscription {

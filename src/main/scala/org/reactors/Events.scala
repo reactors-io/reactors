@@ -940,8 +940,14 @@ object Events {
     val self: Events[T],
     val that: Events[S]
   ) extends Events[T] {
-    def onReaction(observer: Observer[T]): Subscription =
-      self.onReaction(new AfterObserver(observer, that))
+    def onReaction(observer: Observer[T]): Subscription = {
+      val afterObserver = new AfterObserver(observer, that)
+      val afterThatObserver = new AfterThatObserver[T, S](afterObserver)
+      new Subscription.Composite(
+        self.onReaction(afterObserver),
+        that.onReaction(afterThatObserver)
+      )
+    }
   }
 
   private[reactors] class AfterObserver[
@@ -951,8 +957,8 @@ object Events {
     val target: Observer[T],
     val that: Events[S]
   ) extends Observer[T] {
-    private var rawStarted = false
-    private var rawLive = true
+    private[reactors] var rawStarted = false
+    private[reactors] var rawLive = true
     def started = rawStarted
     def started_=(v: Boolean) = rawStarted = v
     def live = rawLive
@@ -968,7 +974,6 @@ object Events {
       target.except(t)
     }
     def unreact() = unreactBoth()
-    val subscription = that.onReaction(new AfterThatObserver[T, S](this))
   }
 
   private[reactors] class AfterThatObserver[

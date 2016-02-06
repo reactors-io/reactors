@@ -110,8 +110,8 @@ class EventBoxingBench extends Bench.Forked[Long] {
       // after
       var a0 = 0
       val start = new Events.Emitter[Int]
-      // val after = emitter.after(start)
-      // after.on(a0 += 1)
+      val after = emitter.after(start)
+      after.on(a0 += 1)
 
       var i = 0
       while (i < numEvents) {

@@ -353,11 +353,26 @@ class EventsSpec extends FunSuite {
     val after = emitter.after(start)
     after.on(seen = true)
 
-    emitter.react(0)
+    emitter.react(7)
     assert(!seen)
 
     start.react(())
-    emitter.react(1)
+    emitter.react(11)
+    assert(seen)
+  }
+
+  test("after with Int") {
+    var seen = false
+    val emitter = new Events.Emitter[Int]
+    val start = new Events.Emitter[Int]
+    val after = emitter.after(start)
+    after.on(seen = true)
+
+    emitter.react(7)
+    assert(!seen)
+
+    start.react(11)
+    emitter.react(17)
     assert(seen)
   }
 
