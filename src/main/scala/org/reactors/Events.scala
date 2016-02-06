@@ -374,6 +374,24 @@ trait Events[@spec(Int, Long, Double) T] {
   )(f: (M1, M2, M3) => T => Unit)(implicit dummy: Dummy[T]): Subscription =
     onReaction(new Events.Mutate3Observer(m1, m2, m3, f))
 
+  /** Creates a new event stream that produces events from `this` event stream only
+   *  after `that` produces an event.
+   *
+   *  After `that` emits some event, all events from `this` are produced on the
+   *  resulting event stream.
+   *  If `that` unreacts before an event is produced on `this`, the resulting event\
+   *  stream unreacts.
+   *  If `this` unreacts, the resulting event stream unreacts.
+   *
+   *  @tparam S          the type of `that` event stream
+   *  @param that        the event stream after whose first event the result can start
+   *                     propagating events
+   *  @return            a subscription and the resulting event stream that emits only
+   *                     after `that` emits at least once.
+   */
+  def after[@spec(Int, Long, Double) S](that: Events[S]): Events[T] =
+    new Events.After[T, S](this, that)
+
 }
 
 
@@ -913,6 +931,57 @@ object Events {
     def unreact() {
       target.unreact()
     }
+  }
+
+  private[reactors] class After[
+    @spec(Int, Long, Double) T,
+    @spec(Int, Long, Double) S
+  ](
+    val self: Events[T],
+    val that: Events[S]
+  ) extends Events[T] {
+    def onReaction(observer: Observer[T]): Subscription =
+      self.onReaction(new AfterObserver(observer, that))
+  }
+
+  private[reactors] class AfterObserver[
+    @spec(Int, Long, Double) T,
+    @spec(Int, Long, Double) S
+  ](
+    val target: Observer[T],
+    val that: Events[S]
+  ) extends Observer[T] {
+    private var rawStarted = false
+    private var rawLive = true
+    def started = rawStarted
+    def started_=(v: Boolean) = rawStarted = v
+    def live = rawLive
+    def live_=(v: Boolean) = rawLive = v
+    def unreactBoth() = if (live) {
+      live = false
+      target.unreact()
+    }
+    def react(value: T) {
+      if (started) target.react(value)
+    }
+    def except(t: Throwable) {
+      target.except(t)
+    }
+    def unreact() = unreactBoth()
+    val subscription = that.onReaction(new AfterThatObserver[T, S](this))
+  }
+
+  private[reactors] class AfterThatObserver[
+    @spec(Int, Long, Double) T,
+    @spec(Int, Long, Double) S
+  ](val afterObserver: AfterObserver[T, S]) extends Observer[S] {
+    def react(value: S) {
+      if (!afterObserver.started) afterObserver.started = true
+    }
+    def except(t: Throwable) {
+      if (!afterObserver.started) afterObserver.target.except(t)
+    }
+    def unreact() = if (!afterObserver.started) afterObserver.unreactBoth()
   }
 
 }

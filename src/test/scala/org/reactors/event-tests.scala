@@ -346,6 +346,21 @@ class EventsSpec extends FunSuite {
     assert(log3.content == Seq(0))
   }
 
+  test("after") {
+    var seen = false
+    val emitter = new Events.Emitter[Int]
+    val start = new Events.Emitter[Unit]
+    val after = emitter.after(start)
+    after.on(seen = true)
+
+    emitter.react(0)
+    assert(!seen)
+
+    start.react(())
+    emitter.react(1)
+    assert(seen)
+  }
+
 }
 
 
