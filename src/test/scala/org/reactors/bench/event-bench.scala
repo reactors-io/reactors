@@ -85,12 +85,24 @@ class EventBoxingBench extends Bench.Forked[Long] {
   ) in {
     using(Gen.single("numEvents")(10000)) in { numEvents =>
       val emitter = new Events.Emitter[Int]
+
+      // count
       val count = emitter.count.toSignal
+
+      // mutate
+      object Cell {
+        var x = 0
+      }
+      val cell = new Events.Mutable(Cell)
+      val mutate = emitter.mutate(cell) { c => v =>
+        c.x = v
+      }
 
       var i = 0
       while (i < numEvents) {
         emitter.react(i)
         assert(count() == i + 1)
+        assert(Cell.x == i)
         i += 1
       }
       emitter.unreact()
