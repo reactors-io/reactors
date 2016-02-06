@@ -97,6 +97,15 @@ class EventBoxingBench extends Bench.Forked[Long] {
       val mutate = emitter.mutate(cell) { c => v =>
         c.x = v
       }
+      val mutate2 = emitter.mutate(cell, cell) { (c1, c2) => v =>
+        c2.x = c1.x
+        c1.x = v
+      }
+      val mutate3 = emitter.mutate(cell, cell, cell) { (c1, c2, c3) => v =>
+        c3.x = c2.x
+        c2.x = c1.x
+        c1.x = v
+      }
 
       var i = 0
       while (i < numEvents) {

@@ -325,8 +325,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  Care must be taken to avoid `mutation` from emitting events in feedback loops.
    *
    *  @tparam M   the type of the event stream mutable value
-   *  @param m    the target mutable to be mutated with events from this
-   *              stream
+   *  @param m    the target mutable stream to be mutated with events from this stream
    *  @param f    the function that modifies `mutable` given an event of
    *              type `T`
    *  @return     a subscription used to cancel this mutation
@@ -334,6 +333,46 @@ trait Events[@spec(Int, Long, Double) T] {
   def mutate[M >: Null <: AnyRef](m: Events.Mutable[M])(f: M => T => Unit):
     Subscription =
     onReaction(new Events.MutateObserver(m, f))
+
+  /** Mutates multiple mutable event stream values `m1` and `m2` each time that `this`
+   *  event stream produces an event.
+   *
+   *  Note that the objects `m1` and `m2` are mutated simultaneously, and events are
+   *  propagated after the mutation ends. This version of the `mutate` works on multiple
+   *  event streams.
+   *  
+   *  @tparam M1          the type of the first mutable event stream
+   *  @tparam M2          the type of the second mutable event stream
+   *  @param m1          the first mutable stream
+   *  @param m2          the second mutable stream
+   *  @param f           the function that modifies the mutables
+   *  @return            a subscription used to cancel this mutation
+   */
+  def mutate[M1 >: Null <: AnyRef, M2 >: Null <: AnyRef](
+    m1: Events.Mutable[M1], m2: Events.Mutable[M2]
+  )(f: (M1, M2) => T => Unit): Subscription =
+    onReaction(new Events.Mutate2Observer(m1, m2, f))
+
+  /** Mutates multiple mutable event stream values `m1`, `m2` and `m3` each time that
+   *  `this` event stream produces an event.
+   *
+   *  Note that the objects `m1`, `m2` and `m3` are mutated simultaneously, and events
+   *  are propagated after the mutation ends. This version of the `mutate` works on
+   *  multiple event streams.
+   *  
+   *  @tparam M1          the type of the first mutable event stream
+   *  @tparam M2          the type of the second mutable event stream
+   *  @tparam M3          the type of the third mutable event stream
+   *  @param m1          the first mutable stream
+   *  @param m2          the second mutable stream
+   *  @param m3          the second mutable stream
+   *  @param f           the function that modifies the mutables
+   *  @return            a subscription used to cancel this mutation
+   */
+  def mutate[M1 >: Null <: AnyRef, M2 >: Null <: AnyRef, M3 >: Null <: AnyRef](
+    m1: Events.Mutable[M1], m2: Events.Mutable[M2], m3: Events.Mutable[M3]
+  )(f: (M1, M2, M3) => T => Unit)(implicit dummy: Dummy[T]): Subscription =
+    onReaction(new Events.Mutate3Observer(m1, m2, m3, f))
 
 }
 
@@ -653,6 +692,56 @@ object Events {
       target.reactAll(target.content)
     }
     def except(t: Throwable) = target.exceptAll(t)
+    def unreact() = {}
+  }
+
+  private[reactors] class Mutate2Observer[
+    @spec(Int, Long, Double) T, M1 >: Null <: AnyRef, M2 >: Null <: AnyRef
+  ](val t1: Mutable[M1], val t2: Mutable[M2], f: (M1, M2) => T => Unit)
+  extends Observer[T] {
+    val mutation = f(t1.content, t2.content)
+    def react(x: T) = {
+      try mutation(x)
+      catch {
+        case NonLethal(t) =>
+          t1.exceptAll(t)
+          t2.exceptAll(t)
+      }
+      t1.reactAll(t1.content)
+      t2.reactAll(t2.content)
+    }
+    def except(t: Throwable) = {
+      t1.exceptAll(t)
+      t2.exceptAll(t)
+    }
+    def unreact() = {}
+  }
+
+  private[reactors] class Mutate3Observer[
+    @spec(Int, Long, Double) T,
+    M1 >: Null <: AnyRef, M2 >: Null <: AnyRef, M3 >: Null <: AnyRef
+  ](
+    val t1: Mutable[M1], val t2: Mutable[M2], val t3: Mutable[M3],
+    f: (M1, M2, M3) => T => Unit
+  ) extends Observer[T] {
+    val mutation = f(t1.content, t2.content, t3.content)
+    def react(x: T) = {
+      try mutation(x)
+      catch {
+        case NonLethal(t) =>
+          t1.exceptAll(t)
+          t2.exceptAll(t)
+          t3.exceptAll(t)
+      }
+      t1.reactAll(t1.content)
+      t2.reactAll(t2.content)
+      t3.reactAll(t3.content)
+    }
+    def except(t: Throwable) = {
+      t1.exceptAll(t)
+      t2.exceptAll(t)
+      t3.exceptAll(t)
+    }
     def unreact() = {}
   }
 

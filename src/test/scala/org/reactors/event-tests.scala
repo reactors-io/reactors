@@ -309,6 +309,43 @@ class EventsSpec extends FunSuite {
     assert(log.content == Seq("one", "two"))
   }
 
+  test("mutate2") {
+    var len = 0
+    val log1 = new Events.Mutable(mutable.Buffer[String]())
+    val log2 = new Events.Mutable(mutable.Buffer[Int]())
+    val emitter = new Events.Emitter[String]
+    emitter.mutate(log1, log2) { (b1, b2) => s =>
+      b1 += s
+      b2 += len
+    }
+    log1.onEvent(b => len = b.length)
+
+    emitter.react("ok")
+    assert(log1.content == Seq("ok"))
+    assert(log2.content == Seq(0))
+  }
+
+  test("mutate3") {
+    var len = 0
+    var last = ""
+    val log1 = new Events.Mutable(mutable.Buffer[String]())
+    val log2 = new Events.Mutable(mutable.Buffer[String]())
+    val log3 = new Events.Mutable(mutable.Buffer[Int]())
+    val emitter = new Events.Emitter[String]
+    emitter.mutate(log1, log2, log3) { (b1, b2, b3) => s =>
+      b1 += s
+      b2 += last
+      b3 += len
+    }
+    log1.onEvent(b => last = b.last)
+    log2.onEvent(b => len = b.length)
+
+    emitter.react("ok")
+    assert(log1.content == Seq("ok"))
+    assert(log2.content == Seq(""))
+    assert(log3.content == Seq(0))
+  }
+
 }
 
 
