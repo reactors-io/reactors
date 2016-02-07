@@ -283,8 +283,8 @@ trait Events[@spec(Int, Long, Double) T] {
    *
    *  {{{
    *  val eventLog = new Events.Mutable(mutable.Buffer[String]())
-   *  val eventLogMutations = r.mutate(eventLog) { event =>
-   *    eventLog() += "at " + System.nanoTime + ": " + event
+   *  val eventLogMutations = r.mutate(eventLog) { buffer => event =>
+   *    buffer += "at " + System.nanoTime + ": " + event
    *  } // <-- eventLog event propagated
    *  }}}
    *
@@ -322,7 +322,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  recursively and changes the value of `cell`, and the assertion fails when
    *  the first mutation resumes.
    *
-   *  Care must be taken to avoid `mutation` from emitting events in feedback loops.
+   *  Care must be taken to avoid `f` from emitting events in feedback loops.
    *
    *  @tparam M   the type of the event stream mutable value
    *  @param m    the target mutable stream to be mutated with events from this stream
@@ -696,8 +696,8 @@ object Events {
    *  {{{
    *  val systemMessages = new Events.Emitter[String]
    *  val log = new Events.Mutable(new mutable.ArrayBuffer[String])
-   *  val logMutations = systemMessages.mutate(log) { msg =>
-   *    log() += msg
+   *  val logMutations = systemMessages.mutate(log) { buffer => msg =>
+   *    buffer += msg
    *  }
    *  systemMessages.react("New message arrived!") // buffer now contains the message
    *  }}}
