@@ -112,6 +112,14 @@ class EventBoxingBench extends Bench.Forked[Long] {
       val start = new Events.Emitter[Int]
       val after = emitter.after(start)
       after.on(a0 += 1)
+      start.react(7)
+
+      // until
+      var u0 = 0
+      val end = new Events.Emitter[Int]
+      val until = emitter.until(end)
+      until.on(u0 += 1)
+      emitter.onEvent(x => if (x == 1000) end.react(x))
 
       var i = 0
       while (i < numEvents) {

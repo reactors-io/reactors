@@ -376,6 +376,24 @@ class EventsSpec extends FunSuite {
     assert(seen)
   }
 
+  test("until") {
+    var sum = 0
+    val emitter = new Events.Emitter[Int]
+    val end = new Events.Emitter[Int]
+    val until = emitter.until(end)
+    until.onEvent(sum += _)
+
+    emitter.react(7)
+    assert(sum == 7)
+
+    emitter.react(19)
+    assert(sum == 26)
+
+    end.react(11)
+    emitter.react(17)
+    assert(sum == 26)
+  }
+
 }
 
 
