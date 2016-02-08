@@ -13,6 +13,16 @@ import scala.collection._
 
 class EventsSpec extends FunSuite {
 
+  class TestEmitter[T] extends Events.Emitter[T] {
+    var unsubscriptionCount = 0
+    override def onReaction(obs: Observer[T]) = new Subscription.Composite(
+      super.onReaction(obs),
+      new Subscription {
+        def unsubscribe() = unsubscriptionCount += 1
+      }
+    )
+  }
+
   test("onReaction") {
     var event: String = null
     var exception: Throwable = null
@@ -376,6 +386,16 @@ class EventsSpec extends FunSuite {
     assert(seen)
   }
 
+  test("after unsubscribes") {
+    val emitter = new Events.Emitter[Int]
+    val start = new TestEmitter[Int]
+    emitter.after(start).on({})
+
+    assert(start.unsubscriptionCount == 0)
+    start.react(1)
+    assert(start.unsubscriptionCount == 1)
+  }
+
   test("until") {
     var sum = 0
     val emitter = new Events.Emitter[Int]
@@ -392,6 +412,18 @@ class EventsSpec extends FunSuite {
     end.react(11)
     emitter.react(17)
     assert(sum == 26)
+  }
+
+  test("until unsubscribes") {
+    val emitter = new TestEmitter[Int]
+    val end = new TestEmitter[Int]
+    emitter.until(end).on({})
+
+    assert(emitter.unsubscriptionCount == 0)
+    assert(end.unsubscriptionCount == 0)
+    end.react(1)
+    assert(emitter.unsubscriptionCount == 1)
+    assert(end.unsubscriptionCount == 1)
   }
 
   test("once") {
@@ -422,6 +454,15 @@ class EventsSpec extends FunSuite {
 
     emitter.react("kaboom")
     assert(!seen)
+  }
+
+  test("once unsubscribes") {
+    val emitter = new TestEmitter[Int]
+    emitter.once.on({})
+
+    assert(emitter.unsubscriptionCount == 0)
+    emitter.react(1)
+    assert(emitter.unsubscriptionCount == 1)
   }
 
   test("filter") {
