@@ -409,6 +409,22 @@ trait Events[@spec(Int, Long, Double) T] {
   def until[@spec(Int, Long, Double) S](that: Events[S]): Events[T] =
     new Events.Until[T, S](this, that)
 
+  /** Creates an event stream that forwards an event from this event stream only once.
+   *
+   *  The resulting event stream emits only a single event produced by `this`
+   *  event stream after `once` is called, and then unreacts.
+   *
+   *  {{{
+   *  time ----------------->
+   *  this --1-----2----3--->
+   *  once      ---2|
+   *  }}}
+   *
+   *  @return           a subscription and an event stream with the first event from
+   *                    `this`
+   */
+  def once: Events[T] = new Events.Once[T](this)
+
 }
 
 
@@ -1055,6 +1071,33 @@ object Events {
       if (untilObserver.live) untilObserver.target.except(t)
     }
     def unreact() = {}
+  }
+
+  private[reactors] class Once[@spec(Int, Long, Double) T](val self: Events[T])
+  extends Events[T] {
+    def onReaction(observer: Observer[T]): Subscription =
+      self.onReaction(new OnceObserver(observer))
+  }
+
+  private[reactors] class OnceObserver[@spec(Int, Long, Double) T](
+    val target: Observer[T]
+  ) extends Observer[T] {
+    private var seen: Boolean = _
+    def init(dummy: Observer[T]) {
+      seen = false
+    }
+    init(this)
+    def react(value: T) = if (!seen) {
+      seen = true
+      target.react(value)
+      target.unreact()
+    }
+    def except(t: Throwable) = if (!seen) {
+      target.except(t)
+    }
+    def unreact() = if (!seen) {
+      target.unreact()
+    }
   }
 
 }
