@@ -23,6 +23,15 @@ class EventsSpec extends FunSuite {
     )
   }
 
+  test("closed emitter immediately unreacts") {
+    val emitter = new Events.Emitter[Int]
+    emitter.unreact()
+
+    var done = false
+    emitter.onDone(done = true)
+    assert(done)
+  }
+
   test("onReaction") {
     var event: String = null
     var exception: Throwable = null
