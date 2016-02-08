@@ -548,6 +548,19 @@ class EventsSpec extends FunSuite {
     assert(emitter.unsubscriptionCount == 1)
   }
 
+  test("dropWhile") {
+    val buffer = mutable.Buffer[String]()
+    val emitter = new Events.Emitter[String]
+    emitter.dropWhile(_.length < 5).onEvent(buffer += _)
+
+    emitter.react("one")
+    emitter.react("two")
+    emitter.react("three")
+    emitter.react("nil")
+
+    assert(buffer == Seq("three", "nil"))
+  }
+
 }
 
 

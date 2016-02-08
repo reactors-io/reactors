@@ -483,6 +483,26 @@ trait Events[@spec(Int, Long, Double) T] {
    */
   def takeWhile(p: T => Boolean): Events[T] = new Events.TakeWhile(this, p)
 
+  /** Returns a new event stream that forwards the events from `this` event stream as
+   *  long as they satisfy the predicate `p`.
+   *
+   *  After an event that does not specify the predicate occurs, the resulting event
+   *  stream unreacts.
+   *
+   *  If the predicate throws an exception, the exceptions is propagated, and the
+   *  resulting event stream unreacts.
+   *
+   *  {{{
+   *  time             ------------------------>
+   *  this             -0---1--2--3-4--1-5--2-->
+   *  takeWhile(_ < 4)     -1--2--3-|---------->
+   *  }}}
+   *
+   *  @param p          the predicate that specifies whether to take the element
+   *  @return           a subscription and event stream value with the forwarded events
+   */
+  def dropWhile(p: T => Boolean): Events[T] = new Events.DropWhile(this, p)
+
 }
 
 
@@ -1308,6 +1328,31 @@ object Events {
     def unreact() = if (!closed) {
       target.unreact()
     }
+  }
+
+  private[reactors] class DropWhile[@spec(Int, Long, Double) T](
+    val self: Events[T],
+    val p: T => Boolean
+  ) extends Events[T] {
+    def onReaction(observer: Observer[T]): Subscription =
+      self.onReaction(new DropWhileObserver(observer, p))
+  }
+
+  private[reactors] class DropWhileObserver[@spec(Int, Long, Double) T](
+    val target: Observer[T],
+    val p: T => Boolean
+  ) extends Observer[T] {
+    private var started: Boolean = _
+    def init(dummy: Observer[T]) {
+      started = false
+    }
+    init(this)
+    def react(value: T) = {
+      if (!started && !p(value)) started = true
+      if (started) target.react(value)
+    }
+    def except(t: Throwable) = target.except(t)
+    def unreact() = target.unreact()
   }
 
 }
