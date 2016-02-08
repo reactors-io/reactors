@@ -143,15 +143,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  @return            a subscription for the unreaction notification
    */
   def onDone(observer: =>Unit)(implicit dummy: Dummy[T]): Subscription = {
-    onReaction(new Observer[T] {
-      def react(value: T) {}
-      def except(t: Throwable) {
-        throw t
-      }
-      def unreact() {
-        observer
-      }
-    })
+    onReaction(new Events.OnDone[T](() => observer))
   }
 
   /** Executes the specified block when `this` event stream forwards an exception.
@@ -810,6 +802,14 @@ object Events {
     def react(x: T) = reactFunc()
     def except(t: Throwable) = throw t
     def unreact() = {}
+  }
+
+  private[reactors] class OnDone[@spec(Int, Long, Double) T](
+    val unreactFunc: () => Unit
+  ) extends Observer[T] {
+    def react(x: T) = {}
+    def except(t: Throwable) = throw t
+    def unreact() = unreactFunc()
   }
 
   private[reactors] class Recover[T, U >: T](

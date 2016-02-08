@@ -394,6 +394,23 @@ class EventsSpec extends FunSuite {
     assert(sum == 26)
   }
 
+  test("once") {
+    var count = 0
+    var done = 0
+    val emitter = new Events.Emitter[Int]
+    val once = emitter.once
+    once.on(count += 1)
+    once.onDone(done += 1)
+
+    emitter.react(7)
+    assert(count == 1)
+    assert(done == 1)
+
+    emitter.react(11)
+    assert(count == 1)
+    assert(done == 1)
+  }
+
 }
 
 
