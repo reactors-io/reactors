@@ -411,6 +411,41 @@ class EventsSpec extends FunSuite {
     assert(done == 1)
   }
 
+  test("once with early unreact") {
+    var seen = false
+    val emitter = new Events.Emitter[String]
+    val once = emitter.once
+    once.on(seen = true)
+
+    emitter.unreact()
+    assert(!seen)
+
+    emitter.react("kaboom")
+    assert(!seen)
+  }
+
+  test("filter") {
+    val buffer = mutable.Buffer[Int]()
+    val emitter = new Events.Emitter[Int]
+    emitter.filter(_ % 2 == 0).onEvent(buffer += _)
+
+    emitter.react(1)
+    assert(buffer == Seq())
+
+    emitter.react(4)
+    assert(buffer == Seq(4))
+
+    emitter.react(9)
+    assert(buffer == Seq(4))
+
+    emitter.react(10)
+    assert(buffer == Seq(4, 10))
+
+    emitter.unreact()
+    emitter.react(16)
+    assert(buffer == Seq(4, 10))
+  }
+
 }
 
 

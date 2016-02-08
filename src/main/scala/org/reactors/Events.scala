@@ -417,6 +417,16 @@ trait Events[@spec(Int, Long, Double) T] {
    */
   def once: Events[T] = new Events.Once[T](this)
 
+  /** Filters events from `this` event stream value using a specified predicate `p`.
+   *
+   *  Only events from `this` for which `p` returns `true` are emitted on the
+   *  resulting event stream.
+   *
+   *  @param p          the predicate used to filter events
+   *  @return           a subscription and an event streams with the filtered events
+   */
+  def filter(p: T => Boolean): Events[T] = new Events.Filter(this, p)
+
 }
 
 
@@ -1096,6 +1106,34 @@ object Events {
       target.except(t)
     }
     def unreact() = if (!seen) {
+      target.unreact()
+    }
+  }
+
+  private[reactors] class Filter[@spec(Int, Long, Double) T](
+    val self: Events[T],
+    val p: T => Boolean
+  ) extends Events[T] {
+    def onReaction(observer: Observer[T]): Subscription =
+      self.onReaction(new FilterObserver(observer, p))
+  }
+
+  private[reactors] class FilterObserver[@spec(Int, Long, Double) T](
+    val target: Observer[T],
+    val p: T => Boolean
+  ) extends Observer[T] {
+    def react(value: T) = {
+      val ok = try p(value) catch {
+        case NonLethal(t) =>
+          target.except(t)
+          false
+      }
+      if (ok) target.react(value)
+    }
+    def except(t: Throwable) = {
+      target.except(t)
+    }
+    def unreact() = {
       target.unreact()
     }
   }
