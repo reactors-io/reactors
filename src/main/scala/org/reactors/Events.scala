@@ -427,6 +427,27 @@ trait Events[@spec(Int, Long, Double) T] {
    */
   def filter(p: T => Boolean): Events[T] = new Events.Filter(this, p)
 
+  /** Filters events from `this` event stream and maps them in the same time.
+   *
+   *  The `collect` combinator uses a partial function `pf` to filter events
+   *  from `this` event stream. Events for which the partial function is defined
+   *  are mapped using the partial function, others are discarded.
+   *
+   *  '''Note:'''
+   *  This combinator is defined only for event streams that contain reference events.
+   *  You cannot call it for event streams whose events are primitive values, such as
+   *  `Int`. This is because the `PartialFunction` class is not itself specialized.
+   *
+   *  @tparam S         the type of the mapped event stream
+   *  @param pf         partial function used to filter and map events
+   *  @param evidence   evidence that `T` is a reference type
+   *  @return           a subscription and an event stream with the partially
+   *                    mapped events
+   */
+  def collect[S <: AnyRef](pf: PartialFunction[T, S])(implicit evidence: T <:< AnyRef):
+    Events[S] =
+    new Events.Collect(this, pf)
+
 }
 
 
@@ -1129,6 +1150,34 @@ object Events {
           false
       }
       if (ok) target.react(value)
+    }
+    def except(t: Throwable) = {
+      target.except(t)
+    }
+    def unreact() = {
+      target.unreact()
+    }
+  }
+
+  private[reactors] class Collect[T, S <: AnyRef](
+    val self: Events[T],
+    val pf: PartialFunction[T, S]
+  ) extends Events[S] {
+    def onReaction(observer: Observer[S]): Subscription =
+      self.onReaction(new CollectObserver(observer, pf))
+  }
+
+  private[reactors] class CollectObserver[T, S <: AnyRef](
+    val target: Observer[S],
+    val pf: PartialFunction[T, S]
+  ) extends Observer[T] {
+    def react(value: T) = {
+      val ok = try pf.isDefinedAt(value) catch {
+        case NonLethal(t) =>
+          target.except(t)
+          false
+      }
+      if (ok) target.react(pf(value))
     }
     def except(t: Throwable) = {
       target.except(t)

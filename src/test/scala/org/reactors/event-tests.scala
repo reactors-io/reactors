@@ -446,6 +446,21 @@ class EventsSpec extends FunSuite {
     assert(buffer == Seq(4, 10))
   }
 
+  test("collect") {
+    val buffer = mutable.Buffer[String]()
+    val emitter = new Events.Emitter[String]
+    val collect = emitter.collect {
+      case "ok" => "ok!"
+    }
+    collect.onEvent(buffer += _)
+
+    emitter.react("not ok")
+    assert(buffer == Seq())
+
+    emitter.react("ok")
+    assert(buffer == Seq("ok!"))
+  }
+
 }
 
 
