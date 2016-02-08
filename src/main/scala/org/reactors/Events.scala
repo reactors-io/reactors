@@ -463,6 +463,26 @@ trait Events[@spec(Int, Long, Double) T] {
    */
   def map[@spec(Int, Long, Double) S](f: T => S): Events[S] = new Events.Map(this, f)
 
+  /** Returns a new event stream that forwards the events from `this` event stream as
+   *  long as they satisfy the predicate `p`.
+   *
+   *  After an event that does not specify the predicate occurs, the resulting event
+   *  stream unreacts.
+   *
+   *  If the predicate throws an exception, the exceptions is propagated, and the
+   *  resulting event stream unreacts.
+   *
+   *  {{{
+   *  time             ------------------------>
+   *  this             -0---1--2--3-4--1-5--2-->
+   *  takeWhile(_ < 4)     -1--2--3-|---------->
+   *  }}}
+   *
+   *  @param p          the predicate that specifies whether to take the element
+   *  @return           a subscription and event stream value with the forwarded events
+   */
+  def takeWhile(p: T => Boolean): Events[T] = new Events.TakeWhile(this, p)
+
 }
 
 
@@ -1248,6 +1268,44 @@ object Events {
       target.except(t)
     }
     def unreact() {
+      target.unreact()
+    }
+  }
+
+  private[reactors] class TakeWhile[@spec(Int, Long, Double) T](
+    val self: Events[T],
+    val p: T => Boolean
+  ) extends Events[T] {
+    def onReaction(observer: Observer[T]): Subscription = {
+      val obs = new TakeWhileObserver(observer, p)
+      val sub = self.onReaction(obs)
+      obs.subscription = sub
+      sub
+    }
+  }
+
+  private[reactors] class TakeWhileObserver[@spec(Int, Long, Double) T](
+    val target: Observer[T],
+    val p: T => Boolean
+  ) extends Observer[T] {
+    private var closed: Boolean = _
+    var subscription = Subscription.empty
+    def init(dummy: Observer[T]) {
+      closed = false
+    }
+    init(this)
+    def react(value: T) = if (!closed) {
+      if (p(value)) target.react(value)
+      else {
+        closed = true
+        subscription.unsubscribe()
+        target.unreact()
+      }
+    }
+    def except(t: Throwable) = if (!closed) {
+      target.except(t)
+    }
+    def unreact() = if (!closed) {
       target.unreact()
     }
   }

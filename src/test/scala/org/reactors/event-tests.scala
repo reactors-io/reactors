@@ -523,6 +523,31 @@ class EventsSpec extends FunSuite {
     assert(buffer == Seq("7", "11"))
   }
 
+  test("takeWhile") {
+    val buffer = mutable.Buffer[String]()
+    val emitter = new Events.Emitter[String]
+    emitter.takeWhile(_.length < 5).onEvent(buffer += _)
+
+    emitter.react("one")
+    emitter.react("four")
+    emitter.react("seven")
+    emitter.react("ten")
+
+    assert(buffer == Seq("one", "four"))
+  }
+
+  test("takeWhile unsubscribes early") {
+    val emitter = new TestEmitter[Int]
+    emitter.takeWhile(_ < 3).on({})
+
+    emitter.react(1)
+    assert(emitter.unsubscriptionCount == 0)
+    emitter.react(2)
+    assert(emitter.unsubscriptionCount == 0)
+    emitter.react(3)
+    assert(emitter.unsubscriptionCount == 1)
+  }
+
 }
 
 
