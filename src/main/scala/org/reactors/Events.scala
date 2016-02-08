@@ -448,6 +448,21 @@ trait Events[@spec(Int, Long, Double) T] {
     Events[S] =
     new Events.Collect(this, pf)
 
+  /** Returns a new event stream that maps events from `this` event stream using the
+   *  mapping function `f`.
+   *
+   *  {{{
+   *  time    --------------------->
+   *  this    --e1------e2------|
+   *  mapped  --f(e1)---f(e2)---|
+   *  }}}
+   *
+   *  @tparam S         the type of the mapped events
+   *  @param f          the mapping function
+   *  @return           a subscription and event stream value with the mapped events
+   */
+  def map[@spec(Int, Long, Double) S](f: T => S): Events[S] = new Events.Map(this, f)
+
 }
 
 
@@ -1193,10 +1208,46 @@ object Events {
       }
       if (ok) target.react(pf(value))
     }
-    def except(t: Throwable) = {
+    def except(t: Throwable) {
       target.except(t)
     }
-    def unreact() = {
+    def unreact() {
+      target.unreact()
+    }
+  }
+
+  private[reactors] class Map[
+    @spec(Int, Long, Double) T,
+    @spec(Int, Long, Double) S
+  ](
+    val self: Events[T],
+    val f: T => S
+  ) extends Events[S] {
+    def onReaction(observer: Observer[S]): Subscription =
+      self.onReaction(new MapObserver(observer, f))
+  }
+
+  private[reactors] class MapObserver[
+    @spec(Int, Long, Double) T,
+    @spec(Int, Long, Double) S
+  ](
+    val target: Observer[S],
+    val f: T => S
+  ) extends Observer[T] {
+    def react(value: T) {
+      val x = try {
+        f(value)
+      } catch {
+        case NonLethal(t) =>
+          target.except(t)
+          return
+      }
+      target.react(x)
+    }
+    def except(t: Throwable) {
+      target.except(t)
+    }
+    def unreact() {
       target.unreact()
     }
   }
