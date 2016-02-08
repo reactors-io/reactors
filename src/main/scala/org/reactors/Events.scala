@@ -1007,10 +1007,10 @@ object Events {
     def onReaction(observer: Observer[T]): Subscription = {
       val afterObserver = new AfterObserver(observer, that)
       val afterThatObserver = new AfterThatObserver[T, S](afterObserver)
-      new Subscription.Composite(
-        self.onReaction(afterObserver),
-        that.onReaction(afterThatObserver)
-      )
+      val sub = self.onReaction(afterObserver)
+      val subThat = that.onReaction(afterThatObserver)
+      afterThatObserver.subscription = subThat
+      new Subscription.Composite(sub, subThat)
     }
   }
 
@@ -1044,8 +1044,12 @@ object Events {
     @spec(Int, Long, Double) T,
     @spec(Int, Long, Double) S
   ](val afterObserver: AfterObserver[T, S]) extends Observer[S] {
+    var subscription = Subscription.empty
     def react(value: S) {
-      if (!afterObserver.started) afterObserver.started = true
+      if (!afterObserver.started) {
+        afterObserver.started = true
+        subscription.unsubscribe()
+      }
     }
     def except(t: Throwable) {
       if (!afterObserver.started) afterObserver.target.except(t)
@@ -1063,10 +1067,12 @@ object Events {
     def onReaction(observer: Observer[T]): Subscription = {
       val untilObserver = new UntilObserver(observer, that)
       val untilThatObserver = new UntilThatObserver[T, S](untilObserver)
-      new Subscription.Composite(
+      val sub = new Subscription.Composite(
         self.onReaction(untilObserver),
         that.onReaction(untilThatObserver)
       )
+      untilObserver.subscription = sub
+      sub
     }
   }
 
@@ -1078,10 +1084,12 @@ object Events {
     val that: Events[S]
   ) extends Observer[T] {
     private[reactors] var rawLive = true
+    var subscription = Subscription.empty
     def live = rawLive
     def live_=(v: Boolean) = rawLive = v
     def unreactBoth() = if (live) {
       live = false
+      subscription.unsubscribe()
       target.unreact()
     }
     def react(value: T) {
@@ -1106,20 +1114,26 @@ object Events {
 
   private[reactors] class Once[@spec(Int, Long, Double) T](val self: Events[T])
   extends Events[T] {
-    def onReaction(observer: Observer[T]): Subscription =
-      self.onReaction(new OnceObserver(observer))
+    def onReaction(observer: Observer[T]): Subscription = {
+      val obs = new OnceObserver(observer)
+      val sub = self.onReaction(obs)
+      obs.subscription = sub
+      sub
+    }
   }
 
   private[reactors] class OnceObserver[@spec(Int, Long, Double) T](
     val target: Observer[T]
   ) extends Observer[T] {
     private var seen: Boolean = _
+    var subscription = Subscription.empty
     def init(dummy: Observer[T]) {
       seen = false
     }
     init(this)
     def react(value: T) = if (!seen) {
       seen = true
+      subscription.unsubscribe()
       target.react(value)
       target.unreact()
     }
