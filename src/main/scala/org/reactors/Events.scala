@@ -556,6 +556,26 @@ trait Events[@spec(Int, Long, Double) T] {
   ): Events[S] =
     new Events.Mux[T, S](this, evidence)
 
+  /** Returns a new event stream that emits an event when this event stream unreacts.
+   *
+   *  After the current event stream unreacts, the result event stream first emits an
+   *  event of type `Unit`, and then unreacts itself.
+   *
+   *  Exceptions from this event stream are propagated until the resulting event stream
+   *  unreacts -- after that, `this` event stream is not allowed to produce exceptions.
+   *
+   *  Shown on the diagram:
+   *
+   *  {{{
+   *  time            ------------------->
+   *  this            --1--2-----3-|----->
+   *  currentEvent    -------------()-|-->
+   *  }}}
+   *
+   *  @return           the unreaction event stream and subscription
+   */
+  def unreacted(implicit ds: Spec[T]): Events[Unit] = new Events.Unreacted(this)
+
 }
 
 
@@ -1458,6 +1478,32 @@ object Events {
     def unreact() {
       muxObserver.currentSubscription = Subscription.empty
       muxObserver.checkUnreact()
+    }
+  }
+
+  private[reactors] class Unreacted[@spec(Int, Long, Double) T](
+    val self: Events[T]
+  ) extends Events[Unit] {
+    def newUnreactedObserver(obs: Observer[Unit]): UnreactedObserver[T] =
+      new UnreactedObserver[T](obs)
+    def onReaction(observer: Observer[Unit]): Subscription = {
+      val obs = newUnreactedObserver(observer)
+      val sub = self.onReaction(obs)
+      obs.subscription = sub
+      sub
+    }
+  }
+
+  private[reactors] class UnreactedObserver[@spec(Int, Long, Double) T](
+    val target: Observer[Unit]
+  ) extends Observer[T] {
+    var subscription = Subscription.empty
+    def react(value: T) = {}
+    def except(t: Throwable) = target.except(t)
+    def unreact() {
+      target.react(())
+      target.unreact()
+      subscription.unsubscribe()
     }
   }
 

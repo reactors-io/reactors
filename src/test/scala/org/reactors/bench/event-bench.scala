@@ -81,7 +81,7 @@ class EventBoxingBench extends Bench.Forked[Long] {
   }
 
   measure method "Emitter.<combinators>" config (
-    reports.validation.predicate -> { (n: Any) => n == 47 }
+    reports.validation.predicate -> { (n: Any) => n == 49 }
   ) in {
     using(Gen.single("numEvents")(10000)) in { numEvents =>
       val emitter = new Events.Emitter[Int]
@@ -148,6 +148,10 @@ class EventBoxingBench extends Bench.Forked[Long] {
       val muxEmitter = new Events.Emitter[Events.Emitter[Int]]
       muxEmitter.mux.onEvent(sum += _)
       muxEmitter.react(emitter)
+
+      // unreacted
+      var unreactCount = 0
+      emitter.unreacted.onDone(unreactCount += 1)
 
       var i = 0
       while (i < numEvents) {

@@ -592,6 +592,17 @@ class EventsSpec extends FunSuite {
     assert(sum == 78)
   }
 
+  test("unreacted") {
+    var count = 0
+    val emitter = new Events.Emitter[Int]
+    emitter.unreacted.on(count += 1)
+
+    emitter.react(5)
+    assert(count == 0)
+    emitter.unreact()
+    assert(count == 1)
+  }
+
 }
 
 
