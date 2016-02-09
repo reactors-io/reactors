@@ -561,6 +561,37 @@ class EventsSpec extends FunSuite {
     assert(buffer == Seq("three", "nil"))
   }
 
+  test("mux") {
+    var sum = 0
+    val emitter = new Events.Emitter[Events[Int]]
+    emitter.mux.onEvent(sum += _)
+
+    val e1 = new Events.Emitter[Int]
+    val e2 = new Events.Emitter[Int]
+    e1.react(3)
+    e2.react(5)
+    assert(sum == 0)
+
+    emitter.react(e1)
+    e1.react(7)
+    e2.react(11)
+    assert(sum == 7)
+
+    emitter.react(e2)
+    e1.react(17)
+    e2.react(19)
+    assert(sum == 26)
+
+    e2.unreact()
+    emitter.react(e1)
+    e1.react(23)
+    assert(sum == 49)
+
+    emitter.unreact()
+    e1.react(29)
+    assert(sum == 78)
+  }
+
 }
 
 

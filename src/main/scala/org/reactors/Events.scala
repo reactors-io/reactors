@@ -133,7 +133,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  @param observer    the callback invoked when an event arrives
    *  @return            a subscription for unsubscribing from reactions
    */
-  def on(observer: =>Unit)(implicit dummy: Dummy[T]): Subscription = {
+  def on(observer: =>Unit)(implicit dummy: Spec[T]): Subscription = {
     onReaction(new Events.On[T](() => observer))
   }
 
@@ -142,7 +142,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  @param observer    the callback invoked when `this` unreacts
    *  @return            a subscription for the unreaction notification
    */
-  def onDone(observer: =>Unit)(implicit dummy: Dummy[T]): Subscription = {
+  def onDone(observer: =>Unit)(implicit dummy: Spec[T]): Subscription = {
     onReaction(new Events.OnDone[T](() => observer))
   }
 
@@ -266,7 +266,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  @return           a subscription and an event stream that emits the total number
    *                    of events emitted since `card` was called
    */
-  def count(implicit dummy: Dummy[T]): Events[Int] = new Events.Count[T](this)
+  def count(implicit dummy: Spec[T]): Events[Int] = new Events.Count[T](this)
 
   /** Mutates the target mutable event stream called `mutable` each time `this`
    *  event stream produces an event.
@@ -363,7 +363,7 @@ trait Events[@spec(Int, Long, Double) T] {
    */
   def mutate[M1 >: Null <: AnyRef, M2 >: Null <: AnyRef, M3 >: Null <: AnyRef](
     m1: Events.Mutable[M1], m2: Events.Mutable[M2], m3: Events.Mutable[M3]
-  )(f: (M1, M2, M3) => T => Unit)(implicit dummy: Dummy[T]): Subscription =
+  )(f: (M1, M2, M3) => T => Unit)(implicit dummy: Spec[T]): Subscription =
     onReaction(new Events.Mutate3Observer(m1, m2, m3, f))
 
   /** Creates a new event stream that produces events from `this` event stream only
@@ -502,6 +502,59 @@ trait Events[@spec(Int, Long, Double) T] {
    *  @return           a subscription and event stream value with the forwarded events
    */
   def dropWhile(p: T => Boolean): Events[T] = new Events.DropWhile(this, p)
+
+  /** Returns events from the last event stream that `this` emitted as an
+   *  event of its own, in effect multiplexing the nested reactives.
+   *
+   *  The resulting event stream only emits events from the event stream last
+   *  emitted by `this`, the preceding event streams are ignored.
+   *
+   *  This combinator is only available if this event stream emits events
+   *  that are themselves event streams.
+   *
+   *  Example:
+   *
+   *  {{{
+   *  val currentEvents = new Events.Emitter[Events[Int]]
+   *  val e1 = new Events.Emitter[Int]
+   *  val e2 = new Events.Emitter[Int]
+   *  val currentEvent = currentEvents.mux()
+   *  val prints = currentEvent.onEvent(println) 
+   *  
+   *  currentEvents.react(e1)
+   *  e2.react(1) // nothing is printed
+   *  e1.react(2) // 2 is printed
+   *  currentEvents.react(e2)
+   *  e2.react(6) // 6 is printed
+   *  e1.react(7) // nothing is printed
+   *  }}}
+   *
+   *  Shown on the diagram:
+   *
+   *  {{{
+   *  time            ------------------->
+   *  currentEvents   --e1------e2------->
+   *  e1              --------2----6----->
+   *  e2              -----1----------7-->
+   *  currentEvent    --------2----6----->
+   *  }}}
+   *
+   *  '''Use case:'''
+   *
+   *  {{{
+   *  def mux[S](): Events[S]
+   *  }}}
+   *
+   *  @tparam S          the type of the events in the nested event stream
+   *  @param evidence    an implicit evidence that `this` event stream is nested -- it
+   *                     emits events of type `T` that is actually an `Events[S]`
+   *  @return            event stream of events from the event stream last emitted by
+   *                     `this`
+   */
+  def mux[@spec(Int, Long, Double) S](
+    implicit evidence: T <:< Events[S], ds: Spec[S]
+  ): Events[S] =
+    new Events.Mux[T, S](this, evidence)
 
 }
 
@@ -1353,6 +1406,59 @@ object Events {
     }
     def except(t: Throwable) = target.except(t)
     def unreact() = target.unreact()
+  }
+
+  private[reactors] class Mux[T, @spec(Int, Long, Double) S: Spec](
+    val self: Events[T],
+    val evid: T <:< Events[S]
+  ) extends Events[S] {
+    def onReaction(observer: Observer[S]): Subscription =
+      self.onReaction(new MuxObserver(observer, evid))
+  }
+
+  private[reactors] class MuxObserver[T, @spec(Int, Long, Double) S: Spec](
+    val target: Observer[S],
+    val evidence: T <:< Events[S]
+  ) extends Observer[T] {
+    private[reactors] var currentSubscription: Subscription = _
+    private[reactors] var terminated = false
+    def init(e: T <:< Events[S]) {
+      currentSubscription = Subscription.empty
+    }
+    init(evidence)
+    def checkUnreact() =
+      if (terminated && currentSubscription == Subscription.empty) target.unreact()
+    def newMuxNestedObserver: Observer[S] = new MuxNestedObserver(target, this)
+    def react(value: T): Unit = if (!terminated) {
+      val nextEvents = try {
+        evidence(value)
+      } catch {
+        case t if isNonLethal(t) =>
+          target.except(t)
+          return
+      }
+      currentSubscription.unsubscribe()
+      currentSubscription = nextEvents.onReaction(newMuxNestedObserver)
+    }
+    def except(t: Throwable) = if (!terminated) {
+      target.except(t)
+    }
+    def unreact() = if (!terminated) {
+      terminated = true
+      checkUnreact()
+    }
+  }
+
+  private[reactors] class MuxNestedObserver[T, @spec(Int, Long, Double) S: Spec](
+    val target: Observer[S],
+    val muxObserver: MuxObserver[T, S]
+  ) extends Observer[S] {
+    def react(value: S) = target.react(value)
+    def except(t: Throwable) = target.except(t)
+    def unreact() {
+      muxObserver.currentSubscription = Subscription.empty
+      muxObserver.checkUnreact()
+    }
   }
 
 }
