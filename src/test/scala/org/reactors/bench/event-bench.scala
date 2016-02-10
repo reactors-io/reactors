@@ -11,7 +11,7 @@ import org.scalameter.picklers.noPickler._
 class EventBoxingBench extends Bench.Forked[Long] {
   override def defaultConfig: Context = Context(
     exec.independentSamples -> 1,
-    verbose -> true
+    verbose -> false
   )
 
   def measurer: Measurer[Long] =

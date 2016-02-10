@@ -603,6 +603,13 @@ class EventsSpec extends FunSuite {
     assert(count == 1)
   }
 
+  test("unreacted unsubscribes early") {
+    val emitter = new TestEmitter[Int]
+    emitter.unreacted.on({})
+    emitter.unreact()
+    assert(emitter.unsubscriptionCount == 1)
+  }
+
 }
 
 
