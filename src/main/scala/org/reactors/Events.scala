@@ -3,6 +3,7 @@ package org.reactors
 
 
 import org.reactors.common._
+import scala.runtime.IntRef
 
 
 
@@ -587,6 +588,35 @@ trait Events[@spec(Int, Long, Double) T] {
    *                   events from `this` and `that`
    */
   def union(that: Events[T]): Events[T] = new Events.Union(this, that)
+  
+  /** Creates a concatenation of `this` and `that` event stream.
+   *
+   *  The resulting event stream produces all the events from `this`
+   *  event stream until `this` unreacts, and then outputs all the events from
+   *  `that` that happened before and after `this` unreacted.
+   *  To do this, this operation potentially caches all the events from
+   *  `that`.
+   *  When `that` unreacts, the resulting event stream unreacts.
+   *
+   *  '''Use case:'''
+   *
+   *  {{{
+   *  def concat(that: Events[T]): Events[T]
+   *  }}}
+   *
+   *  @param that      another event stream for the concatenation
+   *  @note This operation potentially caches events from `that`.
+   *  Unless certain that `this` eventually unreacts, `concat` should not be
+   *  used.
+   *  To enforce this, clients must import the `CanBeBuffered` evidence
+   *  explicitly into the scope in which they call `concat`.
+   *  
+   *  @param a         evidence that arrays can be created for the type `T`
+   *  @return          a subscription and event stream that concatenates
+   *                   events from `this` and `that`
+   */
+  def concat(that: Events[T])(implicit a: Arrayable[T]): Events[T] =
+    new Events.Concat(this, that)
 
 }
 
@@ -1524,18 +1554,74 @@ object Events {
     val that: Events[T]
   ) extends Events[T] {
     def onReaction(observer: Observer[T]): Subscription = {
+      val count = new IntRef(0)
       new Subscription.Composite(
-        self.onReaction(new UnionObserver(observer)),
-        that.onReaction(new UnionObserver(observer)))
+        self.onReaction(new UnionObserver(observer, count)),
+        that.onReaction(new UnionObserver(observer, count)))
     }
   }
 
   private[reactors] class UnionObserver[@spec(Int, Long, Double) T](
-    val target: Observer[T]
+    val target: Observer[T],
+    val count: IntRef
   ) extends Observer[T] {
     def react(value: T) = target.react(value)
     def except(t: Throwable) = target.except(t)
-    def unreact() = target.unreact()
+    def unreact() = {
+      count.elem += 1
+      if (count.elem == 2) target.unreact()
+    }
+  }
+
+  private[reactors] class Concat[@spec(Int, Long, Double) T](
+    val self: Events[T],
+    val that: Events[T]
+  )(implicit val a: Arrayable[T]) extends Events[T] {
+    def onReaction(obs: Observer[T]): Subscription = {
+      val thatObserver = new ConcatThatObserver(obs, new UnrolledBuffer[T])
+      val thisObserver = new ConcatObserver(obs, thatObserver)
+      new Subscription.Composite(
+        self.onReaction(thisObserver),
+        that.onReaction(thatObserver))
+    }
+  }
+
+  private[reactors] class ConcatObserver[@spec(Int, Long, Double) T](
+    val target: Observer[T],
+    val thatObserver: ConcatThatObserver[T]
+  ) extends Observer[T] {
+    def react(value: T) = target.react(value)
+    def except(t: Throwable) = target.except(t)
+    def unload(dummy: Observer[T]) {
+      while (thatObserver.buffer.nonEmpty) {
+        target.react(thatObserver.buffer.dequeue())
+      }
+    }
+    def unreact() = {
+      thatObserver.selfObserverDone = true
+      unload(this)
+      thatObserver.tryUnreact()
+    }
+  }
+
+  private[reactors] class ConcatThatObserver[@spec(Int, Long, Double) T](
+    val target: Observer[T],
+    val buffer: UnrolledBuffer[T]
+  ) extends Observer[T] {
+    private[reactors] var selfObserverDone = false
+    private[reactors] var thatObserverDone = false
+    def react(value: T) = {
+      if (selfObserverDone) target.react(value)
+      else buffer.enqueue(value)
+    }
+    def except(t: Throwable) = target.except(t)
+    def unreact() = {
+      thatObserverDone = true
+      tryUnreact()
+    }
+    def tryUnreact() = if (selfObserverDone && thatObserverDone) {
+      target.unreact()
+    }
   }
 
 }

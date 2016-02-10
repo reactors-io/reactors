@@ -10,6 +10,8 @@ import org.scalameter.picklers.noPickler._
 
 class EventBoxingBench extends Bench.Forked[Long] {
   override def defaultConfig: Context = Context(
+    exec.minWarmupRuns -> 2,
+    exec.maxWarmupRuns -> 5,
     exec.independentSamples -> 1,
     verbose -> false
   )
@@ -81,7 +83,7 @@ class EventBoxingBench extends Bench.Forked[Long] {
   }
 
   measure method "Emitter.<combinators>" config (
-    reports.validation.predicate -> { (n: Any) => n == 49 }
+    reports.validation.predicate -> { (n: Any) => n == 53 }
   ) in {
     using(Gen.single("numEvents")(10000)) in { numEvents =>
       val emitter = new Events.Emitter[Int]
@@ -152,6 +154,14 @@ class EventBoxingBench extends Bench.Forked[Long] {
       // unreacted
       var unreactCount = 0
       emitter.unreacted.onDone(unreactCount += 1)
+
+      // union
+      var unionCount = 0
+      emitter.union(emitter).on(unionCount += 1)
+
+      // concat
+      var concatCount = 0
+      emitter.concat(emitter).on(concatCount += 1)
 
       var i = 0
       while (i < numEvents) {

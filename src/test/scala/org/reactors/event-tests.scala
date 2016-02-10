@@ -630,7 +630,31 @@ class EventsSpec extends FunSuite {
     assert(buffer == Seq("bam", "boom", "dam", "van dam"))
     assert(!done)
     e1.unreact()
-    //assert(done)
+    assert(done)
+  }
+
+  test("concat") {
+    var done = false
+    val buffer = mutable.Buffer[Int]()
+    val e0 = new Events.Emitter[Int]
+    val e1 = new Events.Emitter[Int]
+    val concat = e0 concat e1
+    concat.onEvent(buffer += _)
+    concat.onDone(done = true)
+
+    e0.react(3)
+    assert(buffer == Seq(3))
+    e1.react(7)
+    assert(buffer == Seq(3))
+    e0.react(5)
+    assert(buffer == Seq(3, 5))
+    e0.unreact()
+    assert(buffer == Seq(3, 5, 7))
+    e1.react(11)
+    assert(buffer == Seq(3, 5, 7, 11))
+    assert(!done)
+    e1.unreact()
+    assert(done)
   }
 
 }
