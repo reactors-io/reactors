@@ -576,6 +576,18 @@ trait Events[@spec(Int, Long, Double) T] {
    */
   def unreacted(implicit ds: Spec[T]): Events[Unit] = new Events.Unreacted(this)
 
+  /** Creates a union of `this` and `that` event stream.
+   *  
+   *  The resulting event stream emits events from both `this` and `that`
+   *  event stream.
+   *  It unreacts when both `this` and `that` event stream unreact.
+   *
+   *  @param that      another event stream for the union
+   *  @return          a subscription and the event stream with unified
+   *                   events from `this` and `that`
+   */
+  def union(that: Events[T]): Events[T] = new Events.Union(this, that)
+
 }
 
 
@@ -1505,6 +1517,25 @@ object Events {
       target.unreact()
       subscription.unsubscribe()
     }
+  }
+
+  private[reactors] class Union[@spec(Int, Long, Double) T](
+    val self: Events[T],
+    val that: Events[T]
+  ) extends Events[T] {
+    def onReaction(observer: Observer[T]): Subscription = {
+      new Subscription.Composite(
+        self.onReaction(new UnionObserver(observer)),
+        that.onReaction(new UnionObserver(observer)))
+    }
+  }
+
+  private[reactors] class UnionObserver[@spec(Int, Long, Double) T](
+    val target: Observer[T]
+  ) extends Observer[T] {
+    def react(value: T) = target.react(value)
+    def except(t: Throwable) = target.except(t)
+    def unreact() = target.unreact()
   }
 
 }

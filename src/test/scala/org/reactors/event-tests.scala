@@ -610,6 +610,29 @@ class EventsSpec extends FunSuite {
     assert(emitter.unsubscriptionCount == 1)
   }
 
+  test("union") {
+    var done = false
+    val buffer = mutable.Buffer[String]()
+    val e0 = new Events.Emitter[String]
+    val e1 = new Events.Emitter[String]
+    val union = e0 union e1
+    union.onEvent(buffer += _)
+    union.onDone(done = true)
+
+    e0.react("bam")
+    assert(buffer == Seq("bam"))
+    e1.react("boom")
+    assert(buffer == Seq("bam", "boom"))
+    e0.react("dam")
+    assert(buffer == Seq("bam", "boom", "dam"))
+    e0.unreact()
+    e1.react("van dam")
+    assert(buffer == Seq("bam", "boom", "dam", "van dam"))
+    assert(!done)
+    e1.unreact()
+    //assert(done)
+  }
+
 }
 
 
