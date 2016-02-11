@@ -641,19 +641,45 @@ trait Events[@spec(Int, Long, Double) T] {
    *  def concat(that: Events[T]): Events[T]
    *  }}}
    *
-   *  @param that      another event stream for the concatenation
-   *  @note This operation potentially caches events from `that`.
-   *  Unless certain that `this` eventually unreacts, `concat` should not be
-   *  used.
-   *  To enforce this, clients must import the `CanBeBuffered` evidence
-   *  explicitly into the scope in which they call `concat`.
+   *  '''Note:''' This operation potentially caches events from `that`.
+   *  Unless certain that `this` eventually unreacts, `concat` should not be used.
    *  
+   *  @param that      another event stream for the concatenation
    *  @param a         evidence that arrays can be created for the type `T`
    *  @return          a subscription and event stream that concatenates
    *                   events from `this` and `that`
    */
   def concat(that: Events[T])(implicit a: Arrayable[T]): Events[T] =
     new Events.Concat(this, that)
+
+  /** Concatenates the events produced by all the event streams emitted by `this`.
+   *
+   *  This operation is only available for event stream values that emit
+   *  other event streams as events.
+   *  Once `this` and all the event streams unreact, this event stream unreacts.
+   *
+   *  '''Use case:'''
+   *
+   *  {{{
+   *  def concat[S](): Events[S]
+   *  }}}
+   *
+   *  '''Note:''' This operation potentially buffers events from the nested
+   *  event streams.
+   *  Unless each event stream emitted by `this` is known to unreact eventually,
+   *  this operation should not be called.
+   *  
+   *  @tparam S         the type of the events in event streams emitted by `this`
+   *  @param evidence   evidence that events of type `T` produced by `this`
+   *                    are actually event stream values of type `S`
+   *  @param a          evidence that arrays can be created for type `S`
+   *  @return           a subscription and the event stream that concatenates all
+   *                    the events
+   */
+  def concat[@spec(Int, Long, Double) S](
+    implicit evidence: T <:< Events[S], a: Arrayable[S]
+  ): Events[S] =
+    new Events.PostfixConcat[T, S](this, evidence, a)
 
   /** Syncs the arrival of events from `this` and `that` event stream.
    *  
@@ -695,12 +721,10 @@ trait Events[@spec(Int, Long, Double) T] {
    *  def sync[S, R](that: Events[S])(f: (T, S) => R): Events[R]
    *  }}}
    *
-   *  @note This operation potentially caches events from `this` and `that`.
+   *  '''Note:''' This operation potentially caches events from `this` and `that`.
    *  Unless certain that both `this` produces a bounded number of events
    *  before the `that` produces an event, and vice versa, this operation
    *  should not be called.
-   *  To enforce this, clients must import the `CanBeBuffered` evidence
-   *  explicitly into the scope in which they call `sync`.
    *
    *  @tparam S         the type of the events in `that` event stream
    *  @tparam R         the type of the events in the resulting event stream
@@ -1021,6 +1045,18 @@ object Events {
    */
   class Mutable[M >: Null <: AnyRef](private[reactors] val content: M)
   extends Default[M] with Events[M]
+
+  /** A base trait for event streams that never emit events.
+   *
+   *  @tparam T         type of events never emitted by this event stream
+   */
+  class Never[@spec(Int, Long, Double) T]
+  extends Events[T] {
+    def onReaction(obs: Observer[T]) = {
+      obs.unreact()
+      Subscription.empty
+    }
+  }
 
   private[reactors] class MutateObserver[
     @spec(Int, Long, Double) T, M >: Null <: AnyRef
@@ -1877,6 +1913,93 @@ object Events {
     def unreact() {
       subscription.unsubscribe()
       unionObserver.checkUnreact()
+    }
+  }
+
+  private[reactors] class PostfixConcat[T, @spec(Int, Long, Double) S: Spec](
+    val self: Events[T],
+    val evid: T <:< Events[S],
+    val a: Arrayable[S]
+  ) extends Events[S] {
+    def onReaction(observer: Observer[S]): Subscription = {
+      val postfixObserver = new PostfixConcatObserver(observer, evid, a)
+      val sub = self.onReaction(postfixObserver)
+      postfixObserver.subscription = postfixObserver.subscriptions.addAndGet(sub)
+      postfixObserver.subscriptions
+    }
+  }
+
+  private[reactors] class PostfixConcatObserver[T, @spec(Int, Long, Double) S: Spec](
+    val target: Observer[S],
+    val evidence: T <:< Events[S],
+    val a: Arrayable[S]
+  ) extends Observer[T] {
+    private[reactors] var terminated: Boolean = _
+    private[reactors] var subscription: Subscription = _
+    private[reactors] var subscriptions: Subscription.Collection = _
+    private[reactors] var queue: UnrolledRing[PostfixConcatNestedObserver[T, S]] = _
+    def init(obs: Observer[S]) {
+      terminated = false
+      subscriptions = new Subscription.Collection
+      queue = new UnrolledRing[PostfixConcatNestedObserver[T, S]]
+    }
+    init(target)
+    def checkUnreact() =
+      if (subscriptions.isEmpty) target.unreact()
+    def newPostfixConcatNestedObserver: PostfixConcatNestedObserver[T, S] = {
+      val obs = new PostfixConcatNestedObserver(
+        target, this, new UnrolledBuffer[S]()(a))
+      queue.enqueue(obs)
+      obs
+    }
+    def react(value: T): Unit = if (!terminated) {
+      val moreEvents = try {
+        evidence(value)
+      } catch {
+        case t if isNonLethal(t) =>
+          target.except(t)
+          return
+      }
+      val obs = newPostfixConcatNestedObserver
+      val sub = subscriptions.addAndGet(moreEvents.onReaction(obs))
+      obs.subscription = sub
+    }
+    def except(t: Throwable) = if (!terminated) {
+      target.except(t)
+    }
+    def unreact() = {
+      terminated = true
+      subscription.unsubscribe()
+      checkUnreact()
+    }
+  }
+
+  private[reactors] class PostfixConcatNestedObserver[
+    T, @spec(Int, Long, Double) S: Spec
+  ](
+    val target: Observer[S],
+    val concatObserver: PostfixConcatObserver[T, S],
+    val buffer: UnrolledBuffer[S]
+  ) extends Observer[S] {
+    var subscription: Subscription = _
+    var terminated: Boolean = false
+    def react(value: S) = if (!terminated) {
+      if (concatObserver.queue.head eq this) target.react(value)
+      else buffer.enqueue(value)
+    }
+    def except(t: Throwable) = if (!terminated) target.except(t)
+    def unreact() = if (!terminated) {
+      terminated = true
+      subscription.unsubscribe()
+      // remove all terminated observers from queue and flush their events
+      while (concatObserver.queue.nonEmpty && concatObserver.queue.head.terminated) {
+        val obs = concatObserver.queue.dequeue()
+        while (obs.buffer.nonEmpty) target.react(obs.buffer.dequeue())
+      }
+      // flush the events in the head
+      while (concatObserver.queue.nonEmpty && concatObserver.queue.head.buffer.nonEmpty)
+        target.react(concatObserver.queue.head.buffer.dequeue())
+      concatObserver.checkUnreact()
     }
   }
 

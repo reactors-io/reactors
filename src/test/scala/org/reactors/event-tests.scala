@@ -709,6 +709,46 @@ class EventsSpec extends FunSuite {
     assert(done)
   }
 
+  test("postfix concat") {
+    var done = false
+    val buffer = mutable.Buffer[Int]()
+    val emitter = new Events.Emitter[Events.Emitter[Int]]
+    val e0 = new Events.Emitter[Int]
+    val es = for (i <- 0 until 5) yield new Events.Emitter[Int]
+    val e6 = new Events.Emitter[Int]
+    val concat = emitter.concat
+    concat.onEvent(buffer += _)
+    concat.onDone(done = true)
+
+    emitter.react(e0)
+    assert(!done)
+    for (e <- e0 +: es) e.react(7)
+    assert(buffer == Seq(7))
+    for (e <- es) emitter.react(e)
+    emitter.react(e6)
+    for (e <- es) e.react(11)
+    assert(buffer == Seq(7))
+    e0.react(11)
+    assert(buffer == Seq(7, 11))
+    e6.react(17)
+    assert(buffer == Seq(7, 11))
+    assert(!done)
+    e0.unreact()
+    assert(!done)
+    assert(buffer == Seq(7, 11, 11))
+    for (e <- es) e.react(19)
+    es.head.unreact()
+    assert(buffer == Seq(7, 11, 11, 19, 11, 19))
+    for (e <- es) e.unreact()
+    assert(buffer == Seq(7, 11, 11, 19, 11, 19, 11, 19, 11, 19, 11, 19, 17))
+    emitter.unreact()
+    assert(!done)
+    e6.react(23)
+    assert(buffer == Seq(7, 11, 11, 19, 11, 19, 11, 19, 11, 19, 11, 19, 17, 23))
+    e6.unreact()
+    assert(done)
+  }
+
 }
 
 
