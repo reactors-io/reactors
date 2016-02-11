@@ -83,7 +83,7 @@ class EventBoxingBench extends Bench.Forked[Long] {
   }
 
   measure method "Emitter.<combinators>" config (
-    reports.validation.predicate -> { (n: Any) => n == 53 }
+    reports.validation.predicate -> { (n: Any) => n == 54 }
   ) in {
     using(Gen.single("numEvents")(10000)) in { numEvents =>
       val emitter = new Events.Emitter[Int]
@@ -163,10 +163,16 @@ class EventBoxingBench extends Bench.Forked[Long] {
       var concatCount = 0
       emitter.concat(emitter).on(concatCount += 1)
 
+      // sync
+      var syncCount = 0
+      val syncEmitter = new Events.Emitter[Int]
+      emitter.sync(syncEmitter)(_ + _).on(syncCount += 1)
+
       var i = 0
       while (i < numEvents) {
         assert(filterCount == i / 2)
         emitter.react(i)
+        if (i % 2 == 0) syncEmitter.react(i)
         assert(count() == i + 1)
         assert(Cell.x == i)
         assert(onceCount == 2)

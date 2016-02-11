@@ -618,6 +618,67 @@ trait Events[@spec(Int, Long, Double) T] {
   def concat(that: Events[T])(implicit a: Arrayable[T]): Events[T] =
     new Events.Concat(this, that)
 
+  /** Syncs the arrival of events from `this` and `that` event stream.
+   *  
+   *  Ensures that pairs of events from this event stream and that event stream
+   *  are emitted together.
+   *  If the events produced in time by `this` and `that`, the sync will be as
+   *  follows:
+   *
+   *  {{{
+   *  time   --------------------------->
+   *  this   ----1---------2-------4---->
+   *  that   --1-----2--3--------------->
+   *  sync   ----1,1-------2,2-----4,3-->
+   *  }}}
+   *
+   *  Pairs of events produced from `this` and `that` are then transformed
+   *  using specified function `f`.
+   *  For example, clients that want to output tuples do:
+   *
+   *  {{{
+   *  val synced = (a sync b) { (a, b) => (a, b) }
+   *  }}}
+   *
+   *  Clients that, for example, want to create differences in pairs of events
+   *  do:
+   *
+   *  {{{
+   *  val diffs = (a sync b)(_ - _)
+   *  }}}
+   *
+   *  The resulting event stream unreacts either when
+   *  `this` unreacts and there are no more buffered events from this,
+   *  or when `that` unreacts and there are no more buffered events from
+   *  `that`.
+   *
+   *  '''Use case:'''
+   *
+   *  {{{
+   *  def sync[S, R](that: Events[S])(f: (T, S) => R): Events[R]
+   *  }}}
+   *
+   *  @note This operation potentially caches events from `this` and `that`.
+   *  Unless certain that both `this` produces a bounded number of events
+   *  before the `that` produces an event, and vice versa, this operation
+   *  should not be called.
+   *  To enforce this, clients must import the `CanBeBuffered` evidence
+   *  explicitly into the scope in which they call `sync`.
+   *
+   *  @tparam S         the type of the events in `that` event stream
+   *  @tparam R         the type of the events in the resulting event stream
+   *  @param that       the event stream to sync with
+   *  @param f          the mapping function for the pair of events
+   *  @param at         evidence that arrays can be created for the type `T`
+   *  @param as         evidence that arrays can be created for the type `S`
+   *  @return           a subscription and the event stream with the resulting
+   *                    events
+   */
+  def sync[@spec(Int, Long, Double) S, @spec(Int, Long, Double) R](that: Events[S])(
+    f: (T, S) => R
+  )(implicit at: Arrayable[T], as: Arrayable[S]): Events[R] =
+    new Events.Sync[T, S, R](this, that, f)
+
 }
 
 
@@ -1197,7 +1258,7 @@ object Events {
     def started_=(v: Boolean) = rawStarted = v
     def live = rawLive
     def live_=(v: Boolean) = rawLive = v
-    def unreactBoth() = if (live) {
+    def tryUnreact() = if (live) {
       live = false
       target.unreact()
     }
@@ -1207,7 +1268,7 @@ object Events {
     def except(t: Throwable) {
       target.except(t)
     }
-    def unreact() = unreactBoth()
+    def unreact() = tryUnreact()
   }
 
   private[reactors] class AfterThatObserver[
@@ -1224,7 +1285,7 @@ object Events {
     def except(t: Throwable) {
       if (!afterObserver.started) afterObserver.target.except(t)
     }
-    def unreact() = if (!afterObserver.started) afterObserver.unreactBoth()
+    def unreact() = if (!afterObserver.started) afterObserver.tryUnreact()
   }
 
   private[reactors] class Until[
@@ -1257,7 +1318,7 @@ object Events {
     var subscription = Subscription.empty
     def live = rawLive
     def live_=(v: Boolean) = rawLive = v
-    def unreactBoth() = if (live) {
+    def tryUnreact() = if (live) {
       live = false
       subscription.unsubscribe()
       target.unreact()
@@ -1268,14 +1329,14 @@ object Events {
     def except(t: Throwable) {
       if (live) target.except(t)
     }
-    def unreact() = unreactBoth()
+    def unreact() = tryUnreact()
   }
 
   private[reactors] class UntilThatObserver[
     @spec(Int, Long, Double) T,
     @spec(Int, Long, Double) S
   ](val untilObserver: UntilObserver[T, S]) extends Observer[S] {
-    def react(value: S) = untilObserver.unreactBoth()
+    def react(value: S) = untilObserver.tryUnreact()
     def except(t: Throwable) {
       if (untilObserver.live) untilObserver.target.except(t)
     }
@@ -1622,6 +1683,99 @@ object Events {
     def tryUnreact() = if (selfObserverDone && thatObserverDone) {
       target.unreact()
     }
+  }
+
+  private[reactors] class Sync[
+    @spec(Int, Long, Double) T,
+    @spec(Int, Long, Double) S,
+    @spec(Int, Long, Double) R
+  ](
+    val self: Events[T],
+    val that: Events[S],
+    val f: (T, S) => R
+  )(
+    implicit val at: Arrayable[T],
+    implicit val as: Arrayable[S]
+  ) extends Events[R] {
+    def newSyncThisObserver(state: SyncState[T, S, R], obs: Observer[R]) =
+      new SyncThisObserver(obs, state, f)
+    def newSyncThatObserver(state: SyncState[T, S, R], obs: Observer[R]) =
+      new SyncThatObserver(obs, state, f)
+    def onReaction(obs: Observer[R]) = {
+      val state = new SyncState[T, S, R](new UnrolledRing[T], new UnrolledRing[S])
+      new Subscription.Composite(
+        self.onReaction(newSyncThisObserver(state, obs)),
+        that.onReaction(newSyncThatObserver(state, obs))
+      )
+    }
+  }
+
+  private[reactors] class SyncState[
+    @spec(Int, Long, Double) T,
+    @spec(Int, Long, Double) S,
+    @spec(Int, Long, Double) R
+  ](val tbuffer: UnrolledRing[T], val sbuffer: UnrolledRing[S]) {
+    var thisSub = Subscription.empty
+    var thatSub = Subscription.empty
+    var live = true
+    def unreactBoth(target: Observer[R]) = if (live) {
+      tbuffer.clear()
+      sbuffer.clear()
+      thisSub.unsubscribe()
+      thatSub.unsubscribe()
+      live = false
+      target.unreact()
+    }
+  }
+
+  private[reactors] class SyncThisObserver[
+    @spec(Int, Long, Double) T,
+    @spec(Int, Long, Double) S,
+    @spec(Int, Long, Double) R
+  ](
+    val target: Observer[R], val state: SyncState[T, S, R], val f: (T, S) => R
+  ) extends Observer[T] {
+    def react(tvalue: T) {
+      if (state.sbuffer.isEmpty) state.tbuffer.enqueue(tvalue)
+      else {
+        val svalue = state.sbuffer.dequeue()
+        val event = try {
+          f(tvalue, svalue)
+        } catch {
+          case t if isNonLethal(t) =>
+            target.except(t)
+            return
+        }
+        target.react(event)
+      }
+    }
+    def except(t: Throwable) = target.except(t)
+    def unreact() = state.unreactBoth(target)
+  }
+
+  private[reactors] class SyncThatObserver[
+    @spec(Int, Long, Double) T,
+    @spec(Int, Long, Double) S,
+    @spec(Int, Long, Double) R
+  ](
+    val target: Observer[R], val state: SyncState[T, S, R], f: (T, S) => R
+  ) extends Observer[S] {
+    def react(svalue: S) {
+      if (state.tbuffer.isEmpty) state.sbuffer.enqueue(svalue)
+      else {
+        val tvalue = state.tbuffer.dequeue()
+        val event = try {
+          f(tvalue, svalue)
+        } catch {
+          case t if isNonLethal(t) =>
+            target.except(t)
+            return
+        }
+        target.react(event)
+      }
+    }
+    def except(t: Throwable) = target.except(t)
+    def unreact() = state.unreactBoth(target)
   }
 
 }

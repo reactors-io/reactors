@@ -657,6 +657,30 @@ class EventsSpec extends FunSuite {
     assert(done)
   }
 
+  test("sync") {
+    var done = false
+    val buffer = mutable.Buffer[Int]()
+    val e0 = new Events.Emitter[Int]
+    val e1 = new Events.Emitter[Int]
+    val sync = (e0 sync e1)(_ + _)
+    sync.onEvent(buffer += _)
+    sync.onDone(done = true)
+
+    e0.react(3)
+    assert(buffer == Seq())
+    e1.react(5)
+    assert(buffer == Seq(8))
+    e1.react(7)
+    e1.react(11)
+    assert(buffer == Seq(8))
+    e0.react(19)
+    assert(buffer == Seq(8, 26))
+    assert(!done)
+    e1.unreact()
+    assert(buffer == Seq(8, 26))
+    assert(done)
+  }
+
 }
 
 

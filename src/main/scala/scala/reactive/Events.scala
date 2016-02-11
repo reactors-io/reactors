@@ -1025,7 +1025,7 @@ object Events {
         rc.selfSubscription, rc.thatSubscription)
       rc
     }
-  
+
     /** Syncs the arrival of events from `this` and `that` event stream.
      *  
      *  Ensures that pairs of events from this event stream and that event stream

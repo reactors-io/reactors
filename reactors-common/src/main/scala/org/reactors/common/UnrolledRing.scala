@@ -1,4 +1,4 @@
-package scala.reactive
+package org.reactors
 package common
 
 
@@ -12,11 +12,11 @@ class UnrolledRing[@specialized(Byte, Short, Int, Float, Long, Double) T](
 ) {
   import UnrolledRing._
 
-  private[reactive] var start: Node[T] = _
-  private[reactive] var end: Node[T] = _
-  private[reactive] var size: Int = _
+  private[reactors] var start: Node[T] = _
+  private[reactors] var end: Node[T] = _
+  private[reactors] var size: Int = _
 
-  private[reactive] def init(a: Arrayable[T]) {
+  private[reactors] def init(a: Arrayable[T]) {
     start = new Node(arrayable.newRawArray(INITIAL_NODE_LENGTH), 0, 0)
     start.next = start
     end = start
@@ -25,7 +25,7 @@ class UnrolledRing[@specialized(Byte, Short, Int, Float, Long, Double) T](
 
   init(arrayable)
 
-  private[reactive] final def advance() {
+  private[reactors] final def advance() {
     if (start.isEmpty && start.next.nonEmpty && start != end) {
       start = start.next
     }
