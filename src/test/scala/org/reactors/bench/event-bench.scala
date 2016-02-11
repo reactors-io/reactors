@@ -172,7 +172,7 @@ class EventBoxingBench extends Bench.Forked[Long] {
       while (i < numEvents) {
         assert(filterCount == i / 2)
         emitter.react(i)
-        if (i % 2 == 0) syncEmitter.react(i)
+        if (i % 3 == 0) syncEmitter.react(i)
         assert(count() == i + 1)
         assert(Cell.x == i)
         assert(onceCount == 2)

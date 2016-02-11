@@ -4,6 +4,7 @@ package common
 
 
 import scala.annotation.tailrec
+import scala.collection._
 
 
 
@@ -27,6 +28,7 @@ class UnrolledRing[@specialized(Byte, Short, Int, Float, Long, Double) T](
 
   private[reactors] final def advance() {
     if (start.isEmpty && start.next.nonEmpty && start != end) {
+      start.reset()
       start = start.next
     }
   }
@@ -81,6 +83,16 @@ class UnrolledRing[@specialized(Byte, Short, Int, Float, Long, Double) T](
     foreach(start)
   }
 
+  private[reactors] def nodes: Seq[Node[T]] = {
+    var curr = start
+    val buffer = mutable.Buffer[Node[T]]()
+    do {
+      buffer += curr
+      curr = curr.next
+    } while (curr != end)
+    buffer
+  }
+
   def debugString = {
     var chain = ""
     var n = start
@@ -132,7 +144,16 @@ object UnrolledRing {
         until += 1
         // TODO(axel22): This prematurely allocates without checking. Fix, and add
         // ScalaMeter tests for boxing.
-        // if (until == array.length) reserve(ring)
+        if (until == array.length) {
+          if (this.isEmpty) {
+            this.reset()
+          } else if (next.isEmpty && next.start == 0) {
+            next.reset()
+            ring.end = next
+          } else {
+            reserve(ring)
+          }
+        }
       } else if (this.isEmpty) {
         this.reset()
         this.enqueue(ring, elem)
