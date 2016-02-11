@@ -2,6 +2,7 @@ package org.reactors
 
 
 
+import scala.collection._
 
 
 
@@ -16,7 +17,7 @@ trait Subscription {
 
   /** Stops event propagation on the corresponding event stream.
    */
-  def unsubscribe(): Unit  
+  def unsubscribe(): Unit
 
 }
 
@@ -44,4 +45,35 @@ object Subscription {
       subscription.unsubscribe()
     }
   }
+
+  /** A mutable collection of subscriptions, which is itself a subscription.
+   *
+   *  When unsubscribed from, all containing subscriptions are unsubscribed.
+   *  Subsequently added subscriptions are automatically unsubscribed.
+   */
+  class Collection extends Subscription {
+    private var done = false
+    private val set = mutable.Set[Subscription]()
+    def unsubscribe() {
+      done = true
+      for (s <- set) s.unsubscribe()
+    }
+    def addAndGet(s: Subscription): Subscription = {
+      if (done) {
+        s.unsubscribe()
+        Subscription.empty
+      } else {
+        val ns = new Subscription {
+          override def unsubscribe() {
+            s.unsubscribe()
+            set -= this
+          }
+        }
+        set += ns
+        ns
+      }
+    }
+    def isEmpty: Boolean = set.isEmpty
+  }
+
 }

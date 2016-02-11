@@ -681,6 +681,34 @@ class EventsSpec extends FunSuite {
     assert(done)
   }
 
+  test("postfix union") {
+    var done = false
+    val buffer = mutable.Buffer[Int]()
+    val emitter = new Events.Emitter[Events.Emitter[Int]]
+    val e0 = new Events.Emitter[Int]
+    val es = for (i <- 0 until 5) yield new Events.Emitter[Int]
+    val union = emitter.union
+    union.onEvent(buffer += _)
+    union.onDone(done = true)
+
+    emitter.react(e0)
+    assert(!done)
+    for (e <- e0 +: es) e.react(7)
+    assert(buffer == Seq(7))
+    for (e <- es) emitter.react(e)
+    for (e <- es) e.react(11)
+    assert(buffer == Seq(7, 11, 11, 11, 11 ,11))
+    assert(!done)
+    e0.unreact()
+    assert(!done)
+    for (e <- es) e.react(17)
+    assert(buffer == Seq(7, 11, 11, 11, 11 ,11, 17, 17, 17, 17, 17))
+    emitter.unreact()
+    assert(!done)
+    for (e <- es) e.unreact()
+    assert(done)
+  }
+
 }
 
 

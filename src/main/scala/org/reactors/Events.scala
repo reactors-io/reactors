@@ -589,6 +589,43 @@ trait Events[@spec(Int, Long, Double) T] {
    */
   def union(that: Events[T]): Events[T] = new Events.Union(this, that)
   
+  /** Unifies the events produced by all the event streams emitted by `this`.
+   *
+   *  This operation is only available for event stream values that emit
+   *  other event streams as events.
+   *  The resulting event stream unifies events of all the event streams emitted by
+   *  `this`.
+   *  Once `this` and all the event streams emitted by `this` unreact, the
+   *  resulting event stream terminates.
+   *
+   *  Example:
+   *  
+   *  {{{
+   *  time  -------------------------->
+   *  this     --1----2--------3------>
+   *               ---------5----6---->
+   *                 ---4----------7-->
+   *  union -----1----2-4---5--3-6-7-->
+   *  }}}
+   *  
+   *  '''Use case:'''
+   *
+   *  {{{
+   *  def union[S](): Events[S]
+   *  }}}
+   *
+   *  @tparam S         the type of the events in event streams emitted by `this`
+   *  @param evidence   evidence that events of type `T` produced by `this`
+   *                    are actually event stream values of type `S`
+   *  @return           a subscription and the event stream with the union of all
+   *                    the events
+   *  
+   */
+  def union[@spec(Int, Long, Double) S](
+    implicit evidence: T <:< Events[S], ds: Spec[S]
+  ): Events[S] =
+    new Events.PostfixUnion[T, S](this, evidence)
+
   /** Creates a concatenation of `this` and `that` event stream.
    *
    *  The resulting event stream produces all the events from `this`
@@ -1776,6 +1813,71 @@ object Events {
     }
     def except(t: Throwable) = target.except(t)
     def unreact() = state.unreactBoth(target)
+  }
+
+  private[reactors] class PostfixUnion[T, @spec(Int, Long, Double) S: Spec](
+    val self: Events[T],
+    val evid: T <:< Events[S]
+  ) extends Events[S] {
+    def onReaction(observer: Observer[S]): Subscription = {
+      val postfixObserver = new PostfixUnionObserver(observer, evid)
+      val sub = self.onReaction(postfixObserver)
+      postfixObserver.subscription = postfixObserver.subscriptions.addAndGet(sub)
+      postfixObserver.subscriptions
+    }
+  }
+
+  private[reactors] class PostfixUnionObserver[T, @spec(Int, Long, Double) S: Spec](
+    val target: Observer[S],
+    val evidence: T <:< Events[S]
+  ) extends Observer[T] {
+    private[reactors] var terminated: Boolean = _
+    private[reactors] var subscription: Subscription = _
+    private[reactors] var subscriptions: Subscription.Collection = _
+    def init(e: T <:< Events[S]) {
+      terminated = false
+      subscriptions = new Subscription.Collection
+    }
+    init(evidence)
+    def checkUnreact() =
+      if (subscriptions.isEmpty) target.unreact()
+    def newPostfixUnionNestedObserver: PostfixUnionNestedObserver[T, S] =
+      new PostfixUnionNestedObserver(target, this)
+    def react(value: T): Unit = if (!terminated) {
+      val moreEvents = try {
+        evidence(value)
+      } catch {
+        case t if isNonLethal(t) =>
+          target.except(t)
+          return
+      }
+      val obs = newPostfixUnionNestedObserver
+      val sub = subscriptions.addAndGet(moreEvents.onReaction(obs))
+      obs.subscription = sub
+    }
+    def except(t: Throwable) = if (!terminated) {
+      target.except(t)
+    }
+    def unreact() = {
+      terminated = true
+      subscription.unsubscribe()
+      checkUnreact()
+    }
+  }
+
+  private[reactors] class PostfixUnionNestedObserver[
+    T, @spec(Int, Long, Double) S: Spec
+  ](
+    val target: Observer[S],
+    val unionObserver: PostfixUnionObserver[T, S]
+  ) extends Observer[S] {
+    var subscription: Subscription = _
+    def react(value: S) = target.react(value)
+    def except(t: Throwable) = target.except(t)
+    def unreact() {
+      subscription.unsubscribe()
+      unionObserver.checkUnreact()
+    }
   }
 
 }
