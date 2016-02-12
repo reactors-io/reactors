@@ -7,7 +7,7 @@ import scala.reactive.util._
 
 
 
-/** An event stream that can be either completed or unreacted at most once.
+/** An event stream that can be either completed, or unreacted at most once.
  *
  *  Assigning a value propagates an event to all the subscribers,
  *  and then propagates an unreaction.

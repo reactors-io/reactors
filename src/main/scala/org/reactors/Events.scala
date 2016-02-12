@@ -740,6 +740,22 @@ trait Events[@spec(Int, Long, Double) T] {
   )(implicit at: Arrayable[T], as: Arrayable[S]): Events[R] =
     new Events.Sync[T, S, R](this, that, f)
 
+  /** Creates an `Ivar` event stream value, completed with the first event from
+   *  this event stream.
+   *
+   *  After the `Ivar` is assigned, all subsequent events are ignored.
+   *  If the `self` event stream is unreacted before any event arrives, the
+   *  `Ivar` is closed.
+   *
+   *  @return          an `Ivar` with the first event from this event stream
+   */
+  def toIvar: Ivar[T] = {
+    val iv = new Ivar[T]
+    val obs = new Events.ToIvar(iv)
+    obs.subscription = onReaction(obs)
+    iv
+  }
+
 }
 
 
@@ -997,7 +1013,6 @@ object Events {
    */
   class Emitter[@spec(Int, Long, Double) T]
   extends Default[T] with Events[T] with Observer[T] {
-    private var table = new FastHashTable[Observer[T]]
     private var closed = false
     def react(x: T) = if (!closed) {
       reactAll(x)
@@ -1270,6 +1285,24 @@ object Events {
     }
     def except(t: Throwable) = exceptAll(t)
     def unreact() = unreactAll()
+  }
+
+  private[reactors] class ToIvar[@spec(Int, Long, Double) T](
+    val ivar: Ivar[T]
+  ) extends Observer[T] {
+    var subscription: Subscription = _
+    def react(value: T) = if (ivar.isUnassigned) {
+      try ivar := value
+      finally subscription.unsubscribe()
+    }
+    def except(t: Throwable) = if (ivar.isUnassigned) {
+      try ivar.except(t)
+      finally subscription.unsubscribe()
+    }
+    def unreact() = if (ivar.isUnassigned) {
+      try ivar.unreact()
+      finally subscription.unsubscribe()
+    }
   }
 
   private[reactors] class Count[@spec(Int, Long, Double) T](val self: Events[T])

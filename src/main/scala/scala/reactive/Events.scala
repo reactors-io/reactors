@@ -1169,6 +1169,7 @@ object Events {
       pc.subscription = self observe pc
       pc
     }
+
   }
 
   private[reactive] class IvarAssignReactor[@spec(Int, Long, Double) T]

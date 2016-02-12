@@ -749,6 +749,62 @@ class EventsSpec extends FunSuite {
     assert(done)
   }
 
+  test("ivar") {
+    var result = 0
+    var done = 0
+    val emitter = new Events.Emitter[Int]
+    val ivar = emitter.toIvar
+    ivar.onEvent(result += _)
+    ivar.onDone(done += 11)
+
+    emitter.react(7)
+    assert(result == 7)
+    assert(done == 11)
+    assert(ivar() == 7)
+    assert(ivar.isAssigned)
+    assert(ivar.isCompleted)
+    assert(!ivar.isFailed)
+    assert(!ivar.isUnassigned)
+
+    emitter.react(17)
+    assert(result == 7)
+    assert(done == 11)
+    assert(ivar() == 7)
+    assert(ivar.isAssigned)
+    assert(ivar.isCompleted)
+    assert(!ivar.isFailed)
+    assert(!ivar.isUnassigned)
+  }
+
+  test("ivar with exception") {
+    var result = 0
+    var done = 0
+    var e: Throwable = null
+    val emitter = new Events.Emitter[Int]
+    val ivar = emitter.toIvar
+    ivar.onReaction(new Observer[Int] {
+      def react(x: Int) = result += x
+      def except(t: Throwable) = e = t
+      def unreact() = done = 11
+    })
+
+    emitter.except(new IllegalArgumentException)
+    assert(done == 11)
+    assert(ivar.failure.isInstanceOf[IllegalArgumentException])
+    assert(!ivar.isAssigned)
+    assert(ivar.isCompleted)
+    assert(ivar.isFailed)
+    assert(!ivar.isUnassigned)
+
+    emitter.react(17)
+    assert(done == 11)
+    assert(ivar.failure.isInstanceOf[IllegalArgumentException])
+    assert(!ivar.isAssigned)
+    assert(ivar.isCompleted)
+    assert(ivar.isFailed)
+    assert(!ivar.isUnassigned)
+  }
+
 }
 
 
