@@ -34,6 +34,28 @@ trait Signal[@spec(Int, Long, Double) T] extends Events[T] {
    *
    *  @return         a subscription and the signal with changes of `this`
    */
-  def changes: Events[T] = ???
+  def changes: Events[T] = new Signal.Changes(this)
+
+}
+
+
+object Signal {
+
+  class Changes[@spec(Int, Long, Double) T](val self: Signal[T]) extends Events[T] {
+    def onReaction(obs: Observer[T]) =
+      self.onReaction(new Signal.ChangesObserver[T](obs, self()))
+  }
+
+  class ChangesObserver[@spec(Int, Long, Double) T](
+    val target: Observer[T],
+    var cached: T
+  ) extends Observer[T] {
+    def react(x: T) = if (cached != x) {
+      cached = x
+      target.react(x)
+    }
+    def except(t: Throwable) = target.except(t)
+    def unreact() = target.unreact()
+  }
 
 }

@@ -50,8 +50,8 @@ class EventBoxingBench extends Bench.Forked[Long] {
   ) in {
     using(Gen.single("numEvents")(10000)) in { numEvents =>
       val emitter = new Events.Emitter[Int]
-      val s0 = emitter.toSignal
-      val s1 = emitter.toSignalWith(-1)
+      val s0 = emitter.toEmptySignal
+      val s1 = emitter.toSignal(-1)
 
       var i = 0
       while (i < numEvents) {
@@ -89,7 +89,7 @@ class EventBoxingBench extends Bench.Forked[Long] {
       val emitter = new Events.Emitter[Int]
 
       // count
-      val count = emitter.count.toSignal
+      val count = emitter.count.toEmptySignal
 
       // mutate
       object Cell {
