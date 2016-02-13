@@ -24,4 +24,16 @@ trait Signal[@spec(Int, Long, Double) T] extends Events[T] {
    */
   def apply(): T
 
+  /** An event stream that only emits events when the value of `this` signal changes.
+   *
+   *  {{{
+   *  time    --------------->
+   *  this    --1---2--2--3-->
+   *  changes --1---2-----3-->
+   *  }}}
+   *
+   *  @return         a subscription and the signal with changes of `this`
+   */
+  def changes: Events[T] = ???
+
 }
