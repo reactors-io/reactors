@@ -36,6 +36,24 @@ trait Signal[@spec(Int, Long, Double) T] extends Events[T] {
    */
   def changes: Events[T] = new Signal.Changes(this)
 
+  /** A signal that produces difference events between the current and previous
+   *  value of `this` signal.
+   *
+   *  {{{
+   *  time ---------------->
+   *  this --1--3---6---7-->
+   *  diff --z--2---3---1-->
+   *  }}}
+   *  
+   *  @tparam S       the type of the difference event
+   *  @param z        the initial value for the difference
+   *  @param op       the operator that computes the difference between
+   *                  consecutive events
+   *  @return         a subscription and a signal with the difference value
+   */
+  def diffPast[@spec(Int, Long, Double) S](z: S)(op: (T, T) => S): Events[S] =
+    new Signal.DiffPast(this, z, op)
+
 }
 
 
@@ -53,6 +71,30 @@ object Signal {
     def react(x: T) = if (cached != x) {
       cached = x
       target.react(x)
+    }
+    def except(t: Throwable) = target.except(t)
+    def unreact() = target.unreact()
+  }
+
+  class DiffPast[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](
+    val self: Signal[T],
+    val z: S,
+    val op: (T, T) => S
+  ) extends Events[S] {
+    def onReaction(obs: Observer[S]): Subscription =
+      self.onReaction(new DiffPastObserver(obs, z, op, self()))
+  }
+
+  class DiffPast[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](
+    val target: Observer[S],
+    val z: S,
+    val op: (T, T) => s,
+    var last: T
+  ) extends Observer[T] {
+    def react(x: T) = {
+      val nlast = last
+      last = x
+      if (nlast != last) target.react(x)
     }
     def except(t: Throwable) = target.except(t)
     def unreact() = target.unreact()
