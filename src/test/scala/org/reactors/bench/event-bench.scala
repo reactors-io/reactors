@@ -83,7 +83,7 @@ class EventBoxingBench extends Bench.Forked[Long] {
   }
 
   measure method "Emitter.<combinators>" config (
-    reports.validation.predicate -> { (n: Any) => n == 58 }
+    reports.validation.predicate -> { (n: Any) => n == 61 }
   ) in {
     using(Gen.single("numEvents")(10000)) in { numEvents =>
       val emitter = new Events.Emitter[Int]
@@ -179,6 +179,10 @@ class EventBoxingBench extends Bench.Forked[Long] {
       var postfixConcatEmitter = new Events.Emitter[Events.Emitter[Int]]
       postfixConcatEmitter.concat.on(postfixConcatCount += 1)
       postfixConcatEmitter.react(emitter)
+
+      // changes
+      var changeCount = 0
+      emitter.toSignal(0).changes.on(changeCount += 1)
 
       var i = 0
       while (i < numEvents) {
