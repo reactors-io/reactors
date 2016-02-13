@@ -37,4 +37,22 @@ class SignalSpec extends FunSuite {
     assert(buffer == Seq(3, 5, 7, 11))
   }
 
+  test("diffPast") {
+    val buffer = mutable.Buffer[Int]()
+    val emitter = new Events.Emitter[Int]
+    emitter.toSignal(0).diffPast(_ - _).onEvent(buffer += _)
+
+    emitter.react(3)
+    assert(buffer == Seq(3))
+    emitter.react(3)
+    assert(buffer == Seq(3, 0))
+    emitter.react(5)
+    assert(buffer == Seq(3, 0, 2))
+    emitter.react(11)
+    assert(buffer == Seq(3, 0, 2, 6))
+    emitter.react(19)
+    assert(buffer == Seq(3, 0, 2, 6, 8))
+    emitter.unreact()
+  }
+
 }
