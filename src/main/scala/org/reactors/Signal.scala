@@ -54,6 +54,49 @@ trait Signal[@spec(Int, Long, Double) T] extends Events[T] {
   def diffPast[@spec(Int, Long, Double) S](op: (T, T) => S): Events[S] =
     new Signal.DiffPast(this, op)
 
+  /** Zips values of `this` and `that` signal using the specified function `f`.
+   *
+   *  Whenever either of the two signals change the resulting signal also
+   *  changes.
+   *  When `this` emits an event, the current value of `that` is used to produce
+   *  a signal on `that`, and vice versa.
+   *
+   *  {{{
+   *  time --------------------------------->
+   *  this --1----2-----4----------8-------->
+   *  that --a----------------b---------c--->
+   *  zip  --1,a--2,a---4,a---4,b--8,b--8,c->
+   *  }}}
+   *
+   *  The resulting tuple of events from `this` and `that` is mapped using the
+   *  user-specified mapping function `f`.
+   *  For example, to produce tuples:
+   *
+   *  {{{
+   *  val tuples = (a zip b) { (a, b) => (a, b) }
+   *  }}}
+   *
+   *  To produce the difference between two integer signals:
+   *
+   *  {{{
+   *  val differences = (a zip b)(_ - _)
+   *  }}}
+   *
+   *  '''Note:''': clients looking into pairing incoming events from two signals
+   *  you should use the `sync` method inherited from `Events`.
+   *
+   *  @tparam S        the type of `that` signal
+   *  @tparam R        the type of the resulting signal
+   *  @param that      the signal to zip `this` with
+   *  @param f         the function that maps a tuple of values into an outgoing
+   *                   event
+   *  @return          a subscription and the event stream that emits zipped events
+   */
+  def zip[@spec(Int, Long, Double) S, @spec(Int, Long, Double) R](
+    that: Signal[S]
+  )(f: (T, S) => R): Signal[R] =
+    ??? // new Signal.Zip[T, S, R](this, that, f)
+
 }
 
 
