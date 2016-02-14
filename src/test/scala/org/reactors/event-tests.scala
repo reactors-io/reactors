@@ -298,6 +298,32 @@ class EventsSpec extends FunSuite {
     assert(signal() == 7)
   }
 
+  test("toColdSignal") {
+    val emitter = new Events.Emitter[Int]
+    val signal = emitter.toColdSignal(1)
+
+    assert(signal() == 1)
+
+    emitter.react(7)
+    assert(signal() == 1)
+
+    var last = 0
+    val sub0 = signal.onEvent(last = _)
+    emitter.react(11)
+    assert(signal() == 11)
+    assert(last == 11)
+
+    sub0.unsubscribe()
+    emitter.react(17)
+    assert(signal() == 11)
+    assert(last == 11)
+
+    val sub1 = signal.onEvent(last = _)
+    emitter.react(19)
+    assert(signal() == 19)
+    assert(last == 19)
+  }
+
   test("count") {
     val buffer = mutable.Buffer[Int]()
     val emitter = new Events.Emitter[String]

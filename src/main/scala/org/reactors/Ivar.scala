@@ -30,7 +30,7 @@ import scala.reactive.util._
  *  @tparam T          type of the value in the `Ivar`
  */
 class Ivar[@spec(Int, Long, Double) T]
-extends Signal[T] with Events.Default[T] {
+extends Signal[T] with Events.Push[T] {
   private var state = 0
   private var exception: Throwable = _
   private var value: T = _

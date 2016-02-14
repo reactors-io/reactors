@@ -783,7 +783,7 @@ object Events {
    *
    *  @tparam T       type of the events in this event stream value
    */
-  private[reactors] trait Default[@spec(Int, Long, Double) T] extends Events[T] {
+  private[reactors] trait Push[@spec(Int, Long, Double) T] extends Events[T] {
     private[reactors] var demux: AnyRef = null
     private[reactors] var eventsUnreacted: Boolean = false
     def onReaction(observer: Observer[T]): Subscription = {
@@ -1021,7 +1021,7 @@ object Events {
    *  Emitter is simultaneously an event stream, and an observer.
    */
   class Emitter[@spec(Int, Long, Double) T]
-  extends Default[T] with Events[T] with Observer[T] {
+  extends Push[T] with Events[T] with Observer[T] {
     private var closed = false
     def react(x: T) = if (!closed) {
       reactAll(x)
@@ -1068,7 +1068,7 @@ object Events {
    *  @param content     the mutable object
    */
   class Mutable[M >: Null <: AnyRef](private[reactors] val content: M)
-  extends Default[M] with Events[M]
+  extends Push[M] with Events[M]
 
   /** A base trait for event streams that never emit events.
    *
@@ -1276,7 +1276,7 @@ object Events {
     val self: Events[T],
     private var full: Boolean,
     private var cached: T
-  ) extends Signal[T] with Observer[T] with Default[T] with Subscription.Proxy {
+  ) extends Signal[T] with Observer[T] with Push[T] with Subscription.Proxy {
     private var rawSubscription = Subscription.empty
     def subscription = rawSubscription
     def init(dummy: T) {
@@ -1297,18 +1297,26 @@ object Events {
     def unreact() = unreactAll()
   }
 
+  private[reactors] class Observers[@spec(Int, Long, Double) T] extends Push[T]
+
   private[reactors] class ToColdSignal[@spec(Int, Long, Double) T](
     val self: Events[T],
-    private[reactors] var cached: T
-  ) extends Signal[T] with Default[T] {
+    var cached: T
+  ) extends Signal[T] {
     var selfSubscription: Subscription = null
-    val subscriptions = new Subscription.Collection
+    var subscriptions: Subscription.Collection = _
+    var observers: Observers[T] = _
+    def init(dummy: Events[T]) {
+      observers = new Observers[T]
+      subscriptions = new Subscription.Collection
+    }
+    init(self)
     def apply() = cached
     def isEmpty = false
     def unsubscribe() {}
     override def onReaction(target: Observer[T]): Subscription = {
       val obs = new ToColdSignalObserver(target, this)
-      val sub = super.onReaction(obs)
+      val sub = observers.onReaction(obs)
       if (!obs.done) {
         if (subscriptions.isEmpty) {
           selfSubscription = self.onReaction(new ToColdSelfObserver(this))
@@ -1328,9 +1336,9 @@ object Events {
   private[reactors] class ToColdSelfObserver[@spec(Int, Long, Double) T](
     val signal: ToColdSignal[T]
   ) extends Observer[T] {
-    def react(x: T) = signal.reactAll(x)
-    def except(t: Throwable) = signal.exceptAll(t)
-    def unreact() = signal.unreactAll()
+    def react(x: T) = signal.observers.reactAll(x)
+    def except(t: Throwable) = signal.observers.exceptAll(t)
+    def unreact() = signal.observers.unreactAll()
   }
 
   private[reactors] class ToColdSignalObserver[@spec(Int, Long, Double) T](
@@ -1338,7 +1346,10 @@ object Events {
     val signal: ToColdSignal[T]
   ) extends Observer[T] {
     var done = false
-    def react(x: T) = target.react(x)
+    def react(x: T) = {
+      signal.cached = x
+      target.react(x)
+    }
     def except(t: Throwable) = target.except(t)
     def unreact() {
       done = true
