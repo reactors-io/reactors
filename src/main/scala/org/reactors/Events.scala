@@ -4,6 +4,7 @@ package org.reactors
 
 import org.reactors.common._
 import scala.runtime.IntRef
+import scala.util.Random
 
 
 
@@ -717,6 +718,15 @@ trait Events[@spec(Int, Long, Double) T] {
     f: (T, S) => R
   )(implicit at: Arrayable[T], as: Arrayable[S]): Events[R] =
     new Events.Sync[T, S, R](this, that, f)
+
+  /** Forwards an event from this event stream with some probability.
+   *
+   *  The probability is specified as a real value from 0.0 to 1.0.
+   *
+   *  @param probability    the probability to forward an event
+   *  @return               the event stream that forwards events with some probability
+   */
+  def maybe(probability: Double): Events[T] = new Events.Maybe(this, probability)
 
   /** Converts this event stream into a `Signal`.
    *
@@ -2124,6 +2134,24 @@ object Events {
         target.react(concatObserver.queue.head.buffer.dequeue())
       concatObserver.checkUnreact()
     }
+  }
+
+  private[reactors] class Maybe[@spec(Int, Long, Double) T](
+    val self: Events[T],
+    val probability: Double
+  ) extends Events[T] {
+    def onReaction(obs: Observer[T]): Subscription =
+      self.onReaction(new MaybeObserver(obs, probability))
+  }
+
+  private[reactors] class MaybeObserver[@spec(Int, Long, Double) T](
+    val target: Observer[T],
+    val probability: Double
+  ) extends Observer[T] {
+    private val random = new Random
+    def react(x: T) = if (random.nextDouble < probability) target.react(x)
+    def except(t: Throwable) = target.except(t)
+    def unreact() = target.unreact()
   }
 
 }

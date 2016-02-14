@@ -911,6 +911,13 @@ class EventsSpec extends FunSuite {
     assert(!ivar.isUnassigned)
   }
 
+  test("maybe") {
+    var seen = 0
+    val emitter = new Events.Emitter[Int]
+    emitter.maybe(0.5).on(seen += 1)
+    for (_ <- 0 until 100) emitter.react(1)
+  }
+
 }
 
 
