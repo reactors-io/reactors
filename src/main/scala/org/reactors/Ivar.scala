@@ -60,6 +60,8 @@ extends Signal[T] with Events.Default[T] {
     else sys.error("Ivar unassigned.")
   }
 
+  def unsubscribe() = tryUnreact()
+
   /** Returns true if this ivar is unassigned or failed.
    */
   def isEmpty = isUnassigned || isFailed

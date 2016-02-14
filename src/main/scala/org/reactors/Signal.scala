@@ -13,7 +13,7 @@ import org.reactors.common._
  *  
  *  @tparam T        the type of the events in this signal
  */
-trait Signal[@spec(Int, Long, Double) T] extends Events[T] {
+trait Signal[@spec(Int, Long, Double) T] extends Events[T] with Subscription {
 
   /** Returns the last event produced by `this` signal.
    *
@@ -102,6 +102,21 @@ trait Signal[@spec(Int, Long, Double) T] extends Events[T] {
     that: Signal[S]
   )(f: (T, S) => R): Events[R] =
     new Signal.Zip[T, S, R](this, that, f)
+
+  /** Creates a new signal that emits tuples of the current
+   *  and the last event emitted by `this` signal.
+   *
+   *  {{{
+   *  time  ---------------------->
+   *  this  1----2------3----4---->
+   *  past2 i,1--1,2----2,3--3,4-->
+   *  }}}
+   *
+   *  @param init     the initial previous value, `i` in the diagram above
+   *  @return         a subscription and a signal of tuples of the current and
+   *                  last event
+   */
+  def past2(init: T): Events[(T, T)] = scanPast((init, this())) { (t, x) => (t._2, x) }
 
 }
 

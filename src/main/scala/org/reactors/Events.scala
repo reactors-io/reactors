@@ -239,7 +239,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  @param init      an initial value for the signal
    *  @return          the signal version of the current event stream
    */
-  def toEmptySignal: Signal[T] with Subscription =
+  def toEmptySignal: Signal[T] =
     new Events.ToSignal(this, false, null.asInstanceOf[T])
 
   /** Given an initial event `init`, converts this event stream into a `Signal`.
@@ -250,7 +250,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  @param init      an initial value for the signal
    *  @return          the signal version of the current event stream
    */
-  def toSignal(init: T): Signal[T] with Subscription =
+  def toSignal(init: T): Signal[T] =
     new Events.ToSignal(this, true, init)
 
   /** Emits the total number of events produced by this event stream.
