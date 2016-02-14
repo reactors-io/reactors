@@ -63,33 +63,20 @@ class EventBoxingBench extends Bench.Forked[Long] {
     }
   }
 
-  measure method "Emitter.scanPast+onX" config (
-    reports.validation.predicate -> { (n: Any) => n == 3 }
-  ) in {
-    using(Gen.single("numEvents")(10000)) in { numEvents =>
-      var count = 0
-      val emitter = new Events.Emitter[Int]
-      emitter.scanPast(0)(_ + _).onEvent(x => count += 1)
-      emitter.scanPast(0)(_ + _).on(count += 1)
-      emitter.scanPast(0)(_ + _).onDone({})
-
-      var i = 0
-      while (i < numEvents) {
-        emitter.react(i)
-        i += 1
-      }
-      emitter.unreact()
-    }
-  }
-
   measure method "Emitter.<combinators>" config (
-    reports.validation.predicate -> { (n: Any) => n == 64 }
+    reports.validation.predicate -> { (n: Any) => n == 70 }
   ) in {
     using(Gen.single("numEvents")(10000)) in { numEvents =>
       val emitter = new Events.Emitter[Int]
 
       // count
       val count = emitter.count.toEmptySignal
+
+      // scanPast
+      var scanPastCount = 0
+      emitter.scanPast(0)(_ + _).onEvent(x => scanPastCount += 1)
+      emitter.scanPast(0)(_ + _).on(scanPastCount += 1)
+      emitter.scanPast(0)(_ + _).onDone({})
 
       // mutate
       object Cell {
