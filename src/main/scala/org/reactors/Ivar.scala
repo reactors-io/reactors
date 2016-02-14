@@ -29,11 +29,17 @@ import scala.reactive.util._
  *  
  *  @tparam T          type of the value in the `Ivar`
  */
-class Ivar[@spec(Int, Long, Double) T]
-extends Signal[T] with Events.Push[T] {
+class Ivar[@spec(Int, Long, Double) T] extends Signal[T] {
   private var state = 0
   private var exception: Throwable = _
   private var value: T = _
+  private var pushSource: Events.PushSource[T] = _
+
+  private[reactors] def init(dummy: Ivar[T]) {
+    pushSource = new Events.PushSource[T]
+  }
+
+  init(this)
 
   /** Returns `true` iff the ivar has been completed, i.e. assigned or failed.
    */
@@ -75,6 +81,20 @@ extends Signal[T] with Events.Push[T] {
     else sys.error("Ivar not failed.")
   }
 
+  def onReaction(obs: Observer[T]): Subscription = {
+    if (isFailed) {
+      obs.except(failure)
+      obs.unreact()
+      Subscription.empty
+    } else if (isAssigned) {
+      obs.react(this())
+      obs.unreact()
+      Subscription.empty
+    } else {
+      pushSource.onReaction(obs)
+    }
+  }
+
   /** Assigns a value to the ivar if it is unassigned,
    *  
    *  Throws an exception otherwise.
@@ -82,8 +102,8 @@ extends Signal[T] with Events.Push[T] {
   def :=(x: T): Unit = if (state == 0) {
     state = 1
     value = x
-    reactAll(x)
-    unreactAll()
+    pushSource.reactAll(x)
+    pushSource.unreactAll()
   } else sys.error("Ivar is already assigned.")
 
   def react(x: T) = this := x
@@ -98,8 +118,8 @@ extends Signal[T] with Events.Push[T] {
   def tryExcept(t: Throwable): Boolean = if (state == 0) {
     state = -1
     exception = t
-    exceptAll(exception)
-    unreactAll()
+    pushSource.exceptAll(exception)
+    pushSource.unreactAll()
     true
   } else false
 

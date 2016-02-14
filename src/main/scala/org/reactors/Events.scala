@@ -231,44 +231,6 @@ trait Events[@spec(Int, Long, Double) T] {
   def scanPast[@spec(Int, Long, Double) S](z: S)(op: (S, T) => S): Events[S] =
     new Events.ScanPast(this, z, op)
 
-  /** Converts this event stream into a `Signal`.
-   *
-   *  The resulting signal initially does not contain an event,
-   *  and subsequently contains any event that `this` event stream produces.
-   *
-   *  @param init      an initial value for the signal
-   *  @return          the signal version of the current event stream
-   */
-  def toEmptySignal: Signal[T] =
-    new Events.ToSignal(this, false, null.asInstanceOf[T])
-
-  /** Given an initial event `init`, converts this event stream into a `Signal`.
-   *
-   *  The resulting signal initially contains the event `init`,
-   *  and subsequently any event that `this` event stream produces.
-   *
-   *  @param init      an initial value for the signal
-   *  @return          the signal version of the current event stream
-   */
-  def toSignal(init: T): Signal[T] =
-    new Events.ToSignal(this, true, init)
-
-  /** Given an initial event `init`, converts the event stream into a cold `Signal`.
-   *
-   *  Cold signals emit events only when some observer is subscribed to them.
-   *  As soon as there are no subscribers for the signal, the signal unsubscribes itself
-   *  from its source event stream. While unsubscribed, the signal **does not update its
-   *  value**, even if its event source (`this` event stream) emits events.
-   *
-   *  If there is at least one subscription to the cold signal, the signal subscribes
-   *  itself to its event source (`this` event stream) again.
-   *
-   *  The `unsubscribe` method on the resulting signal does nothing -- the subscription
-   *  of the cold signal unsubscribes only after all of the subscribers unsubscribe, or
-   *  the source event stream unreacts.
-   */
-  def toCold(init: T): Signal[T] = new Events.ToColdSignal(this, init)
-
   /** Emits the total number of events produced by this event stream.
    *
    *  The returned value is a [[scala.reactive.Signal]] that holds the total number of
@@ -755,6 +717,44 @@ trait Events[@spec(Int, Long, Double) T] {
     f: (T, S) => R
   )(implicit at: Arrayable[T], as: Arrayable[S]): Events[R] =
     new Events.Sync[T, S, R](this, that, f)
+
+  /** Converts this event stream into a `Signal`.
+   *
+   *  The resulting signal initially does not contain an event,
+   *  and subsequently contains any event that `this` event stream produces.
+   *
+   *  @param init      an initial value for the signal
+   *  @return          the signal version of the current event stream
+   */
+  def toEmptySignal: Signal[T] =
+    new Events.ToSignal(this, false, null.asInstanceOf[T])
+
+  /** Given an initial event `init`, converts this event stream into a `Signal`.
+   *
+   *  The resulting signal initially contains the event `init`,
+   *  and subsequently any event that `this` event stream produces.
+   *
+   *  @param init      an initial value for the signal
+   *  @return          the signal version of the current event stream
+   */
+  def toSignal(init: T): Signal[T] =
+    new Events.ToSignal(this, true, init)
+
+  /** Given an initial event `init`, converts the event stream into a cold `Signal`.
+   *
+   *  Cold signals emit events only when some observer is subscribed to them.
+   *  As soon as there are no subscribers for the signal, the signal unsubscribes itself
+   *  from its source event stream. While unsubscribed, the signal **does not update its
+   *  value**, even if its event source (`this` event stream) emits events.
+   *
+   *  If there is at least one subscription to the cold signal, the signal subscribes
+   *  itself to its event source (`this` event stream) again.
+   *
+   *  The `unsubscribe` method on the resulting signal does nothing -- the subscription
+   *  of the cold signal unsubscribes only after all of the subscribers unsubscribe, or
+   *  the source event stream unreacts.
+   */
+  def toCold(init: T): Signal[T] = new Events.ToColdSignal(this, init)
 
   /** Creates an `Ivar` event stream value, completed with the first event from
    *  this event stream.

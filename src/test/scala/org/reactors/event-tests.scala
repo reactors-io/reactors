@@ -847,11 +847,12 @@ class EventsSpec extends FunSuite {
   test("ivar") {
     var result = 0
     var done = 0
-    val emitter = new Events.Emitter[Int]
+    val emitter = new TestEmitter[Int]
     val ivar = emitter.toIvar
     ivar.onEvent(result += _)
     ivar.onDone(done += 11)
 
+    assert(emitter.hasSubscriptions)
     emitter.react(7)
     assert(result == 7)
     assert(done == 11)
@@ -860,6 +861,7 @@ class EventsSpec extends FunSuite {
     assert(ivar.isCompleted)
     assert(!ivar.isFailed)
     assert(!ivar.isUnassigned)
+    assert(!emitter.hasSubscriptions)
 
     emitter.react(17)
     assert(result == 7)
@@ -869,6 +871,15 @@ class EventsSpec extends FunSuite {
     assert(ivar.isCompleted)
     assert(!ivar.isFailed)
     assert(!ivar.isUnassigned)
+
+    emitter.unreact()
+    assert(!emitter.hasSubscriptions)
+    var last = 0
+    var terminated = false
+    ivar.onEventOrDone(last = _)(terminated = true)
+    assert(last == 7)
+    assert(terminated)
+    assert(!emitter.hasSubscriptions)
   }
 
   test("ivar with exception") {
