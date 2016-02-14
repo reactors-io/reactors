@@ -123,6 +123,71 @@ trait Signal[@spec(Int, Long, Double) T] extends Events[T] with Subscription {
 
 object Signal {
 
+  class Const[@spec(Int, Long, Double) T](private[reactors] val value: T)
+  extends Signal[T] {
+    def apply() = value
+    def isEmpty = false
+    def unsubscribe() = {}
+    def onReaction(obs: Observer[T]) = {
+      obs.unreact()
+      Subscription.empty
+    }
+  }
+
+  /** A signal that is the aggregation of the values of other `signals`.
+   *
+   *  At any point during execution this signal will contain
+   *  an event obtained by applying `op` on the values of all
+   *  the events in `signals`.
+   *  This signal aggregate is called a static aggregate
+   *  since the `signals` set is specified during aggregate
+   *  creation and cannot be changed afterwards.
+   *
+   *  The signal aggregate creates an aggregation tree data structure,
+   *  so a value update in one of the `signals` requires only O(log n)
+   *  steps to update the value of the aggregate signal.
+   *
+   *  Example:
+   *  {{{
+   *  val emitters = for (0 until 10) yield new Events.Emitter[Int]
+   *  val ag = Signal.aggregate(emitters)(_ + _)
+   *  }}}
+   *
+   *  The aggregation operator needs to be associative, but does not need to be
+   *  commutative.
+   *  For example, string concatenation for signals of strings or addition for integer
+   *  signals are valid operators. Subtraction for integer signals, for example, is not
+   *  associative and not allowed.
+   *
+   *  The value `z` for the aggregation does not need to be a neutral element with
+   *  respect to the aggregation operation.
+   *
+   *  The resulting signal is hot, i.e. its value is updated even if there are no
+   *  subscribers.
+   *
+   *  @tparam T       type of the aggregate signal
+   *  @param ss       signals for the aggregation
+   *  @param z        the zero value of the aggregation, used if the list is empty
+   *  @param op       the aggregation operator, must be associative
+   */
+  def aggregate[@spec(Int, Long, Double) T](ss: Signal[T]*)(z: T)(op: (T, T) => T):
+    Signal[T] = {
+    if (ss.length == 0) new Signal.Const(z)
+    else {
+      var levelsigs: Seq[Signal[T]] = ss
+      while (levelsigs.length != 1) {
+        val nextLevel = for (pair <- levelsigs.grouped(2)) yield pair match {
+          case Seq(s1, s2) =>
+            val zipped = (s1 zip s2)((x, y) => op(x, y))
+            zipped.toCold(op(s1(), s2()))
+          case Seq(s) => s
+        }
+        levelsigs = nextLevel.toBuffer
+      }
+      levelsigs(0).toSignal(levelsigs(0)())
+    }
+  }
+
   private[reactors] class Changes[@spec(Int, Long, Double) T](val self: Signal[T])
   extends Events[T] {
     def onReaction(obs: Observer[T]) =

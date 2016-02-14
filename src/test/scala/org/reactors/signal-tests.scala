@@ -93,4 +93,32 @@ class SignalSpec extends FunSuite {
     assert(last == (3, 7))
   }
 
+  test("aggregate") {
+    val x = new Events.Emitter[Int]
+    val y = new Events.Emitter[Int]
+    val z = new Events.Emitter[Int]
+    val w = new Events.Emitter[Int]
+    val aggregate = Signal.aggregate(
+      x.toSignal(1),
+      y.toSignal(2),
+      z.toSignal(3),
+      w.toSignal(4)
+    )(0)(_ + _)
+
+    assert(aggregate() == 10)
+    x.react(10)
+    assert(aggregate() == 19)
+    y.react(20)
+    assert(aggregate() == 37)
+    z.react(30)
+    assert(aggregate() == 64)
+    w.react(40)
+    assert(aggregate() == 100)
+
+    aggregate.unsubscribe()
+
+    x.react(11)
+    assert(aggregate() == 100)
+  }
+
 }
