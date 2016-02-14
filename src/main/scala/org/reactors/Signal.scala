@@ -192,6 +192,7 @@ object Signal {
           target.except(t)
           return
       }
+      target.react(event)
     }
     def except(t: Throwable) = if (!done) {
       target.except(t)
@@ -220,6 +221,7 @@ object Signal {
           target.except(t)
           return
       }
+      target.react(event)
     }
     def except(t: Throwable) = if (!thisObserver.done) {
       target.except(t)
