@@ -253,6 +253,15 @@ trait Events[@spec(Int, Long, Double) T] {
   def toSignal(init: T): Signal[T] =
     new Events.ToSignal(this, true, init)
 
+  /** Given an initial event `init`, converts the event stream into a cold `Signal`.
+   *
+   *  Cold signals emit events only when some observer is subscribed to them.
+   *  As soon as there are no subscribers for the signal, the signal unsubscribes itself
+   *  from its source event stream.
+   */
+  def toColdSignal(init: T): Signal[T] =
+    new Events.ToColdSignal(this, init)
+
   /** Emits the total number of events produced by this event stream.
    *
    *  The returned value is a [[scala.reactive.Signal]] that holds the total number of
@@ -1286,6 +1295,56 @@ object Events {
     }
     def except(t: Throwable) = exceptAll(t)
     def unreact() = unreactAll()
+  }
+
+  private[reactors] class ToColdSignal[@spec(Int, Long, Double) T](
+    val self: Events[T],
+    private[reactors] var cached: T
+  ) extends Signal[T] with Default[T] {
+    var selfSubscription: Subscription = null
+    val subscriptions = new Subscription.Collection
+    def apply() = cached
+    def isEmpty = false
+    def unsubscribe() {}
+    override def onReaction(target: Observer[T]): Subscription = {
+      val obs = new ToColdSignalObserver(target, this)
+      val sub = super.onReaction(obs)
+      if (!obs.done) {
+        if (subscriptions.isEmpty) {
+          selfSubscription = self.onReaction(new ToColdSelfObserver(this))
+        }
+        val savedsub = subscriptions.addAndGet(sub)
+        savedsub.and(checkUnsubscribe())
+      } else Subscription.empty
+    }
+    def checkUnsubscribe() {
+      if (subscriptions.isEmpty && selfSubscription != null) {
+        selfSubscription.unsubscribe()
+        selfSubscription = null
+      }
+    }
+  }
+
+  private[reactors] class ToColdSelfObserver[@spec(Int, Long, Double) T](
+    val signal: ToColdSignal[T]
+  ) extends Observer[T] {
+    def react(x: T) = signal.reactAll(x)
+    def except(t: Throwable) = signal.exceptAll(t)
+    def unreact() = signal.unreactAll()
+  }
+
+  private[reactors] class ToColdSignalObserver[@spec(Int, Long, Double) T](
+    val target: Observer[T],
+    val signal: ToColdSignal[T]
+  ) extends Observer[T] {
+    var done = false
+    def react(x: T) = target.react(x)
+    def except(t: Throwable) = target.except(t)
+    def unreact() {
+      done = true
+      signal.checkUnsubscribe()
+      target.unreact()
+    }
   }
 
   private[reactors] class ToIvar[@spec(Int, Long, Double) T](

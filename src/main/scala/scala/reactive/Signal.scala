@@ -220,6 +220,7 @@ object Signal {
     def past2(init: T) = self.scanPast((init, self())) {
       (t, x) => (t._2, x)
     }
+
   }
 
   private[reactive] class Map

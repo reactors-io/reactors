@@ -14,10 +14,20 @@ import scala.collection._
  *  Unsubscribing is idempotent -- calling `unsubscribe` second time does nothing.
  */
 trait Subscription {
+  self =>
 
   /** Stops event propagation on the corresponding event stream.
    */
   def unsubscribe(): Unit
+
+  /** Returns a new subscription that unsubscribes using this, and executes an action.
+   */
+  def and(action: =>Unit): Subscription = new Subscription {
+    def unsubscribe() {
+      self.unsubscribe()
+      action
+    }
+  }
 
 }
 
