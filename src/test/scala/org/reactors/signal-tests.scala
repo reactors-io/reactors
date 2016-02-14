@@ -55,4 +55,31 @@ class SignalSpec extends FunSuite {
     emitter.unreact()
   }
 
+  test("zip") {
+    var done = false
+    val buffer = mutable.Buffer[Int]()
+    val e0 = new Events.Emitter[Int]
+    val e1 = new Events.Emitter[Int]
+    val zip = (e0.toSignal(0) zip e1.toSignal(0))(_ + _)
+    zip.onEvent(buffer += _)
+    zip.onDone(done = true)
+
+    // e0.react(3)
+    // assert(buffer == Seq(3))
+    // e1.react(5)
+    // assert(buffer == Seq(3, 8))
+    // e1.react(7)
+    // assert(buffer == Seq(3, 8, 10))
+    // e1.react(11)
+    // assert(buffer == Seq(3, 8, 10, 14))
+    // e0.react(19)
+    // assert(buffer == Seq(3, 8, 10, 14, 30))
+    // assert(!done)
+    // e1.unreact()
+    // assert(buffer == Seq(3, 8, 10, 14, 30))
+    // assert(done)
+    // e0.react(23)
+    // assert(buffer == Seq(3, 8, 10, 14, 30))
+  }
+
 }

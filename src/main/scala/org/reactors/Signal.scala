@@ -94,8 +94,8 @@ trait Signal[@spec(Int, Long, Double) T] extends Events[T] {
    */
   def zip[@spec(Int, Long, Double) S, @spec(Int, Long, Double) R](
     that: Signal[S]
-  )(f: (T, S) => R): Signal[R] =
-    ??? // new Signal.Zip[T, S, R](this, that, f)
+  )(f: (T, S) => R): Events[R] =
+    new Signal.Zip[T, S, R](this, that, f)
 
 }
 
@@ -163,10 +163,12 @@ object Signal {
     def onReaction(obs: Observer[R]) = {
       val thisObs = newZipThisObserver(obs)
       val thatObs = newZipThatObserver(obs, thisObs)
-      new Subscription.Composite(
+      val sub = new Subscription.Composite(
         self.onReaction(thisObs),
         that.onReaction(thatObs)
       )
+      thisObs.subscription = sub
+      sub
     }
   }
 
@@ -180,6 +182,7 @@ object Signal {
     val self: Signal[T],
     val that: Signal[S]
   ) extends Observer[T] {
+    var subscription: Subscription = _
     var done = false
     def react(x: T): Unit = if (!done) {
       val event = try {
@@ -195,6 +198,7 @@ object Signal {
     }
     def unreact() = if (!done) {
       done = true
+      subscription.unsubscribe()
       target.unreact()
     }
   }
@@ -222,6 +226,7 @@ object Signal {
     }
     def unreact() = if (!thisObserver.done) {
       thisObserver.done = true
+      thisObserver.subscription.unsubscribe()
       target.unreact()
     }
   }
