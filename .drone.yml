@@ -1,8 +1,5 @@
 build:
   image: stormenroute/storm-enroute-build:0.7
-  cache:
-    mount:
-      - .ivy2
   environment:
     - SSH_KEY_PASS=$$SSH_KEY_PASS
     - SONATYPE_USER=$$SONATYPE_USER
