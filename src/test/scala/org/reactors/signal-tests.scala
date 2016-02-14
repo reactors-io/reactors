@@ -82,4 +82,15 @@ class SignalSpec extends FunSuite {
     assert(buffer == Seq(3, 8, 10, 14, 30))
   }
 
+  test("past2") {
+    var last = (0, 0)
+    val emitter = new Events.Emitter[Int]
+    emitter.toSignal(0).past2(0).onEvent(last = _)
+
+    emitter.react(3)
+    assert(last == (0, 3))
+    emitter.react(7)
+    assert(last == (3, 7))
+  }
+
 }
