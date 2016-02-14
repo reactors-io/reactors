@@ -123,12 +123,13 @@ trait Signal[@spec(Int, Long, Double) T] extends Events[T] with Subscription {
 
 object Signal {
 
-  class Changes[@spec(Int, Long, Double) T](val self: Signal[T]) extends Events[T] {
+  private[reactors] class Changes[@spec(Int, Long, Double) T](val self: Signal[T])
+  extends Events[T] {
     def onReaction(obs: Observer[T]) =
       self.onReaction(new Signal.ChangesObserver[T](obs, self()))
   }
 
-  class ChangesObserver[@spec(Int, Long, Double) T](
+  private[reactors] class ChangesObserver[@spec(Int, Long, Double) T](
     val target: Observer[T],
     var cached: T
   ) extends Observer[T] {
@@ -140,7 +141,10 @@ object Signal {
     def unreact() = target.unreact()
   }
 
-  class DiffPast[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](
+  private[reactors] class DiffPast[
+    @spec(Int, Long, Double) T,
+    @spec(Int, Long, Double) S
+  ](
     val self: Signal[T],
     val op: (T, T) => S
   ) extends Events[S] {
@@ -148,7 +152,10 @@ object Signal {
       self.onReaction(new DiffPastObserver(obs, op, self()))
   }
 
-  class DiffPastObserver[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](
+  private[reactors] class DiffPastObserver[
+    @spec(Int, Long, Double) T,
+    @spec(Int, Long, Double) S
+  ](
     val target: Observer[S],
     val op: (T, T) => S,
     var last: T
