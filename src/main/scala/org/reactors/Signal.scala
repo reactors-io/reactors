@@ -17,12 +17,18 @@ trait Signal[@spec(Int, Long, Double) T] extends Events[T] {
 
   /** Returns the last event produced by `this` signal.
    *
-   *  
-   *
    *  @return         the signal's value
    *  @throws         `NoSuchElementException` if the signal does not contain an event
    */
   def apply(): T
+
+  /** Returns `true` iff this signal does not have any value yet.
+   */
+  def isEmpty: Boolean
+
+  /** Returns `true` iff this signal has a value.
+   */
+  final def nonEmpty: Boolean = !isEmpty
 
   /** An event stream that only emits events when the value of `this` signal changes.
    *

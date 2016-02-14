@@ -1278,6 +1278,7 @@ object Events {
       if (full) cached
       else throw new NoSuchElementException
     }
+    def isEmpty = !full
     def react(x: T) {
       cached = x
       if (!full) full = true

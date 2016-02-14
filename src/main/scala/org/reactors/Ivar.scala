@@ -60,6 +60,10 @@ extends Signal[T] with Events.Default[T] {
     else sys.error("Ivar unassigned.")
   }
 
+  /** Returns true if this ivar is unassigned or failed.
+   */
+  def isEmpty = isUnassigned || isFailed
+
   /** Returns the exception in the ivar if it was failed.
    *
    *  Throws an exception otherwise.
