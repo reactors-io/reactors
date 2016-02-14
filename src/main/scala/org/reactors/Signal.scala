@@ -147,4 +147,83 @@ object Signal {
     def unreact() = target.unreact()
   }
 
+  private[reactors] class Zip[
+    @spec(Int, Long, Double) T,
+    @spec(Int, Long, Double) S,
+    @spec(Int, Long, Double) R
+  ](
+    val self: Signal[T],
+    val that: Signal[S],
+    val f: (T, S) => R
+  ) extends Events[R] {
+    def newZipThisObserver(obs: Observer[R]) =
+      new ZipThisObserver(obs, f, self, that)
+    def newZipThatObserver(obs: Observer[R], thisObs: ZipThisObserver[T, S, R]) =
+      new ZipThatObserver(obs, f, thisObs)
+    def onReaction(obs: Observer[R]) = {
+      val thisObs = newZipThisObserver(obs)
+      val thatObs = newZipThatObserver(obs, thisObs)
+      new Subscription.Composite(
+        self.onReaction(thisObs),
+        that.onReaction(thatObs)
+      )
+    }
+  }
+
+  private[reactors] class ZipThisObserver[
+    @spec(Int, Long, Double) T,
+    @spec(Int, Long, Double) S,
+    @spec(Int, Long, Double) R
+  ](
+    val target: Observer[R],
+    val f: (T, S) => R,
+    val self: Signal[T],
+    val that: Signal[S]
+  ) extends Observer[T] {
+    var done = false
+    def react(x: T): Unit = if (!done) {
+      val event = try {
+        f(x, that())
+      } catch {
+        case NonLethal(t) =>
+          target.except(t)
+          return
+      }
+    }
+    def except(t: Throwable) = if (!done) {
+      target.except(t)
+    }
+    def unreact() = if (!done) {
+      done = true
+      target.unreact()
+    }
+  }
+
+  private[reactors] class ZipThatObserver[
+    @spec(Int, Long, Double) T,
+    @spec(Int, Long, Double) S,
+    @spec(Int, Long, Double) R
+  ](
+    val target: Observer[R],
+    val f: (T, S) => R,
+    val thisObserver: ZipThisObserver[T, S, R]
+  ) extends Observer[S] {
+    def react(x: S): Unit = if (!thisObserver.done) {
+      val event = try {
+        f(thisObserver.self(), x)
+      } catch {
+        case NonLethal(t) =>
+          target.except(t)
+          return
+      }
+    }
+    def except(t: Throwable) = if (!thisObserver.done) {
+      target.except(t)
+    }
+    def unreact() = if (!thisObserver.done) {
+      thisObserver.done = true
+      target.unreact()
+    }
+  }
+
 }
