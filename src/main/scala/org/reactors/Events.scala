@@ -257,10 +257,17 @@ trait Events[@spec(Int, Long, Double) T] {
    *
    *  Cold signals emit events only when some observer is subscribed to them.
    *  As soon as there are no subscribers for the signal, the signal unsubscribes itself
-   *  from its source event stream.
+   *  from its source event stream. While unsubscribed, the signal **does not update its
+   *  value**, even if its event source (`this` event stream) emits events.
+   *
+   *  If there is at least one subscription to the cold signal, the signal subscribes
+   *  itself to its event source (`this` event stream) again.
+   *
+   *  The `unsubscribe` method on the resulting signal does nothing -- the subscription
+   *  of the cold signal unsubscribes only after all of the subscribers unsubscribe, or
+   *  the source event stream unreacts.
    */
-  def toColdSignal(init: T): Signal[T] =
-    new Events.ToColdSignal(this, init)
+  def toCold(init: T): Signal[T] = new Events.ToColdSignal(this, init)
 
   /** Emits the total number of events produced by this event stream.
    *
@@ -1016,6 +1023,8 @@ object Events {
     }
   }
 
+  private[reactors] class PushSource[@spec(Int, Long, Double) T] extends Push[T]
+
   /** Event source that emits events when `react`, `except` or `unreact` is called.
    *
    *  Emitter is simultaneously an event stream, and an observer.
@@ -1032,6 +1041,7 @@ object Events {
     def unreact() = if (!closed) {
       closed = true
       unreactAll()
+      demux = null
     }
   }
 
@@ -1276,13 +1286,24 @@ object Events {
     val self: Events[T],
     private var full: Boolean,
     private var cached: T
-  ) extends Signal[T] with Observer[T] with Push[T] with Subscription.Proxy {
-    private var rawSubscription = Subscription.empty
+  ) extends Signal[T] with Observer[T] with Subscription.Proxy {
+    private var pushSource: PushSource[T] = _
+    private var rawSubscription: Subscription = _
+    private var done = false
     def subscription = rawSubscription
     def init(dummy: T) {
       rawSubscription = self.onReaction(this)
+      pushSource = new PushSource[T]
     }
     init(cached)
+    override def onReaction(obs: Observer[T]): Subscription = {
+      if (done) {
+        obs.unreact()
+        Subscription.empty
+      } else {
+        pushSource.onReaction(obs)
+      }
+    }
     def apply(): T = {
       if (full) cached
       else throw new NoSuchElementException
@@ -1291,13 +1312,11 @@ object Events {
     def react(x: T) {
       cached = x
       if (!full) full = true
-      reactAll(x)
+      pushSource.reactAll(x)
     }
-    def except(t: Throwable) = exceptAll(t)
-    def unreact() = unreactAll()
+    def except(t: Throwable) = pushSource.exceptAll(t)
+    def unreact() = pushSource.unreactAll()
   }
-
-  private[reactors] class Observers[@spec(Int, Long, Double) T] extends Push[T]
 
   private[reactors] class ToColdSignal[@spec(Int, Long, Double) T](
     val self: Events[T],
@@ -1305,9 +1324,9 @@ object Events {
   ) extends Signal[T] {
     var selfSubscription: Subscription = null
     var subscriptions: Subscription.Collection = _
-    var observers: Observers[T] = _
+    var pushSource: PushSource[T] = _
     def init(dummy: Events[T]) {
-      observers = new Observers[T]
+      pushSource = new PushSource[T]
       subscriptions = new Subscription.Collection
     }
     init(self)
@@ -1316,7 +1335,7 @@ object Events {
     def unsubscribe() {}
     override def onReaction(target: Observer[T]): Subscription = {
       val obs = new ToColdSignalObserver(target, this)
-      val sub = observers.onReaction(obs)
+      val sub = pushSource.onReaction(obs)
       if (!obs.done) {
         if (subscriptions.isEmpty) {
           selfSubscription = self.onReaction(new ToColdSelfObserver(this))
@@ -1336,9 +1355,9 @@ object Events {
   private[reactors] class ToColdSelfObserver[@spec(Int, Long, Double) T](
     val signal: ToColdSignal[T]
   ) extends Observer[T] {
-    def react(x: T) = signal.observers.reactAll(x)
-    def except(t: Throwable) = signal.observers.exceptAll(t)
-    def unreact() = signal.observers.unreactAll()
+    def react(x: T) = signal.pushSource.reactAll(x)
+    def except(t: Throwable) = signal.pushSource.exceptAll(t)
+    def unreact() = signal.pushSource.unreactAll()
   }
 
   private[reactors] class ToColdSignalObserver[@spec(Int, Long, Double) T](

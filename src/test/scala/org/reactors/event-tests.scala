@@ -6,6 +6,7 @@ import org.scalacheck._
 import org.scalacheck.Prop.forAllNoShrink
 import org.scalacheck.Gen.choose
 import org.scalatest._
+import org.reactors.common.Ref
 import org.reactors.test._
 import scala.collection._
 
@@ -15,6 +16,12 @@ class EventsSpec extends FunSuite {
 
   class TestEmitter[T] extends Events.Emitter[T] {
     var unsubscriptionCount = 0
+    def hasSubscriptions = demux != null && {
+      demux match {
+        case w: Ref[_] => w.get != null
+        case _ => true
+      }
+    }
     override def onReaction(obs: Observer[T]) = new Subscription.Composite(
       super.onReaction(obs),
       new Subscription {
@@ -298,9 +305,20 @@ class EventsSpec extends FunSuite {
     assert(signal() == 7)
   }
 
-  test("toColdSignal") {
+  test("toSignal unreacts observers when done") {
+    val emitter = new TestEmitter[Int]
+    val signal = emitter.toSignal(7)
+    emitter.unreact()
+
+    var done = false
+    signal.onDone(done = true)
+    assert(done)
+    assert(!emitter.hasSubscriptions)
+  }
+
+  test("toCold") {
     val emitter = new Events.Emitter[Int]
-    val signal = emitter.toColdSignal(1)
+    val signal = emitter.toCold(1)
 
     assert(signal() == 1)
 
@@ -322,6 +340,57 @@ class EventsSpec extends FunSuite {
     emitter.react(19)
     assert(signal() == 19)
     assert(last == 19)
+  }
+
+  test("toCold unsubscribes with zero subscribers") {
+    val emitter = new TestEmitter[Int]
+    val signal = emitter.toCold(7)
+
+    var last = 0
+    val sub0 = signal.onEvent(last = _)
+
+    emitter.react(11)
+    assert(last == 11)
+
+    sub0.unsubscribe()
+    assert(emitter.unsubscriptionCount == 1)
+
+    val sub1 = signal.onEvent(last = _)
+    val sub2 = signal.onEvent(last = _)
+
+    sub1.unsubscribe()
+    assert(emitter.unsubscriptionCount == 1)
+    sub2.unsubscribe()
+    assert(emitter.unsubscriptionCount == 2)
+  }
+
+  test("toCold unreacts observers when done") {
+    val emitter = new TestEmitter[Int]
+    val signal = emitter.toCold(7)
+    assert(!emitter.hasSubscriptions)
+    signal.on({})
+    assert(emitter.hasSubscriptions)
+    emitter.unreact()
+    assert(!emitter.hasSubscriptions)
+
+    var done = false
+    signal.onDone(done = true)
+    assert(done)
+    assert(!emitter.hasSubscriptions)
+  }
+
+  test("toCold used with zip removes subscriptions") {
+    val e0 = new TestEmitter[Int]
+    val e1 = new TestEmitter[Int]
+    var done = false
+    (e0.toCold(3) zip e1.toCold(7))(_ + _).onDone(done = true)
+
+    e0.react(1)
+    e1.react(2)
+    e0.unreact()
+    assert(done)
+    assert(!e0.hasSubscriptions)
+    assert(!e1.hasSubscriptions)
   }
 
   test("count") {
