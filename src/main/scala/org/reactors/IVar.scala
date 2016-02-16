@@ -14,7 +14,7 @@ import scala.reactive.util._
  *  To assign a value:
  *
  *  {{{
- *  val iv = new Events.Ivar[Int]
+ *  val iv = new Events.IVar[Int]
  *  iv := 5
  *  assert(iv() == 5)
  *  }}}
@@ -22,20 +22,20 @@ import scala.reactive.util._
  *  To unreact (i.e. seal, or close) an ivar without assigning a value:
  *
  *  {{{
- *  val iv = new Events.Ivar[Int]
+ *  val iv = new Events.IVar[Int]
  *  iv.unreact()
  *  assert(iv.isUnreacted)
  *  }}}
  *  
- *  @tparam T          type of the value in the `Ivar`
+ *  @tparam T          type of the value in the `IVar`
  */
-class Ivar[@spec(Int, Long, Double) T] extends Signal[T] {
+class IVar[@spec(Int, Long, Double) T] extends Signal[T] {
   private var state = 0
   private var exception: Throwable = _
   private var value: T = _
   private var pushSource: Events.PushSource[T] = _
 
-  private[reactors] def init(dummy: Ivar[T]) {
+  private[reactors] def init(dummy: IVar[T]) {
     pushSource = new Events.PushSource[T]
   }
 
@@ -63,7 +63,7 @@ class Ivar[@spec(Int, Long, Double) T] extends Signal[T] {
   def apply(): T = {
     if (state == 1) value
     else if (state == -1) throw exception
-    else sys.error("Ivar unassigned.")
+    else sys.error("IVar unassigned.")
   }
 
   def unsubscribe() = tryUnreact()
@@ -78,7 +78,7 @@ class Ivar[@spec(Int, Long, Double) T] extends Signal[T] {
    */
   def failure: Throwable = {
     if (state == -1) exception
-    else sys.error("Ivar not failed.")
+    else sys.error("IVar not failed.")
   }
 
   def onReaction(obs: Observer[T]): Subscription = {
@@ -104,7 +104,7 @@ class Ivar[@spec(Int, Long, Double) T] extends Signal[T] {
     value = x
     pushSource.reactAll(x)
     pushSource.unreactAll()
-  } else sys.error("Ivar is already assigned.")
+  } else sys.error("IVar is already assigned.")
 
   def react(x: T) = this := x
 
@@ -113,7 +113,7 @@ class Ivar[@spec(Int, Long, Double) T] extends Signal[T] {
     true
   } else false
 
-  def except(t: Throwable) = if (!tryExcept(t)) sys.error("Ivar is already completed.")
+  def except(t: Throwable) = if (!tryExcept(t)) sys.error("IVar is already completed.")
 
   def tryExcept(t: Throwable): Boolean = if (state == 0) {
     state = -1
@@ -127,7 +127,7 @@ class Ivar[@spec(Int, Long, Double) T] extends Signal[T] {
    *
    *  If completed, throws an exception.
    */
-  def unreact(): Unit = tryUnreact() || sys.error("Ivar is already completed.")
+  def unreact(): Unit = tryUnreact() || sys.error("IVar is already completed.")
 
   /** Tries to fail the ivar with the `NoSuchElementException`.
    *
@@ -138,15 +138,15 @@ class Ivar[@spec(Int, Long, Double) T] extends Signal[T] {
 }
 
 
-object Ivar {
-  def apply[@spec(Int, Long, Double) T](x: T): Ivar[T] = {
-    val iv = new Ivar[T]
+object IVar {
+  def apply[@spec(Int, Long, Double) T](x: T): IVar[T] = {
+    val iv = new IVar[T]
     iv := x
     iv
   }
 
-  def unreacted[@spec(Int, Long, Double) T]: Ivar[T] = {
-    val iv = new Ivar[T]
+  def unreacted[@spec(Int, Long, Double) T]: IVar[T] = {
+    val iv = new IVar[T]
     iv.unreact()
     iv
   }
