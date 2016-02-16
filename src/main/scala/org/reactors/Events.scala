@@ -573,9 +573,11 @@ trait Events[@spec(Int, Long, Double) T] {
    *  This operation is only available for event stream values that emit
    *  other event streams as events.
    *  The resulting event stream unifies events of all the event streams emitted by
-   *  `this`.
-   *  Once `this` and all the event streams emitted by `this` unreact, the
+   *  `this`. Once `this` and all the event streams emitted by `this` unreact, the
    *  resulting event stream terminates.
+   *
+   *  '''Note:''' if the same event stream is emitted multiple times, it will be
+   *  subscribed to multiple times.
    *
    *  Example:
    *  
