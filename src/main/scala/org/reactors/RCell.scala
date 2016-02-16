@@ -14,12 +14,19 @@ import scala.reflect.ClassTag
  *  @tparam T         the type of the values it stores
  *  @param value      the initial value of the reactive cell
  */
-class RCell[@spec(Int, Long, Double) T](private var value: T) extends Events.Push[T] {
+class RCell[@spec(Int, Long, Double) T](private var value: T)
+extends Signal[T] with Events.Push[T] {
 
   /** Returns the current value in the reactive cell.
    */
   def apply(): T = value
-  
+
+  /** Returns `false`. */
+  def isEmpty = false
+
+  /** Does nothing. */
+  def unsubscribe() {}
+
   /** Assigns a new value to the reactive cell,
    *  and emits an event with the new value to all the subscribers.
    *
@@ -35,7 +42,7 @@ class RCell[@spec(Int, Long, Double) T](private var value: T) extends Events.Pus
 
   /** Propagates the exception to all the reactors.
    */
-  def exception(t: Throwable) = exceptAll(t)
+  def except(t: Throwable) = exceptAll(t)
 
   override def toString = s"RCell($value)"
 
