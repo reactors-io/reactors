@@ -768,18 +768,18 @@ trait Events[@spec(Int, Long, Double) T] {
    */
   def toCold(init: T): Signal[T] = new Events.ToColdSignal(this, init)
 
-  /** Creates an `Ivar` event stream value, completed with the first event from
+  /** Creates an `IVar` event stream value, completed with the first event from
    *  this event stream.
    *
-   *  After the `Ivar` is assigned, all subsequent events are ignored.
+   *  After the `IVar` is assigned, all subsequent events are ignored.
    *  If the `self` event stream is unreacted before any event arrives, the
-   *  `Ivar` is closed.
+   *  `IVar` is closed.
    *
-   *  @return          an `Ivar` with the first event from this event stream
+   *  @return          an `IVar` with the first event from this event stream
    */
-  def toIvar: Ivar[T] = {
-    val iv = new Ivar[T]
-    val obs = new Events.ToIvar(iv)
+  def toIVar: IVar[T] = {
+    val iv = new IVar[T]
+    val obs = new Events.ToIVar(iv)
     obs.subscription = onReaction(obs)
     iv
   }
@@ -1389,8 +1389,8 @@ object Events {
     }
   }
 
-  private[reactors] class ToIvar[@spec(Int, Long, Double) T](
-    val ivar: Ivar[T]
+  private[reactors] class ToIVar[@spec(Int, Long, Double) T](
+    val ivar: IVar[T]
   ) extends Observer[T] {
     var subscription: Subscription = _
     def react(value: T) = if (ivar.isUnassigned) {

@@ -121,4 +121,104 @@ class SignalSpec extends FunSuite {
     assert(aggregate() == 100)
   }
 
+  test("be constant") {
+    val s = new Signal.Const(1)
+    assert(s() == 1)
+  }
+
+  class ReactiveTest {
+    val x = RCell(0)
+    val y = RCell(0)
+    val z = RCell(0)
+    val w = RCell(0)
+  }
+
+  test("be mapped") {
+    val rt = new ReactiveTest
+    val s = rt.x.map {
+      _ + 1
+    }
+    val a = s onEvent { case x =>
+      assert(x == 2)
+    }
+
+    rt.x := 1
+  }
+
+  test("be diffed past") {
+    val cell = RCell(1)
+    val diff = cell.diffPast(_ - _)
+    var total = 0
+    val a = diff onEvent { case d =>
+      total += 2
+      assert(d == 2)
+    }
+
+    cell := 3
+    cell := 5
+    cell := 7
+    cell := 9
+
+    assert(total == 8)
+  }
+
+  test("be zipped") {
+    var updates = 0
+    val rt = new ReactiveTest
+    val sp1 = rt.x map { x =>
+      x + 1
+    } toSignal(1)
+    val sp2 = sp1 map {
+      _ + 1
+    } toSignal(2)
+    val sdiff = (sp2 zip sp1) { (x, y) =>
+      updates += 1
+      x - y
+    } toSignal(-1)
+
+    rt.x := rt.x() + 1
+    assert(sdiff() == 1)
+    rt.x := rt.x() + 1
+    assert(sdiff() == 1)
+  }
+
+  test("reflect changes") {
+    val rc = RCell(0)
+    val buffer = mutable.Buffer[Int]()
+    val subscription = rc.changes.onEvent {
+      case x => buffer += x
+    }
+
+    rc := 0
+    rc := 1
+    rc := 2
+    rc := 2
+    rc := 2
+    rc := 3
+    rc := 3
+    rc := 4
+    assert(buffer == Seq(1, 2, 3, 4))
+  }
+
+  test("be aggregated") {
+    val rt = new ReactiveTest
+    rt.x := 1
+    rt.y := 2
+    rt.z := 3
+    rt.w := 4
+    val aggregated = Signal.aggregate(rt.x, rt.y, rt.z, rt.w)(0) {
+      _ + _
+    }
+
+    assert(aggregated() == 10)
+    rt.x := 10
+    assert(aggregated() == 19)
+    rt.y := 20
+    assert(aggregated() == 37)
+    rt.z := 30
+    assert(aggregated() == 64)
+    rt.w := 40
+    assert(aggregated() == 100)
+  }
+
 }

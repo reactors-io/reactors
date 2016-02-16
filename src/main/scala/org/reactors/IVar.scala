@@ -145,7 +145,7 @@ object IVar {
     iv
   }
 
-  def unreacted[@spec(Int, Long, Double) T]: IVar[T] = {
+  def empty[@spec(Int, Long, Double) T]: IVar[T] = {
     val iv = new IVar[T]
     iv.unreact()
     iv

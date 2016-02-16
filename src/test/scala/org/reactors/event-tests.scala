@@ -849,7 +849,7 @@ class EventsSpec extends FunSuite {
     var result = 0
     var done = 0
     val emitter = new TestEmitter[Int]
-    val ivar = emitter.toIvar
+    val ivar = emitter.toIVar
     ivar.onEvent(result += _)
     ivar.onDone(done += 11)
 
@@ -888,7 +888,7 @@ class EventsSpec extends FunSuite {
     var done = 0
     var e: Throwable = null
     val emitter = new Events.Emitter[Int]
-    val ivar = emitter.toIvar
+    val ivar = emitter.toIVar
     ivar.onReaction(new Observer[Int] {
       def react(x: Int) = result += x
       def except(t: Throwable) = e = t
