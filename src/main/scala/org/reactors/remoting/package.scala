@@ -11,9 +11,9 @@ package object remoting {
     lazy val inetSocketAddress = new InetSocketAddress(host, port)
   }
   
-  case class IsoUrl(systemUrl: SystemUrl, name: String)
+  case class ReactorUrl(systemUrl: SystemUrl, name: String)
   
-  case class ChannelUrl(isoUrl: IsoUrl, anchor: String) {
+  case class ChannelUrl(isoUrl: ReactorUrl, anchor: String) {
     val channelName = s"${isoUrl.name}#$anchor"
   }
 }

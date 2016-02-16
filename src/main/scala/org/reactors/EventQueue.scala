@@ -56,7 +56,7 @@ object EventQueue {
     def newInstance[@spec(Int, Long, Double) T: Arrayable]: EventQueue[T]
   }
 
-  /** Drops all enqueued events.
+  /** Event queue that drops all enqueued events.
    */
   class Zero[@spec(Int, Long, Double) T: Arrayable]
   extends EventQueue[T] {
@@ -73,7 +73,7 @@ object EventQueue {
   class UnrolledRing[@spec(Int, Long, Double) T: Arrayable](
     private[reactors] val monitor: Monitor = new Monitor
   ) extends EventQueue[T] {
-    private[reactors] val ring = new UnrolledRing[T]
+    private[reactors] val ring = new org.reactors.common.UnrolledRing[T]
     private[reactors] val emitter = new Events.Emitter[T]
 
     def enqueue(x: T): Int = monitor.synchronized {
