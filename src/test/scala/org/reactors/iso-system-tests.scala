@@ -864,7 +864,9 @@ class ReactorSystemTest extends FunSuite with Matchers {
   }
 
   test("reactor should terminate on ctor exception") {
-    val system = ReactorSystem.default("test")
+    val scheduler = new Scheduler.Dedicated.NewThread(true, Scheduler.silentHandler)
+    val bundle = ReactorSystem.Bundle.default(scheduler)
+    val system = ReactorSystem.default("test", bundle)
     try {
       val p = Promise[(Boolean, Boolean)]()
       system.spawn(Proto[CtorExceptionReactor](p))
@@ -873,7 +875,9 @@ class ReactorSystemTest extends FunSuite with Matchers {
   }
 
   test("reactor does not raise ReactorDied events after ReactorTerminated") {
-    val system = ReactorSystem.default("test")
+    val scheduler = new Scheduler.Dedicated.NewThread(true, Scheduler.silentHandler)
+    val bundle = ReactorSystem.Bundle.default(scheduler)
+    val system = ReactorSystem.default("test", bundle)
     try {
       val p = Promise[Boolean]()
       system.spawn(Proto[TerminationExceptionReactor](p))
@@ -883,7 +887,9 @@ class ReactorSystemTest extends FunSuite with Matchers {
   }
 
   test("reactor should terminate on exceptions while running") {
-    val system = ReactorSystem.default("test")
+    val scheduler = new Scheduler.Dedicated.NewThread(true, Scheduler.silentHandler)
+    val bundle = ReactorSystem.Bundle.default(scheduler)
+    val system = ReactorSystem.default("test", bundle)
     try {
       val p = Promise[Throwable]()
       val ch = system.spawn(Proto[RunningExceptionReactor](p))

@@ -140,14 +140,18 @@ object Scheduler {
     case t: Throwable => t.printStackTrace()
   }
 
+  /** Silent handler ignores exceptions.
+   */
+  val silentHandler: Handler = {
+    case t: Throwable => // do nothing
+  }
+
   /** Scheduler that shares the global Scala execution context.
    */
   lazy val globalExecutionContext: Scheduler =
     new Executed(ExecutionContext.Implicits.global)
 
-  /** Default reactor scheduler.
-   */
-  lazy val default: Scheduler = new Executed(new ForkJoinPool(
+  lazy val defaultForkJoinPool = new ForkJoinPool(
     Runtime.getRuntime.availableProcessors,
     new ForkJoinPool.ForkJoinWorkerThreadFactory {
       def newThread(pool: ForkJoinPool) = new ForkJoinWorkerThread(pool) {
@@ -156,7 +160,11 @@ object Scheduler {
     },
     null,
     true
-  ))
+  )
+
+  /** Default reactor scheduler.
+   */
+  lazy val default: Scheduler = new Executed(defaultForkJoinPool)
 
   /** A scheduler that always starts a reactor on a dedicated thread.
    */
