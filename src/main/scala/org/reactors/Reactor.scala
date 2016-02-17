@@ -144,7 +144,7 @@ object Reactor {
    *  @tparam I      the type of the current reactor
    *  @return        the current reactor
    */
-  def self[I <: Reactor[_]]: I = {
+  def selfAs[I <: Reactor[_]]: I = {
     val i = selfReactor.get
     if (i == null)
       throw new IllegalStateException(
@@ -160,10 +160,23 @@ object Reactor {
    *  @tparam I      the type of the current reactor
    *  @return        the current reactor, or `null`
    */
-  def selfOrNull[I <: Reactor[_]]: I = selfReactor.get.asInstanceOf[I]
+  def selfAsOrNull[I <: Reactor[_]]: I = selfReactor.get.asInstanceOf[I]
 
   /** Returns the current reactor that produces events of type `T`.
    */
-  def of[@specialized(Int, Long, Double) T]: Reactor[T] = Reactor.self[Reactor[T]]
+  def self[@specialized(Int, Long, Double) T]: Reactor[T] = Reactor.selfAs[Reactor[T]]
+
+  /** Creates a reactor proto from a closure.
+   *
+   *  This is a short-hand for creating a reactor template.
+   *
+   *  @tparam T       type of the main event stream
+   *  @param body     reactor body
+   */
+  def apply[@specialized(Int, Long, Double) T](
+    body: Events[T] => Unit
+  ): Proto[Reactor[T]] = {
+    Proto(classOf[AnonymousReactor[T]], body)
+  }
 
 }
