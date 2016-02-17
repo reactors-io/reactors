@@ -112,9 +112,13 @@ trait Reactor[@spec(Int, Long, Double) T] {
 
   /** The system connector of this reactor, which is a daemon.
    */
-  def internal: Connector[SysEvent] = {
+  private def internal: Connector[SysEvent] = {
     frame.internalConnector.asInstanceOf[Connector[SysEvent]]
   }
+
+  /** The system event stream of this isolate.
+   */
+  final def sysEvents: Events[SysEvent] = sysEmitter
 
 }
 

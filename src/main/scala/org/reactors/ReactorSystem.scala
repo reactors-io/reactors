@@ -78,10 +78,10 @@ class ReactorSystem(
    */
   def spawn[@spec(Int, Long, Double) T: Arrayable](p: Proto[Reactor[T]]):
     Channel[T] = {
-    tryCreateReactor(p)
+    trySpawnReactor(p)
   }
 
-  protected[reactors] def tryCreateReactor[@spec(Int, Long, Double) T: Arrayable](
+  protected[reactors] def trySpawnReactor[@spec(Int, Long, Double) T: Arrayable](
     proto: Proto[Reactor[T]]
   ): Channel[T] = {
     // 1. ensure a unique id

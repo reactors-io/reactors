@@ -14,18 +14,19 @@ import scala.util.Success
 
 
 
-class TestReactor extends Reactor[Unit]
+class TestReactor extends Reactor[Unit] {
+}
 
 
 class SelfReactor(val p: Promise[Boolean]) extends Reactor[Int] {
-  internal.events onMatch {
+  sysEvents onMatch {
     case ReactorStarted => p.success(this eq Reactor.self)
   }
 }
 
 
 class PiggyReactor(val p: Promise[Boolean]) extends Reactor[Unit] {
-  internal.events onMatch {
+  sysEvents onMatch {
     case ReactorStarted =>
       try {
         val piggy = ReactorSystem.Bundle.schedulers.piggyback
@@ -52,7 +53,7 @@ class ReactorSelfReactor(val p: Promise[Boolean]) extends Reactor[Unit] {
 
 
 class ReactorStartedReactor(val p: Promise[Boolean]) extends Reactor[Unit] {
-  internal.events onMatch {
+  sysEvents onMatch {
     case ReactorStarted => p.success(true)
   }
 }
@@ -66,7 +67,7 @@ class AfterFirstBatchReactor(val p: Promise[Boolean]) extends Reactor[String] {
 
 
 class DuringFirstBatchReactor(val p: Promise[Boolean]) extends Reactor[String] {
-  internal.events onMatch {
+  sysEvents onMatch {
     case ReactorStarted => main.channel ! "success"
   }
   main.events onMatch {
@@ -109,7 +110,7 @@ class AfterSealTerminateReactor(val p: Promise[Boolean]) extends Reactor[String]
   main.events onMatch {
     case "seal" => main.seal()
   }
-  internal.events onMatch {
+  sysEvents onMatch {
     case ReactorTerminated => p.success(true)
   }
 }
@@ -117,7 +118,7 @@ class AfterSealTerminateReactor(val p: Promise[Boolean]) extends Reactor[String]
 
 class NewChannelReactor(val p: Promise[Boolean]) extends Reactor[String] {
   val secondary = system.channels.open[Boolean]
-  internal.events onMatch {
+  sysEvents onMatch {
     case ReactorStarted =>
       main.channel ! "open"
     case ReactorTerminated =>
@@ -136,7 +137,7 @@ class NewChannelReactor(val p: Promise[Boolean]) extends Reactor[String] {
 
 class ReactorScheduledReactor(val p: Promise[Boolean]) extends Reactor[String] {
   var left = 5
-  internal.events onMatch {
+  sysEvents onMatch {
     case ReactorScheduled =>
       left -= 1
       if (left == 0) main.seal()
@@ -148,7 +149,7 @@ class ReactorScheduledReactor(val p: Promise[Boolean]) extends Reactor[String] {
 
 class ReactorPreemptedReactor(val p: Promise[Boolean]) extends Reactor[String] {
   var left = 5
-  internal.events onMatch {
+  sysEvents onMatch {
     case ReactorPreempted =>
       left -= 1
       if (left > 0) main.channel ! "dummy"
@@ -163,7 +164,7 @@ class CtorExceptionReactor(val p: Promise[(Boolean, Boolean)])
 extends Reactor[Unit] {
   var excepted = false
   var terminated = false
-  internal.events onMatch {
+  sysEvents onMatch {
     case ReactorDied(t) =>
       excepted = true
     case ReactorTerminated =>
@@ -175,7 +176,7 @@ extends Reactor[Unit] {
 
 
 class TerminationExceptionReactor(val p: Promise[Boolean]) extends Reactor[Unit] {
-  internal.events onMatch {
+  sysEvents onMatch {
     case ReactorDied(t) => p.success(true)
     case ReactorPreempted => main.seal()
     case ReactorTerminated => sys.error("Exception thrown during termination!")
@@ -187,7 +188,7 @@ class RunningExceptionReactor(val p: Promise[Throwable]) extends Reactor[String]
   main.events onMatch {
     case "die" => sys.error("exception thrown")
   }
-  internal.events onMatch {
+  sysEvents onMatch {
     case ReactorDied(t) => p.success(t)
   }
 }
@@ -198,7 +199,7 @@ class EventSourceReactor(val p: Promise[Boolean]) extends Reactor[String] {
   emitter onDone {
     p.success(true)
   }
-  internal.events onMatch {
+  sysEvents onMatch {
     case ReactorPreempted => main.seal()
   }
 }
@@ -263,14 +264,14 @@ class MultiChannelReactor(val p: Promise[Boolean], val n: Int) extends Reactor[I
   main.events.scanPast(n)((count, _) => count - 1) onEvent { i =>
     if (i == 0) main.seal()
   }
-  internal.events onMatch {
+  sysEvents onMatch {
     case ReactorTerminated => p.success(true)
   }
 }
 
 
 class LooperReactor(val p: Promise[Boolean], var n: Int) extends Reactor[String] {
-  internal.events onMatch {
+  sysEvents onMatch {
     case ReactorPreempted =>
       if (n > 0) main.channel ! "count"
       else {
@@ -306,7 +307,7 @@ class ChildReactor(val p: Promise[Boolean], val n: Int) extends Reactor[Int] {
 
 class PingReactor(val p: Promise[Boolean], var n: Int, val s: String) extends Reactor[String] {
   val pong = system.spawn(Proto[PongReactor](n, main.channel).withScheduler(s))
-  val start = internal.events onMatch {
+  val start = sysEvents onMatch {
     case ReactorStarted => pong ! "pong"
   }
   val sub = main.events onMatch {
@@ -369,7 +370,7 @@ class RingReactor(
 
 
 class TerminatedReactor(val p: Promise[Boolean]) extends Reactor[Unit] {
-  internal.events onMatch {
+  sysEvents onMatch {
     case ReactorStarted =>
       main.seal()
     case ReactorTerminated =>
@@ -381,7 +382,7 @@ class TerminatedReactor(val p: Promise[Boolean]) extends Reactor[Unit] {
 
 class LookupChannelReactor(val started: Promise[Boolean], val ended: Promise[Boolean])
 extends Reactor[Unit] {
-  internal.events onMatch {
+  sysEvents onMatch {
     case ReactorStarted =>
       val terminator = system.channels.daemon.named("terminator").open[String]
       terminator.events onMatch {
@@ -415,7 +416,7 @@ extends Reactor[Unit] {
 //   server.events onMatch {
 //     case ("request", r) => r ! "reply"
 //   }
-//   internal.events onMatch {
+//   sysEvents onMatch {
 //     case ReactorStarted =>
 //       server.channel.request("request", 2.seconds) onMatch {
 //         case "reply" =>
@@ -433,7 +434,7 @@ extends Reactor[Unit] {
 //   server.events onMatch {
 //     case ("request", r) => // staying silent
 //   }
-//   internal.events onMatch {
+//   sysEvents onMatch {
 //     case ReactorStarted =>
 //       server.channel.request("request", 1.seconds) onExcept {
 //         case t =>
@@ -458,7 +459,7 @@ extends Reactor[Unit] {
 //       if (firstRequest) firstRequest = false
 //       else answer ! "yes"
 //   }
-//   internal.events onMatch {
+//   sysEvents onMatch {
 //     case ReactorStarted =>
 //       requests.channel.retry("try", test, 4, 200.millis) onMatch {
 //         case "yes" => p.success(numAttempts)
@@ -478,7 +479,7 @@ extends Reactor[Unit] {
 //     numReplies += 1
 //     numReplies == 2
 //   }
-//   internal.events onMatch {
+//   sysEvents onMatch {
 //     case ReactorStarted =>
 //       requests.channel.retry("try", test, 4, 200.millis) onMatch {
 //         case "yes" => p.success(true)
@@ -493,7 +494,7 @@ extends Reactor[Unit] {
 //   requests.events onMatch {
 //     case ("try", answer) => answer ! "yes"
 //   }
-//   internal.events onMatch {
+//   sysEvents onMatch {
 //     case ReactorStarted =>
 //       requests.channel.retry("try", _ => false, 4, 50.millis).onReaction(
 //         new Reactor[String] {
@@ -529,7 +530,7 @@ class NamedReactor(val p: Promise[Boolean]) extends Reactor[String] {
 
 class SysEventsReactor(val p: Promise[Boolean]) extends Reactor[String] {
   val events = mutable.Buffer[SysEvent]()
-  internal.events onMatch {
+  sysEvents onMatch {
     case ReactorTerminated =>
       p.trySuccess(events == Seq(ReactorStarted, ReactorScheduled, ReactorPreempted))
     case e =>
@@ -555,7 +556,7 @@ class TerminateEarlyReactor(
       }
     }
   }
-  internal.events onMatch {
+  sysEvents onMatch {
     case ReactorTerminated =>
       p.success(true)
   }
@@ -692,250 +693,250 @@ object PiggybackReactorSystemCheck extends BaseReactorSystemCheck("PiggybackSyst
 
 class ReactorSystemTest extends FunSuite with Matchers {
 
-  // test("system should return without throwing") {
-  //   val system = ReactorSystem.default("test")
-  //   try {
-  //     val proto = Proto[TestReactor]
-  //     system.spawn(proto)
-  //     assert(system.frames.forName("isolate-1") != null)
-  //   } finally system.shutdown()
-  // }
+  test("system should return without throwing") {
+    val system = ReactorSystem.default("test")
+    try {
+      val proto = Proto[TestReactor]
+      system.spawn(proto)
+      assert(system.frames.forName("reactor-0") != null)
+    } finally system.shutdown()
+  }
 
-  // test("system should return without throwing and use custom name") {
-  //   val system = ReactorSystem.default("test")
-  //   try {
-  //     val proto = Proto[TestReactor].withName("Izzy")
-  //     system.spawn(proto)
-  //     assert(system.frames.forName("Izzy") != null)
-  //     assert(system.frames.forName("Izzy").name == "Izzy")
-  //   } finally system.shutdown()
-  // }
+  test("system should return without throwing and use custom name") {
+    val system = ReactorSystem.default("test")
+    try {
+      val proto = Proto[TestReactor].withName("Izzy")
+      system.spawn(proto)
+      assert(system.frames.forName("Izzy") != null)
+      assert(system.frames.forName("Izzy").name == "Izzy")
+    } finally system.shutdown()
+  }
 
-  // test("system should throw when attempting to reuse the same name") {
-  //   val system = ReactorSystem.default("test")
-  //   try {
-  //     system.spawn(Proto[TestReactor].withName("Izzy"))
-  //     intercept[IllegalArgumentException] {
-  //       system.spawn(Proto[TestReactor].withName("Izzy"))
-  //     }
-  //   } finally system.shutdown()
-  // }
+  test("system should throw when attempting to reuse the same name") {
+    val system = ReactorSystem.default("test")
+    try {
+      system.spawn(Proto[TestReactor].withName("Izzy"))
+      intercept[IllegalArgumentException] {
+        system.spawn(Proto[TestReactor].withName("Izzy"))
+      }
+    } finally system.shutdown()
+  }
 
-  // test("system should create a default channel for the isolate") {
-  //   val system = ReactorSystem.default("test")
-  //   try {
-  //     val channel = system.spawn(Proto[TestReactor].withName("Izzy"))
-  //     assert(channel != null)
-  //     val conn = system.frames.forName("Izzy").connectors.forName("main")
-  //     assert(conn != null)
-  //     assert(conn.channel eq channel)
-  //     assert(!conn.isDaemon)
-  //   } finally system.shutdown()
-  // }
+  test("system should create a default channel for the reactor") {
+    val system = ReactorSystem.default("test")
+    try {
+      val channel = system.spawn(Proto[TestReactor].withName("Izzy"))
+      assert(channel != null)
+      val conn = system.frames.forName("Izzy").connectors.forName("main")
+      assert(conn != null)
+      assert(conn.channel eq channel)
+      assert(!conn.isDaemon)
+    } finally system.shutdown()
+  }
 
-  // test("system should create a system channel for the isolate") {
-  //   val system = ReactorSystem.default("test")
-  //   try {
-  //     system.spawn(Proto[TestReactor].withName("Izzy"))
-  //     val conn = system.frames.forName("Izzy").connectors.forName("system")
-  //     assert(conn != null)
-  //     assert(conn.isDaemon)
-  //   } finally system.shutdown()
-  // }
+  test("system should create a system channel for the reactor") {
+    val system = ReactorSystem.default("test")
+    try {
+      system.spawn(Proto[TestReactor].withName("Izzy"))
+      val conn = system.frames.forName("Izzy").connectors.forName("system")
+      assert(conn != null)
+      assert(conn.isDaemon)
+    } finally system.shutdown()
+  }
 
-  // test("system should schedule isolate's ctor for execution") {
-  //   val system = ReactorSystem.default("test")
-  //   try {
-  //     val p = Promise[Unit]()
-  //     system.spawn(Proto[PromiseReactor](p))
-  //     Await.result(p.future, 10.seconds)
-  //   } finally system.shutdown()
-  // }
+  test("system should schedule reactor's ctor for execution") {
+    val system = ReactorSystem.default("test")
+    try {
+      val p = Promise[Unit]()
+      system.spawn(Proto[PromiseReactor](p))
+      Await.result(p.future, 10.seconds)
+    } finally system.shutdown()
+  }
 
-  // test("system should invoke the ctor with the Reactor.self set") {
-  //   val system = ReactorSystem.default("test")
-  //   try {
-  //     val p = Promise[Boolean]()
-  //     system.spawn(Proto[ReactorSelfReactor](p))
-  //     assert(Await.result(p.future, 10.seconds))
-  //   } finally system.shutdown()
-  // }
+  test("system should invoke the ctor with the Reactor.self set") {
+    val system = ReactorSystem.default("test")
+    try {
+      val p = Promise[Boolean]()
+      system.spawn(Proto[ReactorSelfReactor](p))
+      assert(Await.result(p.future, 10.seconds))
+    } finally system.shutdown()
+  }
 
-  // test("iso should ensure the ReactorStarted event") {
-  //   val system = ReactorSystem.default("test")
-  //   try {
-  //     val p = Promise[Boolean]()
-  //     system.spawn(Proto[ReactorStartedReactor](p))
-  //     assert(Await.result(p.future, 10.seconds))
-  //   } finally system.shutdown()
-  // }
+  test("reactor should ensure the ReactorStarted event") {
+    val system = ReactorSystem.default("test")
+    try {
+      val p = Promise[Boolean]()
+      system.spawn(Proto[ReactorStartedReactor](p))
+      assert(Await.result(p.future, 10.seconds))
+    } finally system.shutdown()
+  }
 
-  // test("iso should process an event that arrives after the first batch") {
-  //   val system = ReactorSystem.default("test")
-  //   try {
-  //     val p = Promise[Boolean]()
-  //     val ch = system.spawn(Proto[AfterFirstBatchReactor](p))
-  //     Thread.sleep(250)
-  //     ch ! "success"
-  //     assert(Await.result(p.future, 10.seconds))
-  //   } finally system.shutdown()
-  // }
+  test("reactor should process an event that arrives after the first batch") {
+    val system = ReactorSystem.default("test")
+    try {
+      val p = Promise[Boolean]()
+      val ch = system.spawn(Proto[AfterFirstBatchReactor](p))
+      Thread.sleep(250)
+      ch ! "success"
+      assert(Await.result(p.future, 10.seconds))
+    } finally system.shutdown()
+  }
 
-  // test("iso should process an event that arrives during the first batch") {
-  //   val system = ReactorSystem.default("test")
-  //   try {
-  //     val p = Promise[Boolean]()
-  //     val ch = system.spawn(Proto[DuringFirstBatchReactor](p))
-  //     assert(Await.result(p.future, 10.seconds))
-  //   } finally system.shutdown()
-  // }
+  test("reactor should process an event that arrives during the first batch") {
+    val system = ReactorSystem.default("test")
+    try {
+      val p = Promise[Boolean]()
+      val ch = system.spawn(Proto[DuringFirstBatchReactor](p))
+      assert(Await.result(p.future, 10.seconds))
+    } finally system.shutdown()
+  }
 
-  // test("iso should process an event that arrives during the first event") {
-  //   val system = ReactorSystem.default("test")
-  //   try {
-  //     val p = Promise[Boolean]()
-  //     val ch = system.spawn(Proto[DuringFirstEventReactor](p))
-  //     ch ! "message"
-  //     assert(Await.result(p.future, 10.seconds))
-  //   } finally system.shutdown()
-  // }
+  test("reactor should process an event that arrives during the first event") {
+    val system = ReactorSystem.default("test")
+    try {
+      val p = Promise[Boolean]()
+      val ch = system.spawn(Proto[DuringFirstEventReactor](p))
+      ch ! "message"
+      assert(Await.result(p.future, 10.seconds))
+    } finally system.shutdown()
+  }
 
-  // test("iso should process two events that arrive during the first event") {
-  //   val system = ReactorSystem.default("test")
-  //   try {
-  //     val p = Promise[Boolean]()
-  //     val ch = system.spawn(Proto[TwoDuringFirstReactor](p))
-  //     ch ! "start"
-  //     assert(Await.result(p.future, 10.seconds))
-  //   } finally system.shutdown()
-  // }
+  test("reactor should process two events that arrive during the first event") {
+    val system = ReactorSystem.default("test")
+    try {
+      val p = Promise[Boolean]()
+      val ch = system.spawn(Proto[TwoDuringFirstReactor](p))
+      ch ! "start"
+      assert(Await.result(p.future, 10.seconds))
+    } finally system.shutdown()
+  }
 
-  // test("iso should process 100 incoming events") {
-  //   val system = ReactorSystem.default("test")
-  //   try {
-  //     val p = Promise[Boolean]()
-  //     val ch = system.spawn(Proto[CountdownReactor](p, 100))
-  //     Thread.sleep(250)
-  //     for (i <- 0 until 100) ch ! "dec"
-  //     assert(Await.result(p.future, 10.seconds))
-  //   } finally system.shutdown()
-  // }
+  test("reactor should process 100 incoming events") {
+    val system = ReactorSystem.default("test")
+    try {
+      val p = Promise[Boolean]()
+      val ch = system.spawn(Proto[CountdownReactor](p, 100))
+      Thread.sleep(250)
+      for (i <- 0 until 100) ch ! "dec"
+      assert(Await.result(p.future, 10.seconds))
+    } finally system.shutdown()
+  }
 
-  // test("iso should terminate after sealing its channel") {
-  //   val system = ReactorSystem.default("test")
-  //   try {
-  //     val p = Promise[Boolean]()
-  //     val ch = system.spawn(Proto[AfterSealTerminateReactor](p))
-  //     ch ! "seal"
-  //     assert(Await.result(p.future, 10.seconds))
-  //   } finally system.shutdown()
-  // }
+  test("reactor should terminate after sealing its channel") {
+    val system = ReactorSystem.default("test")
+    try {
+      val p = Promise[Boolean]()
+      val ch = system.spawn(Proto[AfterSealTerminateReactor](p))
+      ch ! "seal"
+      assert(Await.result(p.future, 10.seconds))
+    } finally system.shutdown()
+  }
 
-  // test("iso should be able to open a new channel") {
-  //   val system = ReactorSystem.default("test")
-  //   try {
-  //     val p = Promise[Boolean]()
-  //     system.spawn(Proto[NewChannelReactor](p))
-  //     assert(Await.result(p.future, 10.seconds))
-  //   } finally system.shutdown()
-  // }
+  test("reactor should be able to open a new channel") {
+    val system = ReactorSystem.default("test")
+    try {
+      val p = Promise[Boolean]()
+      system.spawn(Proto[NewChannelReactor](p))
+      assert(Await.result(p.future, 10.seconds))
+    } finally system.shutdown()
+  }
 
-  // test("iso should get ReactorScheduled events") {
-  //   val system = ReactorSystem.default("test")
-  //   try {
-  //     val p = Promise[Boolean]()
-  //     val ch = system.spawn(Proto[ReactorScheduledReactor](p))
-  //     for (i <- 0 until 5) {
-  //       Thread.sleep(60)
-  //       ch ! "dummy"
-  //     }
-  //     assert(Await.result(p.future, 10.seconds))
-  //   } finally system.shutdown()
-  // }
+  test("reactor should get ReactorScheduled events") {
+    val system = ReactorSystem.default("test")
+    try {
+      val p = Promise[Boolean]()
+      val ch = system.spawn(Proto[ReactorScheduledReactor](p))
+      for (i <- 0 until 5) {
+        Thread.sleep(60)
+        ch ! "dummy"
+      }
+      assert(Await.result(p.future, 10.seconds))
+    } finally system.shutdown()
+  }
 
-  // test("iso should get ReactorPreempted events") {
-  //   val system = ReactorSystem.default("test")
-  //   try {
-  //     val p = Promise[Boolean]()
-  //     system.spawn(Proto[ReactorPreemptedReactor](p))
-  //     assert(Await.result(p.future, 10.seconds))
-  //   } finally system.shutdown()
-  // }
+  test("reactor should get ReactorPreempted events") {
+    val system = ReactorSystem.default("test")
+    try {
+      val p = Promise[Boolean]()
+      system.spawn(Proto[ReactorPreemptedReactor](p))
+      assert(Await.result(p.future, 10.seconds))
+    } finally system.shutdown()
+  }
 
-  // test("iso should terminate on ctor exception") {
-  //   val system = ReactorSystem.default("test")
-  //   try {
-  //     val p = Promise[(Boolean, Boolean)]()
-  //     system.spawn(Proto[CtorExceptionReactor](p))
-  //     assert(Await.result(p.future, 10.seconds) == (true, true))
-  //   } finally system.shutdown()
-  // }
+  test("reactor should terminate on ctor exception") {
+    val system = ReactorSystem.default("test")
+    try {
+      val p = Promise[(Boolean, Boolean)]()
+      system.spawn(Proto[CtorExceptionReactor](p))
+      assert(Await.result(p.future, 10.seconds) == (true, true))
+    } finally system.shutdown()
+  }
 
-  // test("iso does not raise termination-related ReactorDied events after ReactorTerminated") {
-  //   val system = ReactorSystem.default("test")
-  //   try {
-  //     val p = Promise[Boolean]()
-  //     system.spawn(Proto[TerminationExceptionReactor](p))
-  //     Thread.sleep(100)
-  //     assert(p.future.value == None)
-  //   } finally system.shutdown()
-  // }
+  test("reactor does not raise ReactorDied events after ReactorTerminated") {
+    val system = ReactorSystem.default("test")
+    try {
+      val p = Promise[Boolean]()
+      system.spawn(Proto[TerminationExceptionReactor](p))
+      Thread.sleep(100)
+      assert(p.future.value == None)
+    } finally system.shutdown()
+  }
 
-  // test("iso should terminate on exceptions while running") {
-  //   val system = ReactorSystem.default("test")
-  //   try {
-  //     val p = Promise[Throwable]()
-  //     val ch = system.spawn(Proto[RunningExceptionReactor](p))
-  //     ch ! "die"
-  //     assert(Await.result(p.future, 10.seconds).getMessage == "exception thrown")
-  //   } finally system.shutdown()
-  // }
+  test("reactor should terminate on exceptions while running") {
+    val system = ReactorSystem.default("test")
+    try {
+      val p = Promise[Throwable]()
+      val ch = system.spawn(Proto[RunningExceptionReactor](p))
+      ch ! "die"
+      assert(Await.result(p.future, 10.seconds).getMessage == "exception thrown")
+    } finally system.shutdown()
+  }
 
-  // test("Reactor.self should be correctly set") {
-  //   val system = ReactorSystem.default("test")
-  //   try {
-  //     val p = Promise[Boolean]()
-  //     system.spawn(Proto[SelfReactor](p))
-  //     assert(Await.result(p.future, 10.seconds))
-  //   } finally system.shutdown()
-  // }
+  test("Reactor.self should be correctly set") {
+    val system = ReactorSystem.default("test")
+    try {
+      val p = Promise[Boolean]()
+      system.spawn(Proto[SelfReactor](p))
+      assert(Await.result(p.future, 10.seconds))
+    } finally system.shutdown()
+  }
 
-  // test("piggyback scheduler should throw an exception if called from an isolate") {
-  //   val system = ReactorSystem.default("test")
-  //   try {
-  //     val p = Promise[Boolean]()
-  //     system.spawn(Proto[PiggyReactor](p))
-  //     assert(Await.result(p.future, 10.seconds))
-  //   } finally system.shutdown()
-  // }
+  test("piggyback scheduler should throw an exception if called from a reactor") {
+    val system = ReactorSystem.default("test")
+    try {
+      val p = Promise[Boolean]()
+      system.spawn(Proto[PiggyReactor](p))
+      assert(Await.result(p.future, 10.seconds))
+    } finally system.shutdown()
+  }
 
-  // test("after termination and before ReactorTerminated, isolate name should be released") {
-  //   val system = ReactorSystem.default("test")
-  //   try {
-  //     val p = Promise[Boolean]()
-  //     system.spawn(Proto[TerminatedReactor](p).withName("ephemo"))
-  //     assert(Await.result(p.future, 10.seconds))
-  //     Thread.sleep(1200)
-  //     assert(system.frames.forName("ephemo") == null)
-  //   } finally system.shutdown()
-  // }
+  test("after termination and before ReactorTerminated reactor name must be released") {
+    val system = ReactorSystem.default("test")
+    try {
+      val p = Promise[Boolean]()
+      system.spawn(Proto[TerminatedReactor](p).withName("ephemo"))
+      assert(Await.result(p.future, 10.seconds))
+      Thread.sleep(1200)
+      assert(system.frames.forName("ephemo") == null)
+    } finally system.shutdown()
+  }
 
-  // test("after the iso starts, its channel should be looked up") {
-  //   val system = ReactorSystem.default("test")
-  //   try {
-  //     val started = Promise[Boolean]()
-  //     val ended = Promise[Boolean]()
-  //     val channel = system.spawn(Proto[LookupChannelReactor](started, ended).withName("pi"))
-  //     assert(Await.result(started.future, 10.seconds))
-  //     system.channels.find[String]("pi#terminator") match {
-  //       case Some(ch) => ch ! "end"
-  //       case None => sys.error("channel not found")
-  //     }
-  //     assert(Await.result(ended.future, 10.seconds))
-  //   } finally system.shutdown()
-  // }
+  test("after the reactor starts, its channel should be looked up") {
+    val system = ReactorSystem.default("test")
+    try {
+      val started = Promise[Boolean]()
+      val ended = Promise[Boolean]()
+      val channel = system.spawn(Proto[LookupChannelReactor](started, ended).withName("pi"))
+      assert(Await.result(started.future, 10.seconds))
+      system.channels.find[String]("pi#terminator") match {
+        case Some(ch) => ch ! "end"
+        case None => sys.error("channel not found")
+      }
+      assert(Await.result(ended.future, 10.seconds))
+    } finally system.shutdown()
+  }
 
-  // test("channels iso should look up channels when asked") {
+  // test("channels reactor should look up channels when asked") {
   //   val system = ReactorSystem.default("test")
   //   try {
   //     val p = Promise[Boolean]
