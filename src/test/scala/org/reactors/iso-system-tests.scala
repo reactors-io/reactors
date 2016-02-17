@@ -569,23 +569,23 @@ abstract class BaseReactorSystemCheck(name: String) extends Properties(name) {
 
   val scheduler: String
 
-  // property("should send itself messages") = forAllNoShrink(choose(1, 1024)) { n =>
-  //   val p = Promise[Boolean]()
-  //   system.spawn(Proto[LooperReactor](p, n).withScheduler(scheduler))
-  //   Await.result(p.future, 10.seconds)
-  // }
+  property("should send itself messages") = forAllNoShrink(choose(1, 1024)) { n =>
+    val p = Promise[Boolean]()
+    system.spawn(Proto[LooperReactor](p, n).withScheduler(scheduler))
+    Await.result(p.future, 10.seconds)
+  }
 
 }
 
 
 abstract class ReactorSystemCheck(name: String) extends BaseReactorSystemCheck(name) {
 
-  // property("should receive many events") = forAllNoShrink(choose(1, 1024)) { n =>
-  //   val p = Promise[Boolean]()
-  //   val ch = system.spawn(Proto[ManyReactor](p, n).withScheduler(scheduler))
-  //   for (i <- 0 until n) ch ! "count"
-  //   Await.result(p.future, 10.seconds)
-  // }
+  property("should receive many events") = forAllNoShrink(choose(1, 1024)) { n =>
+    val p = Promise[Boolean]()
+    val ch = system.spawn(Proto[ManyReactor](p, n).withScheduler(scheduler))
+    for (i <- 0 until n) ch ! "count"
+    Await.result(p.future, 10.seconds)
+  }
 
   // property("should receive many events through different sources") =
   //   forAllNoShrink(choose(1, 1024)) { n =>
