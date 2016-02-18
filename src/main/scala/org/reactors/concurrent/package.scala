@@ -7,8 +7,8 @@ package org.reactors
 
 package concurrent {
 
-  class AnonymousReactor[T](body: Events[T] => Unit) extends Reactor[T] {
-    body(main.events)
+  class AnonymousReactor[T](body: Reactor[T] => Unit) extends Reactor[T] {
+    body(this)
   }
 
 }

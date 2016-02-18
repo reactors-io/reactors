@@ -166,6 +166,12 @@ object Reactor {
    */
   def self[@specialized(Int, Long, Double) T]: Reactor[T] = Reactor.selfAs[Reactor[T]]
 
+  /** Convenience class for anonymous reactor declarations.
+   *
+   *  Serves as a placeholder for cyclic declarations.
+   */
+  class Placeholder
+
   /** Creates a reactor proto from a closure.
    *
    *  This is a short-hand for creating a reactor template.
@@ -174,9 +180,9 @@ object Reactor {
    *  @param body     reactor body
    */
   def apply[@specialized(Int, Long, Double) T](
-    body: Events[T] => Unit
+    body: Reactor[T] => Unit
   ): Proto[Reactor[T]] = {
-    Proto(classOf[AnonymousReactor[T]], body)
+    Proto[AnonymousReactor[T]](body)
   }
 
 }

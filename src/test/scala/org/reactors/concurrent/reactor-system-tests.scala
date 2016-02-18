@@ -1,4 +1,5 @@
 package org.reactors
+package concurrent
 
 
 
@@ -8,14 +9,11 @@ import org.scalacheck.Gen.choose
 import org.scalatest.{FunSuite, Matchers}
 import scala.annotation.unchecked
 import scala.collection._
-import scala.concurrent._
+import scala.concurrent.Await
+import scala.concurrent.Promise
 import scala.concurrent.duration._
 import scala.util.Success
 
-
-
-class TestReactor extends Reactor[Unit] {
-}
 
 
 class SelfReactor(val p: Promise[Boolean]) extends Reactor[Int] {
@@ -207,101 +205,6 @@ class EventSourceReactor(val p: Promise[Boolean]) extends Reactor[String] {
 
 object Log {
   def apply(msg: String) = println(s"${Thread.currentThread.getName}: $msg")
-}
-
-
-class ManyReactor(p: Promise[Boolean], var n: Int) extends Reactor[String] {
-  val sub = main.events onEvent { v =>
-    n -= 1
-    if (n <= 0) {
-      p.success(true)
-      main.seal()
-    }
-  }
-}
-
-
-class EvenOddReactor(p: Promise[Boolean], n: Int) extends Reactor[Int] {
-  val rem = mutable.Set[Int]()
-  for (i <- 0 until n) rem += i
-  main.events onEvent { v =>
-    if (v % 2 == 0) even.channel ! v
-    else odd.channel ! v
-  }
-  val odd = system.channels.open[Int]
-  odd.events onEvent { v =>
-    rem -= v
-    check()
-  }
-  val even = system.channels.open[Int]
-  even.events onEvent { v =>
-    rem -= v
-    check()
-  }
-  def check() {
-    if (rem.size == 0) {
-      main.seal()
-      odd.seal()
-      even.seal()
-      p.success(true)
-    }
-  }
-}
-
-
-class MultiChannelReactor(val p: Promise[Boolean], val n: Int) extends Reactor[Int] {
-  var c = n
-  val connectors = for (i <- 0 until n) yield {
-    val conn = system.channels.open[Int]
-    conn.events onEvent { j =>
-      if (i == j) conn.seal()
-    }
-    conn
-  }
-  main.events onEvent {
-    i => connectors(i).channel ! i
-  }
-  main.events.scanPast(n)((count, _) => count - 1) onEvent { i =>
-    if (i == 0) main.seal()
-  }
-  sysEvents onMatch {
-    case ReactorTerminated => p.success(true)
-  }
-}
-
-
-class LooperReactor(val p: Promise[Boolean], var n: Int) extends Reactor[String] {
-  sysEvents onMatch {
-    case ReactorPreempted =>
-      if (n > 0) main.channel ! "count"
-      else {
-        main.seal()
-        p.success(true)
-      }
-  }
-  main.events onMatch {
-    case "count" => n -= 1
-  }
-}
-
-
-class ParentReactor(val p: Promise[Boolean], val n: Int, val s: String)
-extends Reactor[Unit] {
-  val ch = system.spawn(Proto[ChildReactor](p, n).withScheduler(s))
-  for (i <- 0 until n) ch ! i
-  main.seal()
-}
-
-
-class ChildReactor(val p: Promise[Boolean], val n: Int) extends Reactor[Int] {
-  var nextNumber = 0
-  val sub = main.events onEvent { i =>
-    if (nextNumber == i) nextNumber += 1
-    if (nextNumber == n) {
-      main.seal()
-      p.success(true)
-    }
-  }
 }
 
 
@@ -569,9 +472,23 @@ abstract class BaseReactorSystemCheck(name: String) extends Properties(name) {
 
   val scheduler: String
 
-  property("should send itself messages") = forAllNoShrink(choose(1, 1024)) { n =>
+  property("should send itself messages") = forAllNoShrink(choose(1, 1024)) { num =>
     val p = Promise[Boolean]()
-    system.spawn(Proto[LooperReactor](p, n).withScheduler(scheduler))
+    var n = num
+    val proto = Reactor[String] { self =>
+      self.sysEvents onMatch {
+        case ReactorPreempted =>
+          if (n > 0) self.main.channel ! "count"
+          else {
+            self.main.seal()
+            p.success(true)
+          }
+      }
+      self.main.events onMatch {
+        case "count" => n -= 1
+      }
+    }
+    system.spawn(proto.withScheduler(scheduler))
     Await.result(p.future, 10.seconds)
   }
 
@@ -580,38 +497,111 @@ abstract class BaseReactorSystemCheck(name: String) extends Properties(name) {
 
 abstract class ReactorSystemCheck(name: String) extends BaseReactorSystemCheck(name) {
 
-  property("should receive many events") = forAllNoShrink(choose(1, 1024)) { n =>
+  property("should receive many events") = forAllNoShrink(choose(1, 1024)) { num =>
     val p = Promise[Boolean]()
-    val ch = system.spawn(Proto[ManyReactor](p, n).withScheduler(scheduler))
+    var n = num
+    val proto = Reactor[String] { self =>
+      val sub = self.main.events onEvent { v =>
+        n -= 1
+        if (n <= 0) {
+          p.success(true)
+          self.main.seal()
+        }
+      }
+    }
+    val ch = system.spawn(proto.withScheduler(scheduler))
     for (i <- 0 until n) ch ! "count"
     Await.result(p.future, 10.seconds)
   }
 
-  // property("should receive many events through different sources") =
-  //   forAllNoShrink(choose(1, 1024)) { n =>
-  //     val p = Promise[Boolean]()
-  //     val ch = system.spawn(Proto[EvenOddReactor](p, n).withScheduler(scheduler))
-  //     for (i <- 0 until n) ch ! i
-  //     Await.result(p.future, 10.seconds)
-  //   }
+  property("should receive many events through different sources") =
+    forAllNoShrink(choose(1, 1024)) { n =>
+      val p = Promise[Boolean]()
+      val proto = Reactor[Int] { self =>
+        new Reactor.Placeholder {
+          val rem = mutable.Set[Int]()
+          for (i <- 0 until n) rem += i
+          val odd = self.system.channels.open[Int]
+          odd.events onEvent { v =>
+            rem -= v
+            check()
+          }
+          val even = self.system.channels.open[Int]
+          even.events onEvent { v =>
+            rem -= v
+            check()
+          }
+          def check() {
+            if (rem.size == 0) {
+              self.main.seal()
+              odd.seal()
+              even.seal()
+              p.success(true)
+            }
+          }
+          self.main.events onEvent { v =>
+            if (v % 2 == 0) even.channel ! v
+            else odd.channel ! v
+          }
+        }
+      }
+      val ch = system.spawn(proto.withScheduler(scheduler))
+      for (i <- 0 until n) ch ! i
+      Await.result(p.future, 10.seconds)
+    }
 
-  // property("should be terminated after all its channels are sealed") =
-  //   forAllNoShrink(choose(1, 128)) { n =>
-  //     val p = Promise[Boolean]()
-  //     val ch = system.spawn(Proto[MultiChannelReactor](p, n).withScheduler(scheduler))
-  //     for (i <- 0 until n) {
-  //       Thread.sleep(0)
-  //       ch ! i
-  //     }
-  //     Await.result(p.future, 10.seconds)
-  //   }
+  property("should be terminated after all its channels are sealed") =
+    forAllNoShrink(choose(1, 128)) { n =>
+      val p = Promise[Boolean]()
+      val proto = Reactor[Int] { self =>
+        var c = n
+        val connectors = for (i <- 0 until n) yield {
+          val conn = self.system.channels.open[Int]
+          conn.events onEvent { j =>
+            if (i == j) conn.seal()
+          }
+          conn
+        }
+        self.main.events onEvent {
+          i => connectors(i).channel ! i
+        }
+        self.main.events.scanPast(n)((count, _) => count - 1) onEvent { i =>
+          if (i == 0) self.main.seal()
+        }
+        self.sysEvents onMatch {
+          case ReactorTerminated => p.success(true)
+        }
+      }
+      val ch = system.spawn(proto.withScheduler(scheduler))
+      for (i <- 0 until n) {
+        Thread.sleep(0)
+        ch ! i
+      }
+      Await.result(p.future, 10.seconds)
+    }
 
-  // property("should create another isolate and send it messages") =
-  //   forAllNoShrink(choose(1, 512)) { n =>
-  //     val p = Promise[Boolean]()
-  //     system.spawn(Proto[ParentReactor](p, n, scheduler).withScheduler(scheduler))
-  //     Await.result(p.future, 10.seconds)
-  //   }
+  property("should create another isolate and send it messages") =
+    forAllNoShrink(choose(1, 512)) { n =>
+      val p = Promise[Boolean]()
+      val s = scheduler
+      val proto = Reactor[Unit] { self =>
+        val proto = Reactor[Int] { self =>
+          var nextNumber = 0
+          val sub = self.main.events onEvent { i =>
+            if (nextNumber == i) nextNumber += 1
+            if (nextNumber == n) {
+              self.main.seal()
+              p.success(true)
+            }
+          }
+        }
+        val ch = self.system.spawn(proto.withScheduler(s))
+        for (i <- 0 until n) ch ! i
+        self.main.seal()
+      }
+      system.spawn(proto.withScheduler(scheduler))
+      Await.result(p.future, 10.seconds)
+    }
 
   // property("should play ping-pong with another isolate") =
   //   forAllNoShrink(choose(1, 512)) { n =>
@@ -696,7 +686,7 @@ class ReactorSystemTest extends FunSuite with Matchers {
   test("system should return without throwing") {
     val system = ReactorSystem.default("test")
     try {
-      val proto = Proto[TestReactor]
+      val proto = Reactor[Unit] { self => }
       system.spawn(proto)
       assert(system.frames.forName("reactor-0") != null)
     } finally system.shutdown()
@@ -705,8 +695,8 @@ class ReactorSystemTest extends FunSuite with Matchers {
   test("system should return without throwing and use custom name") {
     val system = ReactorSystem.default("test")
     try {
-      val proto = Proto[TestReactor].withName("Izzy")
-      system.spawn(proto)
+      val proto = Reactor[Unit] { self => }
+      system.spawn(proto.withName("Izzy"))
       assert(system.frames.forName("Izzy") != null)
       assert(system.frames.forName("Izzy").name == "Izzy")
     } finally system.shutdown()
@@ -715,9 +705,11 @@ class ReactorSystemTest extends FunSuite with Matchers {
   test("system should throw when attempting to reuse the same name") {
     val system = ReactorSystem.default("test")
     try {
-      system.spawn(Proto[TestReactor].withName("Izzy"))
+      val proto = Reactor[Unit] { self => }
+      system.spawn(proto.withName("Izzy"))
       intercept[IllegalArgumentException] {
-        system.spawn(Proto[TestReactor].withName("Izzy"))
+        val proto = Reactor[Unit] { self => }
+        system.spawn(proto.withName("Izzy"))
       }
     } finally system.shutdown()
   }
@@ -725,7 +717,8 @@ class ReactorSystemTest extends FunSuite with Matchers {
   test("system should create a default channel for the reactor") {
     val system = ReactorSystem.default("test")
     try {
-      val channel = system.spawn(Proto[TestReactor].withName("Izzy"))
+      val proto = Reactor[Unit] { self => }
+      val channel = system.spawn(proto.withName("Izzy"))
       assert(channel != null)
       val conn = system.frames.forName("Izzy").connectors.forName("main")
       assert(conn != null)
@@ -737,7 +730,8 @@ class ReactorSystemTest extends FunSuite with Matchers {
   test("system should create a system channel for the reactor") {
     val system = ReactorSystem.default("test")
     try {
-      system.spawn(Proto[TestReactor].withName("Izzy"))
+      val proto = Reactor[Unit] { self => }
+      val channel = system.spawn(proto.withName("Izzy"))
       val conn = system.frames.forName("Izzy").connectors.forName("system")
       assert(conn != null)
       assert(conn.isDaemon)
