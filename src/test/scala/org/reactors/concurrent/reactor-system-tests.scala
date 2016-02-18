@@ -208,33 +208,6 @@ object Log {
 }
 
 
-class PingReactor(val p: Promise[Boolean], var n: Int, val s: String) extends Reactor[String] {
-  val pong = system.spawn(Proto[PongReactor](n, main.channel).withScheduler(s))
-  val start = sysEvents onMatch {
-    case ReactorStarted => pong ! "pong"
-  }
-  val sub = main.events onMatch {
-    case "ping" =>
-      n -= 1
-      if (n > 0) pong ! "pong"
-      else {
-        main.seal()
-        p.success(true)
-      }
-  }
-}
-
-
-class PongReactor(var n: Int, val ping: Channel[String]) extends Reactor[String] {
-  main.events onMatch {
-    case "pong" =>
-      ping ! "ping"
-      n -= 1
-      if (n == 0) main.seal()
-  }
-}
-
-
 class RingReactor(
   val index: Int,
   val num: Int,
@@ -431,41 +404,6 @@ class NamedReactor(val p: Promise[Boolean]) extends Reactor[String] {
 }
 
 
-class SysEventsReactor(val p: Promise[Boolean]) extends Reactor[String] {
-  val events = mutable.Buffer[SysEvent]()
-  sysEvents onMatch {
-    case ReactorTerminated =>
-      p.trySuccess(events == Seq(ReactorStarted, ReactorScheduled, ReactorPreempted))
-    case e =>
-      events += e
-      if (events.size == 3) main.seal()
-  }
-}
-
-
-class TerminateEarlyReactor(
-  val p: Promise[Boolean], val fail: Promise[Boolean], val max: Int
-) extends Reactor[String] {
-  var seen = 0
-  var terminated = false
-  main.events onEvent { s =>
-    if (terminated) {
-      fail.success(true)
-    } else {
-      seen += 1
-      if (seen >= max) {
-        terminated = true
-        main.seal()
-      }
-    }
-  }
-  sysEvents onMatch {
-    case ReactorTerminated =>
-      p.success(true)
-  }
-}
-
-
 abstract class BaseReactorSystemCheck(name: String) extends Properties(name) {
 
   val system = ReactorSystem.default("check-system")
@@ -580,7 +518,7 @@ abstract class ReactorSystemCheck(name: String) extends BaseReactorSystemCheck(n
       Await.result(p.future, 10.seconds)
     }
 
-  property("should create another isolate and send it messages") =
+  property("should create another reactor and send it messages") =
     forAllNoShrink(choose(1, 512)) { n =>
       val p = Promise[Boolean]()
       val s = scheduler
@@ -603,81 +541,117 @@ abstract class ReactorSystemCheck(name: String) extends BaseReactorSystemCheck(n
       Await.result(p.future, 10.seconds)
     }
 
-  // property("should play ping-pong with another isolate") =
-  //   forAllNoShrink(choose(1, 512)) { n =>
-  //     val p = Promise[Boolean]()
-  //     system.spawn(Proto[PingReactor](p, n, scheduler).withScheduler(scheduler))
-  //     Await.result(p.future, 10.seconds)
-  //   }
+  property("should play ping-pong with another reactor") =
+    forAllNoShrink(choose(1, 512)) { num =>
+      val p = Promise[Boolean]()
+      val s = scheduler
+      var n = num
+      def pongProto(ping: Channel[String]): Proto[Reactor[String]] = Reactor[String] {
+        self =>
+        var n = num
+        self.main.events onMatch {
+          case "pong" =>
+            ping ! "ping"
+            n -= 1
+            if (n == 0) self.main.seal()
+        }
+      }
+      val pingProto = Reactor[String] { self =>
+        val pong = self.system.spawn(pongProto(self.main.channel).withScheduler(s))
+        val start = self.sysEvents onMatch {
+          case ReactorStarted => pong ! "pong"
+        }
+        val sub = self.main.events onMatch {
+          case "ping" =>
+            n -= 1
+            if (n > 0) pong ! "pong"
+            else {
+              self.main.seal()
+              p.success(true)
+            }
+        }
+      }
+      system.spawn(pingProto.withScheduler(scheduler))
+      Await.result(p.future, 10.seconds)
+    }
 
-  // property("a ring of isolates should correctly propagate messages") =
-  //   forAllNoShrink(choose(1, 64)) { n =>
-  //     val p = Promise[Boolean]()
-  //     val proto = Proto[RingReactor](0, n, Left(p), scheduler).withScheduler(scheduler)
-  //     val ch = system.spawn(proto)
-  //     ch ! "start"
-  //     Await.result(p.future, 10.seconds)
-  //   }
+  property("a ring of isolates should correctly propagate messages") =
+    forAllNoShrink(choose(1, 64)) { n =>
+      val p = Promise[Boolean]()
+      val proto = Proto[RingReactor](0, n, Left(p), scheduler).withScheduler(scheduler)
+      val ch = system.spawn(proto)
+      ch ! "start"
+      Await.result(p.future, 10.seconds)
+    }
 
-  // property("should receive all system events") =
-  //   forAllNoShrink(choose(1, 128)) { n =>
-  //     val p = Promise[Boolean]()
-  //     val proto = Proto[SysEventsReactor](p).withScheduler(scheduler)
-  //     system.spawn(proto)
-  //     Await.result(p.future, 10.seconds)
-  //   }
+  property("should receive all system events") =
+    forAllNoShrink(choose(1, 128)) { n =>
+      val p = Promise[Boolean]()
+      val proto = Reactor[String] { self =>
+        val events = mutable.Buffer[SysEvent]()
+        self.sysEvents onMatch {
+          case ReactorTerminated =>
+            val expected = Seq(ReactorStarted, ReactorScheduled, ReactorPreempted)
+            p.trySuccess(events == expected)
+          case e =>
+            events += e
+            if (events.size == 3) self.main.seal()
+        }
+      }
+      system.spawn(proto.withScheduler(scheduler))
+      Await.result(p.future, 10.seconds)
+    }
 
-  // property("should not process any events after sealing") =
-  //   forAllNoShrink(choose(1, 32000)) { n =>
-  //     val total = 32000
-  //     val p = Promise[Boolean]()
-  //     val fail = Promise[Boolean]()
-  //     val proto = Proto[TerminateEarlyReactor](p, fail, n).withScheduler(scheduler)
-  //     val ch = system.spawn(proto)
-  //     for (i <- 0 until total) ch ! "msg"
-  //     Await.result(p.future, 10.seconds) && fail.future.value != Some(Success(true))
-  //   }
+  property("should not process any events after sealing") =
+    forAllNoShrink(choose(1, 32000)) { n =>
+      val total = 32000
+      val p = Promise[Boolean]()
+      val fail = Promise[Boolean]()
+      val max = n
+      val proto = Reactor[String] { self =>
+        var seen = 0
+        var terminated = false
+        self.main.events onEvent { s =>
+          if (terminated) {
+            fail.success(true)
+          } else {
+            seen += 1
+            if (seen >= max) {
+              terminated = true
+              self.main.seal()
+            }
+          }
+        }
+        self.sysEvents onMatch {
+          case ReactorTerminated =>
+            p.success(true)
+        }
+      }
+      val ch = system.spawn(proto.withScheduler(scheduler))
+      for (i <- 0 until total) ch ! "msg"
+      Await.result(p.future, 10.seconds) && fail.future.value != Some(Success(true))
+    }
 
 }
 
 
 object NewThreadReactorSystemCheck extends ReactorSystemCheck("NewThreadSystem") {
   val scheduler = ReactorSystem.Bundle.schedulers.newThread
-
-  // property("shutdown system hack") = forAllNoShrink(choose(0, 0)) { x =>
-  //   system.shutdown()
-  //   true
-  // }
 }
 
 
 object GlobalExecutionContextReactorSystemCheck extends ReactorSystemCheck("ECSystem") {
   val scheduler = ReactorSystem.Bundle.schedulers.globalExecutionContext
-
-  // property("shutdown system hack") = forAllNoShrink(choose(0, 0)) { x =>
-  //   system.shutdown()
-  //   true
-  // }
 }
 
 
 object DefaultSchedulerReactorSystemCheck extends ReactorSystemCheck("DefaultSchedulerSystem") {
   val scheduler = ReactorSystem.Bundle.schedulers.default
-
-  // property("shutdown system hack") = forAllNoShrink(choose(0, 0)) { x =>
-  //   system.shutdown()
-  //   true
-  // }
 }
 
 
 object PiggybackReactorSystemCheck extends BaseReactorSystemCheck("PiggybackSystem") {
   val scheduler = ReactorSystem.Bundle.schedulers.piggyback
-
-  // property("shutdown system hack") = forAllNoShrink(choose(0, 0)) { x =>
-  //   system.shutdown()
-  //   true
-  // }
 }
 
 
