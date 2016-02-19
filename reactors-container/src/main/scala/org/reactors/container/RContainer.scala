@@ -25,7 +25,7 @@ trait RContainer[@spec(Int, Long, Double) T] {
 
   def exists(p: T => Boolean): Signal[Boolean]
 
-  def fold(m: Monoid[T]): Signal[T]
+  // def fold(m: Monoid[T]): Signal[T]
 
   // def map[@spec(Int, Long, Double) S](f: T => S): RContainer[S] =
   //   new RContainer.Map(this, f)
