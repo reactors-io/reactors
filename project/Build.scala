@@ -38,6 +38,7 @@ object ReactorsBuild extends MechaRepoBuild {
       scalaVersion <<= reactorsScalaVersion,
       crossScalaVersions <<= reactorsCrossScalaVersions,
       libraryDependencies <++= (scalaVersion)(sv => deps(sv)),
+      libraryDependencies ++= superRepoDependencies(s"reactors$suffix"),
       testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
       parallelExecution in Test := false,
       fork in Test := true,
