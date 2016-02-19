@@ -38,11 +38,11 @@ trait RContainer[@spec(Int, Long, Double) T] {
   def collect[S <: AnyRef](pf: PartialFunction[T, S])(implicit e: T <:< AnyRef):
     RContainer[S]
 
-  def union(that: RContainer[T])(
-    implicit count: RContainer.Union.Count[T], a: Arrayable[T]
-  ): RContainer[T]
+  // def union(that: RContainer[T])(
+  //   implicit count: RContainer.Union.Count[T], a: Arrayable[T]
+  // ): RContainer[T]
 
-  def to[That <: RContainer[T]](implicit factory: RBuilder.Factory[T, That]): That
+  // def to[That <: RContainer[T]](implicit factory: RBuilder.Factory[T, That]): That
 
 }
 
