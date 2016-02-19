@@ -15,39 +15,34 @@ trait RContainer[@spec(Int, Long, Double) T] {
 
   def react: RContainer.Lifted[T]
 
-  def foreach: Signal[T]
+  def foreach: Events[T]
 
-  def size: Signal[Int]
+  def size: Events[Int]
 
-  def count(p: T => Boolean): Signal[Int]
+  def count(p: T => Boolean): Events[Int]
 
-  def forall(p: T => Boolean): Signal[Boolean]
+  def forall(p: T => Boolean): Events[Boolean]
 
-  def exists(p: T => Boolean): Signal[Boolean]
+  def exists(p: T => Boolean): Events[Boolean]
 
-  // def fold(m: Monoid[T]): Signal[T]
+  def toAggregate(z: T)(op: (T, T) => T): Signal[T]
 
-  // def map[@spec(Int, Long, Double) S](f: T => S): RContainer[S] =
-  //   new RContainer.Map(this, f)
+  def toCommutativeAggregate(z: T)(op: (T, T) => T): Signal[T]
 
-  // def filter(p: T => Boolean): RContainer[T] =
-  //   new RContainer.Filter(this, p)
+  def toAbelianAggregate(z: T)(op: (T, T) => T)(inv: (T, T) => T): Signal[T]
 
-  // def collect[S <: AnyRef](pf: PartialFunction[T, S])(implicit e: T <:< AnyRef):
-  //   RContainer[S] =
-  //   new RContainer.Collect(this, pf)
+  def map[@spec(Int, Long, Double) S](f: T => S): RContainer[S]
 
-  // def union(that: RContainer[T])(implicit
-  //   count: RContainer.Union.Count[T],
-  //   a: Arrayable[T],
-  //   b: CanBeBuffered
-  // ): RContainer[T] = new RContainer.Union(this, that, count)
+  def filter(p: T => Boolean): RContainer[T]
 
-  // def to[That <: RContainer[T]](implicit factory: RBuilder.Factory[T, That]): That = {
-  //   val builder = factory()
-  //   for (x <- this) builder += x
-  //   builder.container
-  // }
+  def collect[S <: AnyRef](pf: PartialFunction[T, S])(implicit e: T <:< AnyRef):
+    RContainer[S]
+
+  def union(that: RContainer[T])(
+    implicit count: RContainer.Union.Count[T], a: Arrayable[T]
+  ): RContainer[T]
+
+  def to[That <: RContainer[T]](implicit factory: RBuilder.Factory[T, That]): That
 
 }
 
