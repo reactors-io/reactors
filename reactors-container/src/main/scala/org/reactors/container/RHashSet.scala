@@ -16,44 +16,45 @@ class RHashSet[@spec(Int, Long, Double) T](
   private var sz = 0
   private[reactors] var insertsEmitter: Events.Emitter[T] = null
   private[reactors] var removesEmitter: Events.Emitter[T] = null
+  private[reactors] var subscription: Subscription = null
 
   protected def init(ee: Arrayable[T]) {
     table = arrayable.newArray(RHashSet.initSize)
     insertsEmitter = new Events.Emitter[T]
     removesEmitter = new Events.Emitter[T]
+    subscription = Subscription.empty
   }
 
   init(arrayable)
 
   def inserts: Events[T] = insertsEmitter
+
   def removes: Events[T] = removesEmitter
 
-  def +=(elem: T) = {
+  def unsubscribe() = subscription.unsubscribe()
+
+  def +=(elem: T): Boolean = {
     self add elem
   }
 
-  def -=(elem: T) = {
+  def -=(elem: T): Boolean = {
     self remove elem
   }
 
   def container = self
 
-  // def foreach(f: T => Unit) {
-  //   var i = 0
-  //   while (i < table.length) {
-  //     val k = table(i)
-  //     if (k != arrayable.nil) {
-  //       f(k)
-  //     }
-  //     i += 1
-  //   }
-  // }
+  def foreach(f: T => Unit) {
+    var i = 0
+    while (i < table.length) {
+      val k = table(i)
+      if (k != arrayable.nil) {
+        f(k)
+      }
+      i += 1
+    }
+  }
 
-  // def size: Int = sz
-
-  def foreach: Events[T] = ???
-
-  def size: Events[Int] = ???
+  def size: Int = sz
 
   private def lookup(k: T): Boolean = {
     var pos = index(k)
@@ -187,8 +188,16 @@ object RHashSet {
 
   val loadFactor = 450
 
-  // implicit def factory[@spec(Int, Long, Double) T: Arrayable] = new RBuilder.Factory[T, RHashSet[T]] {
-  //   def apply() = RHashSet[T]
-  // }
+  implicit def factory[@spec(Int, Long, Double) T: Arrayable] =
+    new RContainer.Factory[T, RHashSet[T]] {
+      def apply(inserts: Events[T], removes: Events[T]): RHashSet[T] = {
+        val hs = new RHashSet
+        hs.subscription = new Subscription.Composite(
+          inserts.onEvent(hs += _),
+          removes.onEvent(hs -= _)
+        )
+        hs
+      }
+    }
 
 }

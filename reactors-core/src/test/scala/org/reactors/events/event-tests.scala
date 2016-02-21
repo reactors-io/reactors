@@ -920,6 +920,23 @@ class EventsSpec extends FunSuite {
     for (_ <- 0 until 100) emitter.react(1)
   }
 
+  class GetEmitter extends Events[Int] {
+    def onReaction(obs: Observer[Int]) = {
+      obs.react(7)
+      Subscription.empty
+    }
+  }
+
+  test("get") {
+    val emitter = new Events.Emitter[Int]
+    intercept[NoSuchElementException] {
+      emitter.get
+    }
+
+    val getEmitter = new GetEmitter
+    assert(getEmitter.get == 7)
+  }
+
 }
 
 

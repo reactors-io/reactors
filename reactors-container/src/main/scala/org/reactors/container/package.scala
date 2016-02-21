@@ -1,4 +1,4 @@
-package scala.reactive
+package org.reactors
 
 
 
@@ -24,12 +24,10 @@ package object container {
      *  @param factory   the factory of the builder objects for the specified container
      *  @result          the reactive container with all the emitted events
      */
-    def to[That <: RContainer[T]](implicit factory: RBuilder.Factory[T, That]): That = {
-      ???
-      // val builder = factory()
-      // val result = builder.container
-      // result.subscriptions += self.mutate(builder) { builder += _ }
-      // result
+    def to[That <: RContainer[T]](
+      implicit factory: RContainer.Factory[T, That]
+    ): That = {
+      factory(self, new Events.Never)
     }
 
   }

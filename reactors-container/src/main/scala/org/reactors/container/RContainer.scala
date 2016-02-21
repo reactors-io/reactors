@@ -3,21 +3,26 @@ package container
 
 
 
+import scala.annotation.implicitNotFound
 
 
 
-trait RContainer[@spec(Int, Long, Double) T] {
+trait RContainer[@spec(Int, Long, Double) T] extends Subscription {
   self =>
 
   def inserts: Events[T]
   
   def removes: Events[T]
 
-  def foreach: Events[T]
+  def unsubscribe(): Unit
 
-  def size: Events[Int]
+  def foreach(f: T => Unit): Unit
+
+  def size: Int
 
   def count(p: T => Boolean): Events[Int] = new RContainer.Count(this, p)
+
+  // def sizes: Events[Int]
 
   // def forall(p: T => Boolean): Events[Boolean]
 
@@ -47,13 +52,21 @@ trait RContainer[@spec(Int, Long, Double) T] {
 
 object RContainer {
 
+  @implicitNotFound(
+    msg = "Cannot construct a container of type ${That} with elements of type ${S}.")
+  trait Factory[@spec(Int, Long, Double) S, That <: RContainer[S]] {
+    def apply(inserts: Events[S], removes: Events[S]): That
+  }
+
+  /* operations */
+
   class Count[@spec(Int, Long, Double) T](
     val self: RContainer[T],
     val pred: T => Boolean
   ) extends Events[Int] {
     def onReaction(obs: Observer[Int]): Subscription = {
       var initial = 0
-      self.foreach.onEvent(x => if (pred(x)) initial += 1).unsubscribe()
+      self.foreach(x => if (pred(x)) initial += 1)
       val insertObs = new CountInsertObserver(obs, initial, pred)
       val removeObs = new CountRemoveObserver(obs, insertObs, pred)
       new Subscription.Composite(

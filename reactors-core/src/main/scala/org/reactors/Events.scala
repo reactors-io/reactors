@@ -768,6 +768,19 @@ trait Events[@spec(Int, Long, Double) T] {
    */
   def toCold(init: T): Signal[T] = new Events.ToColdSignal(this, init)
 
+  /** Returns the first event emitted by this event stream.
+   *
+   *  This method will return immediately and will not block.
+   *
+   *  This method will return a value only if this event stream emits one or more values
+   *  on subscription. Otherwise, this method throws a `NoSuchElementException`.
+   */
+  def get: T = {
+    val sig = this.once.toEmptySignal
+    sig.unsubscribe()
+    sig()
+  }
+
   /** Creates an `IVar` event stream value, completed with the first event from
    *  this event stream.
    *
@@ -1304,8 +1317,8 @@ object Events {
     private var done = false
     def subscription = rawSubscription
     def init(dummy: T) {
-      rawSubscription = self.onReaction(this)
       pushSource = new PushSource[T]
+      rawSubscription = self.onReaction(this)
     }
     init(cached)
     override def onReaction(obs: Observer[T]): Subscription = {
