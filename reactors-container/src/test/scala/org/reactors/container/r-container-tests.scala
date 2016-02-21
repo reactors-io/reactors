@@ -22,6 +22,17 @@ class RContainerCheck extends Properties("RContainer") with ExtendedProperties {
     for (i <- 0 until sz) yield rng.nextInt(until)
   }
 
+  property("to") = forAllNoShrink(sizes) { sz =>
+    stackTraced {
+      val emitter = new Events.Emitter[Int]
+      val numbers = emitter.to[RHashSet[Int]]
+      for (i <- 0 until sz) emitter.react(i)
+      val seen = mutable.Buffer[Int]()
+      for (x <- numbers) seen += x
+      seen.size == sz && seen.toSet == (0 until sz).toSet
+    }
+  }
+
   // property("map") = forAllNoShrink(sizes) { sz =>
   //   stackTraced {
   //     val numbers = new RHashSet[Long]
