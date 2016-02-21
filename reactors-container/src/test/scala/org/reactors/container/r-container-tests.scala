@@ -33,6 +33,16 @@ class RContainerCheck extends Properties("RContainer") with ExtendedProperties {
     }
   }
 
+  property("count") = forAllNoShrink(sizes) { sz =>
+    stackTraced {
+      val numbers = RHashSet[Int]
+      val c0 = numbers.count(_ % 2 == 0)
+      assert(c0.get == 0)
+      for (i <- 0 until sz) numbers += i
+      c0.get == (sz + 1) / 2
+    }
+  }
+
   // property("map") = forAllNoShrink(sizes) { sz =>
   //   stackTraced {
   //     val numbers = new RHashSet[Long]
