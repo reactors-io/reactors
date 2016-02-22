@@ -119,7 +119,7 @@ trait Events[@spec(Int, Long, Double) T] {
         if (observer.isDefinedAt(event)) observer(event)
       }
       def except(t: Throwable) {
-        throw t
+        throw UnhandledException(t)
       }
       def unreact() {}
     })
@@ -158,7 +158,7 @@ trait Events[@spec(Int, Long, Double) T] {
       def react(value: T) {}
       def except(t: Throwable) {
         if (pf.isDefinedAt(t)) pf(t)
-        else throw t
+        else throw UnhandledException(t)
       }
       def unreact() {}
     })
