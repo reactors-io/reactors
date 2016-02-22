@@ -222,7 +222,7 @@ class EventsSpec extends FunSuite {
     emitter.except(new IllegalArgumentException)
     assert(buffer == Seq("ok", "kaboom"))
 
-    intercept[RuntimeException] {
+    intercept[UnhandledException] {
       emitter.except(new RuntimeException)
     }
     
@@ -1442,7 +1442,7 @@ class RCellSpec extends FunSuite with Matchers {
     val f = e.onEvent(num += _)
     e.react(2)
     assert(num == 2)
-    intercept[TestException.type] {
+    intercept[UnhandledException] {
       e.except(TestException)
     }
   }
@@ -1450,7 +1450,7 @@ class RCellSpec extends FunSuite with Matchers {
   test("throw from onDone") {
     val e = new Events.Emitter[Int]
     val u = e.map[Int](_ => throw TestException).onDone(() => {})
-    intercept[TestException.type] {
+    intercept[UnhandledException] {
       e.except(TestException)
     }
   }
@@ -1512,7 +1512,7 @@ class RCellSpec extends FunSuite with Matchers {
 
   test("throw from on") {
     val e = new Events.Emitter[String]
-    intercept[TestException.type] {
+    intercept[UnhandledException] {
       val o = e on {}
       e.except(TestException)
     }
