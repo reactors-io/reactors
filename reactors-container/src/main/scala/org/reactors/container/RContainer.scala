@@ -11,7 +11,7 @@ trait RContainer[@spec(Int, Long, Double) T] extends Subscription {
   self =>
 
   def inserts: Events[T]
-  
+
   def removes: Events[T]
 
   def unsubscribe(): Unit
