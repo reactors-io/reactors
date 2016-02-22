@@ -22,11 +22,11 @@ trait RContainer[@spec(Int, Long, Double) T] extends Subscription {
 
   def count(p: T => Boolean): Events[Int] = new RContainer.Count(this, p)
 
+  def forall(p: T => Boolean): Events[Boolean] = count(p).map(_ == size)
+
+  def exists(p: T => Boolean): Events[Boolean] = count(p).map(_ > 0)
+
   // def sizes: Events[Int]
-
-  // def forall(p: T => Boolean): Events[Boolean]
-
-  // def exists(p: T => Boolean): Events[Boolean]
 
   // def toAggregate(z: T)(op: (T, T) => T): Signal[T]
 
