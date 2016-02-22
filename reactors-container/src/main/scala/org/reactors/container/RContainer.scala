@@ -28,11 +28,11 @@ trait RContainer[@spec(Int, Long, Double) T] extends Subscription {
 
   // def sizes: Events[Int]
 
+  // def toAbelian(z: T)(op: (T, T) => T)(inv: (T, T) => T): Signal[T]
+
   // def toAggregate(z: T)(op: (T, T) => T): Signal[T]
 
-  // def toCommutativeAggregate(z: T)(op: (T, T) => T): Signal[T]
-
-  // def toAbelianAggregate(z: T)(op: (T, T) => T)(inv: (T, T) => T): Signal[T]
+  // def toCommutative(z: T)(op: (T, T) => T): Signal[T]
 
   // def map[@spec(Int, Long, Double) S](f: T => S): RContainer[S]
 
