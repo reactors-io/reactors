@@ -64,28 +64,60 @@ object Arrayable extends LowPriorityArrayableImplicits {
   implicit val long: Arrayable[Long] = new Arrayable[Long] {
     val classTag = implicitly[ClassTag[Long]]
     val nil = Long.MinValue
-    def newArray(sz: Int) = Array.fill[Long](sz)(nil)
+    def newArray(sz: Int) = {
+      val a = new Array[Long](sz)
+      var i = 0
+      while (i < sz) {
+        a(i) = nil
+        i += 1
+      }
+      a
+    }
     def newRawArray(sz: Int) = new Array[Long](sz)
   }
 
   implicit val double: Arrayable[Double] = new Arrayable[Double] {
     val classTag = implicitly[ClassTag[Double]]
     val nil = Double.NaN
-    def newArray(sz: Int) = Array.fill[Double](sz)(nil)
+    def newArray(sz: Int) = {
+      val a = new Array[Double](sz)
+      var i = 0
+      while (i < sz) {
+        a(i) = nil
+        i += 1
+      }
+      a
+    }
     def newRawArray(sz: Int) = new Array[Double](sz)
   }
 
   implicit val float: Arrayable[Float] = new Arrayable[Float] {
     val classTag = implicitly[ClassTag[Float]]
     val nil = Float.NaN
-    def newArray(sz: Int) = Array.fill[Float](sz)(nil)
+    def newArray(sz: Int) = {
+      val a = new Array[Float](sz)
+      var i = 0
+      while (i < sz) {
+        a(i) = nil
+        i += 1
+      }
+      a
+    }
     def newRawArray(sz: Int) = new Array[Float](sz)
   }
 
   implicit val int: Arrayable[Int] = new Arrayable[Int] {
     val classTag = implicitly[ClassTag[Int]]
     val nil = Int.MinValue
-    def newArray(sz: Int) = Array.fill[Int](sz)(nil)
+    def newArray(sz: Int) = {
+      val a = new Array[Int](sz)
+      var i = 0
+      while (i < sz) {
+        a(i) = nil
+        i += 1
+      }
+      a
+    }
     def newRawArray(sz: Int) = new Array[Int](sz)
   }
 
@@ -99,14 +131,30 @@ object Arrayable extends LowPriorityArrayableImplicits {
   implicit val short: Arrayable[Short] = new Arrayable[Short] {
     val classTag = implicitly[ClassTag[Short]]
     val nil = Short.MinValue
-    def newArray(sz: Int) = Array.fill[Short](sz)(nil)
+    def newArray(sz: Int) = {
+      val a = new Array[Short](sz)
+      var i = 0
+      while (i < sz) {
+        a(i) = nil
+        i += 1
+      }
+      a
+    }
     def newRawArray(sz: Int) = new Array[Short](sz)
   }
 
   implicit val byte: Arrayable[Byte] = new Arrayable[Byte] {
     val classTag = implicitly[ClassTag[Byte]]
     val nil = Byte.MinValue
-    def newArray(sz: Int) = Array.fill[Byte](sz)(nil)
+    def newArray(sz: Int) = {
+      val a = new Array[Byte](sz)
+      var i = 0
+      while (i < sz) {
+        a(i) = nil
+        i += 1
+      }
+      a
+    }
     def newRawArray(sz: Int) = new Array[Byte](sz)
   }
 

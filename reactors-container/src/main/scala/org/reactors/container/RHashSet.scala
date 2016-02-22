@@ -10,19 +10,19 @@ import scala.reflect.ClassTag
 class RHashSet[@spec(Int, Long, Double) T](
   implicit val arrayable: Arrayable[T]
 ) extends RContainer[T] {
-  self =>
-
   private var table: Array[T] = null
   private var sz = 0
   private[reactors] var insertsEmitter: Events.Emitter[T] = null
   private[reactors] var removesEmitter: Events.Emitter[T] = null
   private[reactors] var subscription: Subscription = null
+  private[reactors] var nil: T = _
 
   protected def init(ee: Arrayable[T]) {
     table = arrayable.newArray(RHashSet.initSize)
     insertsEmitter = new Events.Emitter[T]
     removesEmitter = new Events.Emitter[T]
     subscription = Subscription.empty
+    nil = arrayable.nil
   }
 
   init(arrayable)
@@ -34,14 +34,12 @@ class RHashSet[@spec(Int, Long, Double) T](
   def unsubscribe() = subscription.unsubscribe()
 
   def +=(elem: T): Boolean = {
-    self add elem
+    this add elem
   }
 
   def -=(elem: T): Boolean = {
-    self remove elem
+    this remove elem
   }
-
-  def container = self
 
   def foreach(f: T => Unit) {
     var i = 0
@@ -56,9 +54,8 @@ class RHashSet[@spec(Int, Long, Double) T](
 
   def size: Int = sz
 
-  private def lookup(k: T): Boolean = {
+  private[container] def lookup(k: T): Boolean = {
     var pos = index(k)
-    val nil = arrayable.nil
     var curr = table(pos)
 
     while (curr != nil && curr != k) {
@@ -70,11 +67,10 @@ class RHashSet[@spec(Int, Long, Double) T](
     else true
   }
 
-  private def insert(k: T, notify: Boolean = true): Boolean = {
+  private[container] def insert(k: T, notify: Boolean = true): Boolean = {
     checkResize()
 
     var pos = index(k)
-    val nil = arrayable.nil
     var curr = table(pos)
     assert(k != nil)
 
@@ -92,9 +88,8 @@ class RHashSet[@spec(Int, Long, Double) T](
     added
   }
 
-  private def delete(k: T): Boolean = {
+  private[container] def delete(k: T): Boolean = {
     var pos = index(k)
-    val nil = arrayable.nil
     var curr = table(pos)
 
     while (curr != nil && curr != k) {
@@ -123,7 +118,7 @@ class RHashSet[@spec(Int, Long, Double) T](
     }
   }
 
-  private def checkResize() {
+  private[reactors] def checkResize()(implicit arrayable: Arrayable[T]) {
     if (sz * 1000 / RHashSet.loadFactor > table.length) {
       val otable = table
       val ncapacity = table.length * 2
@@ -131,11 +126,10 @@ class RHashSet[@spec(Int, Long, Double) T](
       sz = 0
 
       var pos = 0
-      val nil = arrayable.nil
       while (pos < otable.length) {
         val curr = otable(pos)
         if (curr != nil) {
-          insert(curr, false)
+          val result = insert(curr, false)
         }
 
         pos += 1
@@ -162,9 +156,8 @@ class RHashSet[@spec(Int, Long, Double) T](
 
   def remove(key: T): Boolean = delete(key)
 
-  def clear() {
+  def clear()(implicit a: Arrayable[T]) {
     var pos = 0
-    val nil = arrayable.nil
     while (pos < table.length) {
       val elem = table(pos)
       if (elem != nil) {

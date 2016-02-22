@@ -1,6 +1,6 @@
 package org.reactors
-package containers
-package benchmarks
+package container
+package bench
 
 
 
@@ -33,14 +33,13 @@ class RContainerBoxingBench extends Bench.Forked[Long] {
     reports.validation.predicate -> { (n: Any) => n == 0 }
   ) in {
     using(Gen.single("numEvents")(10000)) in { numEvents =>
-      val emitter = new Events.Emitter[Int]
+      val set = new RHashSet[Int]
 
       var i = 0
       while (i < numEvents) {
-        emitter.react(i)
+        set += i
         i += 1
       }
-      emitter.unreact()
     }
   }
 
