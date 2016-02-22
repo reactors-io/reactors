@@ -10,51 +10,6 @@ package object reactors {
 
   type spec = specialized
 
-  case class ReactorError(msg: String, cause: Throwable) extends Error(msg, cause)
-
-  /** Determines if the throwable is lethal, i.e. should the program immediately stop.
-   */
-  def isLethal(t: Throwable): Boolean = t match {
-    case e: VirtualMachineError => true
-    case e: LinkageError => true
-    case e: ReactorError => true
-    case _ => false
-  }
-
-  /** Matches lethal throwables.
-   */
-  object Lethal {
-    def unapply(t: Throwable): Option[Throwable] = t match {
-      case e: VirtualMachineError => Some(e)
-      case e: LinkageError => Some(e)
-      case e: ReactorError => Some(e)
-      case _ => None
-    }
-  }
-
-  /** Determines if the throwable is not lethal.
-   */
-  def isNonLethal(t: Throwable): Boolean = !isLethal(t)
-
-  /** Matches non-lethal throwables.
-   */
-  object NonLethal {
-    def unapply(t: Throwable): Option[Throwable] = t match {
-      case e: VirtualMachineError => None
-      case e: LinkageError => None
-      case e: ReactorError => None
-      case _ => Some(t)
-    }
-  }
-
-  /** Partial function ignores non-lethal throwables.
-   *
-   *  This is useful in composition with other exception handlers.
-   */
-  val ignoreNonLethal: PartialFunction[Throwable, Unit] = {
-    case t if isNonLethal(t) => // ignore
-  }
-
   /** Evidence value for specialized type parameters.
    *
    *  Used to artificially insert the type into a type signature.
@@ -131,6 +86,57 @@ package object reactors {
     def apply(obj: Any) = throw new RuntimeException(obj.toString)
     def illegalArg(msg: String) = throw new IllegalArgumentException(msg)
     def illegalState(obj: Any) = throw new IllegalStateException(obj.toString)
+  }
+
+  /** Thrown when an error in reactor execution occurs.
+   */
+  case class ReactorError(msg: String, cause: Throwable) extends Error(msg, cause)
+
+  /** Thrown when an exception is propagated to an event handler, such as `onEvent`.
+   */
+  case class UnhandledException(cause: Throwable) extends Exception(cause)
+
+  /** Determines if the throwable is lethal, i.e. should the program immediately stop.
+   */
+  def isLethal(t: Throwable): Boolean = t match {
+    case e: VirtualMachineError => true
+    case e: LinkageError => true
+    case e: ReactorError => true
+    case _ => false
+  }
+
+  /** Matches lethal throwables.
+   */
+  object Lethal {
+    def unapply(t: Throwable): Option[Throwable] = t match {
+      case e: VirtualMachineError => Some(e)
+      case e: LinkageError => Some(e)
+      case e: ReactorError => Some(e)
+      case _ => None
+    }
+  }
+
+  /** Determines if the throwable is not lethal.
+   */
+  def isNonLethal(t: Throwable): Boolean = !isLethal(t)
+
+  /** Matches non-lethal throwables.
+   */
+  object NonLethal {
+    def unapply(t: Throwable): Option[Throwable] = t match {
+      case e: VirtualMachineError => None
+      case e: LinkageError => None
+      case e: ReactorError => None
+      case _ => Some(t)
+    }
+  }
+
+  /** Partial function ignores non-lethal throwables.
+   *
+   *  This is useful in composition with other exception handlers.
+   */
+  val ignoreNonLethal: PartialFunction[Throwable, Unit] = {
+    case t if isNonLethal(t) => // ignore
   }
 
 }

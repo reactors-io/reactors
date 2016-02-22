@@ -1186,7 +1186,7 @@ object Events {
     val reactFunc: T => Unit, val unreactFunc: () => Unit
   ) extends Observer[T] {
     def react(x: T) = reactFunc(x)
-    def except(t: Throwable) = throw t
+    def except(t: Throwable) = throw UnhandledException(t)
     def unreact() = unreactFunc()
   }
 
@@ -1194,7 +1194,7 @@ object Events {
     val reactFunc: () => Unit
   ) extends Observer[T] {
     def react(x: T) = reactFunc()
-    def except(t: Throwable) = throw t
+    def except(t: Throwable) = throw UnhandledException(t)
     def unreact() = {}
   }
 
@@ -1202,7 +1202,7 @@ object Events {
     val unreactFunc: () => Unit
   ) extends Observer[T] {
     def react(x: T) = {}
-    def except(t: Throwable) = throw t
+    def except(t: Throwable) = throw UnhandledException(t)
     def unreact() = unreactFunc()
   }
 
