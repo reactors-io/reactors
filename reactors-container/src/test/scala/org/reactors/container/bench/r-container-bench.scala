@@ -14,11 +14,11 @@ class RContainerBoxingBench extends Bench.Forked[Long] {
     exec.minWarmupRuns -> 2,
     exec.maxWarmupRuns -> 5,
     exec.independentSamples -> 1,
-    verbose -> false
+    verbose -> true
   )
 
   def measurer: Measurer[Long] =
-    for (table <- Measurer.BoxingCount.all()) yield {
+    for (table <- Measurer.BoxingCount.allWithoutBoolean()) yield {
       table.copy(value = table.value.valuesIterator.sum)
     }
 
@@ -38,6 +38,10 @@ class RContainerBoxingBench extends Bench.Forked[Long] {
       // count
       var lastCount = 0
       set.count(_ % 2 == 0).onEvent(lastCount = _)
+
+      // exists
+      var lastExists = false
+      set.exists(_ % 2 == 0).onEvent(lastExists = _)
 
       var i = 0
       while (i < numEvents) {

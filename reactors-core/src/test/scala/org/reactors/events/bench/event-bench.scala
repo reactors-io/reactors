@@ -14,11 +14,11 @@ class EventBoxingBench extends Bench.Forked[Long] {
     exec.minWarmupRuns -> 2,
     exec.maxWarmupRuns -> 5,
     exec.independentSamples -> 1,
-    verbose -> false
+    verbose -> true
   )
 
   def measurer: Measurer[Long] =
-    for (table <- Measurer.BoxingCount.all()) yield {
+    for (table <- Measurer.BoxingCount.allWithoutBoolean()) yield {
       table.copy(value = table.value.valuesIterator.sum)
     }
 
@@ -65,7 +65,7 @@ class EventBoxingBench extends Bench.Forked[Long] {
   }
 
   measure method "Emitter.<combinators>" config (
-    reports.validation.predicate -> { (n: Any) => n == 111 }
+    reports.validation.predicate -> { (n: Any) => n == 17 }
   ) in {
     using(Gen.single("numEvents")(10000)) in { numEvents =>
       val emitter = new Events.Emitter[Int]
@@ -124,6 +124,10 @@ class EventBoxingBench extends Bench.Forked[Long] {
       // map
       var mapSum = 0
       emitter.map(_ + 1).onEvent(mapSum += _)
+
+      // map to boolean
+      var mapBooleanCount = 0
+      emitter.map(_ > 0).on(mapBooleanCount += 1)
 
       // takeWhile
       var takeWhileDone = false

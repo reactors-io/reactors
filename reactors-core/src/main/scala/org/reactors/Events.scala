@@ -441,7 +441,8 @@ trait Events[@spec(Int, Long, Double) T] {
    *  @param f          the mapping function
    *  @return           a subscription and event stream value with the mapped events
    */
-  def map[@spec(Int, Long, Double) S](f: T => S): Events[S] = new Events.Map(this, f)
+  def map[@spec(Boolean, Int, Long, Double) S](f: T => S): Events[S] =
+    new Events.Map(this, f)
 
   /** Returns a new event stream that forwards the events from `this` event stream as
    *  long as they satisfy the predicate `p`.
@@ -1655,7 +1656,7 @@ object Events {
 
   private[reactors] class Map[
     @spec(Int, Long, Double) T,
-    @spec(Int, Long, Double) S
+    @spec(Boolean, Int, Long, Double) S
   ](
     val self: Events[T],
     val f: T => S
@@ -1666,7 +1667,7 @@ object Events {
 
   private[reactors] class MapObserver[
     @spec(Int, Long, Double) T,
-    @spec(Int, Long, Double) S
+    @spec(Boolean, Int, Long, Double) S
   ](
     val target: Observer[S],
     val f: T => S
