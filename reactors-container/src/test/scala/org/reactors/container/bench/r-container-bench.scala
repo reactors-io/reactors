@@ -40,6 +40,11 @@ class RContainerBoxingBench extends Bench.Forked[Long] {
         set += i
         i += 1
       }
+
+      while (i > 0) {
+        set -= i
+        i -= 1
+      }
     }
   }
 
