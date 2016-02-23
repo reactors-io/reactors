@@ -34,6 +34,11 @@ class RContainerBoxingBench extends Bench.Forked[Long] {
   ) in {
     using(Gen.single("numEvents")(10000)) in { numEvents =>
       val set = new RHashSet[Int]
+      var i = 0
+      while (i < numEvents) {
+        set += i
+        i += 1
+      }
 
       // count
       var lastCount = 0
@@ -47,7 +52,7 @@ class RContainerBoxingBench extends Bench.Forked[Long] {
       var lastForall = false
       set.forall(_ % 2 == 1).onEvent(lastForall = _)
 
-      var i = 0
+      i = 0
       while (i < numEvents) {
         set += i
         i += 1

@@ -45,7 +45,7 @@ class RHashSet[@spec(Int, Long, Double) T](
     var i = 0
     while (i < table.length) {
       val k = table(i)
-      if (k != arrayable.nil) {
+      if (k != nil) {
         f(k)
       }
       i += 1

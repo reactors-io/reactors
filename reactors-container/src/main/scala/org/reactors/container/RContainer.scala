@@ -26,13 +26,7 @@ trait RContainer[@spec(Int, Long, Double) T] extends Subscription {
 
   def exists(p: T => Boolean): Events[Boolean] = count(p).map(_ > 0)
 
-  // def sizes: Events[Int]
-
-  // def toAbelian(z: T)(op: (T, T) => T)(inv: (T, T) => T): Signal[T]
-
-  // def toAggregate(z: T)(op: (T, T) => T): Signal[T]
-
-  // def toCommutative(z: T)(op: (T, T) => T): Signal[T]
+  // def sizes: Events[Int] = new RContainer.Sizes(this, p)
 
   // def map[@spec(Int, Long, Double) S](f: T => S): RContainer[S]
 
@@ -46,6 +40,12 @@ trait RContainer[@spec(Int, Long, Double) T] extends Subscription {
   // ): RContainer[T]
 
   // def to[That <: RContainer[T]](implicit factory: RBuilder.Factory[T, That]): That
+
+  // def toAbelian(z: T)(op: (T, T) => T)(inv: (T, T) => T): Signal[T]
+
+  // def toAggregate(z: T)(op: (T, T) => T): Signal[T]
+
+  // def toCommutative(z: T)(op: (T, T) => T): Signal[T]
 
 }
 
@@ -68,9 +68,13 @@ object RContainer {
       new CountInsertObserver(obs, initial, pred)
     def newCountRemoveObserver(obs: Observer[Int], insertObs: CountInsertObserver[T]) =
       new CountRemoveObserver(obs, insertObs, pred)
+    def initialCount(s: RContainer[T]) = {
+      var cnt = 0
+      self.foreach(x => if (pred(x)) cnt += 1)
+      cnt
+    }
     def onReaction(obs: Observer[Int]): Subscription = {
-      var initial = 0
-      self.foreach(x => if (pred(x)) initial += 1)
+      val initial = initialCount(self)
       val insertObs = newCountInsertObserver(obs, initial)
       val removeObs = newCountRemoveObserver(obs, insertObs)
       new Subscription.Composite(
@@ -119,5 +123,62 @@ object RContainer {
     def except(t: Throwable) = insertObs.except(t)
     def unreact() = insertObs.unreact()
   }
+
+  // class Sizes[@spec(Int, Long, Double) T](
+  //   val self: RContainer[T]
+  // ) extends Events[Int] {
+  //   def newCountInsertObserver(obs: Observer[Int], initial: Int) =
+  //     new CountInsertObserver(obs, initial, pred)
+  //   def newCountRemoveObserver(obs: Observer[Int], insertObs: CountInsertObserver[T]) =
+  //     new CountRemoveObserver(obs, insertObs, pred)
+  //   def onReaction(obs: Observer[Int]): Subscription = {
+  //     val insertObs = newCountInsertObserver(obs, size)
+  //     val removeObs = newCountRemoveObserver(obs, insertObs)
+  //     new Subscription.Composite(
+  //       self.inserts.onReaction(insertObs),
+  //       self.inserts.onReaction(removeObs)
+  //     )
+  //   }
+  // }
+
+  // class CountInsertObserver[@spec(Int, Long, Double) T](
+  //   val target: Observer[Int],
+  //   var count: Int,
+  //   val pred: T => Boolean
+  // ) extends Observer[T] {
+  //   var done = false
+  //   def init(self: Observer[T]) {
+  //     target.react(count)
+  //   }
+  //   init(this)
+  //   def react(x: T) = if (!done) {
+  //     if (pred(x)) {
+  //       count += 1
+  //       target.react(count)
+  //     }
+  //   }
+  //   def except(t: Throwable) = if (!done) {
+  //     target.except(t)
+  //   }
+  //   def unreact() = if (!done) {
+  //     done = true
+  //     target.unreact()
+  //   }
+  // }
+
+  // class CountRemoveObserver[@spec(Int, Long, Double) T](
+  //   val target: Observer[Int],
+  //   val insertObs: CountInsertObserver[T],
+  //   val pred: T => Boolean
+  // ) extends Observer[T] {
+  //   def react(x: T) = if (!insertObs.done) {
+  //     if (pred(x)) {
+  //       insertObs.count -= 1
+  //       target.react(insertObs.count)
+  //     }
+  //   }
+  //   def except(t: Throwable) = insertObs.except(t)
+  //   def unreact() = insertObs.unreact()
+  // }
 
 }
