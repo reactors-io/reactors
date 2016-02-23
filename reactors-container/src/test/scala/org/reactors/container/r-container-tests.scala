@@ -44,7 +44,7 @@ class RContainerCheck extends Properties("RContainer") with ExtendedProperties {
       c0.onEvent(last = _)
       assert(last == (sz + 1) / 2)
       numbers += sz
-      assert(last == (sz - 1) / 2 + 1)
+      assert(last == sz / 2 + 1)
       numbers -= sz
       last == (sz + 1) / 2
     }
@@ -73,11 +73,25 @@ class RContainerCheck extends Properties("RContainer") with ExtendedProperties {
   property("sizes") = forAllNoShrink(sizes) { sz =>
     stackTraced {
       val numbers = RHashSet[Int]
-      val c0 = numbers.sizes
-      assert(c0.get == 0)
+      val ss = numbers.sizes
+      assert(ss.get == 0)
       val seen = mutable.Buffer[Int]()
+      ss.onEvent(seen += _)
       for (i <- 0 until sz) numbers += i
-      seen == (1 to sz)
+      seen == (0 to sz)
+    }
+  }
+
+  property("reduce") = forAllNoShrink(sizes) { sz =>
+    stackTraced {
+      val numbers = RHashSet[Int]
+      val red = numbers.reduce(0)((s, x) => s + 1)((s, x) => s - 1)
+      assert(red.get == 0)
+      val seen = mutable.Buffer[Int]()
+      red.onEvent(seen += _)
+      for (i <- 0 until sz) numbers += i
+      for (i <- 0 until sz) numbers -= i
+      seen == ((0 to sz) ++ (0 until sz).reverse)
     }
   }
 

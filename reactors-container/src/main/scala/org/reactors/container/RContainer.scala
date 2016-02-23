@@ -61,12 +61,19 @@ trait RContainer[@spec(Int, Long, Double) T] extends Subscription {
    */
   def sizes(implicit s: Spec[T]): Events[Int] = new RContainer.Sizes[T](this)
 
+  /** Stream with the reduction of the current set of elements in this container.
+   *
+   *  Parameters `op`, `inv` and `z` must for an Abelian group, that is, `z` is the
+   *  neutral element, and `inv` is the inverse operation of `op`, in the sense that
+   *  `inv(op(s, t), t) == op(inv(s, t), t) == s` is always true.
+   */
+  def reduce[@spec(Int, Long, Double) S](z: S)(op: (S, T) => S)(inv: (S, T) => S):
+    Events[S] =
+    new RContainer.Reduce[S, T](self, z, op, inv)
+
   // def map[@spec(Int, Long, Double) S](f: T => S): RContainer[S]
 
   // def filter(p: T => Boolean): RContainer[T]
-
-  // def collect[S <: AnyRef](pf: PartialFunction[T, S])(implicit e: T <:< AnyRef):
-  //   RContainer[S]
 
   // def union(that: RContainer[T])(
   //   implicit count: RContainer.Union.Count[T], a: Arrayable[T]
@@ -74,11 +81,9 @@ trait RContainer[@spec(Int, Long, Double) T] extends Subscription {
 
   // def to[That <: RContainer[T]](implicit factory: RBuilder.Factory[T, That]): That
 
-  // def toAbelian(z: T)(op: (T, T) => T)(inv: (T, T) => T): Signal[T]
-
   // def toAggregate(z: T)(op: (T, T) => T): Signal[T]
 
-  // def toCommutative(z: T)(op: (T, T) => T): Signal[T]
+  // def toCoaggregate(z: T)(op: (T, T) => T): Signal[T]
 
 }
 
@@ -112,7 +117,7 @@ object RContainer {
       val removeObs = newCountRemoveObserver(obs, insertObs)
       new Subscription.Composite(
         self.inserts.onReaction(insertObs),
-        self.inserts.onReaction(removeObs)
+        self.removes.onReaction(removeObs)
       )
     }
   }
@@ -169,7 +174,7 @@ object RContainer {
       val removeObs = newSizesRemoveObserver(obs, insertObs)
       new Subscription.Composite(
         self.inserts.onReaction(insertObs),
-        self.inserts.onReaction(removeObs)
+        self.removes.onReaction(removeObs)
       )
     }
   }
@@ -203,6 +208,82 @@ object RContainer {
     def react(x: T) = if (!insertObs.done) {
       insertObs.count -= 1
       target.react(insertObs.count)
+    }
+    def except(t: Throwable) = insertObs.except(t)
+    def unreact() = insertObs.unreact()
+  }
+
+  class Reduce[@spec(Int, Long, Double) S, @spec(Int, Long, Double) T](
+    val self: RContainer[T],
+    val z: S,
+    val op: (S, T) => S,
+    val inv: (S, T) => S
+  ) extends Events[S] {
+    def newReduceInsertObserver(obs: Observer[S], initial: S) =
+      new ReduceInsertObserver(obs, initial, op, inv)
+    def newReduceRemoveObserver(obs: Observer[S], insobs: ReduceInsertObserver[S, T]) =
+      new ReduceRemoveObserver(obs, insobs, op, inv)
+    def initialReduce(s: RContainer[T]) = {
+      var s = z
+      self.foreach(x => s = op(s, x))
+      s
+    }
+    def onReaction(obs: Observer[S]): Subscription = {
+      val initial = initialReduce(self)
+      val insertObs = newReduceInsertObserver(obs, initial)
+      val removeObs = newReduceRemoveObserver(obs, insertObs)
+      new Subscription.Composite(
+        self.inserts.onReaction(insertObs),
+        self.removes.onReaction(removeObs)
+      )
+    }
+  }
+
+  class ReduceInsertObserver[@spec(Int, Long, Double) S, @spec(Int, Long, Double) T](
+    val target: Observer[S],
+    var current: S,
+    val op: (S, T) => S,
+    val inv: (S, T) => S
+  ) extends Observer[T] {
+    var done = false
+    def init(target: Observer[S]) {
+      target.react(current)
+    }
+    init(target)
+    def react(x: T): Unit = if (!done) {
+      current = try {
+        op(current, x)
+      } catch {
+        case NonLethal(t) =>
+          except(t)
+          return
+      }
+      target.react(current)
+    }
+    def except(t: Throwable) = if (!done) {
+      target.except(t)
+    }
+    def unreact() = if (!done) {
+      done = true
+      target.unreact()
+    }
+  }
+
+  class ReduceRemoveObserver[@spec(Int, Long, Double) S, @spec(Int, Long, Double) T](
+    val target: Observer[S],
+    val insertObs: ReduceInsertObserver[S, T],
+    val op: (S, T) => S,
+    val inv: (S, T) => S
+  ) extends Observer[T] {
+    def react(x: T): Unit = if (!insertObs.done) {
+      insertObs.current = try {
+        inv(insertObs.current, x)
+      } catch {
+        case NonLethal(t) =>
+          except(t)
+          return
+      }
+      target.react(insertObs.current)
     }
     def except(t: Throwable) = insertObs.except(t)
     def unreact() = insertObs.unreact()
