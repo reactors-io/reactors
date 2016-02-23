@@ -14,7 +14,7 @@ class RContainerBoxingBench extends Bench.Forked[Long] {
     exec.minWarmupRuns -> 2,
     exec.maxWarmupRuns -> 5,
     exec.independentSamples -> 1,
-    verbose -> true
+    verbose -> false
   )
 
   def measurer: Measurer[Long] =
@@ -42,6 +42,10 @@ class RContainerBoxingBench extends Bench.Forked[Long] {
       // exists
       var lastExists = false
       set.exists(_ % 2 == 0).onEvent(lastExists = _)
+
+      // forall
+      var lastForall = false
+      set.forall(_ % 2 == 1).onEvent(lastForall = _)
 
       var i = 0
       while (i < numEvents) {

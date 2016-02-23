@@ -14,7 +14,7 @@ class EventBoxingBench extends Bench.Forked[Long] {
     exec.minWarmupRuns -> 2,
     exec.maxWarmupRuns -> 5,
     exec.independentSamples -> 1,
-    verbose -> true
+    verbose -> false
   )
 
   def measurer: Measurer[Long] =
