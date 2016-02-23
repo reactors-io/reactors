@@ -39,7 +39,12 @@ class RContainerCheck extends Properties("RContainer") with ExtendedProperties {
       val c0 = numbers.count(_ % 2 == 0)
       assert(c0.get == 0)
       for (i <- 0 until sz) numbers += i
-      c0.get == (sz + 1) / 2
+      assert(c0.get == (sz + 1) / 2)
+      var last = 0
+      c0.onEvent(last = _)
+      assert(last == (sz + 1) / 2)
+      numbers += sz
+      last == (sz - 1) / 2 + 1
     }
   }
 
