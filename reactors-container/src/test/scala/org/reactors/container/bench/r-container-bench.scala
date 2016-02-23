@@ -52,6 +52,10 @@ class RContainerBoxingBench extends Bench.Forked[Long] {
       var lastForall = false
       set.forall(_ % 2 == 1).onEvent(lastForall = _)
 
+      // sizes
+      var lastSize = 0
+      set.sizes.onEvent(lastSize = _)
+
       i = 0
       while (i < numEvents) {
         set += i

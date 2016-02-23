@@ -44,7 +44,9 @@ class RContainerCheck extends Properties("RContainer") with ExtendedProperties {
       c0.onEvent(last = _)
       assert(last == (sz + 1) / 2)
       numbers += sz
-      last == (sz - 1) / 2 + 1
+      assert(last == (sz - 1) / 2 + 1)
+      numbers -= sz
+      last == (sz + 1) / 2
     }
   }
 
