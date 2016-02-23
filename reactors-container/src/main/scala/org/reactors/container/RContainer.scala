@@ -7,26 +7,59 @@ import scala.annotation.implicitNotFound
 
 
 
+/** Base class for reactive containers.
+ *
+ *  Reactive container is a collection of elements that exposes event streams that
+ *  emit events about incremental changes to the underlying containers.
+ *
+ *  Every reactive container has output event streams `inserts` and `removes`. When an
+ *  element is inserted or removed, these streams emit events. A container may also have
+ *  an input stream, which is not exposed, but may be unsubscribed from by calling
+ *  `unsubscribe`. Finally, a container has a `size` and `foreach` methods. These basic
+ *  primitives are used to implement all other methods.
+ *
+ *  Other methods return event streams that generally emit the initial value after being
+ *  subscribed to. It is therefore legal to call `toEmptySignal` on such event streams
+ *  and query them.
+ */
 trait RContainer[@spec(Int, Long, Double) T] extends Subscription {
   self =>
 
+  /** Event stream with inserted elements.
+   */
   def inserts: Events[T]
 
+  /** Event stream with removed elements. 
+   */
   def removes: Events[T]
 
+  /** Unsubscribes the container from its input event streams.
+   */
   def unsubscribe(): Unit
 
+  /** Traverses the elements of the container.
+   */
   def foreach(f: T => Unit): Unit
 
+  /** Returns the number of elements in the container.
+   */
   def size: Int
 
+  /** Stream with the current number of elements satisfying a predicate.
+   */
   def count(p: T => Boolean): Events[Int] = new RContainer.Count(this, p)
 
+  /** Stream with boolean values indicating if all elements satisfy a predicate.
+   */
   def forall(p: T => Boolean): Events[Boolean] = count(p).map(_ == size)
 
+  /** Stream with boolean values indicating if some element satisfied a predicate.
+   */
   def exists(p: T => Boolean): Events[Boolean] = count(p).map(_ > 0)
 
-  def sizes: Events[Int] = new RContainer.Sizes(this)
+  /** Stream with the sizes of this container.
+   */
+  def sizes(implicit s: Spec[T]): Events[Int] = new RContainer.Sizes[T](this)
 
   // def map[@spec(Int, Long, Double) S](f: T => S): RContainer[S]
 
@@ -127,12 +160,12 @@ object RContainer {
   class Sizes[@spec(Int, Long, Double) T](
     val self: RContainer[T]
   ) extends Events[Int] {
-    def newSizesInsertObserver(obs: Observer[Int], initial: Int) =
-      new SizesInsertObserver[T](obs, initial)
+    def newSizesInsertObserver(obs: Observer[Int], self: RContainer[T]) =
+      new SizesInsertObserver[T](obs, self.size)
     def newSizesRemoveObserver(obs: Observer[Int], insertObs: SizesInsertObserver[T]) =
       new SizesRemoveObserver[T](obs, insertObs)
     def onReaction(obs: Observer[Int]): Subscription = {
-      val insertObs = newSizesInsertObserver(obs, self.size)
+      val insertObs = newSizesInsertObserver(obs, self)
       val removeObs = newSizesRemoveObserver(obs, insertObs)
       new Subscription.Composite(
         self.inserts.onReaction(insertObs),

@@ -70,6 +70,17 @@ class RContainerCheck extends Properties("RContainer") with ExtendedProperties {
     }
   }
 
+  property("sizes") = forAllNoShrink(sizes) { sz =>
+    stackTraced {
+      val numbers = RHashSet[Int]
+      val c0 = numbers.sizes
+      assert(c0.get == 0)
+      val seen = mutable.Buffer[Int]()
+      for (i <- 0 until sz) numbers += i
+      seen == (1 to sz)
+    }
+  }
+
   // property("map") = forAllNoShrink(sizes) { sz =>
   //   stackTraced {
   //     val numbers = new RHashSet[Long]
