@@ -7,7 +7,7 @@ import java.util.NoSuchElementException
 import org.scalacheck._
 import org.scalacheck.Gen._
 import org.scalacheck.Prop._
-import org.reactors.test._
+import io.reactors.test._
 import scala.collection._
 
 
