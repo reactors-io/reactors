@@ -35,6 +35,10 @@ class RContainerBoxingBench extends Bench.Forked[Long] {
     using(Gen.single("numEvents")(10000)) in { numEvents =>
       val set = new RHashSet[Int]
 
+      // count
+      var lastCount = 0
+      set.count(_ % 2 == 0).onEvent(lastCount = _)
+
       var i = 0
       while (i < numEvents) {
         set += i

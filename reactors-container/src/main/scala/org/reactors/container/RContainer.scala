@@ -64,11 +64,15 @@ object RContainer {
     val self: RContainer[T],
     val pred: T => Boolean
   ) extends Events[Int] {
+    def newCountInsertObserver(obs: Observer[Int], initial: Int) =
+      new CountInsertObserver(obs, initial, pred)
+    def newCountRemoveObserver(obs: Observer[Int], insertObs: CountInsertObserver[T]) =
+      new CountRemoveObserver(obs, insertObs, pred)
     def onReaction(obs: Observer[Int]): Subscription = {
       var initial = 0
       self.foreach(x => if (pred(x)) initial += 1)
-      val insertObs = new CountInsertObserver(obs, initial, pred)
-      val removeObs = new CountRemoveObserver(obs, insertObs, pred)
+      val insertObs = newCountInsertObserver(obs, initial)
+      val removeObs = newCountRemoveObserver(obs, insertObs)
       new Subscription.Composite(
         self.inserts.onReaction(insertObs),
         self.inserts.onReaction(removeObs)
