@@ -395,8 +395,8 @@ trait Events[@spec(Int, Long, Double) T] {
    *  @tparam S          the type of `that` event stream
    *  @param that        the event stream after whose first event the result can start
    *                     propagating events
-   *  @return            a subscription and the resulting event stream that emits only
-   *                     after `that` emits at least once.
+   *  @return            the resulting event stream that emits only after `that` emits
+   *                     at least once
    */
   def after[@spec(Int, Long, Double) S](that: Events[S]): Events[T] =
     new Events.After[T, S](this, that)
@@ -412,8 +412,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  @tparam S         the type of `that` event stream
    *  @param that       the event stream until whose first event the result
    *                    propagates events
-   *  @return           a subscription and the resulting event stream that emits
-   *                    only until `that` emits
+   *  @return           the resulting event stream that emits only until `that` emits
    */
   def until[@spec(Int, Long, Double) S](that: Events[S]): Events[T] =
     new Events.Until[T, S](this, that)
@@ -429,8 +428,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  once      ---2|
    *  }}}
    *
-   *  @return           a subscription and an event stream with the first event from
-   *                    `this`
+   *  @return           an event stream with the first event from `this`
    */
   def once: Events[T] = new Events.Once[T](this)
 
@@ -440,7 +438,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  resulting event stream.
    *
    *  @param p          the predicate used to filter events
-   *  @return           a subscription and an event streams with the filtered events
+   *  @return           an event streams with the filtered events
    */
   def filter(p: T => Boolean): Events[T] = new Events.Filter(this, p)
 
@@ -458,8 +456,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  @tparam S         the type of the mapped event stream
    *  @param pf         partial function used to filter and map events
    *  @param evidence   evidence that `T` is a reference type
-   *  @return           a subscription and an event stream with the partially
-   *                    mapped events
+   *  @return           an event stream with the partially mapped events
    */
   def collect[S <: AnyRef](pf: PartialFunction[T, S])(implicit evidence: T <:< AnyRef):
     Events[S] =
@@ -476,7 +473,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *
    *  @tparam S         the type of the mapped events
    *  @param f          the mapping function
-   *  @return           a subscription and event stream value with the mapped events
+   *  @return           event stream value with the mapped events
    */
   def map[@spec(Boolean, Int, Long, Double) S](f: T => S): Events[S] =
     new Events.Map(this, f)
@@ -517,7 +514,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  }}}
    *
    *  @param p          the predicate that specifies whether to take the element
-   *  @return           a subscription and event stream value with the forwarded events
+   *  @return           event stream value with the forwarded events
    */
   def dropWhile(p: T => Boolean): Events[T] = new Events.DropWhile(this, p)
 
@@ -601,8 +598,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  It unreacts when both `this` and `that` event stream unreact.
    *
    *  @param that      another event stream for the union
-   *  @return          a subscription and the event stream with unified
-   *                   events from `this` and `that`
+   *  @return          the event stream with unified events from `this` and `that`
    */
   def union(that: Events[T]): Events[T] = new Events.Union(this, that)
   
@@ -636,9 +632,8 @@ trait Events[@spec(Int, Long, Double) T] {
    *  @tparam S         the type of the events in event streams emitted by `this`
    *  @param evidence   evidence that events of type `T` produced by `this`
    *                    are actually event stream values of type `S`
-   *  @return           a subscription and the event stream with the union of all
-   *                    the events
-   *  
+   *  @return           the event stream with the union of all the events from the
+   *                    nested event streams
    */
   def union[@spec(Int, Long, Double) S](
     implicit evidence: T <:< Events[S], ds: Spec[S]
@@ -665,8 +660,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  
    *  @param that      another event stream for the concatenation
    *  @param a         evidence that arrays can be created for the type `T`
-   *  @return          a subscription and event stream that concatenates
-   *                   events from `this` and `that`
+   *  @return          event stream that concatenates events from `this` and `that`
    */
   def concat(that: Events[T])(implicit a: Arrayable[T]): Events[T] =
     new Events.Concat(this, that)
@@ -692,8 +686,8 @@ trait Events[@spec(Int, Long, Double) T] {
    *  @param evidence   evidence that events of type `T` produced by `this`
    *                    are actually event stream values of type `S`
    *  @param a          evidence that arrays can be created for type `S`
-   *  @return           a subscription and the event stream that concatenates all
-   *                    the events
+   *  @return           the event stream that concatenates all the events from nested
+   *                    event streams
    */
   def concat[@spec(Int, Long, Double) S](
     implicit evidence: T <:< Events[S], a: Arrayable[S]
@@ -751,8 +745,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  @param f          the mapping function for the pair of events
    *  @param at         evidence that arrays can be created for the type `T`
    *  @param as         evidence that arrays can be created for the type `S`
-   *  @return           a subscription and the event stream with the resulting
-   *                    events
+   *  @return           the event stream with the resulting events
    */
   def sync[@spec(Int, Long, Double) S, @spec(Int, Long, Double) R](that: Events[S])(
     f: (T, S) => R
