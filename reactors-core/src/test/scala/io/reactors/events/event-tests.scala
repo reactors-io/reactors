@@ -275,6 +275,23 @@ class EventsSpec extends FunSuite {
     assert(buffer == Seq(0, 1, 3, 6, 10, 15))
   }
 
+  test("reducePast") {
+    val buffer = mutable.Buffer[Int]()
+    val emitter = new Events.Emitter[Int]
+    val sum = emitter.reducePast(0)(_ + _)
+    val sub = sum.onEvent(buffer += _)
+
+    emitter.react(0)
+    emitter.react(1)
+    emitter.react(2)
+    emitter.react(3)
+    emitter.react(4)
+    emitter.react(5)
+    assert(buffer == Seq())
+    emitter.unreact()
+    assert(buffer == Seq(15))
+  }
+
   test("toEmptySignal") {
     val emitter = new Events.Emitter[Int]
     val signal = emitter.toEmptySignal

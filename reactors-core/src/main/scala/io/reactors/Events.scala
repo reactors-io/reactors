@@ -266,8 +266,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  @return          an event stream that emits the reduction of all events once
    */
   def reducePast[@spec(Int, Long, Double) S](z: S)(op: (S, T) => S): Events[S] =
-    ???
-    //new Events.ReducePast(this, z, op)
+    new Events.ReducePast(this, z, op)
 
   /** Emits the total number of events produced by this event stream.
    *
@@ -1334,6 +1333,45 @@ object Events {
       target.except(t)
     }
     def unreact() {
+      target.unreact()
+    }
+  }
+
+  private[reactors] class ReducePast[
+    @spec(Int, Long, Double) T,
+    @spec(Int, Long, Double) S
+  ](
+    val self: Events[T],
+    val z: S,
+    val op: (S, T) => S
+  ) extends Events[S] {
+    def onReaction(observer: Observer[S]): Subscription =
+      self.onReaction(new ReducePastObserver(observer, z, op))
+  }
+
+  private[reactors] class ReducePastObserver[
+    @spec(Int, Long, Double) T,
+    @spec(Int, Long, Double) S
+  ](
+    val target: Observer[S],
+    private var cached: S,
+    val op: (S, T) => S
+  ) extends Observer[T] {
+    def apply() = cached
+    def react(value: T) {
+      try {
+        cached = op(cached, value)
+      } catch {
+        case t if isNonLethal(t) =>
+          target.except(t)
+          return
+      }
+    }
+    def except(t: Throwable) {
+      target.except(t)
+    }
+    def unreact() {
+      target.react(cached)
       target.unreact()
     }
   }
