@@ -35,6 +35,17 @@ import scala.util.Random
  *  Event sink combinators, such as `onEvent`, return a `Subscription` object used to
  *  `unsubscribe` from their event source.
  *
+ *  Combinators that start with the prefix `on`, `to` or `get` are called *sink
+ *  combinators*. Calling these combinators subscribes to the event stream and creates
+ *  a subscription object. The event source is from there on responsible for propagating
+ *  events to sink combinators until it either *unreacts*, meaning that it will not
+ *  emit any other events, or the event sink gets *unsubscribed*. The event sink can be
+ *  unsubscribed by calling the `unsubscribe` method of the `Subscription` object.
+ *  The client is responsible for unsubscribing from an event source once the events are
+ *  no longer needed. Failure to do so risks *time leaks*, a form of resource leak in
+ *  which the program gets slower and slower (because it needs to propagate no longer
+ *  needed events).
+ *
  *  Event streams are specialized for `Int`, `Long` and `Double`.
  *
  *  Every event stream is bound to a specific `Reactor`, the basic unit of concurrency.
