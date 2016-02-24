@@ -79,6 +79,8 @@ trait RContainer[@spec(Int, Long, Double) T] extends Subscription {
   //   implicit count: RContainer.Union.Count[T], a: Arrayable[T]
   // ): RContainer[T]
 
+  // def groupBy
+
   // def to[That <: RContainer[T]](implicit factory: RBuilder.Factory[T, That]): That
 
   // def toAggregate(z: T)(op: (T, T) => T): Signal[T]

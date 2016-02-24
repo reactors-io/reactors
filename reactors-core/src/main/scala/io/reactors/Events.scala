@@ -213,7 +213,14 @@ trait Events[@spec(Int, Long, Double) T] {
    *
    *  will produce events `1`, `3` (`1 + 2`) and `6` (`3 + 3`).
    *  '''Note:''' the initial value `0` is '''not emitted'''.
-   *  
+   *  Shown graphically:
+   *
+   *  {{{
+   *  time     ----------------->
+   *  this     --1-----2----3--->
+   *  scanPast --1-----3----6--->|
+   *  }}}
+   *
    *  The `scanPast` can also be used to produce an event stream of a different
    *  type. The following produces a complete history of all the events seen so
    *  far:
@@ -237,11 +244,30 @@ trait Events[@spec(Int, Long, Double) T] {
    *  @param z         the initial value of the scan past
    *  @param op        the operator the combines the last produced and the
    *                   current event into a new one
-   *  @return          a subscription that is also an event stream that scans
-   *                   events from `this` event stream
+   *  @return          an event stream that scans events from `this` event stream
    */
   def scanPast[@spec(Int, Long, Double) S](z: S)(op: (S, T) => S): Events[S] =
     new Events.ScanPast(this, z, op)
+
+  /** Reduces all the events in this event stream.
+   *
+   *  Emits a single event *after* the event stream unreacts, and then it unreacts
+   *  itself. For example, the event stream `this.reducePast(0)(_ + _)` graphically:
+   *
+   *  {{{
+   *  time       ----------------->
+   *  this       --1-----2----3-|
+   *  reducePast ---------------6|
+   *  }}}
+   *
+   *  @tparam S        the type of the events in the resulting event stream
+   *  @param z         the initial value of the reduce past
+   *  @param op        the operator that combines the last event and the current one
+   *  @return          an event stream that emits the reduction of all events once
+   */
+  def reducePast[@spec(Int, Long, Double) S](z: S)(op: (S, T) => S): Events[S] =
+    ???
+    //new Events.ReducePast(this, z, op)
 
   /** Emits the total number of events produced by this event stream.
    *
@@ -254,8 +280,8 @@ trait Events[@spec(Int, Long, Double) T] {
    *  count ---1---2--3--|
    *  }}}
    *
-   *  @return           a subscription and an event stream that emits the total number
-   *                    of events emitted since `card` was called
+   *  @return           an event stream that emits the total number of events emitted
+   *                    since `card` was called
    */
   def count(implicit dummy: Spec[T]): Events[Int] = new Events.Count[T](this)
 
