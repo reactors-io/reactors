@@ -60,6 +60,10 @@ class RContainerBoxingBench extends Bench.Forked[Long] {
       var lastReduce = 0
       set.reduce(0)(_ + _)(_ - _).onEvent(lastReduce = _)
 
+      // filter
+      var lastFilter = 0
+      set.filter(_ % 2 == 0).count(_ % 2 == 0).onEvent(lastFilter = _)
+
       i = 0
       while (i < numEvents) {
         set += i

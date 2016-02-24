@@ -67,8 +67,9 @@ trait RContainer[@spec(Int, Long, Double) T] extends Subscription {
    *  neutral element, and `inv` is the inverse operation of `op`, in the sense that
    *  `inv(op(s, t), t) == op(inv(s, t), t) == s` is always true.
    */
-  def reduce[@spec(Int, Long, Double) S](z: S)(op: (S, T) => S)(inv: (S, T) => S):
-    Events[S] =
+  def reduce[
+    @spec(Int, Long, Double) S
+  ](z: S)(op: (S, T) => S)(inv: (S, T) => S): Events[S] =
     new RContainer.Reduce[S, T](self, z, op, inv)
 
   /** Incrementally filters elements from the current container.
