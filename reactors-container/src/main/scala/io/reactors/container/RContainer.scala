@@ -71,9 +71,11 @@ trait RContainer[@spec(Int, Long, Double) T] extends Subscription {
     Events[S] =
     new RContainer.Reduce[S, T](self, z, op, inv)
 
-  // def map[@spec(Int, Long, Double) S](f: T => S): RContainer[S]
+  /** Incrementally filters elements from the current container.
+   */
+  def filter(p: T => Boolean): RContainer[T] = new RContainer.Filter[T](this, p)
 
-  // def filter(p: T => Boolean): RContainer[T]
+  // def map[@spec(Int, Long, Double) S](f: T => S): RContainer[S]
 
   // def union(that: RContainer[T])(
   //   implicit count: RContainer.Union.Count[T], a: Arrayable[T]
@@ -289,6 +291,19 @@ object RContainer {
     }
     def except(t: Throwable) = insertObs.except(t)
     def unreact() = insertObs.unreact()
+  }
+
+  class Filter[@spec(Int, Long, Double) T](
+    val self: RContainer[T],
+    val pred: T => Boolean
+  ) extends RContainer[T] {
+    def inserts: Events[T] = self.inserts.filter(pred)
+    def removes: Events[T] = self.removes.filter(pred)
+    def unsubscribe() {}
+    def size: Int = self.count(pred).get
+    def foreach(f: T => Unit): Unit = {
+      self.foreach(x => if (pred(x)) f(x))
+    }
   }
 
 }
