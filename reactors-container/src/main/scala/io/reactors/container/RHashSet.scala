@@ -76,7 +76,6 @@ class RHashSet[@spec(Int, Long, Double) T](
 
     while (curr != nil && curr != k) {
       pos = (pos + 1) % table.length
-      println(curr, nil, k)
       curr = table(pos)
     }
 
