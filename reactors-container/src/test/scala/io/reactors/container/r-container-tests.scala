@@ -153,19 +153,19 @@ class RContainerCheck extends Properties("RContainer") with ExtendedProperties {
     }
   }
 
-  // property("map to Double") = forAllNoShrink(sizes) { sz =>
-  //   stackTraced {
-  //     val numbers = RHashSet[Int]
-  //     val doubles = numbers.map(_.toLong).to[RHashSet[Double]]
+  property("map to Double") = forAllNoShrink(sizes) { sz =>
+    stackTraced {
+      val numbers = RHashSet[Int]
+      val doubles = numbers.map(_.toDouble).to[RHashSet[Double]]
 
-  //     for (i <- 0 until sz) {
-  //       numbers += i
-  //       assert(doubles(i.toDouble))
-  //     }
+      for (i <- 0 until sz) {
+        numbers += i
+        assert(doubles(i.toDouble))
+      }
 
-  //     true
-  //   }
-  // }
+      true
+    }
+  }
 
   // property("map") = forAllNoShrink(sizes) { sz =>
   //   stackTraced {

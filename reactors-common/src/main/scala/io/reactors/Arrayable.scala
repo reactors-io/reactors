@@ -78,7 +78,7 @@ object Arrayable extends LowPriorityArrayableImplicits {
 
   implicit val double: Arrayable[Double] = new Arrayable[Double] {
     val classTag = implicitly[ClassTag[Double]]
-    val nil = Double.NaN
+    val nil = Double.NegativeInfinity
     def newArray(sz: Int) = {
       val a = new Array[Double](sz)
       var i = 0
