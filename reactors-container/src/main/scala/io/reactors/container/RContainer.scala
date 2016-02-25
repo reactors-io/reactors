@@ -93,8 +93,13 @@ trait RContainer[@spec(Int, Long, Double) T] extends Subscription {
    *  updates. Losing the container and failing to call `unsubscribe` may result in a
    *  time leak.
    */
-  def to[That <: RContainer[T]](implicit factory: RContainer.Factory[T, That]): That =
-    factory(inserts, removes)
+  def to[That <: RContainer[T]](implicit factory: RContainer.Factory[T, That]): That = {
+    val elements = new Events.Emitter[T]
+    val container = factory(inserts union elements, removes)
+    for (x <- this) elements.react(x)
+    elements.unreact()
+    container
+  }
 
   // def union(that: RContainer[T])(
   //   implicit count: RContainer.Union.Count[T], a: Arrayable[T]

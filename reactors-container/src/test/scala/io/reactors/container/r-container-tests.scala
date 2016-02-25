@@ -132,6 +132,23 @@ class RContainerCheck extends Properties("RContainer") with ExtendedProperties {
     }
   }
 
+  property("to with initial elements") = forAllNoShrink(sizes) { sz =>
+    stackTraced {
+      val numbers = RHashSet[Int]
+      numbers += 7
+      val copied = numbers.to[RHashSet[Int]]
+
+      assert(copied.size == 1)
+      assert(copied(7))
+
+      numbers += 11
+      assert(copied.size == 2)
+      assert(copied(11))
+
+      true
+    }
+  }
+
   property("map") = forAllNoShrink(sizes) { sz =>
     stackTraced {
       val numbers = RHashSet[Int]
@@ -166,41 +183,6 @@ class RContainerCheck extends Properties("RContainer") with ExtendedProperties {
       true
     }
   }
-
-  // property("map") = forAllNoShrink(sizes) { sz =>
-  //   stackTraced {
-  //     val numbers = new RHashSet[Long]
-  //     val mapped = numbers.map(-_).react.to[RHashSet[Long]]
-      
-  //     // sys.runtime.gc()
-  
-  //     assert(mapped.size == 0)
-  
-  //     numbers += 1L
-  
-  //     assert(mapped.size == 1)
-  //     assert(mapped(-1L) == true)
-  
-  //     for (n <- 2 until sz) numbers += n.toLong
-  //     val nonMappings = for (n <- 2 until sz) yield mapped(n)
-  //     val mappings = for (n <- 2 until sz) yield mapped(-n)
-  //     (s"mappings ok: $mappings" |: mappings.forall(_ == true)) &&
-  //       (s"nonexisting mappings: $nonMappings" |: nonMappings.forall(_ == false))
-  //   }
-  // }
-
-  // property("filter") = forAllNoShrink(sizes) { sz =>
-  //   stackTraced {
-  //     val numbers = new RHashSet[Int]
-  //     val filtered = numbers.filter(_ % 2 == 0).react.to[RHashSet[Int]]
-  
-  //     assert(filtered.size == 0)
-  
-  //     for (n <- 0 until 20) numbers += n
-  //     val filterings = for (n <- 0 until 20) yield filtered(n) == (n % 2 == 0)
-  //     s"filterings ok: $filterings" |: filterings.forall(_ == true)
-  //   }
-  // }
 
   // def testUnionPrimitives(sz: Int): Prop = {
   //   import Permission.canBuffer
@@ -354,70 +336,6 @@ class RContainerCheck extends Properties("RContainer") with ExtendedProperties {
   //     for (i <- 1 to sz) {
   //       numbers += i
   //       assert(size() == i + 1, s"i == $i, size() == ${size()}")
-  //     }
-  //     true
-  //   }
-  // }
-
-  // property("foreach the elements") = forAllNoShrink(sizes) { sz =>
-  //   stackTraced {
-  //     import scala.collection._
-  //     val numbers = RHashSet[Int]
-  //     val buffer = mutable.Buffer[Int]()
-  //     val _ = for (x <- numbers.react) buffer += x
-
-  //     numbers += 1
-  //     numbers += 2
-
-  //     assert(buffer == Seq(1, 2))
-
-  //     numbers -= 2
-
-  //     assert(buffer == Seq(1, 2))
-
-  //     for (i <- 3 until sz) {
-  //       numbers += i
-  //     }
-  //     buffer == (1 until math.max(3, sz))
-  //   }
-  // }
-
-  // property("count the elements") = forAllNoShrink(sizes) { sz =>
-  //   stackTraced {
-  //     val numbers = RHashSet[Int]
-  //     numbers += 0
-  //     val even = numbers.react.count(_ % 2 == 0)
-
-  //     assert(even() == 1)
-
-  //     for (i <- 1 until sz) {
-  //       numbers += i
-  //       assert(even() == 1 + i / 2)
-  //     }
-
-  //     var left = even()
-  //     for (i <- 0 until sz by 2) {
-  //       numbers -= i
-  //       left -= 1
-  //       assert(even() == left)
-  //     }
-
-  //     true
-  //   }
-  // }
-
-  // property("forall the elements") = forAllNoShrink(randomInts(250)) { xs =>
-  //   stackTraced {
-  //     val numbers = RHashSet[Int]
-  //     numbers += 11
-  //     val allodd = numbers.react.forall(_ % 2 == 1)
-
-  //     assert(allodd() == true)
-
-  //     for ((x, i) <- xs.zipWithIndex) {
-  //       if (i % 2 == 0) numbers += x
-  //       else numbers -= x
-  //       assert(allodd() == numbers.forall(_ % 2 == 1))
   //     }
   //     true
   //   }
