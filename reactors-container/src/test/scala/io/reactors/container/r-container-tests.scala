@@ -120,6 +120,9 @@ class RContainerCheck extends Properties("RContainer") with ExtendedProperties {
         numbers += i
         assert(copied(i))
       }
+
+      assert(copied.size == sz)
+
       for (i <- 0 until sz) {
         numbers -= i
         assert(!copied(i))
@@ -129,19 +132,38 @@ class RContainerCheck extends Properties("RContainer") with ExtendedProperties {
     }
   }
 
-  // property("map") = forAllNoShrink(sizes) { sz =>
+  property("map") = forAllNoShrink(sizes) { sz =>
+    stackTraced {
+      val numbers = RHashSet[Int]
+      val longs = numbers.map(_.toLong).to[RHashSet[Long]]
+
+      for (i <- 0 until sz) {
+        numbers += i
+        assert(longs(i.toLong))
+      }
+
+      assert(longs.size == sz)
+
+      for (i <- 0 until sz) {
+        numbers -= i
+        assert(!longs(i.toLong))
+      }
+
+      longs.size == 0
+    }
+  }
+
+  // property("map to Double") = forAllNoShrink(sizes) { sz =>
   //   stackTraced {
   //     val numbers = RHashSet[Int]
-  //     val oddSum = numbers.map(_ + 1).count()
-  //     val seen = mutable.Buffer[Int]()
-  //     oddSum.onEvent(seen += _)
+  //     val doubles = numbers.map(_.toLong).to[RHashSet[Double]]
 
-  //     for (i <- 0 until sz) numbers += i
-  //     assert(seen == (2 until sz).map(_ % 2 == 0).scanLeft(0)(_ + _))
-  //     seen.clear()
-  //     for (i <- 0 until sz) numbers -= i
-  //     val half = (sz + 1) / 2 - 1
-  //     seen == (2 until sz).map(_ % 2 == 0).scanLeft(half * (half + 1))(_ - _)
+  //     for (i <- 0 until sz) {
+  //       numbers += i
+  //       assert(doubles(i.toDouble))
+  //     }
+
+  //     true
   //   }
   // }
 
