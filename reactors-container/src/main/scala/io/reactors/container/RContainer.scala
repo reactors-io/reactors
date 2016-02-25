@@ -76,7 +76,13 @@ trait RContainer[@spec(Int, Long, Double) T] extends Subscription {
    */
   def filter(p: T => Boolean): RContainer[T] = new RContainer.Filter[T](this, p)
 
-  // def map[@spec(Int, Long, Double) S](f: T => S): RContainer[S]
+  /** Incrementally maps elements from the current container.
+   *
+   *  Function `f` for the map must not be an injection, that is, for any two elements
+   *  `x` and `y` that are not equal (`x != y`), `f(x)` **cannot be equal to** `f(y)`.
+   */
+  def map[@spec(Int, Long, Double) S](f: T => S): RContainer[S] =
+    new RContainer.Map[T, S](this, f)
 
   // def union(that: RContainer[T])(
   //   implicit count: RContainer.Union.Count[T], a: Arrayable[T]
@@ -302,9 +308,18 @@ object RContainer {
     def removes: Events[T] = self.removes.filter(pred)
     def unsubscribe() {}
     def size: Int = self.count(pred).get
-    def foreach(f: T => Unit): Unit = {
-      self.foreach(x => if (pred(x)) f(x))
-    }
+    def foreach(f: T => Unit): Unit = self.foreach(x => if (pred(x)) f(x))
+  }
+
+  class Map[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](
+    val self: RContainer[T],
+    val f: T => S
+  ) extends RContainer[S] {
+    def inserts: Events[S] = self.inserts.map(f)
+    def removes: Events[S] = self.removes.map(f)
+    def unsubscribe() {}
+    def size: Int = self.size
+    def foreach(g: S => Unit): Unit = self.foreach(x => g(f(x)))
   }
 
 }

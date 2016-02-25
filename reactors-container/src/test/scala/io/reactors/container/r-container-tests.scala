@@ -113,6 +113,22 @@ class RContainerCheck extends Properties("RContainer") with ExtendedProperties {
 
   // property("map") = forAllNoShrink(sizes) { sz =>
   //   stackTraced {
+  //     val numbers = RHashSet[Int]
+  //     val oddSum = numbers.map(_ + 1).count()
+  //     val seen = mutable.Buffer[Int]()
+  //     oddSum.onEvent(seen += _)
+
+  //     for (i <- 0 until sz) numbers += i
+  //     assert(seen == (2 until sz).map(_ % 2 == 0).scanLeft(0)(_ + _))
+  //     seen.clear()
+  //     for (i <- 0 until sz) numbers -= i
+  //     val half = (sz + 1) / 2 - 1
+  //     seen == (2 until sz).map(_ % 2 == 0).scanLeft(half * (half + 1))(_ - _)
+  //   }
+  // }
+
+  // property("map") = forAllNoShrink(sizes) { sz =>
+  //   stackTraced {
   //     val numbers = new RHashSet[Long]
   //     val mapped = numbers.map(-_).react.to[RHashSet[Long]]
       
