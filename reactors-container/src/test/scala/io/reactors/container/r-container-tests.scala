@@ -111,6 +111,24 @@ class RContainerCheck extends Properties("RContainer") with ExtendedProperties {
     }
   }
 
+  property("to") = forAllNoShrink(sizes) { sz =>
+    stackTraced {
+      val numbers = RHashSet[Int]
+      val copied = numbers.to[RHashSet[Int]]
+
+      for (i <- 0 until sz) {
+        numbers += i
+        assert(copied(i))
+      }
+      for (i <- 0 until sz) {
+        numbers -= i
+        assert(!copied(i))
+      }
+
+      copied.size == 0
+    }
+  }
+
   // property("map") = forAllNoShrink(sizes) { sz =>
   //   stackTraced {
   //     val numbers = RHashSet[Int]

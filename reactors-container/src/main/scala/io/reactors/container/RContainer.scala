@@ -84,13 +84,23 @@ trait RContainer[@spec(Int, Long, Double) T] extends Subscription {
   def map[@spec(Int, Long, Double) S](f: T => S): RContainer[S] =
     new RContainer.Map[T, S](this, f)
 
+  /** Incrementally copies this container to another container type.
+   *
+   *  Materializes another container, such that all the elements from this container are
+   *  visible in the target container.
+   *
+   *  Users may call `unsubscribe` on the resulting container to stop incremental
+   *  updates. Losing the container and failing to call `unsubscribe` may result in a
+   *  time leak.
+   */
+  def to[That <: RContainer[T]](implicit factory: RContainer.Factory[T, That]): That =
+    factory(inserts, removes)
+
   // def union(that: RContainer[T])(
   //   implicit count: RContainer.Union.Count[T], a: Arrayable[T]
   // ): RContainer[T]
 
   // def groupBy
-
-  // def to[That <: RContainer[T]](implicit factory: RBuilder.Factory[T, That]): That
 
   // def toAggregate(z: T)(op: (T, T) => T): Signal[T]
 

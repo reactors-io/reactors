@@ -68,6 +68,9 @@ class RContainerBoxingBench extends Bench.Forked[Long] {
       var lastMap = 0
       set.map(_ + 1).count(_ % 3 == 0).onEvent(lastMap = _)
 
+      // to
+      val to = set.to[RHashSet[Int]]
+
       i = 0
       while (i < numEvents) {
         set += i
