@@ -110,7 +110,7 @@ trait RContainer[@spec(Int, Long, Double) T] extends Subscription {
 
   // def toAggregate(z: T)(op: (T, T) => T): Signal[T]
 
-  // def toCoaggregate(z: T)(op: (T, T) => T): Signal[T]
+  // def toCommutativeAggregate(z: T)(op: (T, T) => T): Signal[T]
 
 }
 

@@ -892,7 +892,7 @@ object Events {
           wht.invalidateEntry(r)
       }
     }
-    def reactAll(value: T) {
+    private[reactors] def reactAll(value: T) {
       demux match {
         case null =>
           // no need to inform anybody
@@ -906,7 +906,7 @@ object Events {
           tableReactAll(wht, value)
       }
     }
-    def exceptAll(t: Throwable) {
+    private[reactors] def exceptAll(t: Throwable) {
       demux match {
         case null =>
           // no need to inform anybody
@@ -920,7 +920,7 @@ object Events {
           tableExceptAll(wht, t)
       }
     }
-    def unreactAll() {
+    private[reactors] def unreactAll() {
       eventsUnreacted = true
       demux match {
         case null =>
@@ -933,6 +933,13 @@ object Events {
           bufferUnreactAll(wb)
         case wht: FastHashTable[Observer[T] @unchecked] =>
           tableUnreactAll(wht)
+      }
+    }
+    private[reactors] def hasSubscriptions: Boolean = {
+      demux match {
+        case null => false
+        case w: Ref[Observer[T] @unchecked] => w.get == null
+        case _ => true
       }
     }
     private def checkBuffer(wb: FastBuffer[Observer[T]]) {

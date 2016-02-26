@@ -184,7 +184,7 @@ object RHashSet {
   implicit def factory[@spec(Int, Long, Double) T: Arrayable] =
     new RContainer.Factory[T, RHashSet[T]] {
       def apply(inserts: Events[T], removes: Events[T]): RHashSet[T] = {
-        val hs = new RHashSet
+        val hs = new RHashSet[T]
         hs.subscription = new Subscription.Composite(
           inserts.onEvent(hs += _),
           removes.onEvent(hs -= _)

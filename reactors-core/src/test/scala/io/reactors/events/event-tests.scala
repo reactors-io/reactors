@@ -18,12 +18,6 @@ class EventsSpec extends FunSuite {
 
   class TestEmitter[T] extends Events.Emitter[T] {
     var unsubscriptionCount = 0
-    def hasSubscriptions = demux != null && {
-      demux match {
-        case w: Ref[_] => w.get != null
-        case _ => true
-      }
-    }
     override def onReaction(obs: Observer[T]) = new Subscription.Composite(
       super.onReaction(obs),
       new Subscription {
