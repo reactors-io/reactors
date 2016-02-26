@@ -101,9 +101,10 @@ trait RContainer[@spec(Int, Long, Double) T] extends Subscription {
     container
   }
 
-  // def union(that: RContainer[T])(
-  //   implicit count: RContainer.Union.Count[T], a: Arrayable[T]
-  // ): RContainer[T]
+  def union(that: RContainer[T])(
+    implicit count: RContainer.Union.Count[T], a: Arrayable[T]
+  ): RContainer[T] =
+    new RContainer.Union(this, that)
 
   // def groupBy
 
@@ -335,6 +336,27 @@ object RContainer {
     def unsubscribe() {}
     def size: Int = self.size
     def foreach(g: S => Unit): Unit = self.foreach(x => g(f(x)))
+  }
+
+  class Union[@spec(Int, Long, Double) T](
+    val self: RContainer[T],
+    val that: RContainer[T]
+  )(
+    implicit val count: Union.Count[T],
+    val arrayable: Arrayable[T]
+  ) extends RContainer[T] {
+    def inserts: Events[T] = ???
+    def removes: Events[T] = ???
+    def unsubscribe() {}
+    def size = count.size
+    def foreach(f: T => Unit) = count.foreach(f)
+  }
+
+  object Union {
+    trait Count[@spec(Int, Long, Double) T] {
+      def size: Int
+      def foreach(f: T => Unit): Unit
+    }
   }
 
 }
