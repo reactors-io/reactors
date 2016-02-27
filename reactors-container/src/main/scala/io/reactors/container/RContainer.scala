@@ -102,6 +102,9 @@ trait RContainer[@spec(Int, Long, Double) T] extends Subscription {
   }
 
   /** Incrementally produces a union of the elements in the two containers.
+   *
+   *  This container combinator creates a subscription on the source combinators, so
+   *  calling `unsubscribe` will stop incremental updates.
    */
   def union(that: RContainer[T])(
     implicit a: Arrayable[T], h: Hash[T]
@@ -127,7 +130,7 @@ object RContainer {
 
   /* operations */
 
-  class Count[@spec(Int, Long, Double) T](
+  private[reactors] class Count[@spec(Int, Long, Double) T](
     val self: RContainer[T],
     val pred: T => Boolean
   ) extends Events[Int] {
@@ -151,7 +154,7 @@ object RContainer {
     }
   }
 
-  class CountInsertObserver[@spec(Int, Long, Double) T](
+  private[reactors] class CountInsertObserver[@spec(Int, Long, Double) T](
     val target: Observer[Int],
     var count: Int,
     val pred: T => Boolean
@@ -176,7 +179,7 @@ object RContainer {
     }
   }
 
-  class CountRemoveObserver[@spec(Int, Long, Double) T](
+  private[reactors] class CountRemoveObserver[@spec(Int, Long, Double) T](
     val target: Observer[Int],
     val insertObs: CountInsertObserver[T],
     val pred: T => Boolean
@@ -191,7 +194,7 @@ object RContainer {
     def unreact() = insertObs.unreact()
   }
 
-  class Sizes[@spec(Int, Long, Double) T](
+  private[reactors] class Sizes[@spec(Int, Long, Double) T](
     val self: RContainer[T]
   ) extends Events[Int] {
     def newSizesInsertObserver(obs: Observer[Int], self: RContainer[T]) =
@@ -208,7 +211,7 @@ object RContainer {
     }
   }
 
-  class SizesInsertObserver[@spec(Int, Long, Double) T](
+  private[reactors] class SizesInsertObserver[@spec(Int, Long, Double) T](
     val target: Observer[Int],
     var count: Int
   ) extends Observer[T] {
@@ -230,7 +233,7 @@ object RContainer {
     }
   }
 
-  class SizesRemoveObserver[@spec(Int, Long, Double) T](
+  private[reactors] class SizesRemoveObserver[@spec(Int, Long, Double) T](
     val target: Observer[Int],
     val insertObs: SizesInsertObserver[T]
   ) extends Observer[T] {
@@ -242,7 +245,7 @@ object RContainer {
     def unreact() = insertObs.unreact()
   }
 
-  class Reduce[@spec(Int, Long, Double) S, @spec(Int, Long, Double) T](
+  private[reactors] class Reduce[@spec(Int, Long, Double) S, @spec(Int, Long, Double) T](
     val self: RContainer[T],
     val z: S,
     val op: (S, T) => S,
@@ -268,7 +271,7 @@ object RContainer {
     }
   }
 
-  class ReduceInsertObserver[@spec(Int, Long, Double) S, @spec(Int, Long, Double) T](
+  private[reactors] class ReduceInsertObserver[@spec(Int, Long, Double) S, @spec(Int, Long, Double) T](
     val target: Observer[S],
     var current: S,
     val op: (S, T) => S,
@@ -298,7 +301,7 @@ object RContainer {
     }
   }
 
-  class ReduceRemoveObserver[@spec(Int, Long, Double) S, @spec(Int, Long, Double) T](
+  private[reactors] class ReduceRemoveObserver[@spec(Int, Long, Double) S, @spec(Int, Long, Double) T](
     val target: Observer[S],
     val insertObs: ReduceInsertObserver[S, T],
     val op: (S, T) => S,
@@ -318,7 +321,7 @@ object RContainer {
     def unreact() = insertObs.unreact()
   }
 
-  class Filter[@spec(Int, Long, Double) T](
+  private[reactors] class Filter[@spec(Int, Long, Double) T](
     val self: RContainer[T],
     val pred: T => Boolean
   ) extends RContainer[T] {
@@ -329,7 +332,7 @@ object RContainer {
     def foreach(f: T => Unit): Unit = self.foreach(x => if (pred(x)) f(x))
   }
 
-  class Map[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](
+  private[reactors] class Map[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](
     val self: RContainer[T],
     val f: T => S
   ) extends RContainer[S] {
@@ -340,7 +343,7 @@ object RContainer {
     def foreach(g: S => Unit): Unit = self.foreach(x => g(f(x)))
   }
 
-  class Union[@spec(Int, Long, Double) T](
+  private[reactors] class Union[@spec(Int, Long, Double) T](
     val self: RContainer[T],
     val that: RContainer[T]
   )(
@@ -388,7 +391,7 @@ object RContainer {
     def foreach(f: T => Unit) = countMap.foreachKey(f)
   }
 
-  object Union {
+  private[reactors] object Union {
     abstract class Num {
       def apply(): Int
       def inc: Num
