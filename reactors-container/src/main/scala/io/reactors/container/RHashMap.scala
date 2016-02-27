@@ -71,6 +71,10 @@ class RHashMap[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
     e => if (e.value != null) f((e.key, e.value))
   }
 
+  def foreachKey(f: K => Unit) = foreachEntry {
+    e => if (e.value != null) f(e.key)
+  }
+
   /** Returns an event stream that emits values stored at a specific key.
    *
    *  Each time that the value at the key is updated, an event is emitted. The initial
@@ -370,12 +374,6 @@ object RHashMap {
       var value: V = _
       var next: Entry[Double, V] = null
     }
-  }
-
-  def apply[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
-    implicit can: Can[K, V], hash: Hash[K], spec: Spec[K]
-  ) = {
-    new RHashMap[K, V]()(can, hash, spec)
   }
 
   val initSize = 16

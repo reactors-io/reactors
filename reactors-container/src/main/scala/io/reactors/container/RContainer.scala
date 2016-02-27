@@ -101,8 +101,10 @@ trait RContainer[@spec(Int, Long, Double) T] extends Subscription {
     container
   }
 
+  /** Incrementally produces a union of the elements in the two containers.
+   */
   def union(that: RContainer[T])(
-    implicit count: RContainer.Union.Count[T], a: Arrayable[T]
+    implicit a: Arrayable[T], h: Hash[T]
   ): RContainer[T] =
     new RContainer.Union(this, that)
 
@@ -342,20 +344,67 @@ object RContainer {
     val self: RContainer[T],
     val that: RContainer[T]
   )(
-    implicit val count: Union.Count[T],
-    val arrayable: Arrayable[T]
+    implicit val arrayable: Arrayable[T],
+    val hash: Hash[T]
   ) extends RContainer[T] {
-    def inserts: Events[T] = ???
-    def removes: Events[T] = ???
-    def unsubscribe() {}
-    def size = count.size
-    def foreach(f: T => Unit) = count.foreach(f)
+    private[reactors] var countMap: RHashMap[T, Union.Num] = _
+    private[reactors] var insertsEmitter: Events.Emitter[T] = _
+    private[reactors] var removesEmitter: Events.Emitter[T] = _
+    private[reactors] var subscription: Subscription = _
+    def init(u: Union[T]) {
+      countMap = new RHashMap[T, Union.Num]
+      insertsEmitter = new Events.Emitter[T]
+      removesEmitter = new Events.Emitter[T]
+      subscription = new Subscription.Composite(
+        (self.inserts union that.inserts).onEvent(x => insertUpdate(x)),
+        (self.removes union that.removes).onEvent(x => removeUpdate(x))
+      )
+    }
+    init(this)
+    def insertUpdate(x: T) {
+      val n = countMap.applyOrNil(x)
+      if (n == countMap.nil) {
+        countMap(x) = Union.one
+        insertsEmitter.react(x)
+      } else if (n == Union.one) {
+        countMap(x) = Union.two
+      } // else ignore
+    }
+    def removeUpdate(x: T) {
+      val n = countMap.applyOrNil(x)
+      if (n == countMap.nil) {
+        // ignore
+      } else if (n == Union.one) {
+        countMap.remove(x)
+        removesEmitter.react(x)
+      } else if (n == Union.two) {
+        countMap(x) = Union.one
+      }
+    }
+    def inserts: Events[T] = insertsEmitter
+    def removes: Events[T] = removesEmitter
+    def unsubscribe() = subscription.unsubscribe()
+    def size = countMap.size
+    def foreach(f: T => Unit) = countMap.foreachKey(f)
   }
 
   object Union {
-    trait Count[@spec(Int, Long, Double) T] {
-      def size: Int
-      def foreach(f: T => Unit): Unit
+    abstract class Num {
+      def apply(): Int
+      def inc: Num
+      def dec: Num
+    }
+
+    val one: Num = new Num {
+      def apply() = 1
+      def inc = two
+      def dec = sys.error("one")
+    }
+
+    val two: Num = new Num {
+      def apply() = 2
+      def inc = sys.error("two")
+      def dec = one
     }
   }
 
