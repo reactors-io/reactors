@@ -29,6 +29,19 @@ class RContainerBoxingBench extends Bench.Forked[Long] {
     ValidationReporter()
   )
 
+  measure method "RHashMap" config (
+    reports.validation.predicate -> { (n: Any) => n == 0 }
+  ) in {
+    using(Gen.single("numEvents")(10000)) in { numEvents =>
+      val hm = new RHashMap[Int, String]
+
+      var i = 0
+      while (i < 0) {
+        i += 1
+      }
+    }
+  }
+
   measure method "RContainer.<combinators>" config (
     reports.validation.predicate -> { (n: Any) => n == 0 }
   ) in {
