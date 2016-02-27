@@ -8,8 +8,13 @@ import scala.reflect.ClassTag
 
 
 
+/** A reactive hash map.
+ *
+ *  In addition to standard `inserts` and `removes`, and other container event streams,
+ *  reactive hash maps expose event streams with elements at specific keys.
+ */
 class RHashMap[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
-  implicit val can: RHashMap.Can[K, V], val hash: Hash[K]
+  implicit val can: RHashMap.Can[K, V], val hash: Hash[K], val spec: Spec[K]
 ) extends RContainer[(K, V)] {
   private var table: Array[RHashMap.Entry[K, V]] = null
   private var elemCount = 0
@@ -33,10 +38,19 @@ class RHashMap[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
 
   def unsubscribe() = subscription.unsubscribe()
 
+  /** Adds a key-value pair to the map.
+   *
+   *  If a key equal to the key from the pair already exists in the map, the existing
+   *  mapping is removed.
+   */
   def +=(kv: (K, V)) = {
     insert(kv._1, kv._2)
   }
 
+  /** Removes a key-value pair from the map.
+   *
+   *  A key-value pair is removed iff the same key-value pair already exists in the map.
+   */
   def -=(kv: (K, V)) = {
     delete(kv._1, kv._2) != null
   }
@@ -57,7 +71,16 @@ class RHashMap[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
     e => if (e.value != null) f((e.key, e.value))
   }
 
-  private def lookup(k: K): RHashMap.Entry[K, V] = {
+  /** Returns an event stream that emits values stored at a specific key.
+   *
+   *  Each time that the value at the key is updated, an event is emitted. The initial
+   *  value is emitted to the event stream when subscribing to the event stream. If
+   *  there is no value associated with the key, or a value was just removed, then `nil`
+   *  is emitted.
+   */
+  def at(key: K): Events[V] = ensure(key)
+
+  private[reactors] def lookup(k: K): RHashMap.Entry[K, V] = {
     val pos = index(k)
     var entry = table(pos)
 
@@ -197,41 +220,57 @@ class RHashMap[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
 
   private def noKeyError(key: K) = throw new NoSuchElementException("key: " + key)
 
+  /** Denotes the absence of values at various keys.
+   */
   def nil: V = null
 
+  /** Gets the value at the specified key, or `nil` if there is none.
+   */
   def applyOrNil(key: K): V = {
     val entry = lookup(key)
     if (entry == null || entry.value == null) null
     else entry.value
   }
 
+  /** Returns the value at the specified key, or throws an exception if there is none.
+   */
   def apply(key: K): V = {
     val entry = lookup(key)
     if (entry == null || entry.value == null) noKeyError(key)
     else entry.value
   }
 
+  /** Optionally gets the value associated to the specified key.
+   */
   def get(key: K): Option[V] = {
     val entry = lookup(key)
     if (entry == null || entry.value == null) None
     else Some(entry.value)
   }
 
+  /** Checks if the given key exists in the map.
+   */
   def contains(key: K): Boolean = {
     val entry = lookup(key)
     if (entry == null || entry.value == null) false
     else true
   }
 
+  /** Updates the value at the specific key.
+   */
   def update(key: K, value: V): Unit = {
     insert(key, value)
   }
 
+  /** Removes the mapping at the specified key.
+   */
   def remove(key: K): Boolean = delete(key) match {
     case null => false
     case v => true
   }
 
+  /** Removes all elements from the map.
+   */
   def clear() {
     var pos = 0
     while (pos < table.length) {
@@ -280,13 +319,14 @@ object RHashMap {
     def next: Entry[K, V]
     def next_=(e: Entry[K, V]): Unit
     def apply(): V = value
-    def propagate() = reactAll(value)
+    def propagate()(implicit s: Spec[K]) = reactAll(value)
     def remove(e: Entry[K, V]): Entry[K, V] = if (this eq e) next else {
       if (next ne null) next = next.remove(e)
       this
     }
     override def onReaction(obs: Observer[V]): Subscription = {
       val sub = super.onReaction(obs)
+      obs.react(value)
       sub.and(if (!hasSubscriptions) outer.clean(this))
     }
     override def toString = s"Entry($key, $value)"
@@ -333,9 +373,9 @@ object RHashMap {
   }
 
   def apply[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
-    implicit can: Can[K, V], hash: Hash[K]
+    implicit can: Can[K, V], hash: Hash[K], spec: Spec[K]
   ) = {
-    new RHashMap[K, V]()(can, hash)
+    new RHashMap[K, V]()(can, hash, spec)
   }
 
   val initSize = 16

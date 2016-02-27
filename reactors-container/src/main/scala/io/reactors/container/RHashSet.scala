@@ -7,6 +7,8 @@ import scala.reflect.ClassTag
 
 
 
+/** A reactive hash set.
+ */
 class RHashSet[@spec(Int, Long, Double) T](
   implicit val arrayable: Arrayable[T]
 ) extends RContainer[T] {

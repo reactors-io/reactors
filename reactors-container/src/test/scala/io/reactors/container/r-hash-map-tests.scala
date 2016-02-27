@@ -33,19 +33,19 @@ class RHashMapCheck extends Properties("RHashMap") with ExtendedProperties {
     }
   }
 
-  // property("subscribe to many keys") = forAllNoShrink(sizes, sizes) { (sz, many) =>
-  //   stackTraced {
-  //     val table = new RHashMap[Int, String]
-  //     for (i <- 0 until many) table(i) = i.toString
-  //     val signals = for (i <- 0 until many) yield table.react(i)
-  //     for (i <- 0 until sz) table(i) = s"value$i"
-  //     for (i <- 0 until many)
-  //       assert(i >= sz || signals(i)() == s"value$i", signals(i)())
-  //     val moresignals = for (i <- many until sz) yield table.react(i)
-  //     for (i <- many until sz) assert(moresignals(i - many)() == s"value$i")
-  //     true
-  //   }
-  // }
+  property("subscribe to many keys") = forAllNoShrink(sizes, sizes) { (sz, many) =>
+    stackTraced {
+      val table = new RHashMap[Int, String]
+      for (i <- 0 until many) table(i) = i.toString
+      val signals = for (i <- 0 until many) yield table.at(i).toEmptySignal
+      for (i <- 0 until sz) table(i) = s"value$i"
+      for (i <- 0 until many)
+        assert(i >= sz || signals(i)() == s"value$i", signals(i)())
+      val moresignals = for (i <- many until sz) yield table.at(i).toEmptySignal
+      for (i <- many until sz) assert(moresignals(i - many)() == s"value$i")
+      true
+    }
+  }
 
   // property("subscribe to non-existing") = forAllNoShrink(sizes, sizes) { (sz, many) =>
   //   stackTraced {
@@ -203,26 +203,14 @@ class RHashMapSpec extends FlatSpec with Matchers {
     table("d") should equal ("4")
   }
 
-  // it should "subscribe to a specific key" in {
-  //   val many = 512
-  //   val table = new RHashMap[Int, String]
-  //   for (i <- 0 until many) table(i) = i.toString
-  //   val specificKey = table.react(128)
+  it should "subscribe to a specific key" in {
+    val many = 512
+    val table = new RHashMap[Int, String]
+    for (i <- 0 until many) table(i) = i.toString
+    val atSpecificKey = table.at(128).toEmptySignal
 
-  //   table(128) = "new value"
-  //   specificKey() should equal ("new value")
-  // }
-
-  // it should "subscribe to optional values of a key" in {
-  //   val many = 512
-  //   val table = new RHashMap[Int, String]
-  //   for (i <- 0 until many) table(i) = i.toString
-  //   table.remove(128)
-  //   val specificKey = table.react.get(128)
-
-  //   specificKey() should equal (None)
-  //   table(128) = "new value"
-  //   specificKey() should equal (Some("new value"))
-  // }
+    table(128) = "new value"
+    atSpecificKey() should equal ("new value")
+  }
 
 }
