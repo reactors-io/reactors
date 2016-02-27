@@ -40,8 +40,8 @@ class RContainerBoxingBench extends Bench.Forked[Long] {
 
       var i = 0
       while (i < numEvents) {
-        hm(i) = ""
         hm(17) = "17"
+        hm(i) = hm(17)
         i += 1
       }
     }
