@@ -35,8 +35,13 @@ class RContainerBoxingBench extends Bench.Forked[Long] {
     using(Gen.single("numEvents")(10000)) in { numEvents =>
       val hm = new RHashMap[Int, String]
 
+      var last17 = ""
+      hm.at(17).onEvent(last17 = _)
+
       var i = 0
-      while (i < 0) {
+      while (i < numEvents) {
+        hm(i) = ""
+        hm(17) = "17"
         i += 1
       }
     }

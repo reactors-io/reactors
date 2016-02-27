@@ -188,7 +188,7 @@ class RHashMap[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
     }
   }
 
-  private def checkResize() {
+  private def checkResize()(implicit s: Spec[K]) {
     if (entryCount * 1000 / RHashMap.loadFactor > table.length) {
       val otable = table
       val ncapacity = table.length * 2
@@ -271,7 +271,7 @@ class RHashMap[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
 
   /** Removes all elements from the map.
    */
-  def clear() {
+  def clear()(implicit s: Spec[K]) {
     var pos = 0
     while (pos < table.length) {
       var entry = table(pos)
@@ -281,7 +281,7 @@ class RHashMap[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
 
         entry.value = null
         if (!entry.hasSubscriptions) table(pos) = table(pos).remove(entry)
-        entry.propagate()
+        entry.propagate()(spec)
         if (previousValue != null) {
           elemCount -= 1
           emitRemoves(entry.key, previousValue)
