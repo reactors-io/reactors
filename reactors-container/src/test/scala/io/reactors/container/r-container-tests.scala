@@ -184,116 +184,110 @@ class RContainerCheck extends Properties("RContainer") with ExtendedProperties {
     }
   }
 
-  // def testUnionPrimitives(sz: Int): Prop = {
-  //   import Permission.canBuffer
-  //   val xs = new RHashSet[Int]
-  //   val ys = new RHashSet[Int]
-  //   val both = (xs union ys).react.to[RHashSet[Int]]
-  //   def check(nums: Int*) {
-  //     for (n <- nums)
-  //       assert(both(n) == true, s"(not true for $n in ${nums.mkString(", ")})")
-  //   }
+  def testUnionPrimitives(sz: Int): Prop = {
+    val xs = new RHashSet[Int]
+    val ys = new RHashSet[Int]
+    val both = (xs union ys).to[RHashSet[Int]]
+    def check(nums: Int*) {
+      for (n <- nums)
+        assert(both(n) == true, s"(not true for $n in ${nums.mkString(", ")})")
+    }
 
-  //   // sys.runtime.gc()
+    xs += 1
+    check(1)
+    ys += 1
+    check(1)
+    xs -= 1
+    check(1)
+    ys -= 1
+    check()
 
-  //   xs += 1
-  //   check(1)
-  //   ys += 1
-  //   check(1)
-  //   xs -= 1
-  //   check(1)
-  //   ys -= 1
-  //   check()
+    for (i <- 0 until sz) {
+      if (i % 2 == 0) xs += i
+      else ys += i
+      if (i % 10 == 0) check((0 to i): _*)
+    }
+    check((0 until sz): _*)
 
-  //   for (i <- 0 until sz) {
-  //     if (i % 2 == 0) xs += i
-  //     else ys += i
-  //     if (i % 10 == 0) check((0 to i): _*)
-  //   }
-  //   check((0 until sz): _*)
+    for (i <- 0 until sz) {
+      if (i % 2 == 0) ys += i
+      else xs += i
+    }
+    check((0 until sz): _*)
 
-  //   for (i <- 0 until sz) {
-  //     if (i % 2 == 0) ys += i
-  //     else xs += i
-  //   }
-  //   check((0 until sz): _*)
+    for (i <- 0 until sz) {
+      if (i % 2 == 0) xs -= i
+      else ys -= i
+    }
+    check((0 until sz): _*)
 
-  //   for (i <- 0 until sz) {
-  //     if (i % 2 == 0) xs -= i
-  //     else ys -= i
-  //   }
-  //   check((0 until sz): _*)
+    for (i <- 0 until sz) {
+      if (i % 2 == 0) ys -= i
+      else xs -= i
+      if (i % 10 == 0) check((i + 1) until sz: _*)
+    }
+    for (i <- 0 until sz) assert(!both(i))
 
-  //   for (i <- 0 until sz) {
-  //     if (i % 2 == 0) ys -= i
-  //     else xs -= i
-  //     if (i % 10 == 0) check((i + 1) until sz: _*)
-  //   }
-  //   for (i <- 0 until sz) assert(!both(i))
+    true
+  }
 
-  //   true
-  // }
+  property("union primitives") = forAllNoShrink(sizes) { sz =>
+    stackTraced {
+      testUnionPrimitives(sz)
+    }
+  }
 
-  // property("union primitives") = forAllNoShrink(sizes) { sz =>
-  //   stackTraced {
-  //     testUnionPrimitives(sz)
-  //   }
-  // }
+  def testUnionReferences(sz: Int): Prop = {
+    val xs = new RHashSet[String]
+    val ys = new RHashSet[String]
+    val both = (xs union ys).to[RHashSet[String]]
+    def check(nums: String*) {
+      for (n <- nums)
+        assert(both(n) == true, s"(not true for $n in ${nums.mkString(", ")})")
+    }
+    val inputs = (0 until sz).map(_.toString)
 
-  // def testUnionReferences(sz: Int): Prop = {
-  //   import Permission.canBuffer
-  //   val xs = new RHashSet[String]
-  //   val ys = new RHashSet[String]
-  //   val both = (xs union ys).react.to[RHashSet[String]]
-  //   def check(nums: String*) {
-  //     for (n <- nums)
-  //       assert(both(n) == true, s"(not true for $n in ${nums.mkString(", ")})")
-  //   }
-  //   val inputs = (0 until sz).map(_.toString)
+    xs += "1"
+    check("1")
+    ys += "1"
+    check("1")
+    xs -= "1"
+    check("1")
+    ys -= "1"
+    check()
 
-  //   // sys.runtime.gc()
+    for (i <- 0 until sz) {
+      if (i % 2 == 0) xs += inputs(i)
+      else ys += inputs(i)
+    }
+    check(inputs: _*)
 
-  //   xs += "1"
-  //   check("1")
-  //   ys += "1"
-  //   check("1")
-  //   xs -= "1"
-  //   check("1")
-  //   ys -= "1"
-  //   check()
+    for (i <- 0 until sz) {
+      if (i % 2 == 0) ys += inputs(i)
+      else xs += inputs(i)
+    }
+    check(inputs: _*)
 
-  //   for (i <- 0 until sz) {
-  //     if (i % 2 == 0) xs += inputs(i)
-  //     else ys += inputs(i)
-  //   }
-  //   check(inputs: _*)
+    for (i <- 0 until sz) {
+      if (i % 2 == 0) xs -= inputs(i)
+      else ys -= inputs(i)
+    }
+    check(inputs: _*)
 
-  //   for (i <- 0 until sz) {
-  //     if (i % 2 == 0) ys += inputs(i)
-  //     else xs += inputs(i)
-  //   }
-  //   check(inputs: _*)
+    for (i <- 0 until sz) {
+      if (i % 2 == 0) ys -= inputs(i)
+      else xs -= inputs(i)
+    }
+    for (i <- 0 until sz) assert(!both(inputs(i)))
 
-  //   for (i <- 0 until sz) {
-  //     if (i % 2 == 0) xs -= inputs(i)
-  //     else ys -= inputs(i)
-  //   }
-  //   check(inputs: _*)
+    true
+  }
 
-  //   for (i <- 0 until sz) {
-  //     if (i % 2 == 0) ys -= inputs(i)
-  //     else xs -= inputs(i)
-  //   }
-  //   for (i <- 0 until sz) assert(!both(inputs(i)))
-
-  //   true
-  // }
-
-  // property("union references") = forAllNoShrink(sizes) { sz =>
-  //   stackTraced {
-  //     testUnionReferences(sz)
-  //   }
-  // }
+  property("union references") = forAllNoShrink(sizes) { sz =>
+    stackTraced {
+      testUnionReferences(sz)
+    }
+  }
 
   // property("aggregate") = forAllNoShrink(sizes) { sz =>
   //   stackTraced {

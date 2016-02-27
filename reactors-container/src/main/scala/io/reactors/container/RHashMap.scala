@@ -350,11 +350,12 @@ object RHashMap {
     V >: Null <: AnyRef
   ](a: Arrayable[K]): Can[K, V] = {
     val cls = a.newRawArray(0).getClass
+    val elemcls = cls.getComponentType
     val can = {
       if (cls == classOf[Array[Int]]) canInt[V]
       else if (cls == classOf[Array[Long]]) canLong[V]
       else if (cls == classOf[Array[Double]]) canDouble[V]
-      else if (cls == classOf[Array[AnyRef]]) canAnyRef[AnyRef, V]
+      else if (classOf[AnyRef].isAssignableFrom(elemcls)) canAnyRef[AnyRef, V]
       else sys.error(s"Cannot create hash map for key class $cls")
     }
     can.asInstanceOf[Can[K, V]]
