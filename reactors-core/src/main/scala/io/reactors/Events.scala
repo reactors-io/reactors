@@ -938,7 +938,7 @@ object Events {
     private[reactors] def hasSubscriptions: Boolean = {
       demux match {
         case null => false
-        case w: Ref[Observer[T] @unchecked] => w.get == null
+        case w: Ref[Observer[T] @unchecked] => w.get != null
         case _ => true
       }
     }
