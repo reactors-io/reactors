@@ -14,16 +14,18 @@ import scala.reflect.ClassTag
  *  reactive hash maps expose event streams with elements at specific keys.
  */
 class RHashMap[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
-  implicit val can: RHashMap.Can[K, V], val hash: Hash[K], val spec: Spec[K]
+  implicit val arrayable: Arrayable[K], val hash: Hash[K], val spec: Spec[K]
 ) extends RContainer[(K, V)] {
   private var table: Array[RHashMap.Entry[K, V]] = null
   private var elemCount = 0
   private var entryCount = 0
+  private[reactors] var can: RHashMap.Can[K, V] = _
   private[reactors] var insertsEmitter: Events.Emitter[(K, V)] = null
   private[reactors] var removesEmitter: Events.Emitter[(K, V)] = null
   private[reactors] var subscription: Subscription = null
 
   protected def init(k: K) {
+    can = RHashMap.canFor[K, V](arrayable)
     table = new Array(RHashMap.initSize)
     insertsEmitter = new Events.Emitter[(K, V)]
     removesEmitter = new Events.Emitter[(K, V)]
@@ -148,14 +150,17 @@ class RHashMap[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
     else needRemoveEvent = true
     
     {
-      if (insertsEmitter.hasSubscriptions)
-        insertsEmitter.react((k, v))
-      emitRemoves(k, previousValue)
+      emitInserts(k, v)
+      if (needRemoveEvent) emitRemoves(k, previousValue)
     }
     
     entry.propagate()
 
     previousValue
+  }
+
+  private[reactors] def emitInserts(k: K, v: V) {
+    if (insertsEmitter.hasSubscriptions) insertsEmitter.react((k, v))
   }
 
   private[reactors] def emitRemoves(k: K, v: V) {
@@ -340,7 +345,22 @@ object RHashMap {
     def newEntry(key: K, outer: RHashMap[K, V]): RHashMap.Entry[K, V]
   }
 
-  implicit def canAnyRef[K, V >: Null <: AnyRef] = new Can[K, V] {
+  def canFor[
+    @spec(Int, Long, Double) K,
+    V >: Null <: AnyRef
+  ](a: Arrayable[K]): Can[K, V] = {
+    val cls = a.newRawArray(0).getClass
+    val can = {
+      if (cls == classOf[Array[Int]]) canInt[V]
+      else if (cls == classOf[Array[Long]]) canLong[V]
+      else if (cls == classOf[Array[Double]]) canDouble[V]
+      else if (cls == classOf[Array[AnyRef]]) canAnyRef[AnyRef, V]
+      else sys.error(s"Cannot create hash map for key class $cls")
+    }
+    can.asInstanceOf[Can[K, V]]
+  }
+
+  implicit def canAnyRef[K >: Null <: AnyRef, V >: Null <: AnyRef] = new Can[K, V] {
     def newEntry(k: K, o: RHashMap[K, V]) = new RHashMap.Entry[K, V] {
       def outer = o
       def key = k
@@ -381,7 +401,7 @@ object RHashMap {
   val loadFactor = 750
 
   implicit def factory[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
-    implicit can: Can[K, V], hash: Hash[K], spec: Spec[K]
+    implicit a: Arrayable[K], hash: Hash[K], spec: Spec[K]
   ) = {
     new RContainer.Factory[(K, V), RHashMap[K, V]] {
       def apply(inserts: Events[(K, V)], removes: Events[(K, V)]): RHashMap[K, V] = {

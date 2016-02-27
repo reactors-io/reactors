@@ -86,6 +86,14 @@ class RContainerBoxingBench extends Bench.Forked[Long] {
       var lastMap = 0
       set.map(_ + 1).count(_ % 3 == 0).onEvent(lastMap = _)
 
+      // union
+      var lastUnion = 0
+      val thatSet = new RHashSet[Int]
+      thatSet += 10
+      thatSet += 11
+      thatSet += 12
+      (set union thatSet).count(_ > 5).onEvent(lastUnion = _)
+
       // to
       val to = set.to[RHashSet[Int]]
 

@@ -106,9 +106,7 @@ trait RContainer[@spec(Int, Long, Double) T] extends Subscription {
    *  This container combinator creates a subscription on the source combinators, so
    *  calling `unsubscribe` will stop incremental updates.
    */
-  def union(that: RContainer[T])(
-    implicit a: Arrayable[T], h: Hash[T]
-  ): RContainer[T] =
+  def union(that: RContainer[T])(implicit a: Arrayable[T], h: Hash[T]): RContainer[T] =
     new RContainer.Union(this, that)
 
   // def groupBy
@@ -371,7 +369,7 @@ object RContainer {
         insertsEmitter.react(x)
       } else if (n == Union.one) {
         countMap(x) = Union.two
-      } // else ignore
+      } // ignore
     }
     def removeUpdate(x: T) {
       val n = countMap.applyOrNil(x)
