@@ -47,101 +47,22 @@ class RHashMapCheck extends Properties("RHashMap") with ExtendedProperties {
     }
   }
 
-  // property("subscribe to non-existing") = forAllNoShrink(sizes, sizes) { (sz, many) =>
-  //   stackTraced {
-  //     val table = new RHashMap[Int, String]
-  //     val signsOfLife = Array.fill(many)(false)
-  //     val subs = for (i <- 0 until many) yield {
-  //       val values = table.react(i)
-  //       values foreach { _ =>
-  //         signsOfLife(i) = true
-  //       }
-  //     }
+  property("subscribe to non-existing") = forAllNoShrink(sizes, sizes) { (sz, many) =>
+    stackTraced {
+      val table = new RHashMap[Int, String]
+      val signsOfLife = Array.fill(many)(false)
+      val subs = for (i <- 0 until many) yield {
+        val values = table.at(i)
+        values onEvent { _ =>
+          signsOfLife(i) = true
+        }
+      }
 
-  //     for (i <- 0 until sz) table(i) = "foobar"
-  //     for (i <- 0 until many) assert(i >= sz || signsOfLife(i) == true)
-  //     true
-  //   }
-  // }
-
-  // property("accurately GC stale key subscriptions") = forAllNoShrink(sizes, sizes) {
-  //   (size, many) =>
-  //   stackTraced {
-  //     val table = new RHashMap[Int, String]
-  //     val signsOfLife = Array.fill(many)(false)
-  //     for (i <- 0 until many) yield table.react(i)
-
-  //     sys.runtime.gc()
-
-  //     for (i <- 0 until size) table(i) = "foobar"
-  //     for (i <- 0 until many) assert(signsOfLife(i) == false)
-  //     true
-  //   }
-  // }
-
-  // property("contain the correct set of keys") = forAllNoShrink(sizes) { size =>
-  //   stackTraced {
-  //     val table = new RHashMap[Int, String]
-  //     val observed = mutable.Set[Int]()
-  //     val keys = table.keys
-  //     val insertSub = keys.inserts.foreach(observed += _)
-  //     for (i <- 0 until size) table(i) = i.toString
-
-  //     observed == ((0 until size).toSet)
-  //   }
-  // }
-
-  // property("contain the correct set of values") = forAllNoShrink(sizes) { size =>
-  //   stackTraced {
-  //     val table = new RHashMap[Int, String]
-  //     val observed = mutable.Set[String]()
-  //     val values = table.values
-  //     val insertSub = values.inserts.foreach(observed += _.toString)
-  //     for (i <- 0 until size) table(i) = i.toString
-
-  //     observed == ((0 until size).map(_.toString).toSet)
-  //   }
-  // }
-
-  // property("have a valid entries container") = forAllNoShrink(sizes) { size =>
-  //   stackTraced {
-  //     val table = new RHashMap[Int, String]
-  //     val threeDigits = table.entries.collect2({
-  //       case s if s.length > 2 => s
-  //     }).react.to[RHashMap[Int, String]]
-  //     for (i <- 0 until size) table(i) = i.toString
-
-  //     val check = mutable.Buffer[Int]()
-  //     threeDigits foreach {
-  //       case (k, v) => check += k
-  //     }
-
-  //     check.sorted == (100 until size)
-  //   }
-  // }
-
-  // property("have entries inverted and mapped") = forAllNoShrink(sizes) {
-  //   (size) =>
-  //   import scala.reactive.calc.RVFun
-  //   stackTraced {
-  //     val big = size * 4
-  //     val table = new RHashMap[Int, math.BigInt]
-  //     val bigIntToInt = new RVFun[math.BigInt, Int] { def apply(x: BigInt) = x.toInt }
-  //     val lessThanBig = table.entries.collect2({
-  //       case b if b < big => b
-  //     }).rvmap2(bigIntToInt).swap.react.to[RHashValMap[Int, Int]]
-    
-  //     for (i <- 0 until size) table(-i) = math.BigInt(i)
-  //     table(-big) = math.BigInt(big)
-
-  //     val check = mutable.Buffer[(Int, Int)]()
-  //     lessThanBig foreach {
-  //       case (k, v) => check += ((k, v))
-  //     }
-
-  //     check.sorted == (0 until size).map(i => (i, -i))
-  //   }
-  // }
+      for (i <- 0 until sz) table(i) = "foobar"
+      for (i <- 0 until many) assert(i >= sz || signsOfLife(i) == true)
+      true
+    }
+  }
 
 }
 

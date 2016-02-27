@@ -383,7 +383,7 @@ object RHashMap {
   val loadFactor = 750
 
   implicit def factory[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
-    implicit can: Can[K, V], hash: Hash[K]
+    implicit can: Can[K, V], hash: Hash[K], spec: Spec[K]
   ) = {
     new RContainer.Factory[(K, V), RHashMap[K, V]] {
       def apply(inserts: Events[(K, V)], removes: Events[(K, V)]): RHashMap[K, V] = {
