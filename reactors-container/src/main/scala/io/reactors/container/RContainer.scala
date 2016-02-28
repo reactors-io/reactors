@@ -21,6 +21,8 @@ import scala.annotation.implicitNotFound
  *  Other methods return event streams that generally emit the initial value after being
  *  subscribed to. It is therefore legal to call `toEmptySignal` on such event streams
  *  and query them.
+ *
+ *  @tparam T       type of the elements in the container
  */
 trait RContainer[@spec(Int, Long, Double) T] extends Subscription {
   self =>

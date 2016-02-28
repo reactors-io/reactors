@@ -8,6 +8,8 @@ import scala.reflect.ClassTag
 
 
 /** A reactive hash set.
+ *
+ *  @tparam T       type of the elements in the set
  */
 class RHashSet[@spec(Int, Long, Double) T](
   implicit val arrayable: Arrayable[T]

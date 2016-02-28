@@ -12,6 +12,9 @@ import scala.reflect.ClassTag
  *
  *  In addition to standard `inserts` and `removes`, and other container event streams,
  *  reactive hash maps expose event streams with elements at specific keys.
+ *
+ *  @tparam K       type of the keys in the map, specialized
+ *  @tparam V       type of the values in the map, must be a reference parameter
  */
 class RHashMap[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
   implicit val arrayable: Arrayable[K], val hash: Hash[K], val spec: Spec[K]
