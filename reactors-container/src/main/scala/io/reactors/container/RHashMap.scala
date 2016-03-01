@@ -86,6 +86,8 @@ class RHashMap[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
    *  value is emitted to the event stream when subscribing to the event stream. If
    *  there is no value associated with the key, or a value was just removed, then `nil`
    *  is emitted.
+   *
+   *  @param key     key for which to emit values
    */
   def at(key: K): Events[V] = ensure(key)
 
