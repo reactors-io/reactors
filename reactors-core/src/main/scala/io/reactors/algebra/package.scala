@@ -19,22 +19,22 @@ package object algebra {
     }
   }
 
-  trait Commutoid[@spec(Int, Long, Double) T]
+  trait Commute[@spec(Int, Long, Double) T]
   extends Monoid[T]
 
-  object Commutoid {
-    def apply[@spec(Int, Long, Double) T](z: T)(op: (T, T) => T) = new Commutoid[T] {
+  object Commute {
+    def apply[@spec(Int, Long, Double) T](z: T)(op: (T, T) => T) = new Commute[T] {
       def zero = z
       def operator = op
     }
-    def from[@spec(Int, Long, Double) T](m: Monoid[T]) = new Commutoid[T] {
+    def from[@spec(Int, Long, Double) T](m: Monoid[T]) = new Commute[T] {
       def zero = m.zero
       def operator = m.operator
     }
   }
 
   trait Abelian[@spec(Int, Long, Double) T]
-  extends Commutoid[T] {
+  extends Commute[T] {
     def inverse: (T, T) => T
   }
 

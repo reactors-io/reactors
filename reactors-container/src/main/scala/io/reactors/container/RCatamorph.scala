@@ -18,6 +18,8 @@ extends RContainer[S] {
 
   def -=(v: S): Boolean
 
+  def push(v: S): Boolean
+
   def signal: Signal[T]
 
 }
