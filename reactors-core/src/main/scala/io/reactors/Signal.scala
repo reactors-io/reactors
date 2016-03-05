@@ -118,11 +118,22 @@ trait Signal[@spec(Int, Long, Double) T] extends Events[T] with Subscription {
    */
   def past2(init: T): Events[(T, T)] = scanPast((init, this())) { (t, x) => (t._2, x) }
 
+  /** Returns another signal with the same value, and an additional subscription.
+   *
+   *  @param s        the additional subscription to unsubscribe to
+   *  @return         a signal with the same events and value, and an additional
+   *                  subscription
+   */
+  def withSubscription(s: Subscription): Signal[T] =
+    new Signal.WithSubscription(this, s)
+
 }
 
 
 object Signal {
 
+  /** Signal with a constant value.
+   */
   class Const[@spec(Int, Long, Double) T](private[reactors] val value: T)
   extends Signal[T] {
     def apply() = value
@@ -323,6 +334,19 @@ object Signal {
       thisObserver.done = true
       thisObserver.subscription.unsubscribe()
       target.unreact()
+    }
+  }
+
+  private[reactors] class WithSubscription[@spec(Int, Long, Double) T](
+    val self: Signal[T],
+    val subscription: Subscription
+  ) extends Signal[T] {
+    def onReaction(obs: Observer[T]) = self.onReaction(obs)
+    def apply() = self.apply()
+    def isEmpty = self.isEmpty
+    def unsubscribe() {
+      subscription.unsubscribe()
+      self.unsubscribe()
     }
   }
 

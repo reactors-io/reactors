@@ -289,21 +289,21 @@ class RContainerCheck extends Properties("RContainer") with ExtendedProperties {
     }
   }
 
-  // property("aggregate") = forAllNoShrink(sizes) { sz =>
-  //   stackTraced {
-  //     val numbers = new RHashSet[Int]
-  //     numbers += 1
-  //     val sum = numbers.react.commuteFold(Commutoid(0)(_ + _))
+  property("fold") = forAllNoShrink(sizes) { sz =>
+    stackTraced {
+      val numbers = new RHashSet[Int]
+      numbers += 1
+      val sum = numbers.toFold(0)(_ + _)
 
-  //     assert(sum() == 1)
+      assert(sum() == 1)
 
-  //     for (n <- 2 until sz) {
-  //       numbers += n
-  //       assert(sum() == n * (n + 1) / 2)
-  //     }
-  //     true
-  //   }
-  // }
+      for (n <- 2 until sz) {
+        numbers += n
+        assert(sum() == n * (n + 1) / 2)
+      }
+      true
+    }
+  }
 
   // property("aggregate using a typeclass") = forAllNoShrink(sizes) { sz =>
   //   stackTraced {

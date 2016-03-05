@@ -111,11 +111,19 @@ trait RContainer[@spec(Int, Long, Double) T] extends Subscription {
   def union(that: RContainer[T])(implicit a: Arrayable[T], h: Hash[T]): RContainer[T] =
     new RContainer.Union(this, that)
 
-  // def groupBy
+  /** Creates a signal that is the fold of the elements in the container.
+   */
+  def toFold(z: T)(op: (T, T) => T): Signal[T] = {
+    val mc = new MonoidCatamorph[T, T](v => v, z, op)
+    this.foreach(x => mc += x)
+    val sub = new Subscription.Composite(
+      inserts.onEvent(mc += _),
+      removes.onEvent(mc -= _)
+    )
+    mc.signal.withSubscription(sub)
+  }
 
-  // def toAggregate(z: T)(op: (T, T) => T): Signal[T]
-
-  // def toCommutativeAggregate(z: T)(op: (T, T) => T): Signal[T]
+  // def toCommuteFold(z: T)(op: (T, T) => T): Signal[T]
 
 }
 
