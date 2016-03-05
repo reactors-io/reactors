@@ -305,62 +305,61 @@ class RContainerCheck extends Properties("RContainer") with ExtendedProperties {
     }
   }
 
-  // property("aggregate using a typeclass") = forAllNoShrink(sizes) { sz =>
-  //   stackTraced {
-  //     import calc.structure.setUnion
-  //     val numbers = new RHashSet[Set[Int]]
-  //     val union = numbers.react.monoidFold
+  property("commutative fold") = forAllNoShrink(sizes) { sz =>
+    stackTraced {
+      val numbers = new RHashSet[Set[Int]]
+      val union = numbers.toCommuteFold(Set())(_ ++ _)
 
-  //     assert(union() == Set())
+      assert(union() == Set())
 
-  //     for (n <- 1 until sz) {
-  //       numbers += Set(n)
-  //       assert(union() == Set() ++ (1 to n))
-  //     }
-  //     true
-  //   }
-  // }
+      for (n <- 1 until sz) {
+        numbers += Set(n)
+        assert(union() == Set() ++ (1 to n))
+      }
+      true
+    }
+  }
 
-  // property("update the size") = forAllNoShrink(sizes) { sz =>
-  //   stackTraced {
-  //     val numbers = RHashSet[Int]
-  //     numbers += 0
-  //     val size = numbers.react.size
+  property("update the size") = forAllNoShrink(sizes) { sz =>
+    stackTraced {
+      val numbers = RHashSet[Int]
+      numbers += 0
+      val size = numbers.sizes.toEmptySignal
 
-  //     for (i <- 1 to sz) {
-  //       numbers += i
-  //       assert(size() == i + 1, s"i == $i, size() == ${size()}")
-  //     }
-  //     true
-  //   }
-  // }
+      for (i <- 1 to sz) {
+        numbers += i
+        assert(size() == i + 1, s"i == $i, size() == ${size()}")
+      }
+      true
+    }
+  }
 
-  // property("accurately collect") = forAllNoShrink(sizes) { sz =>
-  //   stackTraced {
-  //     val table = new RHashMap[Int, String]
-  //     val oks = table.collect({
-  //       case (k, "ok") => (k, "ok")
-  //     })
-  //     val observed = mutable.Buffer[String]()
-  //     val insertSub = oks.inserts.foreach(kv => observed += kv._2)
-  //     for (i <- 0 until sz) table(i) = if (i % 2 == 0) "ok" else "notok"
+  property("collect") = forAllNoShrink(sizes) { sz =>
+    stackTraced {
+      val table = new RHashMap[Int, String]
+      val oks = table.collect({
+        case (k, "ok") => (k, "ok")
+      })
+      val observed = mutable.Buffer[String]()
+      val insertSub = oks.inserts.onEvent(kv => observed += kv._2)
+      for (i <- 0 until sz) table(i) = if (i % 2 == 0) "ok" else "notok"
   
-  //     assert(observed.size == (sz + 1) / 2, s"sz = $sz, size = ${observed.size}")
-  //     for (v <- observed) assert(v == "ok")
-  //     true
-  //   }
-  // }
+      assert(observed.size == (sz + 1) / 2, s"sz = $sz, size = ${observed.size}")
+      for (v <- observed) assert(v == "ok")
+      true
+    }
+  }
 
-  // property("be eagerly evaluated") = forAllNoShrink(sizes) { sz =>
-  //   stackTraced {
-  //     val set = new RHashSet[Int]
-  //     for (i <- 0 until sz) set += i
-  //     val mapped = set.map(_ + 1).to[RHashSet[Int]]
+  property("be eagerly evaluated") = forAllNoShrink(sizes) { sz =>
+    stackTraced {
+      val set = new RHashSet[Int]
+      for (i <- 0 until sz) set += i
+      val mapped = set.map(_ + 1).to[RHashSet[Int]]
 
-  //     assert(mapped.size == sz)
-  //     for (x <- mapped) assert(set(x / 2) == true)
-  //     true
-  //   }
-  // }
+      assert(mapped.size == sz)
+      for (x <- mapped) assert(set(x / 2) == true)
+      true
+    }
+  }
 
 }

@@ -80,11 +80,20 @@ trait RContainer[@spec(Int, Long, Double) T] extends Subscription {
 
   /** Incrementally maps elements from the current container.
    *
-   *  Function `f` for the map must not be an injection, that is, for any two elements
+   *  Function `f` for the map must be an injection, that is, for any two elements
    *  `x` and `y` that are not equal (`x != y`), `f(x)` **cannot be equal to** `f(y)`.
    */
   def map[@spec(Int, Long, Double) S](f: T => S): RContainer[S] =
     new RContainer.Map[T, S](this, f)
+
+  /** Incrementally collects and transforms elements on which the function is defined.
+   *
+   *  The partial function must be an injection.
+   */
+  def collect[S <: AnyRef](pf: PartialFunction[T, S])(implicit e: T <:< AnyRef):
+    RContainer[S] = {
+    new RContainer.Collect[T, S](this, pf, e)
+  }
 
   /** Incrementally copies this container to another container type.
    *
@@ -112,6 +121,8 @@ trait RContainer[@spec(Int, Long, Double) T] extends Subscription {
     new RContainer.Union(this, that)
 
   /** Creates a signal that is the fold of the elements in the container.
+   *
+   *  Neutral element `z` and the associative operator `op` must form a monoid.
    */
   def toFold(z: T)(op: (T, T) => T): Signal[T] = {
     val mc = new MonoidCatamorph[T, T](v => v, z, op)
@@ -123,7 +134,20 @@ trait RContainer[@spec(Int, Long, Double) T] extends Subscription {
     mc.signal.withSubscription(sub)
   }
 
-  // def toCommuteFold(z: T)(op: (T, T) => T): Signal[T]
+  /** Creates a signal that is the commutative fold of the elements in the container.
+   *
+   *  Neutral element `z` and the commutative, associative operator `op` must for a
+   *  monoid.
+   */
+  def toCommuteFold(z: T)(op: (T, T) => T): Signal[T] = {
+    val c = new CommuteCatamorph[T, T](v => v, z, op)
+    this.foreach(x => c += x)
+    val sub = new Subscription.Composite(
+      inserts.onEvent(c += _),
+      removes.onEvent(c -= _)
+    )
+    c.signal.withSubscription(sub)
+  }
 
 }
 
@@ -349,6 +373,19 @@ object RContainer {
     def unsubscribe() {}
     def size: Int = self.size
     def foreach(g: S => Unit): Unit = self.foreach(x => g(f(x)))
+  }
+
+  private[reactors] class Collect[T, S <: AnyRef](
+    val self: RContainer[T],
+    val pf: PartialFunction[T, S],
+    val e: T <:< AnyRef
+  ) extends RContainer[S] {
+    def inserts: Events[S] = self.inserts.collect(pf)(e)
+    def removes: Events[S] = self.removes.collect(pf)(e)
+    def unsubscribe() {}
+    def size: Int = self.count(pf.isDefinedAt).get
+    def foreach(g: S => Unit): Unit =
+      self.foreach(x => if (pf.isDefinedAt(x)) g(pf(x)))
   }
 
   private[reactors] class Union[@spec(Int, Long, Double) T](
