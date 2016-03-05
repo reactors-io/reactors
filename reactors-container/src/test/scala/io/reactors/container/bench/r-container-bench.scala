@@ -47,6 +47,24 @@ class RContainerBoxingBench extends Bench.Forked[Long] {
     }
   }
 
+  measure method "RFlatHashMap" config (
+    reports.validation.predicate -> { (n: Any) => n == 0 }
+  ) in {
+    using(Gen.single("numEvents")(10000)) in { (numEvents) =>
+      val fm = new RFlatHashMap[Int, Int]
+
+      var lastSize = 0
+      fm.sizes.onEvent(lastSize = _)
+
+      var i = 0
+      while (i < numEvents) {
+        fm(17) = 19
+        fm(i) = i
+        i += 1
+      }
+    }
+  }
+
   measure method "RContainer.<combinators>" config (
     reports.validation.predicate -> { (n: Any) => n == 0 }
   ) in {

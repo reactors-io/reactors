@@ -87,7 +87,7 @@ class RFlatHashMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
     else valtable(pos)
   }
 
-  private def insert(k: K, v: V, notify: Boolean = true): V = {
+  private[reactors] def insert(k: K, v: V, notify: Boolean = true): V = {
     checkResize(this)
 
     var pos = index(k)
@@ -105,14 +105,23 @@ class RFlatHashMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
     valtable(pos) = v
     
     val keyAdded = curr == nil
+
     if (keyAdded) sz += 1
-    else if (notify && removesEmitter.hasSubscriptions) removesEmitter.react((k, previousValue))
-    if (notify && insertsEmitter.hasSubscriptions) insertsEmitter.react((k, v))
+    else notifyRemove(k, previousValue, notify)
+    notifyInsert(k, v, notify)
 
     previousValue
   }
 
-  private def delete(k: K, expectedValue: V = emptyVal.nil): V = {
+  private[reactors] def notifyInsert(k: K, v: V, notify: Boolean) {
+    if (notify && insertsEmitter.hasSubscriptions) insertsEmitter.react((k, v))
+  }
+
+  private[reactors] def notifyRemove(k: K, v: V, notify: Boolean) {
+    if (notify && removesEmitter.hasSubscriptions) removesEmitter.react((k, v))
+  }
+
+  private[reactors] def delete(k: K, expectedValue: V = emptyVal.nil): V = {
     var pos = index(k)
     val nil = emptyKey.nil
     var curr = keytable(pos)
@@ -147,7 +156,7 @@ class RFlatHashMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
     } else emptyVal.nil
   }
 
-  private def checkResize(self: RFlatHashMap[K, V]) {
+  private[reactors] def checkResize(self: RFlatHashMap[K, V]) {
     if (sz * 1000 / RFlatHashMap.loadFactor > keytable.length) {
       val okeytable = keytable
       val ovaltable = valtable
@@ -161,7 +170,7 @@ class RFlatHashMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
       while (pos < okeytable.length) {
         val curr = okeytable(pos)
         if (curr != nil) {
-          insert(curr, ovaltable(pos), false)
+          val dummy = insert(curr, ovaltable(pos), false)
         }
 
         pos += 1
