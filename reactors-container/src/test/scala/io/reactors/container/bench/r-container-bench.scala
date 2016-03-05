@@ -60,6 +60,7 @@ class RContainerBoxingBench extends Bench.Forked[Long] {
       while (i < numEvents) {
         fm(17) = 19
         fm(i) = i
+        if (i > numEvents / 2) fm.remove(i - 1)
         i += 1
       }
     }
