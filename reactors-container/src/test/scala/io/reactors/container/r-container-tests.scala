@@ -293,7 +293,7 @@ class RContainerCheck extends Properties("RContainer") with ExtendedProperties {
     stackTraced {
       val numbers = new RHashSet[Int]
       numbers += 1
-      val sum = numbers.toFold(0)(_ + _)
+      val sum = numbers.toAggregate(0)(_ + _)
 
       assert(sum() == 1)
 
@@ -308,7 +308,7 @@ class RContainerCheck extends Properties("RContainer") with ExtendedProperties {
   property("commutative fold") = forAllNoShrink(sizes) { sz =>
     stackTraced {
       val numbers = new RHashSet[Set[Int]]
-      val union = numbers.toCommuteFold(Set())(_ ++ _)
+      val union = numbers.toCommuteAggregate(Set())(_ ++ _)
 
       assert(union() == Set())
 

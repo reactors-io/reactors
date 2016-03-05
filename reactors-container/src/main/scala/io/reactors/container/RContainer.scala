@@ -124,7 +124,7 @@ trait RContainer[@spec(Int, Long, Double) T] extends Subscription {
    *
    *  Neutral element `z` and the associative operator `op` must form a monoid.
    */
-  def toFold(z: T)(op: (T, T) => T): Signal[T] = {
+  def toAggregate(z: T)(op: (T, T) => T): Signal[T] = {
     val mc = new MonoidCatamorph[T, T](v => v, z, op)
     this.foreach(x => mc += x)
     val sub = new Subscription.Composite(
@@ -139,7 +139,7 @@ trait RContainer[@spec(Int, Long, Double) T] extends Subscription {
    *  Neutral element `z` and the commutative, associative operator `op` must for a
    *  monoid.
    */
-  def toCommuteFold(z: T)(op: (T, T) => T): Signal[T] = {
+  def toCommuteAggregate(z: T)(op: (T, T) => T): Signal[T] = {
     val c = new CommuteCatamorph[T, T](v => v, z, op)
     this.foreach(x => c += x)
     val sub = new Subscription.Composite(
