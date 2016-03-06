@@ -2,12 +2,23 @@ package scala.reactive
 
 
 
+import java.util.concurrent.atomic.AtomicLong
 import scala.reflect.ClassTag
 import scala.runtime.ObjectRef
+import scala.collection.concurrent.TrieMap
 
 
 
 package object common {
+
+  private val counterMap = TrieMap[Class[_], AtomicLong]()
+
+  final def freshId[C: ClassTag]: Long = {
+    val cls = implicitly[ClassTag[C]].runtimeClass
+    if (!(counterMap contains cls)) counterMap.putIfAbsent(cls, new AtomicLong)
+    val counter = counterMap(cls)
+    counter.incrementAndGet()
+  }
 
   def invalid(msg: String) = throw new IllegalStateException(msg)
 
@@ -154,7 +165,7 @@ package object common {
     def nonEmpty = !isEmpty
     def <|>(that: Conqueue[T]) = ConcUtils.concatConqueueTop(self, that)
   }
-  
+
 }
 
 

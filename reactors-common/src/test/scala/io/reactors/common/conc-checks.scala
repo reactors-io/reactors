@@ -1,4 +1,4 @@
-package scala.reactive.common
+package io.reactors.common
 
 
 

@@ -1,9 +1,8 @@
-package scala.reactive.common.concurrent;
+package io.reactors.common.concurrent;
 
 
 
 import sun.misc.Unsafe;
-
 import java.lang.reflect.Field;
 
 

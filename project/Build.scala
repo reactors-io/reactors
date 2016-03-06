@@ -203,6 +203,8 @@ object ReactorsBuild extends MechaRepoBuild {
     settings = reactorsCoreSettings
   ) configs(
     Benchmarks
+  ) settings(
+    inConfig(Benchmarks)(Defaults.testSettings): _*
   ) dependsOn(
     reactorsCommon % "compile->compile;test->test"
   ) dependsOnSuperRepo
@@ -213,6 +215,8 @@ object ReactorsBuild extends MechaRepoBuild {
     settings = reactorsContainerSettings
   ) configs(
     Benchmarks
+  ) settings(
+    inConfig(Benchmarks)(Defaults.testSettings): _*
   ) dependsOn(
     reactorsCore % "compile->compile;test->test"
   ) dependsOnSuperRepo
@@ -223,6 +227,8 @@ object ReactorsBuild extends MechaRepoBuild {
     settings = reactorsRemoteSettings
   ) configs(
     Benchmarks
+  ) settings(
+    inConfig(Benchmarks)(Defaults.testSettings): _*
   ) dependsOn(
     reactorsCore % "compile->compile;test->test"
   ) dependsOnSuperRepo
@@ -233,6 +239,8 @@ object ReactorsBuild extends MechaRepoBuild {
     settings = reactorsProtocolsSettings
   ) configs(
     Benchmarks
+  ) settings(
+    inConfig(Benchmarks)(Defaults.testSettings): _*
   ) dependsOn(
     reactorsCore % "compile->compile;test->test",
     reactorsContainer % "compile->compile;test->test"

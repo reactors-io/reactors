@@ -1,4 +1,4 @@
-package scala.reactive.common
+package io.reactors.common
 
 
 
@@ -342,11 +342,9 @@ class ConcMemoryBenches extends ConcUtils {
 }
 
 
-class ConcBenches extends Bench.OfflineReport {
-
-  include[ConcTimeBenches]
-  include[ConcMemoryBenches]
-
+class ConcBenches extends Bench.Group {
+  include(new ConcTimeBenches {})
+  include(new ConcMemoryBenches {})
 }
 
 
