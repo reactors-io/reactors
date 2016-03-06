@@ -17,7 +17,7 @@ trait TileMapBench extends JBench.OfflineReport {
     def apply(x: Int, y: Int) = array(y * width + x)
   }
 
-  val sidelengths = Gen.range("sidelength")(500, 1000, 100)
+  val sidelengths = Gen.range("sidelength")(500, 1500, 200)
 
   val matrices = for (sz <- sidelengths) yield new Matrix(sz, sz)
 
@@ -35,26 +35,28 @@ trait TileMapBench extends JBench.OfflineReport {
   }
 
   override def defaultConfig = Context(
+    exec.minWarmupRuns -> 30,
+    exec.maxWarmupRuns -> 60,
     exec.benchRuns -> 8,
     exec.independentSamples -> 1
   )
 
   @volatile var load = 0
 
-  // @gen("matrices")
-  // @benchmark("tilemap.indexing")
-  // @curve("matrix")
-  // def matrixApply(matrix: Matrix) {
-  //   var y = 0
-  //   while (y < matrix.height) {
-  //     var x = 0
-  //     while (x < matrix.width) {
-  //       load = matrix(x, y)
-  //       x += 1
-  //     }
-  //     y += 1
-  //   }
-  // }
+  @gen("matrices")
+  @benchmark("tilemap.indexing")
+  @curve("matrix")
+  def matrixApply(matrix: Matrix) {
+    var y = 0
+    while (y < matrix.height) {
+      var x = 0
+      while (x < matrix.width) {
+        load = matrix(x, y)
+        x += 1
+      }
+      y += 1
+    }
+  }
 
   def outputHashMatrixStats(p: (Int, HashMatrix[Int])) {
     val stats = p._2.debugBlockMap

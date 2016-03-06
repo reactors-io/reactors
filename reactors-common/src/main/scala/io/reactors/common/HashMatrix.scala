@@ -9,7 +9,7 @@ import scala.collection._
 
 
 class HashMatrix[@specialized(Int, Long, Double) T](
-  private[reactors] val initialSize: Int = 16
+  private[reactors] val initialSize: Int = 64
 )(
   implicit val arrayable: Arrayable[T]
 ) {
@@ -38,19 +38,19 @@ class HashMatrix[@specialized(Int, Long, Double) T](
   val nil = arrayable.nil
 
   def apply(xr: Int, yr: Int): T = {
-    val x = xr
-    val y = yr
-    val xb = x / 16
-    val yb = y / 16
+    val x = xr + (1 << 30)
+    val y = yr + (1 << 30)
+    val xb = x / 64
+    val yb = y / 64
     val hash = hashblock(xb, yb)
     val idx = (hash & 0x7fffffff) % blocks.size
 
     var block = blocks(idx)
     while (block != null) {
       if (block.x == xb && block.y == yb) {
-        val xm = x % 16
-        val ym = y % 16
-        return arrayable.apply(block.array, ym * 16 + xm)
+        val xm = x % 64
+        val ym = y % 64
+        return arrayable.apply(block.array, ym * 64 + xm)
       }
       block = block.next
     }
@@ -59,19 +59,19 @@ class HashMatrix[@specialized(Int, Long, Double) T](
   }
 
   def update(xr: Int, yr: Int, v: T): Unit = {
-    val x = xr
-    val y = yr
-    val xb = x / 16
-    val yb = y / 16
+    val x = xr + (1 << 30)
+    val y = yr + (1 << 30)
+    val xb = x / 64
+    val yb = y / 64
     val hash = hashblock(xb, yb)
     val idx = (hash & 0x7fffffff) % blocks.size
 
     var block = blocks(idx)
     while (block != null) {
       if (block.x == xb && block.y == yb) {
-        val xm = x % 16
-        val ym = y % 16
-        arrayable.update(block.array, ym * 16 + xm, v)
+        val xm = x % 64
+        val ym = y % 64
+        arrayable.update(block.array, ym * 64 + xm, v)
         return
       }
       block = block.next
@@ -81,10 +81,10 @@ class HashMatrix[@specialized(Int, Long, Double) T](
       increaseSize()
     }
 
-    block = new HashMatrix.Block(xb, yb, arrayable.newArray(16 * 16))
-    val xm = x % 16
-    val ym = y % 16
-    arrayable.update(block.array, ym * 16 + xm, v)
+    block = new HashMatrix.Block(xb, yb, arrayable.newArray(64 * 64))
+    val xm = x % 64
+    val ym = y % 64
+    arrayable.update(block.array, ym * 64 + xm, v)
 
     val nidx = (hash & 0x7fffffff) % blocks.size
     block.next = blocks(nidx)
