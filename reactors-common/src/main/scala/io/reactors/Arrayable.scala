@@ -34,6 +34,14 @@ abstract class Arrayable[@specialized(Byte, Short, Int, Float, Long, Double) T] 
   /** Creates a new array of type `T` initialized with the default JVM value for that type.
    */
   def newRawArray(sz: Int): Array[T]
+
+  /** Reads from an array entry.
+   */
+  def apply(array: Array[T], idx: Int): T
+
+  /** Writes to an array entry.
+   */
+  def update(array: Array[T], idx: Int, v: T): Unit
 }
 
 
@@ -46,6 +54,8 @@ trait LowPriorityArrayableImplicits {
     val nil = null.asInstanceOf[T]
     def newArray(sz: Int) = new Array[T](sz)
     def newRawArray(sz: Int) = newArray(sz)
+    def apply(array: Array[T], idx: Int): T = array(idx)
+    def update(array: Array[T], idx: Int, v: T): Unit = array(idx) = v
   }
 }
 
@@ -59,6 +69,8 @@ object Arrayable extends LowPriorityArrayableImplicits {
     val nil = null
     def newArray(sz: Int) = new Array[T](sz)
     def newRawArray(sz: Int) = newArray(sz)
+    def apply(array: Array[T], idx: Int): T = array(idx)
+    def update(array: Array[T], idx: Int, v: T): Unit = array(idx) = v
   }
 
   implicit val long: Arrayable[Long] = new Arrayable[Long] {
@@ -74,6 +86,8 @@ object Arrayable extends LowPriorityArrayableImplicits {
       a
     }
     def newRawArray(sz: Int) = new Array[Long](sz)
+    def apply(array: Array[Long], idx: Int): Long = array(idx)
+    def update(array: Array[Long], idx: Int, v: Long): Unit = array(idx) = v
   }
 
   implicit val double: Arrayable[Double] = new Arrayable[Double] {
@@ -89,6 +103,8 @@ object Arrayable extends LowPriorityArrayableImplicits {
       a
     }
     def newRawArray(sz: Int) = new Array[Double](sz)
+    def apply(array: Array[Double], idx: Int): Double = array(idx)
+    def update(array: Array[Double], idx: Int, v: Double): Unit = array(idx) = v
   }
 
   implicit val float: Arrayable[Float] = new Arrayable[Float] {
@@ -104,6 +120,8 @@ object Arrayable extends LowPriorityArrayableImplicits {
       a
     }
     def newRawArray(sz: Int) = new Array[Float](sz)
+    def apply(array: Array[Float], idx: Int): Float = array(idx)
+    def update(array: Array[Float], idx: Int, v: Float): Unit = array(idx) = v
   }
 
   implicit val int: Arrayable[Int] = new Arrayable[Int] {
@@ -119,6 +137,8 @@ object Arrayable extends LowPriorityArrayableImplicits {
       a
     }
     def newRawArray(sz: Int) = new Array[Int](sz)
+    def apply(array: Array[Int], idx: Int): Int = array(idx)
+    def update(array: Array[Int], idx: Int, v: Int): Unit = array(idx) = v
   }
 
   val nonZeroInt: Arrayable[Int] = new Arrayable[Int] {
@@ -126,6 +146,8 @@ object Arrayable extends LowPriorityArrayableImplicits {
     val nil = 0
     def newArray(sz: Int) = newRawArray(sz)
     def newRawArray(sz: Int) = new Array[Int](sz)
+    def apply(array: Array[Int], idx: Int): Int = array(idx)
+    def update(array: Array[Int], idx: Int, v: Int): Unit = array(idx) = v
   }
 
   implicit val short: Arrayable[Short] = new Arrayable[Short] {
@@ -141,6 +163,8 @@ object Arrayable extends LowPriorityArrayableImplicits {
       a
     }
     def newRawArray(sz: Int) = new Array[Short](sz)
+    def apply(array: Array[Short], idx: Int): Short = array(idx)
+    def update(array: Array[Short], idx: Int, v: Short): Unit = array(idx) = v
   }
 
   implicit val byte: Arrayable[Byte] = new Arrayable[Byte] {
@@ -156,6 +180,8 @@ object Arrayable extends LowPriorityArrayableImplicits {
       a
     }
     def newRawArray(sz: Int) = new Array[Byte](sz)
+    def apply(array: Array[Byte], idx: Int): Byte = array(idx)
+    def update(array: Array[Byte], idx: Int, v: Byte): Unit = array(idx) = v
   }
 
 }

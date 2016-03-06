@@ -40,20 +40,20 @@ trait TileMapBench extends JBench.OfflineReport {
 
   @volatile var load = 0
 
-  @gen("matrices")
-  @benchmark("tilemap.indexing")
-  @curve("matrix")
-  def matrixApply(matrix: Matrix) {
-    var y = 0
-    while (y < matrix.height) {
-      var x = 0
-      while (x < matrix.width) {
-        load = matrix(x, y)
-        x += 1
-      }
-      y += 1
-    }
-  }
+  // @gen("matrices")
+  // @benchmark("tilemap.indexing")
+  // @curve("matrix")
+  // def matrixApply(matrix: Matrix) {
+  //   var y = 0
+  //   while (y < matrix.height) {
+  //     var x = 0
+  //     while (x < matrix.width) {
+  //       load = matrix(x, y)
+  //       x += 1
+  //     }
+  //     y += 1
+  //   }
+  // }
 
   @gen("hashMatrices")
   @benchmark("tilemap.indexing")
@@ -72,22 +72,22 @@ trait TileMapBench extends JBench.OfflineReport {
     }
   }
 
-  @gen("rTileMaps")
-  @benchmark("tilemap.indexing")
-  @curve("RTileMap")
-  def tileMapApply(p: (Int, RTileMap[Int])) {
-    val sidelength = p._1
-    val tilemap = p._2
-    var y = 0
-    while (y < sidelength) {
-      var x = 0
-      while (x < sidelength) {
-        load = tilemap(x, y)
-        x += 1
-      }
-      y += 1
-    }
-  }
+  // @gen("rTileMaps")
+  // @benchmark("tilemap.indexing")
+  // @curve("RTileMap")
+  // def tileMapApply(p: (Int, RTileMap[Int])) {
+  //   val sidelength = p._1
+  //   val tilemap = p._2
+  //   var y = 0
+  //   while (y < sidelength) {
+  //     var x = 0
+  //     while (x < sidelength) {
+  //       load = tilemap(x, y)
+  //       x += 1
+  //     }
+  //     y += 1
+  //   }
+  // }
 
 }
 
