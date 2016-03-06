@@ -3,13 +3,14 @@ package container
 
 
 
+import io.reactors.common.HashMatrix
 import org.scalameter.api._
 import org.scalameter.japi.JBench
 import scala.reactive.RTileMap
 
 
 
-trait RTileMapBench extends JBench.OfflineReport {
+trait TileMapBench extends JBench.OfflineReport {
 
   class Matrix(val width: Int, val height: Int) {
     private val array = new Array[Int](width * height)
@@ -20,7 +21,13 @@ trait RTileMapBench extends JBench.OfflineReport {
 
   val matrices = for (sz <- sidelengths) yield new Matrix(sz, sz)
 
-  val tilemaps = for (sz <- sidelengths) yield {
+  val hashMatrices = for (sz <- sidelengths) yield {
+    val matrix = new HashMatrix[Int]
+    for (x <- 0 until sz; y <- 0 until sz) matrix(x, y) = x * y
+    (sz, matrix)
+  }
+
+  val rTileMaps = for (sz <- sidelengths) yield {
     val tilemap = new RTileMap[Int](sz, 0)
     for (x <- 0 until sz; y <- 0 until sz) tilemap(x, y) = x * y
     (sz, tilemap)
@@ -34,7 +41,7 @@ trait RTileMapBench extends JBench.OfflineReport {
   @volatile var load = 0
 
   @gen("matrices")
-  @benchmark("RTileMap.apply")
+  @benchmark("tilemap.indexing")
   @curve("matrix")
   def matrixApply(matrix: Matrix) {
     var y = 0
@@ -48,8 +55,25 @@ trait RTileMapBench extends JBench.OfflineReport {
     }
   }
 
-  @gen("tilemaps")
-  @benchmark("RTileMap.apply")
+  @gen("hashMatrices")
+  @benchmark("tilemap.indexing")
+  @curve("hash-matrix")
+  def hashMatrixApply(p: (Int, HashMatrix[Int])) {
+    val sidelength = p._1
+    val matrix = p._2
+    var y = 0
+    while (y < sidelength) {
+      var x = 0
+      while (x < sidelength) {
+        load = matrix(x, y)
+        x += 1
+      }
+      y += 1
+    }
+  }
+
+  @gen("rTileMaps")
+  @benchmark("tilemap.indexing")
   @curve("RTileMap")
   def tileMapApply(p: (Int, RTileMap[Int])) {
     val sidelength = p._1
@@ -64,5 +88,11 @@ trait RTileMapBench extends JBench.OfflineReport {
       y += 1
     }
   }
+
+}
+
+class TileMapBenches extends Bench.Group {
+
+  include(new TileMapBench {})
 
 }
