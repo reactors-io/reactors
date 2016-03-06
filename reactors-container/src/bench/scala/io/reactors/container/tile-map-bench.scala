@@ -22,9 +22,10 @@ trait TileMapBench extends JBench.OfflineReport {
   val matrices = for (sz <- sidelengths) yield new Matrix(sz, sz)
 
   val hashMatrices = for (sz <- sidelengths) yield {
-    val matrix = new HashMatrix[Int]
-    for (x <- 0 until sz; y <- 0 until sz) matrix(x, y) = x * y
-    (sz, matrix)
+    val hm = new HashMatrix[Int]
+    for (x <- 0 until sz; y <- 0 until sz) hm(x, y) = x * y + 1
+    for (x <- 0 until sz; y <- 0 until sz) assert(hm(x, y) != hm.nil, hm(x, y))
+    (sz, hm)
   }
 
   val rTileMaps = for (sz <- sidelengths) yield {
@@ -55,8 +56,17 @@ trait TileMapBench extends JBench.OfflineReport {
   //   }
   // }
 
+  def outputHashMatrixStats(p: (Int, HashMatrix[Int])) {
+    val stats = p._2.debugBlockMap
+    val collisions = stats.groupBy(_._2.length).map({ case (k, v) => (k, v.size) })
+    println("collisions: " + collisions.mkString(", "))
+    val numBlocks = stats.map(_._2.length).sum
+    println("num blocks:" + numBlocks)
+  }
+
   @gen("hashMatrices")
   @benchmark("tilemap.indexing")
+  @teardown("outputHashMatrixStats")
   @curve("hash-matrix")
   def hashMatrixApply(p: (Int, HashMatrix[Int])) {
     val sidelength = p._1

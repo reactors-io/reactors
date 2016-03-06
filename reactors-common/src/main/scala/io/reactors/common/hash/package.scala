@@ -13,4 +13,8 @@ package object hash {
     hc * 0x9e3775cd
   }
 
+  def spatial2D(x: Int, y: Int): Int = {
+    (73856093 * x) ^ (83492791 * y)
+  }
+
 }
