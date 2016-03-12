@@ -73,7 +73,7 @@ class RContainerBoxingBench extends Bench.Forked[Long] {
       val matrix = new common.HashMatrix[Int]
       var i = 0
       while (i < numEvents) {
-        matrix(i % 100, i / 100) = i
+        matrix(i % 100, i / 100) = matrix(i % 100, i / 100)
         i += 1
       }
     }

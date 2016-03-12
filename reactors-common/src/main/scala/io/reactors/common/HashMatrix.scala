@@ -37,6 +37,23 @@ class HashMatrix[@specialized(Int, Long, Double) T](
 
   val nil = arrayable.nil
 
+  def foreach(f: T => Unit): Unit = {
+    var i = 0
+    while (i < blocks.size) {
+      var curr = blocks(i)
+      while (curr != null) {
+        var k = 0
+        while (k < curr.array.length) {
+          val v = curr.array(k)
+          if (v != nil) f(v)
+          k += 1
+        }
+        curr = curr.next
+      }
+      i += 1
+    }
+  }
+
   def apply(xr: Int, yr: Int): T = {
     val x = xr + (1 << 30)
     val y = yr + (1 << 30)
@@ -58,7 +75,9 @@ class HashMatrix[@specialized(Int, Long, Double) T](
     nil
   }
 
-  def update(xr: Int, yr: Int, v: T): Unit = {
+  def update(x: Int, y: Int, v: T): Unit = applyAndUpdate(x, y, v)
+
+  def applyAndUpdate(xr: Int, yr: Int, v: T): T = {
     val x = xr + (1 << 30)
     val y = yr + (1 << 30)
     val xb = x / 64
@@ -71,8 +90,11 @@ class HashMatrix[@specialized(Int, Long, Double) T](
       if (block.x == xb && block.y == yb) {
         val xm = x % 64
         val ym = y % 64
+        val previous = arrayable.apply(block.array, ym * 64 + xm)
         arrayable.update(block.array, ym * 64 + xm, v)
-        return
+        if (previous != nil && v == nil) block.nonNilCount -= 1
+        if (previous == nil && v != nil) block.nonNilCount += 1
+        return previous
       }
       block = block.next
     }
@@ -85,11 +107,14 @@ class HashMatrix[@specialized(Int, Long, Double) T](
     val xm = x % 64
     val ym = y % 64
     arrayable.update(block.array, ym * 64 + xm, v)
+    block.nonNilCount += 1
 
     val nidx = (hash & 0x7fffffff) % blocks.size
     block.next = blocks(nidx)
     blocks(nidx) = block
     numBlocks += 1
+
+    return nil
   }
 
   protected def increaseSize() {
@@ -123,6 +148,7 @@ object HashMatrix {
     val y: Int,
     val array: Array[T]
   ) {
+    var nonNilCount = 0
     var next: Block[T] = null
 
     override def toString = s"Block($x, $y)"

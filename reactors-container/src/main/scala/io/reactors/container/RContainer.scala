@@ -104,7 +104,7 @@ trait RContainer[@spec(Int, Long, Double) T] extends Subscription {
    *  updates. Losing the container and failing to call `unsubscribe` may result in a
    *  time leak.
    */
-  def to[That <: RContainer[T]](implicit factory: RContainer.Factory[T, That]): That = {
+  def to[That](implicit factory: RContainer.Factory[T, That]): That = {
     val elements = new Events.Emitter[T]
     val container = factory(inserts union elements, removes)
     for (x <- this) elements.react(x)
@@ -156,7 +156,7 @@ object RContainer {
 
   @implicitNotFound(
     msg = "Cannot construct a container of type ${That} with elements of type ${S}.")
-  trait Factory[@spec(Int, Long, Double) S, That <: RContainer[S]] {
+  trait Factory[@spec(Int, Long, Double) S, That] {
     def apply(inserts: Events[S], removes: Events[S]): That
   }
 
