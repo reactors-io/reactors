@@ -68,7 +68,6 @@ trait TileMapBench extends JBench.OfflineReport {
 
   @gen("hashMatrices")
   @benchmark("tilemap.indexing")
-  @teardown("outputHashMatrixStats")
   @curve("hash-matrix")
   def hashMatrixApply(p: (Int, HashMatrix[Int])) {
     val sidelength = p._1

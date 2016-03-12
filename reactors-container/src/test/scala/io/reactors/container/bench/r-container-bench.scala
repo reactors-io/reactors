@@ -66,6 +66,19 @@ class RContainerBoxingBench extends Bench.Forked[Long] {
     }
   }
 
+  measure method "RHashMatrix" config {
+    reports.validation.predicate -> { (n: Any) => n == 0 }
+  } in {
+    using(Gen.single("numEvents")(10000)) in { numEvents =>
+      val matrix = new common.HashMatrix[Int]
+      var i = 0
+      while (i < numEvents) {
+        matrix(i % 100, i / 100) = i
+        i += 1
+      }
+    }
+  }
+
   measure method "RContainer.<combinators>" config (
     reports.validation.predicate -> { (n: Any) => n == 0 }
   ) in {
