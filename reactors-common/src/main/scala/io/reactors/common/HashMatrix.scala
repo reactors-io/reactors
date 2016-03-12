@@ -137,6 +137,15 @@ class HashMatrix[@specialized(Int, Long, Double) T](
     blocks = nblocks
   }
 
+  protected def clearSpecialized(self: HashMatrix[T]) {
+    blocks = new Array[HashMatrix.Block[T]](initialSize)
+    numBlocks = 0
+  }
+
+  def clear() = {
+    clearSpecialized(this)
+  }
+
 }
 
 

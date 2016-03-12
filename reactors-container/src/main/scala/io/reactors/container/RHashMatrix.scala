@@ -16,8 +16,8 @@ import scala.reflect.ClassTag
 class RHashMatrix[@spec(Int, Long, Double) T](
   implicit val arrayable: Arrayable[T]
 ) {
-  private[reactors] var matrix: HashMatrix[T] = null
   private[reactors] var rawSize = 0
+  private[reactors] var matrix: HashMatrix[T] = null
   private[reactors] var insertsEmitter: Events.Emitter[T] = null
   private[reactors] var removesEmitter: Events.Emitter[T] = null
   private[reactors] var subscription: Subscription = null
@@ -33,7 +33,14 @@ class RHashMatrix[@spec(Int, Long, Double) T](
 
   def apply(x: Int, y: Int): T = matrix(x, y)
 
-  def update(x: Int, y: Int, v: T): Unit = {
+  def orElse(x: Int, y: Int, elem: T) = {
+    val v = matrix(x, y)
+    if (v != nil) v else elem
+  }
+
+  def update(x: Int, y: Int, v: T): Unit = set(x, y, v)
+
+  def set(x: Int, y: Int, v: T): T = {
     val prev = matrix.applyAndUpdate(x, y, v)
 
     if (prev != nil) {
@@ -46,9 +53,16 @@ class RHashMatrix[@spec(Int, Long, Double) T](
     } else {
       if (v != nil) rawSize += 1
     }
+
+    prev
   }
 
-  def remove(x: Int, y: Int, v: T): Unit = update(x, y, nil)
+  def remove(x: Int, y: Int): T = set(x, y, nil)
+
+  def clear() = {
+    matrix.clear()
+    rawSize = 0
+  }
 
   def nil: T = matrix.nil
 
@@ -75,7 +89,7 @@ object RHashMatrix {
         val hm = new RHashMatrix[T]
         hm.subscription = new Subscription.Composite(
           inserts.onEvent({ case (x, y, v) => hm.update(x, y, v) }),
-          removes.onEvent({ case (x, y, v) => hm.remove(x, y, v) })
+          removes.onEvent({ case (x, y, v) => hm.remove(x, y) })
         )
         hm
       }

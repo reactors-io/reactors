@@ -16,7 +16,9 @@ trait TileMapBench extends JBench.OfflineReport {
     def apply(x: Int, y: Int) = array(y * width + x)
   }
 
-  val sidelengths = Gen.range("sidelength")(500, 1500, 200)
+  val maxIterations = 400000
+
+  val sidelengths = Gen.range("sidelength")(500, 2500, 500)
 
   val matrices = for (sz <- sidelengths) yield new Matrix(sz, sz)
 
@@ -34,8 +36,8 @@ trait TileMapBench extends JBench.OfflineReport {
   }
 
   override def defaultConfig = Context(
-    exec.minWarmupRuns -> 30,
-    exec.maxWarmupRuns -> 60,
+    exec.minWarmupRuns -> 20,
+    exec.maxWarmupRuns -> 40,
     exec.benchRuns -> 8,
     exec.independentSamples -> 1
   )
@@ -46,12 +48,15 @@ trait TileMapBench extends JBench.OfflineReport {
   @benchmark("tilemap.indexing")
   @curve("matrix")
   def matrixApply(matrix: Matrix) {
+    var i = 0
     var y = 0
     while (y < matrix.height) {
       var x = 0
       while (x < matrix.width) {
         load = matrix(x, y)
         x += 1
+        i += 1
+        if (i > maxIterations) return
       }
       y += 1
     }
@@ -71,12 +76,15 @@ trait TileMapBench extends JBench.OfflineReport {
   def hashMatrixApply(p: (Int, RHashMatrix[Int])) {
     val sidelength = p._1
     val matrix = p._2
+    var i = 0
     var y = 0
     while (y < sidelength) {
       var x = 0
       while (x < sidelength) {
         load = matrix(x, y)
         x += 1
+        i += 1
+        if (i > maxIterations) return
       }
       y += 1
     }
@@ -88,12 +96,15 @@ trait TileMapBench extends JBench.OfflineReport {
   def tileMapApply(p: (Int, RTileMap[Int])) {
     val sidelength = p._1
     val tilemap = p._2
+    var i = 0
     var y = 0
     while (y < sidelength) {
       var x = 0
       while (x < sidelength) {
         load = tilemap(x, y)
         x += 1
+        i += 1
+        if (i > maxIterations) return
       }
       y += 1
     }
