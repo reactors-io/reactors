@@ -146,6 +146,91 @@ class HashMatrix[@specialized(Int, Long, Double) T](
     clearSpecialized(this)
   }
 
+  protected def findBlock(xb: Int, yb: Int): HashMatrix.Block[T] = {
+    val hash = hashblock(xb, yb)
+    val idx = (hash & 0x7fffffff) % blocks.size
+    var block = blocks(idx)
+    while (block != null) {
+      if (block.x == xb && block.y == yb) return block
+      block = block.next
+    }
+    return null
+  }
+
+  def copy(a: Array[T], gxf: Int, gyf: Int, gxu: Int, gyu: Int): Unit = {
+    assert(a.length <= (gxu - gxf) * (gyu - gyf))
+    val width = gxu - gxf
+
+    def copyConst(mxbf: Int, mybf: Int, mxbu: Int, mybu: Int, v: T) {
+      if (mxbf < mxbu && mybf < mybu) {
+        var lyc = mybf % 64
+        val lyu = mybu - mybf
+        var ayc = mybf - (1 << 30) - gyf
+        val ayu = mybu - (1 << 30) - gyf
+        while (lyc < lyu) {
+          var lxc = mxbf % 64
+          val lxu = mxbu - mxbf
+          var axc = mxbf - (1 << 30) - gxf
+          val axu = mxbu - (1 << 30) - gxf
+          while (lxc < lxu) {
+            a(ayc * width + axc) = v
+            axc += 1
+            lxc += 1
+          }
+          ayc += 1
+          lyc += 1
+        }
+      }
+    }
+
+    def copyArray(mxbf: Int, mybf: Int, mxbu: Int, mybu: Int, src: Array[T]) {
+      if (mxbf < mxbu && mybf < mybu) {
+        var lyc = mybf % 64
+        val lyu = mybu - mybf
+        var ayc = mybf - (1 << 30) - gyf
+        val ayu = mybu - (1 << 30) - gyf
+        while (lyc < lyu) {
+          var lxc = mxbf % 64
+          val lxu = mxbu - mxbf
+          var axc = mxbf - (1 << 30) - gxf
+          val axu = mxbu - (1 << 30) - gxf
+          while (lxc < lxu) {
+            a(ayc * width + axc) = src(lyc * 64 + lxc)
+            axc += 1
+            lxc += 1
+          }
+          ayc += 1
+          lyc += 1
+        }
+      }
+    }
+
+    val mxf = gxf + (1 << 30)
+    val myf = gyf + (1 << 30)
+    val mxu = gxu + (1 << 30)
+    val myu = gyu + (1 << 30)
+    var byc = myf / 64
+    val byu = myu / 64 + 1
+    while (byc <= byu) {
+      var bxc = mxf / 64
+      val bxu = mxu / 64 + 1
+      while (bxc <= bxu) {
+        val block = findBlock(bxc, byc)
+        val mxbf = math.max(bxc * 64, mxf)
+        val mybf = math.max(byc * 64, myf)
+        val mxbu = math.min(bxc * 64 + 64, mxu)
+        val mybu = math.min(byc * 64 + 64, myu)
+        if (block == null) {
+          copyConst(mxbf, mybf, mxbu, mybu, nil)
+        } else {
+          copyArray(mxbf, mybf, mxbu, mybu, block.array)
+        }
+        bxc += 1
+      }
+      byc += 1
+    }
+  }
+
 }
 
 

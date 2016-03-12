@@ -33,7 +33,7 @@ class RHashMatrixCheck extends Properties("RHashMatrix") with ExtendedProperties
     }
   }
 
-  property("contain all elements") = forAllNoShrink(sizes) { sz =>
+  property("contain block elements") = forAllNoShrink(sizes) { sz =>
     stackTraced {
       val matrix = new RHashMatrix[Long]
       for (x <- 0 until sz; y <- 0 until sz) matrix(x, y) = x * y
@@ -56,5 +56,22 @@ class RHashMatrixCheck extends Properties("RHashMatrix") with ExtendedProperties
       true
     }
   }
+
+  def copyEqual(matrix: RHashMatrix[Long], sz: Int, expected: Seq[Long]): Boolean = {
+    val array = new Array[Long](sz * sz)
+    matrix.copy(array, 0, 0, sz, sz)
+    expected == array.toList
+   }
+
+  property("copy all elements") = forAllNoShrink(sizes) { sz =>
+    stackTraced {
+      val matrix = new RHashMatrix[Long]
+      for (x <- 0 until sz; y <- 0 until sz) matrix(x, y) = x * y
+      val expected = for (x <- 0 until sz; y <- 0 until sz) yield (x * y).toLong
+      copyEqual(matrix, sz, expected.to[Seq])
+    }
+  }
+
+  //property("copy all elements from half-empty") = 
 
 }

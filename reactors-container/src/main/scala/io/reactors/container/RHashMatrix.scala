@@ -64,6 +64,10 @@ class RHashMatrix[@spec(Int, Long, Double) T](
     rawSize = 0
   }
 
+  def copy(array: Array[T], fromx: Int, fromy: Int, untilx: Int, untily: Int): Unit = {
+    matrix.copy(array, fromx, fromy, untilx, untily)
+  }
+
   def nil: T = matrix.nil
 
   def foreach(f: T => Unit): Unit = matrix.foreach(f)
