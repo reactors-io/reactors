@@ -72,6 +72,16 @@ class RHashMatrixCheck extends Properties("RHashMatrix") with ExtendedProperties
     }
   }
 
-  //property("copy all elements from half-empty") = 
+  property("copy all elements from half-empty") = forAllNoShrink(sizes) { sz =>
+    stackTraced {
+      val matrix = new RHashMatrix[Long]
+      for (x <- 0 until sz / 2; y <- 0 until sz / 2) matrix(x, y) = x * y
+      val expected = for (x <- 0 until sz; y <- 0 until sz) yield {
+        if (x < sz / 2 && y < sz / 2) (x * y).toLong
+        else Long.MinValue
+      }
+      copyEqual(matrix, sz, expected.toSeq)
+    }
+  }
 
 }
