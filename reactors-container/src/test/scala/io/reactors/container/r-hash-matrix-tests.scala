@@ -84,4 +84,26 @@ class RHashMatrixCheck extends Properties("RHashMatrix") with ExtendedProperties
     }
   }
 
+  def copyBlockEqual(matrix: RHashMatrix[Long], start: Int, end: Int,
+    expected: Seq[Long]): Boolean = {
+    val sz = math.max(0, end - start)
+    val array = new Array[Long](sz * sz)
+    matrix.copy(array, start, start, end, end)
+    expected == array.toList
+  }
+
+  property("copy all from a random sub-block") = forAllNoShrink(sizes, sizes, sizes) {
+    (sz, start, end) =>
+    stackTraced {
+      val matrix = new RHashMatrix[Long]
+      for (x <- sz / 2 until sz; y <- sz / 2 until sz) matrix(x, y) = x * y
+      val expected = for (x <- start until end; y <- start until end) yield {
+        if (x >= sz || y >= sz) Long.MinValue
+        else if (x >= sz / 2 && y >= sz / 2) (x * y).toLong
+        else Long.MinValue
+      }
+      copyBlockEqual(matrix, start, end, expected)
+    }
+  }
+
 }

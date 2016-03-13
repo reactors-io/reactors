@@ -164,12 +164,12 @@ class HashMatrix[@specialized(Int, Long, Double) T](
     def copyConst(mxbf: Int, mybf: Int, mxbu: Int, mybu: Int, v: T) {
       if (mxbf < mxbu && mybf < mybu) {
         var lyc = mybf % 64
-        val lyu = mybu - mybf
+        val lyu = lyc + mybu - mybf
         var ayc = mybf - (1 << 30) - gyf
         val ayu = mybu - (1 << 30) - gyf
         while (lyc < lyu) {
           var lxc = mxbf % 64
-          val lxu = mxbu - mxbf
+          val lxu = lxc + mxbu - mxbf
           var axc = mxbf - (1 << 30) - gxf
           val axu = mxbu - (1 << 30) - gxf
           while (lxc < lxu) {
@@ -186,12 +186,12 @@ class HashMatrix[@specialized(Int, Long, Double) T](
     def copyArray(mxbf: Int, mybf: Int, mxbu: Int, mybu: Int, src: Array[T]) {
       if (mxbf < mxbu && mybf < mybu) {
         var lyc = mybf % 64
-        val lyu = mybu - mybf
+        val lyu = lyc + mybu - mybf
         var ayc = mybf - (1 << 30) - gyf
         val ayu = mybu - (1 << 30) - gyf
         while (lyc < lyu) {
           var lxc = mxbf % 64
-          val lxu = mxbu - mxbf
+          val lxu = lxc + mxbu - mxbf
           var axc = mxbf - (1 << 30) - gxf
           val axu = mxbu - (1 << 30) - gxf
           while (lxc < lxu) {
