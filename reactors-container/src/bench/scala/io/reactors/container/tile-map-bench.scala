@@ -12,7 +12,7 @@ import scala.reactive.RTileMap
 trait TileMapBench extends JBench.OfflineReport {
 
   class Matrix(val width: Int, val height: Int) {
-    private val array = new Array[Int](width * height)
+    val array = new Array[Int](width * height)
     def apply(x: Int, y: Int) = array(y * width + x)
   }
 
@@ -45,8 +45,8 @@ trait TileMapBench extends JBench.OfflineReport {
   @volatile var load = 0
 
   @gen("matrices")
-  @benchmark("tilemap.indexing")
-  @curve("matrix")
+  @benchmark("tilemap.apply")
+  @curve("Matrix")
   def matrixApply(matrix: Matrix) {
     var i = 0
     var y = 0
@@ -71,8 +71,8 @@ trait TileMapBench extends JBench.OfflineReport {
   }
 
   @gen("hashMatrices")
-  @benchmark("tilemap.indexing")
-  @curve("hash-matrix")
+  @benchmark("tilemap.apply")
+  @curve("HashMatrix")
   def hashMatrixApply(p: (Int, RHashMatrix[Int])) {
     val sidelength = p._1
     val matrix = p._2
@@ -91,7 +91,7 @@ trait TileMapBench extends JBench.OfflineReport {
   }
 
   @gen("rTileMaps")
-  @benchmark("tilemap.indexing")
+  @benchmark("tilemap.apply")
   @curve("RTileMap")
   def tileMapApply(p: (Int, RTileMap[Int])) {
     val sidelength = p._1
@@ -110,7 +110,33 @@ trait TileMapBench extends JBench.OfflineReport {
     }
   }
 
+  val array = new Array[Int](62500000)
+
+  @gen("matrices")
+  @benchmark("tilemap.copy")
+  @curve("Matrix")
+  def matrixCopy(matrix: Matrix) {
+    val len = matrix.width * matrix.height
+    System.arraycopy(matrix.array, 0, array, 0, len)
+  }
+
+  @gen("hashMatrices")
+  @benchmark("tilemap.copy")
+  @curve("HashMatrix")
+  def hashMatrixCopy(p: (Int, RHashMatrix[Int])) {
+    val (sidelength, matrix) = p
+    matrix.copy(array, 0, 0, sidelength, sidelength)
+  }
+
+  @gen("rTileMaps")
+  @benchmark("tilemap.copy")
+  @curve("RTileMap")
+  def tileMapCopy(p: (Int, RTileMap[Int])) {
+    val (sidelength, tilemap) = p
+    tilemap.read(array, sidelength, sidelength, 0, 0, sidelength, sidelength)
+  }
 }
+
 
 class TileMapBenches extends Bench.Group {
 
