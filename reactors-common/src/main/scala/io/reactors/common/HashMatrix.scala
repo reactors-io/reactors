@@ -158,7 +158,7 @@ class HashMatrix[@specialized(Int, Long, Double) T](
   }
 
   def copy(a: Array[T], gxf: Int, gyf: Int, gxu: Int, gyu: Int): Unit = {
-    val minLength = (gxu - gxf) * (gyu - gyf)
+    val minLength = math.max(0, gxu - gxf) * math.max(0, gyu - gyf)
     assert(a.length >= minLength,
       "Array with length " + a.length + ", needed: " + minLength)
     val width = gxu - gxf
