@@ -9,7 +9,7 @@ import scala.collection._
 
 
 class HashMatrix[@specialized(Int, Long, Double) T](
-  private[reactors] val initialSize: Int = 64
+  private[reactors] val initialSize: Int = 32
 )(
   implicit val arrayable: Arrayable[T]
 ) {
@@ -57,17 +57,17 @@ class HashMatrix[@specialized(Int, Long, Double) T](
   def apply(xr: Int, yr: Int): T = {
     val x = xr + (1 << 30)
     val y = yr + (1 << 30)
-    val xb = x / 64
-    val yb = y / 64
+    val xb = x / 32
+    val yb = y / 32
     val hash = hashblock(xb, yb)
     val idx = (hash & 0x7fffffff) % blocks.size
 
     var block = blocks(idx)
     while (block != null) {
       if (block.x == xb && block.y == yb) {
-        val xm = x % 64
-        val ym = y % 64
-        return arrayable.apply(block.array, ym * 64 + xm)
+        val xm = x % 32
+        val ym = y % 32
+        return arrayable.apply(block.array, ym * 32 + xm)
       }
       block = block.next
     }
@@ -80,18 +80,18 @@ class HashMatrix[@specialized(Int, Long, Double) T](
   def applyAndUpdate(xr: Int, yr: Int, v: T): T = {
     val x = xr + (1 << 30)
     val y = yr + (1 << 30)
-    val xb = x / 64
-    val yb = y / 64
+    val xb = x / 32
+    val yb = y / 32
     val hash = hashblock(xb, yb)
     val idx = (hash & 0x7fffffff) % blocks.size
 
     var block = blocks(idx)
     while (block != null) {
       if (block.x == xb && block.y == yb) {
-        val xm = x % 64
-        val ym = y % 64
-        val previous = arrayable.apply(block.array, ym * 64 + xm)
-        arrayable.update(block.array, ym * 64 + xm, v)
+        val xm = x % 32
+        val ym = y % 32
+        val previous = arrayable.apply(block.array, ym * 32 + xm)
+        arrayable.update(block.array, ym * 32 + xm, v)
         if (previous != nil && v == nil) block.nonNilCount -= 1
         if (previous == nil && v != nil) block.nonNilCount += 1
         return previous
@@ -103,10 +103,10 @@ class HashMatrix[@specialized(Int, Long, Double) T](
       increaseSize()
     }
 
-    block = new HashMatrix.Block(xb, yb, arrayable.newArray(64 * 64))
-    val xm = x % 64
-    val ym = y % 64
-    arrayable.update(block.array, ym * 64 + xm, v)
+    block = new HashMatrix.Block(xb, yb, arrayable.newArray(32 * 32))
+    val xm = x % 32
+    val ym = y % 32
+    arrayable.update(block.array, ym * 32 + xm, v)
     block.nonNilCount += 1
 
     val nidx = (hash & 0x7fffffff) % blocks.size
@@ -165,12 +165,12 @@ class HashMatrix[@specialized(Int, Long, Double) T](
 
     def copyConst(mxbf: Int, mybf: Int, mxbu: Int, mybu: Int, v: T) {
       if (mxbf < mxbu && mybf < mybu) {
-        var lyc = mybf % 64
+        var lyc = mybf % 32
         val lyu = lyc + mybu - mybf
         var ayc = mybf - (1 << 30) - gyf
         val ayu = mybu - (1 << 30) - gyf
         while (lyc < lyu) {
-          var lxc = mxbf % 64
+          var lxc = mxbf % 32
           val lxu = lxc + mxbu - mxbf
           var axc = mxbf - (1 << 30) - gxf
           val axu = mxbu - (1 << 30) - gxf
@@ -187,17 +187,17 @@ class HashMatrix[@specialized(Int, Long, Double) T](
 
     def copyArray(mxbf: Int, mybf: Int, mxbu: Int, mybu: Int, src: Array[T]) {
       if (mxbf < mxbu && mybf < mybu) {
-        var lyc = mybf % 64
+        var lyc = mybf % 32
         val lyu = lyc + mybu - mybf
         var ayc = mybf - (1 << 30) - gyf
         val ayu = mybu - (1 << 30) - gyf
         while (lyc < lyu) {
-          var lxc = mxbf % 64
+          var lxc = mxbf % 32
           val lxu = lxc + mxbu - mxbf
           var axc = mxbf - (1 << 30) - gxf
           val axu = mxbu - (1 << 30) - gxf
           while (lxc < lxu) {
-            a(ayc * width + axc) = src(lyc * 64 + lxc)
+            a(ayc * width + axc) = src(lyc * 32 + lxc)
             axc += 1
             lxc += 1
           }
@@ -211,17 +211,17 @@ class HashMatrix[@specialized(Int, Long, Double) T](
     val myf = gyf + (1 << 30)
     val mxu = gxu + (1 << 30)
     val myu = gyu + (1 << 30)
-    var byc = myf / 64
-    val byu = myu / 64 + 1
+    var byc = myf / 32
+    val byu = myu / 32 + 1
     while (byc <= byu) {
-      var bxc = mxf / 64
-      val bxu = mxu / 64 + 1
+      var bxc = mxf / 32
+      val bxu = mxu / 32 + 1
       while (bxc <= bxu) {
         val block = findBlock(bxc, byc)
-        val mxbf = math.max(bxc * 64, mxf)
-        val mybf = math.max(byc * 64, myf)
-        val mxbu = math.min(bxc * 64 + 64, mxu)
-        val mybu = math.min(byc * 64 + 64, myu)
+        val mxbf = math.max(bxc * 32, mxf)
+        val mybf = math.max(byc * 32, myf)
+        val mxbu = math.min(bxc * 32 + 32, mxu)
+        val mybu = math.min(byc * 32 + 32, myu)
         if (block == null) {
           copyConst(mxbf, mybf, mxbu, mybu, nil)
         } else {
