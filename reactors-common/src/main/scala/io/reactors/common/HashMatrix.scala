@@ -75,6 +75,11 @@ class HashMatrix[@specialized(Int, Long, Double) T](
     nil
   }
 
+  def orElse(xr: Int, yr: Int, v: T): T = {
+    val cur = apply(xr, yr)
+    if (cur != nil) cur else v
+  }
+
   def update(x: Int, y: Int, v: T): Unit = applyAndUpdate(x, y, v)
 
   def applyAndUpdate(xr: Int, yr: Int, v: T): T = {
