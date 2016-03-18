@@ -33,10 +33,7 @@ class RHashMatrix[@spec(Int, Long, Double) T](
 
   def apply(x: Int, y: Int): T = matrix(x, y)
 
-  def orElse(x: Int, y: Int, elem: T) = {
-    val v = matrix(x, y)
-    if (v != nil) v else elem
-  }
+  def orElse(x: Int, y: Int, elem: T) = matrix.orElse(x, y, elem)
 
   def update(x: Int, y: Int, v: T): Unit = set(x, y, v)
 
