@@ -238,11 +238,94 @@ class HashMatrix[@specialized(Int, Long, Double) T](
     }
   }
 
+  //def in(gxf: Int, gyf: Int, gxu: Int, gyu: Int): HashMatrix.Block[T] =
+
+  private[reactors] def foreachIn(
+    gxf: Int, gyf: Int, gxu: Int, gyu: Int, includeNil: Boolean, a: HashMatrix.Action[T]
+  ): Unit = {
+    val minLength = math.max(0, gxu - gxf) * math.max(0, gyu - gyf)
+    val width = gxu - gxf
+
+    def foreachConst(mxbf: Int, mybf: Int, mxbu: Int, mybu: Int, v: T) {
+      if (mxbf < mxbu && mybf < mybu) {
+        var lyc = mybf % 32
+        val lyu = lyc + mybu - mybf
+        var gyc = mybf - (1 << 30)
+        val gyu = mybu - (1 << 30)
+        while (lyc < lyu) {
+          var lxc = mxbf % 32
+          val lxu = lxc + mxbu - mxbf
+          var gxc = mxbf - (1 << 30)
+          val gxu = mxbu - (1 << 30)
+          while (lxc < lxu) {
+            a(gxc, gyc, v)
+            gxc += 1
+            lxc += 1
+          }
+          gyc += 1
+          lyc += 1
+        }
+      }
+    }
+
+    def foreachArray(mxbf: Int, mybf: Int, mxbu: Int, mybu: Int, src: Array[T]) {
+      if (mxbf < mxbu && mybf < mybu) {
+        var lyc = mybf % 32
+        val lyu = lyc + mybu - mybf
+        var gyc = mybf - (1 << 30)
+        val gyu = mybu - (1 << 30)
+        while (lyc < lyu) {
+          var lxc = mxbf % 32
+          val lxu = lxc + mxbu - mxbf
+          var gxc = mxbf - (1 << 30)
+          val gxu = mxbu - (1 << 30)
+          while (lxc < lxu) {
+            val v = src(lyc * 32 + lxc)
+            if (includeNil || v != nil) a(gxc, gyc, v)
+            gxc += 1
+            lxc += 1
+          }
+          gyc += 1
+          lyc += 1
+        }
+      }
+    }
+
+    val mxf = gxf + (1 << 30)
+    val myf = gyf + (1 << 30)
+    val mxu = gxu + (1 << 30)
+    val myu = gyu + (1 << 30)
+    var byc = myf / 32
+    val byu = myu / 32 + 1
+    while (byc <= byu) {
+      var bxc = mxf / 32
+      val bxu = mxu / 32 + 1
+      while (bxc <= bxu) {
+        val block = findBlock(bxc, byc)
+        val mxbf = math.max(bxc * 32, mxf)
+        val mybf = math.max(byc * 32, myf)
+        val mxbu = math.min(bxc * 32 + 32, mxu)
+        val mybu = math.min(byc * 32 + 32, myu)
+        if (block == null) {
+          if (includeNil) foreachConst(mxbf, mybf, mxbu, mybu, nil)
+        } else {
+          foreachArray(mxbf, mybf, mxbu, mybu, block.array)
+        }
+        bxc += 1
+      }
+      byc += 1
+    }
+  }
+
 }
 
 
 object HashMatrix {
   val LOAD_FACTOR = 0.25
+
+  trait Action[@specialized(Int, Long, Double) T] {
+    def apply(x: Int, y: Int, v: T): Unit
+  }
 
   class Block[@specialized(Int, Long, Double) T](
     val x: Int,
