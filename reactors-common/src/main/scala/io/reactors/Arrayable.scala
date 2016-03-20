@@ -13,7 +13,7 @@ import scala.reflect.ClassTag
  * 
  *  @tparam T       type for which we want to instantiate an array
  */
-abstract class Arrayable[@specialized(Byte, Short, Int, Float, Long, Double) T] {
+trait Arrayable[@specialized(Byte, Short, Int, Float, Long, Double) T] {
   /** Class tag for type `T`.
    */
   val classTag: ClassTag[T]
@@ -42,6 +42,10 @@ abstract class Arrayable[@specialized(Byte, Short, Int, Float, Long, Double) T] 
   /** Writes to an array entry.
    */
   def update(array: Array[T], idx: Int, v: T): Unit
+
+  /** Returns a new arrayable with an alternative nil.
+   */
+  def withNil(n: T) = new Arrayable.WithNil(this, n)
 }
 
 
@@ -63,6 +67,25 @@ trait LowPriorityArrayableImplicits {
 /** Contains default `Arrayable` typeclasses.
  */
 object Arrayable extends LowPriorityArrayableImplicits {
+
+  class WithNil[@specialized(Byte, Short, Int, Float, Long, Double) T](
+    val arrayable: Arrayable[T],
+    val nil: T
+  ) extends Arrayable[T] {
+    val classTag = arrayable.classTag
+    def newArray(sz: Int) = {
+      val a = arrayable.newRawArray(sz)
+      var i = 0
+      while (i < sz) {
+        a(i) = nil
+        i += 1
+      }
+      a
+    }
+    def newRawArray(sz: Int) = arrayable.newRawArray(sz)
+    def apply(array: Array[T], idx: Int) = arrayable.apply(array, idx)
+    def update(array: Array[T], idx: Int, v: T) = arrayable.update(array, idx, v)
+  }
 
   implicit def ref[T >: Null <: AnyRef: ClassTag]: Arrayable[T] = new Arrayable[T] {
     val classTag = implicitly[ClassTag[T]]
