@@ -297,7 +297,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  }}}
    *
    *  Whenever an event arrives on `r`, an entry is added to the buffer underlying
-   *  `eventLog`. After the `mutation` completes, a modification event is produced by
+   *  `eventLog`. After the mutation completes, a modification event is produced by
    *  the `eventLog` and can be used subsequently:
    *
    *  {{{
