@@ -238,7 +238,11 @@ class HashMatrix[@specialized(Int, Long, Double) T](
     }
   }
 
-  //def in(gxf: Int, gyf: Int, gxu: Int, gyu: Int): HashMatrix.Block[T] =
+  def area(gxf: Int, gyf: Int, gxu: Int, gyu: Int): HashMatrix.Area[T] =
+    new HashMatrix.Area[T](this, gxf, gyf, gxu, gyu, true)
+
+  def nonNilArea(gxf: Int, gyf: Int, gxu: Int, gyu: Int): HashMatrix.Area[T] =
+    new HashMatrix.Area[T](this, gxf, gyf, gxu, gyu, false)
 
   private[reactors] def foreachIn(
     gxf: Int, gyf: Int, gxu: Int, gyu: Int, includeNil: Boolean, a: HashMatrix.Action[T]
@@ -325,6 +329,13 @@ object HashMatrix {
 
   trait Action[@specialized(Int, Long, Double) T] {
     def apply(x: Int, y: Int, v: T): Unit
+  }
+
+  class Area[@specialized(Int, Long, Double) T](
+    val self: HashMatrix[T], val gxf: Int, val gyf: Int, val gxu: Int, val gyu: Int,
+    val includeNil: Boolean
+  ) {
+    def foreach(a: Action[T]): Unit = self.foreachIn(gxf, gyf, gxu, gyu, includeNil, a)
   }
 
   class Block[@specialized(Int, Long, Double) T](
