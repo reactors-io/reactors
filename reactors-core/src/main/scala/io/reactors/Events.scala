@@ -2239,7 +2239,7 @@ object Events {
     val target: Observer[T],
     val probability: Double
   ) extends Observer[T] {
-    private val random = new Random
+    private[reactors] val random = new Random
     def react(x: T) = if (random.nextDouble < probability) target.react(x)
     def except(t: Throwable) = target.except(t)
     def unreact() = target.unreact()
