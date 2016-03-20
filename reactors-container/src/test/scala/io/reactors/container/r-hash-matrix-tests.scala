@@ -9,6 +9,7 @@ import org.scalacheck.Gen._
 import org.scalacheck.Prop._
 import org.scalatest._
 import io.reactors.test._
+import io.reactors.common.HashMatrix
 import scala.collection._
 
 
@@ -105,5 +106,34 @@ class RHashMatrixCheck extends Properties("RHashMatrix") with ExtendedProperties
       copyBlockEqual(matrix, start, end, expected)
     }
   }
+
+  def traverseBlockEqual(matrix: RHashMatrix[Long], start: Int, end: Int,
+    expected: Seq[Long]): Boolean = {
+    val sz = math.max(0, end - start)
+    val array = new Array[Long](sz * sz)
+    matrix.area(start, start, end, end).foreach(new HashMatrix.Action[Long] {
+      def apply(x: Int, y: Int, v: Long) = array((y - start) * sz + (x - start)) = v
+    })
+    expected == array.toList
+  }
+
+  property("traverse all elements from a random sub-block") =
+    forAllNoShrink(sizes, sizes, sizes) { (sz, start, end) =>
+      stackTraced {
+        val matrix = new RHashMatrix[Long]
+        for (x <- sz / 2 until sz; y <- sz / 2 until sz) matrix(x, y) = x * y
+        val expected = for (x <- start until end; y <- start until end) yield {
+          if (x >= sz || y >= sz) Long.MinValue
+          else if (x >= sz / 2 && y >= sz / 2) (x * y).toLong
+          else Long.MinValue
+        }
+        val seen = mutable.Buffer[Long]()
+        matrix.nonNilArea(start, start, end, end).foreach(new HashMatrix.Action[Long] {
+          def apply(x: Int, y: Int, v: Long) = seen += v
+        })
+        assert(!seen.contains(Long.MinValue))
+        traverseBlockEqual(matrix, start, end, expected)
+      }
+    }
 
 }

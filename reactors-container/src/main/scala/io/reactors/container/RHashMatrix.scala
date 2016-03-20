@@ -65,7 +65,13 @@ class RHashMatrix[@spec(Int, Long, Double) T](
     matrix.copy(array, fromx, fromy, untilx, untily)
   }
 
-  def nil: T = matrix.nil
+  def area(gxf: Int, gyf: Int, gxu: Int, gyu: Int): HashMatrix.Area[T] =
+    matrix.area(gxf, gyf, gxu, gyu)
+
+  def nonNilArea(gxf: Int, gyf: Int, gxu: Int, gyu: Int): HashMatrix.Area[T] =
+    matrix.nonNilArea(gxf, gyf, gxu, gyu)
+
+    def nil: T = matrix.nil
 
   def foreach(f: T => Unit): Unit = matrix.foreach(f)
 
