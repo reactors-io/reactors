@@ -31,12 +31,20 @@ class RHashMatrix[@spec(Int, Long, Double) T](
 
   init(this)
 
+  /** Returns the value stored at the specified coordinates, or `nil` otherwise.
+   */
   def apply(x: Int, y: Int): T = matrix(x, y)
 
+  /** Returns the value stored at the specified coordinates, or `elem` otherwise.
+   */
   def orElse(x: Int, y: Int, elem: T) = matrix.orElse(x, y, elem)
 
+  /** Update the value at the specified coordinates.
+   */
   def update(x: Int, y: Int, v: T): Unit = set(x, y, v)
 
+  /** Updates the value at the specified coordinates, and returns the previous value.
+   */
   def set(x: Int, y: Int, v: T): T = {
     val prev = matrix.applyAndUpdate(x, y, v)
 
@@ -54,25 +62,39 @@ class RHashMatrix[@spec(Int, Long, Double) T](
     prev
   }
 
+  /** Sets the value at the specified coordinates to `nil`.
+   */
   def remove(x: Int, y: Int): T = set(x, y, nil)
 
+  /** Clears the entire matrix.
+   */
   def clear() = {
     matrix.clear()
     rawSize = 0
   }
 
+  /** Copies the contents of the specified rectangle into an array.
+   */
   def copy(array: Array[T], fromx: Int, fromy: Int, untilx: Int, untily: Int): Unit = {
     matrix.copy(array, fromx, fromy, untilx, untily)
   }
 
+  /** Returns a view used to traverse all elements in a rectangle.
+   */
   def area(gxf: Int, gyf: Int, gxu: Int, gyu: Int): HashMatrix.Area[T] =
     matrix.area(gxf, gyf, gxu, gyu)
 
+  /** Returns a view used to traverse non-`nil` elements in a rectangle.
+   */
   def nonNilArea(gxf: Int, gyf: Int, gxu: Int, gyu: Int): HashMatrix.Area[T] =
     matrix.nonNilArea(gxf, gyf, gxu, gyu)
 
-    def nil: T = matrix.nil
+  /** Returns the default, `nil` value for this matrix.
+   */
+  def nil: T = matrix.nil
 
+  /** Traverses all the non-`nil` values in this matrix.
+   */
   def foreach(f: T => Unit): Unit = matrix.foreach(f)
 
   def inserts: Events[T] = insertsEmitter
