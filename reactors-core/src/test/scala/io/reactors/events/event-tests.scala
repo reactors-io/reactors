@@ -41,7 +41,7 @@ class EventsSpec extends FunSuite {
     var done = false
     val emitter = new Events.Emitter[String]
     val sub = emitter.onReaction(new Observer[String] {
-      def react(x: String) = event = x
+      def react(x: String, hint: AnyRef) = event = x
       def except(t: Throwable) = exception = t
       def unreact() = done = true
     })
@@ -75,7 +75,7 @@ class EventsSpec extends FunSuite {
     var done = false
     val emitter = new Events.Emitter[String]
     val sub = emitter.onReaction(new Observer[String] {
-      def react(x: String) = event = x
+      def react(x: String, hint: AnyRef) = event = x
       def except(t: Throwable) = exception = t
       def unreact() = done = true
     })
@@ -902,7 +902,7 @@ class EventsSpec extends FunSuite {
     val emitter = new Events.Emitter[Int]
     val ivar = emitter.toIVar
     ivar.onReaction(new Observer[Int] {
-      def react(x: Int) = result += x
+      def react(x: Int, hint: AnyRef) = result += x
       def except(t: Throwable) = e = t
       def unreact() = done = 11
     })
@@ -933,7 +933,7 @@ class EventsSpec extends FunSuite {
 
   class GetEmitter extends Events[Int] {
     def onReaction(obs: Observer[Int]) = {
-      obs.react(7)
+      obs.react(7, null)
       Subscription.empty
     }
   }
@@ -1415,7 +1415,7 @@ class RCellSpec extends FunSuite with Matchers {
     var excepts = 0
     var unreactions = 0
     val observations = unreacted.onReaction(new Observer[Unit] {
-      def react(u: Unit) {
+      def react(u: Unit, hint: AnyRef) {
         assert(unreactions == 0)
         events += 1
       }
@@ -1477,7 +1477,7 @@ class RCellSpec extends FunSuite with Matchers {
   test("throw from onReaction") {
     val e = new Events.Emitter[Int]
     val o = e.onReaction(new Observer[Int] {
-      def react(x: Int) {
+      def react(x: Int, hint: AnyRef) {
         throw TestException
       }
       def except(t: Throwable) {

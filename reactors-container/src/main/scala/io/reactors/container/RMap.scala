@@ -15,10 +15,17 @@ import scala.annotation.implicitNotFound
  *  @tparam K       type of the keys in the map
  *  @tparam V       type of the values in the map
  */
-trait RMap[@spec(Int, Long, Double) K, V] extends RContainer[K] {
-  /** Returns the value stored under the specified key.
+trait RMap[@spec(Int, Long, Double) K, V]
+extends RContainer[K] {
+  /** Returns the value associated with the specified key.
    */
   def apply(k: K): V
+
+  // TODO: Implement `mapValue`, `collectValue`, `swap` and `onChange`.
+
+  /** Converts this map into a container of key-value pairs.
+   */
+  def pairs: RContainer[(K, V)] = new RMap.Pairs(this)
 
   /** Converts this reactive map into another reactive map.
    */
@@ -33,7 +40,21 @@ trait RMap[@spec(Int, Long, Double) K, V] extends RContainer[K] {
 
 
 object RMap {
+  /** Used to create reactive map objects.
+   */
   trait Factory[@spec(Int, Long, Double) K, V, That] {
     def apply(inserts: Events[K], removes: Events[K]): That
+  }
+
+  /** A key-value pair view of a reactive map.
+   */
+  class Pairs[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
+    val self: RMap[K, V]
+  ) extends RContainer[(K, V)] {
+    def inserts: Events[(K, V)] = self.inserts.zipHint((k, h) => (k, h.asInstanceOf[V]))
+    def removes: Events[(K, V)] = self.removes.zipHint((k, h) => (k, h.asInstanceOf[V]))
+    def foreach(f: ((K, V)) => Unit) = for (k <- self) f((k, self(k)))
+    def size = self.size
+    def unsubscribe() = {}
   }
 }

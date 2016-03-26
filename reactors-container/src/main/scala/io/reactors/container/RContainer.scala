@@ -154,8 +154,10 @@ trait RContainer[@spec(Int, Long, Double) T] extends Subscription {
 
 object RContainer {
 
+  /** Used to create reactive container objects.
+   */
   @implicitNotFound(
-    msg = "Cannot construct a container of type ${That} with elements of type ${S}.")
+    msg = "Cannot create a container of type ${That} with elements of type ${S}.")
   trait Factory[@spec(Int, Long, Double) S, That] {
     def apply(inserts: Events[S], removes: Events[S]): That
   }

@@ -16,27 +16,33 @@ import scala.reflect.ClassTag
  */
 class RHashMatrix[@spec(Int, Long, Double) T](
   implicit val arrayable: Arrayable[T]
-) extends RMap[XY, T] {
+) extends RContainer[XY] {
   private[reactors] var rawSize = 0
   private[reactors] var matrix: HashMatrix[T] = null
   private[reactors] var insertsEmitter: Events.Emitter[XY] = null
   private[reactors] var removesEmitter: Events.Emitter[XY] = null
+  private[reactors] var pairInsertsEmitter: Events.Emitter[XY] = null
+  private[reactors] var pairRemovesEmitter: Events.Emitter[XY] = null
+  private[reactors] var rawMap: RHashMatrix.AsMap[T] = null
   private[reactors] var subscription: Subscription = null
 
   protected def init(self: RHashMatrix[T]) {
     matrix = new HashMatrix[T]
     insertsEmitter = new Events.Emitter[XY]
     removesEmitter = new Events.Emitter[XY]
+    pairInsertsEmitter = new Events.Emitter[XY]
+    pairRemovesEmitter = new Events.Emitter[XY]
     subscription = Subscription.empty
+    rawMap = new RHashMatrix.AsMap(this)
   }
 
   init(this)
 
+  def asMap: RMap[XY, T] = rawMap
+
   /** Returns the value stored at the specified coordinates, or `nil` otherwise.
    */
   def apply(x: Int, y: Int): T = matrix(x, y)
-
-  def apply(xy: XY): T = matrix(XY.xOf(xy), XY.yOf(xy))
 
   /** Returns the value stored at the specified coordinates, or `elem` otherwise.
    */
@@ -52,19 +58,28 @@ class RHashMatrix[@spec(Int, Long, Double) T](
     val prev = matrix.applyAndUpdate(x, y, v)
 
     if (prev != nil) {
-      if (removesEmitter.hasSubscriptions)
-        removesEmitter.react(XY(x, y), prev.asInstanceOf[AnyRef])
+      notifyRemove(x, y, v)
       rawSize -= 1
-      if (v != nil) {
-        if (insertsEmitter.hasSubscriptions)
-          insertsEmitter.react(XY(x, y), v.asInstanceOf[AnyRef])
-        rawSize += 1
-      }
-    } else {
-      if (v != nil) rawSize += 1
     }
-
+    if (v != nil) {
+      notifyInsert(x, y, v)
+      rawSize += 1
+    }
     prev
+  }
+
+  private[reactors] def notifyInsert(x: Int, y: Int, v: T) {
+    if (insertsEmitter.hasSubscriptions)
+      insertsEmitter.react(XY(x, y), null)
+    if (pairInsertsEmitter.hasSubscriptions)
+      pairInsertsEmitter.react(XY(x, y), v.asInstanceOf[AnyRef])
+  }
+
+  private[reactors] def notifyRemove(x: Int, y: Int, v: T) {
+    if (removesEmitter.hasSubscriptions)
+      removesEmitter.react(XY(x, y), null)
+    if (pairRemovesEmitter.hasSubscriptions)
+      pairInsertsEmitter.react(XY(x, y), v.asInstanceOf[AnyRef])
   }
 
   /** Sets the value at the specified coordinates to `nil`.
@@ -128,5 +143,16 @@ object RHashMatrix {
         hm
       }
     }
+  }
+
+  class AsMap[T](
+    val self: RHashMatrix[T]
+  ) extends RMap[XY, T] {
+    def apply(xy: XY): T = self.apply(XY.xOf(xy), XY.yOf(xy))
+    def inserts = self.pairInsertsEmitter
+    def removes = self.pairRemovesEmitter
+    def foreach(f: XY => Unit) = self.foreach(f)
+    def size = self.size
+    def unsubscribe() = {}
   }
 }

@@ -27,7 +27,7 @@ class AbelianCatamorph[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](
 
   def init(z: T) {
     subscription = Subscription.empty
-    elements = RFlatHashMap[S, T]
+    elements = new RFlatHashMap[S, T]
     insertsEmitter = new Events.Emitter[S]
     removesEmitter = new Events.Emitter[S]
     value = RCell[T](zero)

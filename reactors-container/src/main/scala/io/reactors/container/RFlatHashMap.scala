@@ -10,20 +10,26 @@ import scala.reflect.ClassTag
 class RFlatHashMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
   implicit val emptyKey: Arrayable[K],
   implicit val emptyVal: Arrayable[V]
-) extends RMap[K, V] {
+) extends RContainer[K] {
   private var keytable: Array[K] = null
   private var valtable: Array[V] = null
   private var sz = 0
   private[reactors] var insertsEmitter: Events.Emitter[K] = null
   private[reactors] var removesEmitter: Events.Emitter[K] = null
+  private[reactors] var pairInsertsEmitter: Events.Emitter[K] = null
+  private[reactors] var pairRemovesEmitter: Events.Emitter[K] = null
   private[reactors] var subscription: Subscription = _
+  private[reactors] var rawMap: RMap[K, V] = _
 
   protected def init(ek: Arrayable[K], ev: Arrayable[V]) {
     keytable = emptyKey.newArray(RFlatHashMap.initSize)
     valtable = emptyVal.newArray(RFlatHashMap.initSize)
     insertsEmitter = new Events.Emitter[K]
     removesEmitter = new Events.Emitter[K]
+    pairInsertsEmitter = new Events.Emitter[K]
+    pairRemovesEmitter = new Events.Emitter[K]
     subscription = Subscription.empty
+    rawMap = new RFlatHashMap.AsMap[K, V](this)
   }
 
   init(emptyKey, emptyVal)
@@ -36,16 +42,7 @@ class RFlatHashMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
 
   def removes: Events[K] = removesEmitter
 
-  def insertPair(k: K, v: V) = {
-    insert(k, v)
-    true
-  }
-
-  def removePair(k: K, v: V) = {
-    delete(k, v) != emptyVal.nil
-  }
-
-  def container = this
+  def asMap: RMap[K, V] = rawMap
 
   def foreachPair(f: (K, V) => Unit) {
     var i = 0
@@ -118,12 +115,16 @@ class RFlatHashMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
 
   private[reactors] def notifyInsert(k: K, v: V, notify: Boolean) {
     if (notify && insertsEmitter.hasSubscriptions)
-      insertsEmitter.react(k, v.asInstanceOf[AnyRef])
+      insertsEmitter.react(k, null)
+    if (notify && pairInsertsEmitter.hasSubscriptions)
+      pairInsertsEmitter.react(k, v.asInstanceOf[AnyRef])
   }
 
   private[reactors] def notifyRemove(k: K, v: V, notify: Boolean) {
     if (notify && removesEmitter.hasSubscriptions)
-      removesEmitter.react(k, v.asInstanceOf[AnyRef])
+      removesEmitter.react(k, null)
+      if (notify && pairRemovesEmitter.hasSubscriptions)
+      pairRemovesEmitter.react(k, v.asInstanceOf[AnyRef])
   }
 
   private[reactors] def delete(k: K, expectedValue: V = emptyVal.nil): V = {
@@ -242,17 +243,11 @@ class RFlatHashMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
   }
 
   def size: Int = sz
-  
 }
 
 
 object RFlatHashMap {
-
-  def apply[@spec(Int, Long, Double) K: Arrayable, V: Arrayable] =
-    new RFlatHashMap[K, V]
-
   val initSize = 16
-
   val loadFactor = 400
 
   implicit def factory[
@@ -289,9 +284,13 @@ object RFlatHashMap {
     def unreact() = {}
   }
 
+  class AsMap[@spec(Int, Long, Double) K, V](val self: RFlatHashMap[K, V])
+  extends RMap[K, V] {
+    def apply(k: K) = self.apply(k)
+    def inserts = self.pairInsertsEmitter
+    def removes = self.pairRemovesEmitter
+    def foreach(f: K => Unit) = self.foreach(f)
+    def size = self.size
+    def unsubscribe() = {}
+  }
 }
-
-
-
-
-

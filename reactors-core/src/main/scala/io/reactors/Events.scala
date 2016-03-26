@@ -760,6 +760,11 @@ trait Events[@spec(Int, Long, Double) T] {
    */
   def maybe(probability: Double): Events[T] = new Events.Maybe(this, probability)
 
+  /** Zips values from this event stream with the hint value.
+   */
+  def zipHint[@spec(Int, Long, Double) S](f: (T, AnyRef) => S): Events[S] =
+    new Events.ZipHint(this, f)
+
   /** Converts this event stream into a `Signal`.
    *
    *  The resulting signal initially does not contain an event,
@@ -2243,6 +2248,38 @@ object Events {
     private[reactors] val random = new Random
     def react(x: T, hint: AnyRef) =
       if (random.nextDouble < probability) target.react(x, hint)
+    def except(t: Throwable) = target.except(t)
+    def unreact() = target.unreact()
+  }
+
+  private[reactors] class ZipHint[
+    @spec(Int, Long, Double) T,
+    @spec(Int, Long, Double) S
+  ](
+    val self: Events[T],
+    val f: (T, AnyRef) => S
+  ) extends Events[S] {
+    def onReaction(obs: Observer[S]): Subscription =
+      self.onReaction(new ZipHintObserver(obs, f))
+  }
+
+  private[reactors] class ZipHintObserver[
+    @spec(Int, Long, Double) T,
+    @spec(Int, Long, Double) S
+  ](
+    val target: Observer[S],
+    val f: (T, AnyRef) => S
+  ) extends Observer[T] {
+    def react(x: T, hint: AnyRef): Unit = {
+      val v = try {
+        f(x, hint)
+      } catch {
+        case t if isNonLethal(t) =>
+          target.except(t)
+          return
+      }
+      target.react(v, null)
+    }
     def except(t: Throwable) = target.except(t)
     def unreact() = target.unreact()
   }

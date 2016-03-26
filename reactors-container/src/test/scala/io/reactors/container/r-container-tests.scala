@@ -337,7 +337,7 @@ class RContainerCheck extends Properties("RContainer") with ExtendedProperties {
   property("collect") = forAllNoShrink(sizes) { sz =>
     stackTraced {
       val table = new RHashMap[Int, String]
-      val oks = table.collect({
+      val oks = table.pairs.collect({
         case (k, "ok") => (k, "ok")
       })
       val observed = mutable.Buffer[String]()

@@ -51,15 +51,15 @@ class RContainerBoxingBench extends Bench.Forked[Long] {
     reports.validation.predicate -> { (n: Any) => n == 0 }
   ) in {
     using(Gen.single("numEvents")(10000)) in { (numEvents) =>
-      val fm = new RFlatHashMap[Int, Int]
+      val fm = new RFlatHashMap[Int, Long]
 
       var lastSize = 0
       fm.sizes.onEvent(lastSize = _)
 
       var i = 0
       while (i < numEvents) {
-        fm(17) = 19
-        fm(i) = i
+        fm(17) = 19.toLong
+        fm(i) = i.toLong
         if (i > numEvents / 2) fm.remove(i - 1)
         i += 1
       }
