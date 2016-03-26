@@ -21,7 +21,13 @@ extends RContainer[K] {
    */
   def apply(k: K): V
 
-  // TODO: Implement `mapValue`, `collectValue`, `swap` and `onChange`.
+  // TODO: Implement `mapValue`, `collectValue`, `swap` and `on`.
+
+  def on(obs: RMap.Observer[K, V]): Subscription =
+    new Subscription.Composite(
+      inserts.onReaction(obs.insertObserver),
+      removes.onReaction(obs.removeObserver)
+    )
 
   /** Filters and maps the values for which the partial function is defined.
    */
@@ -45,14 +51,40 @@ extends RContainer[K] {
 
 
 object RMap {
+
+  /** Reacts to insert and remove events on the reactive map.
+   */
+  trait Observer[@spec(Int, Long, Double) K, V] {
+    def insert(k: K, v: V): Unit
+    def remove(k: K, v: V): Unit
+    def except(t: Throwable) = throw t
+    def unreact() = {}
+    def insertObserver: io.reactors.Observer[K] = new InsertObserver(this)
+    def removeObserver: io.reactors.Observer[K] = new RemoveObserver(this)
+  }
+
+  private[reactors] class InsertObserver[@spec(Int, Long, Double) K, V](
+    val self: Observer[K, V]
+  ) extends io.reactors.Observer[K] {
+    def react(k: K, v: Any) = self.insert(k, v.asInstanceOf[V])
+    def except(t: Throwable) = self.except(t)
+    def unreact() = self.unreact()
+  }
+
+  private[reactors] class RemoveObserver[@spec(Int, Long, Double) K, V](
+    val self: Observer[K, V]
+  ) extends io.reactors.Observer[K] {
+    def react(k: K, v: Any) = self.remove(k, v.asInstanceOf[V])
+    def except(t: Throwable) = self.except(t)
+    def unreact() = self.unreact()
+  }
+
   /** Used to create reactive map objects.
    */
   trait Factory[@spec(Int, Long, Double) K, V, That] {
     def apply(inserts: Events[K], removes: Events[K]): That
   }
 
-  /** A key-value pair view of a reactive map.
-   */
   private[reactors] class Pairs[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
     val self: RMap[K, V]
   ) extends RContainer[(K, V)] {
