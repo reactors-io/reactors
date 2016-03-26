@@ -36,6 +36,8 @@ class RHashMatrix[@spec(Int, Long, Double) T](
    */
   def apply(x: Int, y: Int): T = matrix(x, y)
 
+  def apply(xy: XY): T = matrix(XY.xOf(xy), XY.yOf(xy))
+
   /** Returns the value stored at the specified coordinates, or `elem` otherwise.
    */
   def orElse(x: Int, y: Int, elem: T) = matrix.orElse(x, y, elem)

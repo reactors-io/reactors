@@ -16,6 +16,19 @@ import scala.annotation.implicitNotFound
  *  @tparam V       type of the values in the map
  */
 trait RMap[@spec(Int, Long, Double) K, V] extends RContainer[K] {
+  /** Returns the value stored under the specified key.
+   */
+  def apply(k: K): V
+
+  /** Converts this reactive map into another reactive map.
+   */
+  def toMap[That](implicit factory: RMap.Factory[K, V, That]): That = {
+    val elements = new Events.Emitter[K]
+    val container = factory(inserts union elements, removes)
+    for (k <- this) elements.react(k, apply(k).asInstanceOf[AnyRef])
+    elements.unreact()
+    container
+  }
 }
 
 
