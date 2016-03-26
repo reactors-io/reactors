@@ -45,7 +45,7 @@ class MonoidCatamorph[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](
       leaves(v) = leaf
       root = root.insert(leaf, op)
       rootValue := root.value
-      insertsEmitter.react(v)
+      insertsEmitter.react(v, null)
       true
     } else false
   }
@@ -56,7 +56,7 @@ class MonoidCatamorph[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](
       root = leaf.remove(zero, op)
       leaves.remove(v)
       rootValue := root.value
-      removesEmitter.react(v)
+      removesEmitter.react(v, null)
       true
     } else false
   }

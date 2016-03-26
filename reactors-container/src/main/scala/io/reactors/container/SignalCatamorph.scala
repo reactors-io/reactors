@@ -37,16 +37,16 @@ class SignalCatamorph[@spec(Int, Long, Double) T](
   def +=(s: Signal[T]): Boolean = {
     if (catamorph += s) {
       signalSubscriptions(s) = s.onReaction(new Observer[T] {
-        def react(v: T) {
+        def react(v: T, hint: AnyRef) {
           catamorph.push(s)
-          defaultSignal.reactAll(catamorph.signal())
+          defaultSignal.reactAll(catamorph.signal(), null)
         }
         def except(t: Throwable) {
           defaultSignal.exceptAll(t)
         }
         def unreact() {}
       })
-      defaultSignal.reactAll(catamorph.signal())
+      defaultSignal.reactAll(catamorph.signal(), null)
       true
     } else false
   }
@@ -55,7 +55,7 @@ class SignalCatamorph[@spec(Int, Long, Double) T](
     if (catamorph -= s) {
       signalSubscriptions(s).unsubscribe()
       signalSubscriptions.remove(s)
-      defaultSignal.reactAll(catamorph.signal())
+      defaultSignal.reactAll(catamorph.signal(), null)
       true
     } else false
   }

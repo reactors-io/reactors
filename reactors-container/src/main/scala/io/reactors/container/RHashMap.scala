@@ -18,28 +18,28 @@ import scala.reflect.ClassTag
  */
 class RHashMap[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
   implicit val arrayable: Arrayable[K], val hash: Hash[K], val spec: Spec[K]
-) extends RContainer[(K, V)] {
+) extends RMap[K, V] {
   private var table: Array[RHashMap.Entry[K, V]] = null
   private var elemCount = 0
   private var entryCount = 0
   private[reactors] var can: RHashMap.Can[K, V] = _
-  private[reactors] var insertsEmitter: Events.Emitter[(K, V)] = null
-  private[reactors] var removesEmitter: Events.Emitter[(K, V)] = null
+  private[reactors] var insertsEmitter: Events.Emitter[K] = null
+  private[reactors] var removesEmitter: Events.Emitter[K] = null
   private[reactors] var subscription: Subscription = null
 
   protected def init(k: K) {
     can = RHashMap.canFor[K, V](arrayable)
     table = new Array(RHashMap.initSize)
-    insertsEmitter = new Events.Emitter[(K, V)]
-    removesEmitter = new Events.Emitter[(K, V)]
+    insertsEmitter = new Events.Emitter[K]
+    removesEmitter = new Events.Emitter[K]
     subscription = Subscription.empty
   }
 
   init(null.asInstanceOf[K])
 
-  def inserts: Events[(K, V)] = insertsEmitter
+  def inserts: Events[K] = insertsEmitter
 
-  def removes: Events[(K, V)] = removesEmitter
+  def removes: Events[K] = removesEmitter
 
   def unsubscribe() = subscription.unsubscribe()
 
@@ -72,11 +72,11 @@ class RHashMap[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
     }
   }
 
-  def foreach(f: ((K, V)) => Unit) = foreachEntry {
+  def foreachTuple(f: ((K, V)) => Unit) = foreachEntry {
     e => if (e.value != null) f((e.key, e.value))
   }
 
-  def foreachKey(f: K => Unit) = foreachEntry {
+  def foreach(f: K => Unit) = foreachEntry {
     e => if (e.value != null) f(e.key)
   }
 
@@ -165,11 +165,11 @@ class RHashMap[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
   }
 
   private[reactors] def emitInserts(k: K, v: V) {
-    if (insertsEmitter.hasSubscriptions) insertsEmitter.react((k, v))
+    if (insertsEmitter.hasSubscriptions) insertsEmitter.react(k, v)
   }
 
   private[reactors] def emitRemoves(k: K, v: V) {
-    if (removesEmitter.hasSubscriptions) removesEmitter.react((k, v))
+    if (removesEmitter.hasSubscriptions) removesEmitter.react(k, v)
   }
 
   private[reactors] def delete(k: K, expectedValue: V = null): V = {
@@ -314,9 +314,9 @@ class RHashMap[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
   def size: Int = elemCount
   
   override def toString = {
-    val elemCount = mutable.Buffer[(K, V)]()
-    for (kv <- this) elemCount += kv
-    s"RHashMap($size, ${elemCount.mkString(", ")})"
+    val elems = mutable.Buffer[(K, V)]()
+    this.foreachTuple(kv => elems += kv)
+    s"RHashMap($size, ${elems.mkString(", ")})"
   }
 
 }
@@ -333,14 +333,14 @@ object RHashMap {
     def next: Entry[K, V]
     def next_=(e: Entry[K, V]): Unit
     def apply(): V = value
-    def propagate()(implicit s: Spec[K]) = reactAll(value)
+    def propagate()(implicit s: Spec[K]) = reactAll(value, null)
     def remove(e: Entry[K, V]): Entry[K, V] = if (this eq e) next else {
       if (next ne null) next = next.remove(e)
       this
     }
     override def onReaction(obs: Observer[V]): Subscription = {
       val sub = super.onReaction(obs)
-      obs.react(value)
+      obs.react(value, null)
       sub.and(if (!hasSubscriptions) outer.clean(this))
     }
     override def toString = s"Entry($key, $value)"
@@ -409,16 +409,32 @@ object RHashMap {
   implicit def factory[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
     implicit a: Arrayable[K], hash: Hash[K], spec: Spec[K]
   ) = {
-    new RContainer.Factory[(K, V), RHashMap[K, V]] {
-      def apply(inserts: Events[(K, V)], removes: Events[(K, V)]): RHashMap[K, V] = {
+    new RMap.Factory[K, V, RHashMap[K, V]] {
+      def apply(inserts: Events[K], removes: Events[K]): RHashMap[K, V] = {
         val hm = new RHashMap[K, V]
         hm.subscription = new Subscription.Composite(
-          inserts.onEvent(hm += _),
-          removes.onEvent(hm -= _)
+          inserts.onReaction(new FactoryInsertObserver(hm)),
+          removes.onReaction(new FactoryRemoveObserver(hm))
         )
         hm
       }
     }
+  }
+
+  class FactoryInsertObserver[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
+    hm: RHashMap[K, V]
+  ) extends Observer[K] {
+    def react(x: K, v: AnyRef) = hm.insert(x, v.asInstanceOf[V])
+    def except(t: Throwable) = {}
+    def unreact() = {}
+  }
+
+  class FactoryRemoveObserver[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
+    hm: RHashMap[K, V]
+  ) extends Observer[K] {
+    def react(x: K, v: AnyRef) = hm.delete(x, v.asInstanceOf[V])
+    def except(t: Throwable) = {}
+    def unreact() = {}
   }
 
 }

@@ -86,7 +86,7 @@ trait Reactor[@spec(Int, Long, Double) T] {
       case eq => eq.asInstanceOf[Frame]
     }
     frame.reactor = this
-    internalEventSub = internal.events.onEvent(x => sysEmitter react x)
+    internalEventSub = internal.events.onEvent(x => sysEmitter.react(x, null))
     Reactor.selfReactor.set(this)
   }
 

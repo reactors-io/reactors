@@ -126,7 +126,7 @@ trait Events[@spec(Int, Long, Double) T] {
   def onMatch(observer: PartialFunction[T, Unit])(implicit sub: T <:< AnyRef):
     Subscription = {
     onReaction(new Observer[T] {
-      def react(event: T) = {
+      def react(event: T, hint: AnyRef) = {
         if (observer.isDefinedAt(event)) observer(event)
       }
       def except(t: Throwable) {
@@ -166,7 +166,7 @@ trait Events[@spec(Int, Long, Double) T] {
    */
   def onExcept(pf: PartialFunction[Throwable, Unit]): Subscription = {
     onReaction(new Observer[T] {
-      def react(value: T) {}
+      def react(value: T, hint: AnyRef) {}
       def except(t: Throwable) {
         if (pf.isDefinedAt(t)) pf(t)
         else throw UnhandledException(t)
@@ -892,18 +892,18 @@ object Events {
           wht.invalidateEntry(r)
       }
     }
-    private[reactors] def reactAll(value: T) {
+    private[reactors] def reactAll(value: T, hint: AnyRef) {
       demux match {
         case null =>
           // no need to inform anybody
         case w: Ref[Observer[T] @unchecked] =>
           val r = w.get
-          if (r != null) r.react(value)
+          if (r != null) r.react(value, hint)
           else demux = null
         case wb: FastBuffer[Observer[T] @unchecked] =>
-          bufferReactAll(wb, value)
+          bufferReactAll(wb, value, hint)
         case wht: FastHashTable[Observer[T] @unchecked] =>
-          tableReactAll(wht, value)
+          tableReactAll(wht, value, hint)
       }
     }
     private[reactors] def exceptAll(t: Throwable) {
@@ -948,7 +948,7 @@ object Events {
         else if (wb.size == 0) demux = null
       }
     }
-    private def bufferReactAll(wb: FastBuffer[Observer[T]], value: T) {
+    private def bufferReactAll(wb: FastBuffer[Observer[T]], value: T, hint: AnyRef) {
       val array = wb.array
       var until = wb.size
       var i = 0
@@ -956,7 +956,7 @@ object Events {
         val ref = array(i)
         val r = ref.get
         if (r ne null) {
-          r.react(value)
+          r.react(value, hint)
           i += 1
         } else {
           wb.removeEntryAt(i)
@@ -1041,14 +1041,14 @@ object Events {
         checkBuffer(wb)
       }
     }
-    private def tableReactAll(wht: FastHashTable[Observer[T]], value: T) {
+    private def tableReactAll(wht: FastHashTable[Observer[T]], value: T, hint: AnyRef) {
       val table = wht.table
       var i = 0
       while (i < table.length) {
         val ref = table(i)
         if (ref ne null) {
           val r = ref.get
-          if (r ne null) r.react(value)
+          if (r ne null) r.react(value, hint)
         }
         i += 1
       }
@@ -1094,8 +1094,9 @@ object Events {
   class Emitter[@spec(Int, Long, Double) T]
   extends Push[T] with Events[T] with Observer[T] {
     private var closed = false
-    def react(x: T) = if (!closed) {
-      reactAll(x)
+    def react(x: T): Unit = react(x, null)
+    def react(x: T, hint: AnyRef): Unit = if (!closed) {
+      reactAll(x, hint)
     }
     def except(t: Throwable) = if (!closed) {
       exceptAll(t)
@@ -1158,12 +1159,12 @@ object Events {
     @spec(Int, Long, Double) T, M >: Null <: AnyRef
   ](val target: Mutable[M], f: M => T => Unit) extends Observer[T] {
     val mutation = f(target.content)
-    def react(x: T) = {
+    def react(x: T, hint: AnyRef) = {
       try mutation(x)
       catch {
         case NonLethal(t) => target.exceptAll(t)
       }
-      target.reactAll(target.content)
+      target.reactAll(target.content, null)
     }
     def except(t: Throwable) = target.exceptAll(t)
     def unreact() = {}
@@ -1174,15 +1175,15 @@ object Events {
   ](val t1: Mutable[M1], val t2: Mutable[M2], f: (M1, M2) => T => Unit)
   extends Observer[T] {
     val mutation = f(t1.content, t2.content)
-    def react(x: T) = {
+    def react(x: T, hint: AnyRef) = {
       try mutation(x)
       catch {
         case NonLethal(t) =>
           t1.exceptAll(t)
           t2.exceptAll(t)
       }
-      t1.reactAll(t1.content)
-      t2.reactAll(t2.content)
+      t1.reactAll(t1.content, null)
+      t2.reactAll(t2.content, null)
     }
     def except(t: Throwable) = {
       t1.exceptAll(t)
@@ -1199,7 +1200,7 @@ object Events {
     f: (M1, M2, M3) => T => Unit
   ) extends Observer[T] {
     val mutation = f(t1.content, t2.content, t3.content)
-    def react(x: T) = {
+    def react(x: T, hint: AnyRef) = {
       try mutation(x)
       catch {
         case NonLethal(t) =>
@@ -1207,9 +1208,9 @@ object Events {
           t2.exceptAll(t)
           t3.exceptAll(t)
       }
-      t1.reactAll(t1.content)
-      t2.reactAll(t2.content)
-      t3.reactAll(t3.content)
+      t1.reactAll(t1.content, null)
+      t2.reactAll(t2.content, null)
+      t3.reactAll(t3.content, null)
     }
     def except(t: Throwable) = {
       t1.exceptAll(t)
@@ -1222,7 +1223,7 @@ object Events {
   private[reactors] class OnEventOrDone[@spec(Int, Long, Double) T](
     val reactFunc: T => Unit, val unreactFunc: () => Unit
   ) extends Observer[T] {
-    def react(x: T) = reactFunc(x)
+    def react(x: T, hint: AnyRef) = reactFunc(x)
     def except(t: Throwable) = throw UnhandledException(t)
     def unreact() = unreactFunc()
   }
@@ -1230,7 +1231,7 @@ object Events {
   private[reactors] class On[@spec(Int, Long, Double) T](
     val reactFunc: () => Unit
   ) extends Observer[T] {
-    def react(x: T) = reactFunc()
+    def react(x: T, hint: AnyRef) = reactFunc()
     def except(t: Throwable) = throw UnhandledException(t)
     def unreact() = {}
   }
@@ -1238,7 +1239,7 @@ object Events {
   private[reactors] class OnDone[@spec(Int, Long, Double) T](
     val unreactFunc: () => Unit
   ) extends Observer[T] {
-    def react(x: T) = {}
+    def react(x: T, hint: AnyRef) = {}
     def except(t: Throwable) = throw UnhandledException(t)
     def unreact() = unreactFunc()
   }
@@ -1257,8 +1258,8 @@ object Events {
     val pf: PartialFunction[Throwable, U],
     val evid: U <:< AnyRef
   ) extends Observer[T] {
-    def react(value: T) {
-      target.react(value)
+    def react(value: T, hint: AnyRef) {
+      target.react(value, hint)
     }
     def except(t: Throwable) {
       val isDefined = try {
@@ -1277,7 +1278,7 @@ object Events {
             target.except(other)
             return
         }
-        target.react(event)
+        target.react(event, null)
       }
     }
     def unreact() {
@@ -1295,8 +1296,8 @@ object Events {
   private[reactors] class IgnoreExceptionsObserver[@spec(Int, Long, Double) T](
     val target: Observer[T]
   ) extends Observer[T] {
-    def react(value: T) {
-      target.react(value)
+    def react(value: T, hint: AnyRef) {
+      target.react(value, hint)
     }
     def except(t: Throwable) {
     }
@@ -1326,7 +1327,7 @@ object Events {
     val op: (S, T) => S
   ) extends Observer[T] {
     def apply() = cached
-    def react(value: T) {
+    def react(value: T, hint: AnyRef) {
       try {
         cached = op(cached, value)
       } catch {
@@ -1334,7 +1335,7 @@ object Events {
           target.except(t)
           return
       }
-      target.react(cached)
+      target.react(cached, hint)
     }
     def except(t: Throwable) {
       target.except(t)
@@ -1365,7 +1366,7 @@ object Events {
     val op: (S, T) => S
   ) extends Observer[T] {
     def apply() = cached
-    def react(value: T) {
+    def react(value: T, hint: AnyRef) {
       try {
         cached = op(cached, value)
       } catch {
@@ -1378,7 +1379,7 @@ object Events {
       target.except(t)
     }
     def unreact() {
-      target.react(cached)
+      target.react(cached, null)
       target.unreact()
     }
   }
@@ -1410,10 +1411,10 @@ object Events {
       else throw new NoSuchElementException
     }
     def isEmpty = !full
-    def react(x: T) {
+    def react(x: T, hint: AnyRef) {
       cached = x
       if (!full) full = true
-      pushSource.reactAll(x)
+      pushSource.reactAll(x, hint)
     }
     def except(t: Throwable) = pushSource.exceptAll(t)
     def unreact() = pushSource.unreactAll()
@@ -1456,7 +1457,7 @@ object Events {
   private[reactors] class ToColdSelfObserver[@spec(Int, Long, Double) T](
     val signal: ToColdSignal[T]
   ) extends Observer[T] {
-    def react(x: T) = signal.pushSource.reactAll(x)
+    def react(x: T, hint: AnyRef) = signal.pushSource.reactAll(x, hint)
     def except(t: Throwable) = signal.pushSource.exceptAll(t)
     def unreact() = signal.pushSource.unreactAll()
   }
@@ -1466,9 +1467,9 @@ object Events {
     val signal: ToColdSignal[T]
   ) extends Observer[T] {
     var done = false
-    def react(x: T) = {
+    def react(x: T, hint: AnyRef) = {
       signal.cached = x
-      target.react(x)
+      target.react(x, hint)
     }
     def except(t: Throwable) = target.except(t)
     def unreact() {
@@ -1482,7 +1483,7 @@ object Events {
     val ivar: IVar[T]
   ) extends Observer[T] {
     var subscription: Subscription = _
-    def react(value: T) = if (ivar.isUnassigned) {
+    def react(value: T, hint: AnyRef) = if (ivar.isUnassigned) {
       try ivar := value
       finally subscription.unsubscribe()
     }
@@ -1513,9 +1514,9 @@ object Events {
     }
     init(this)
     def apply() = cnt
-    def react(value: T) {
+    def react(value: T, hint: AnyRef) {
       cnt += 1
-      target.react(cnt)
+      target.react(cnt, hint)
     }
     def except(t: Throwable) {
       target.except(t)
@@ -1559,8 +1560,8 @@ object Events {
       live = false
       target.unreact()
     }
-    def react(value: T) {
-      if (started) target.react(value)
+    def react(value: T, hint: AnyRef) {
+      if (started) target.react(value, hint)
     }
     def except(t: Throwable) {
       target.except(t)
@@ -1573,7 +1574,7 @@ object Events {
     @spec(Int, Long, Double) S
   ](val afterObserver: AfterObserver[T, S]) extends Observer[S] {
     var subscription = Subscription.empty
-    def react(value: S) {
+    def react(value: S, hint: AnyRef) {
       if (!afterObserver.started) {
         afterObserver.started = true
         subscription.unsubscribe()
@@ -1620,8 +1621,8 @@ object Events {
       subscription.unsubscribe()
       target.unreact()
     }
-    def react(value: T) {
-      if (live) target.react(value)
+    def react(value: T, hint: AnyRef) {
+      if (live) target.react(value, hint)
     }
     def except(t: Throwable) {
       if (live) target.except(t)
@@ -1633,7 +1634,7 @@ object Events {
     @spec(Int, Long, Double) T,
     @spec(Int, Long, Double) S
   ](val untilObserver: UntilObserver[T, S]) extends Observer[S] {
-    def react(value: S) = untilObserver.tryUnreact()
+    def react(value: S, hint: AnyRef) = untilObserver.tryUnreact()
     def except(t: Throwable) {
       if (untilObserver.live) untilObserver.target.except(t)
     }
@@ -1659,10 +1660,10 @@ object Events {
       seen = false
     }
     init(this)
-    def react(value: T) = if (!seen) {
+    def react(value: T, hint: AnyRef) = if (!seen) {
       seen = true
       subscription.unsubscribe()
-      target.react(value)
+      target.react(value, hint)
       target.unreact()
     }
     def except(t: Throwable) = if (!seen) {
@@ -1685,13 +1686,13 @@ object Events {
     val target: Observer[T],
     val p: T => Boolean
   ) extends Observer[T] {
-    def react(value: T) = {
+    def react(value: T, hint: AnyRef) = {
       val ok = try p(value) catch {
         case NonLethal(t) =>
           target.except(t)
           false
       }
-      if (ok) target.react(value)
+      if (ok) target.react(value, hint)
     }
     def except(t: Throwable) = {
       target.except(t)
@@ -1713,13 +1714,13 @@ object Events {
     val target: Observer[S],
     val pf: PartialFunction[T, S]
   ) extends Observer[T] {
-    def react(value: T) = {
+    def react(value: T, hint: AnyRef) = {
       val ok = try pf.isDefinedAt(value) catch {
         case NonLethal(t) =>
           target.except(t)
           false
       }
-      if (ok) target.react(pf(value))
+      if (ok) target.react(pf(value), hint)
     }
     def except(t: Throwable) {
       target.except(t)
@@ -1747,7 +1748,7 @@ object Events {
     val target: Observer[S],
     val f: T => S
   ) extends Observer[T] {
-    def react(value: T) {
+    def react(value: T, hint: AnyRef) {
       val x = try {
         f(value)
       } catch {
@@ -1755,7 +1756,7 @@ object Events {
           target.except(t)
           return
       }
-      target.react(x)
+      target.react(x, hint)
     }
     def except(t: Throwable) {
       target.except(t)
@@ -1787,8 +1788,8 @@ object Events {
       closed = false
     }
     init(this)
-    def react(value: T) = if (!closed) {
-      if (p(value)) target.react(value)
+    def react(value: T, hint: AnyRef) = if (!closed) {
+      if (p(value)) target.react(value, hint)
       else {
         closed = true
         subscription.unsubscribe()
@@ -1820,9 +1821,9 @@ object Events {
       started = false
     }
     init(this)
-    def react(value: T) = {
+    def react(value: T, hint: AnyRef) = {
       if (!started && !p(value)) started = true
-      if (started) target.react(value)
+      if (started) target.react(value, hint)
     }
     def except(t: Throwable) = target.except(t)
     def unreact() = target.unreact()
@@ -1849,7 +1850,7 @@ object Events {
     def checkUnreact() =
       if (terminated && currentSubscription == Subscription.empty) target.unreact()
     def newMuxNestedObserver: Observer[S] = new MuxNestedObserver(target, this)
-    def react(value: T): Unit = if (!terminated) {
+    def react(value: T, hint: AnyRef): Unit = if (!terminated) {
       val nextEvents = try {
         evidence(value)
       } catch {
@@ -1873,7 +1874,7 @@ object Events {
     val target: Observer[S],
     val muxObserver: MuxObserver[T, S]
   ) extends Observer[S] {
-    def react(value: S) = target.react(value)
+    def react(value: S, hint: AnyRef) = target.react(value, hint)
     def except(t: Throwable) = target.except(t)
     def unreact() {
       muxObserver.currentSubscription = Subscription.empty
@@ -1898,10 +1899,10 @@ object Events {
     val target: Observer[Unit]
   ) extends Observer[T] {
     var subscription = Subscription.empty
-    def react(value: T) = {}
+    def react(value: T, hint: AnyRef) = {}
     def except(t: Throwable) = target.except(t)
     def unreact() {
-      target.react(())
+      target.react((), null)
       target.unreact()
       subscription.unsubscribe()
     }
@@ -1923,7 +1924,7 @@ object Events {
     val target: Observer[T],
     val count: IntRef
   ) extends Observer[T] {
-    def react(value: T) = target.react(value)
+    def react(value: T, hint: AnyRef) = target.react(value, hint)
     def except(t: Throwable) = target.except(t)
     def unreact() = {
       count.elem += 1
@@ -1948,11 +1949,11 @@ object Events {
     val target: Observer[T],
     val thatObserver: ConcatThatObserver[T]
   ) extends Observer[T] {
-    def react(value: T) = target.react(value)
+    def react(value: T, hint: AnyRef) = target.react(value, hint)
     def except(t: Throwable) = target.except(t)
     def unload(dummy: Observer[T]) {
       while (thatObserver.buffer.nonEmpty) {
-        target.react(thatObserver.buffer.dequeue())
+        target.react(thatObserver.buffer.dequeue(), null)
       }
     }
     def unreact() = {
@@ -1968,8 +1969,8 @@ object Events {
   ) extends Observer[T] {
     private[reactors] var selfObserverDone = false
     private[reactors] var thatObserverDone = false
-    def react(value: T) = {
-      if (selfObserverDone) target.react(value)
+    def react(value: T, hint: AnyRef) = {
+      if (selfObserverDone) target.react(value, hint)
       else buffer.enqueue(value)
     }
     def except(t: Throwable) = target.except(t)
@@ -2032,7 +2033,7 @@ object Events {
   ](
     val target: Observer[R], val state: SyncState[T, S, R], val f: (T, S) => R
   ) extends Observer[T] {
-    def react(tvalue: T) {
+    def react(tvalue: T, hint: AnyRef) {
       if (state.sbuffer.isEmpty) state.tbuffer.enqueue(tvalue)
       else {
         val svalue = state.sbuffer.dequeue()
@@ -2043,7 +2044,7 @@ object Events {
             target.except(t)
             return
         }
-        target.react(event)
+        target.react(event, null)
       }
     }
     def except(t: Throwable) = target.except(t)
@@ -2057,7 +2058,7 @@ object Events {
   ](
     val target: Observer[R], val state: SyncState[T, S, R], f: (T, S) => R
   ) extends Observer[S] {
-    def react(svalue: S) {
+    def react(svalue: S, hint: AnyRef) {
       if (state.tbuffer.isEmpty) state.sbuffer.enqueue(svalue)
       else {
         val tvalue = state.tbuffer.dequeue()
@@ -2068,7 +2069,7 @@ object Events {
             target.except(t)
             return
         }
-        target.react(event)
+        target.react(event, null)
       }
     }
     def except(t: Throwable) = target.except(t)
@@ -2103,7 +2104,7 @@ object Events {
       if (subscriptions.isEmpty) target.unreact()
     def newPostfixUnionNestedObserver: PostfixUnionNestedObserver[T, S] =
       new PostfixUnionNestedObserver(target, this)
-    def react(value: T): Unit = if (!terminated) {
+    def react(value: T, hint: AnyRef): Unit = if (!terminated) {
       val moreEvents = try {
         evidence(value)
       } catch {
@@ -2132,7 +2133,7 @@ object Events {
     val unionObserver: PostfixUnionObserver[T, S]
   ) extends Observer[S] {
     var subscription: Subscription = _
-    def react(value: S) = target.react(value)
+    def react(value: S, hint: AnyRef) = target.react(value, hint)
     def except(t: Throwable) = target.except(t)
     def unreact() {
       subscription.unsubscribe()
@@ -2176,7 +2177,7 @@ object Events {
       queue.enqueue(obs)
       obs
     }
-    def react(value: T): Unit = if (!terminated) {
+    def react(value: T, hint: AnyRef): Unit = if (!terminated) {
       val moreEvents = try {
         evidence(value)
       } catch {
@@ -2207,8 +2208,8 @@ object Events {
   ) extends Observer[S] {
     var subscription: Subscription = _
     var terminated: Boolean = false
-    def react(value: S) = if (!terminated) {
-      if (concatObserver.queue.head eq this) target.react(value)
+    def react(value: S, hint: AnyRef) = if (!terminated) {
+      if (concatObserver.queue.head eq this) target.react(value, hint)
       else buffer.enqueue(value)
     }
     def except(t: Throwable) = if (!terminated) target.except(t)
@@ -2218,11 +2219,11 @@ object Events {
       // remove all terminated observers from queue and flush their events
       while (concatObserver.queue.nonEmpty && concatObserver.queue.head.terminated) {
         val obs = concatObserver.queue.dequeue()
-        while (obs.buffer.nonEmpty) target.react(obs.buffer.dequeue())
+        while (obs.buffer.nonEmpty) target.react(obs.buffer.dequeue(), null)
       }
       // flush the events in the head
       while (concatObserver.queue.nonEmpty && concatObserver.queue.head.buffer.nonEmpty)
-        target.react(concatObserver.queue.head.buffer.dequeue())
+        target.react(concatObserver.queue.head.buffer.dequeue(), null)
       concatObserver.checkUnreact()
     }
   }
@@ -2240,7 +2241,8 @@ object Events {
     val probability: Double
   ) extends Observer[T] {
     private[reactors] val random = new Random
-    def react(x: T) = if (random.nextDouble < probability) target.react(x)
+    def react(x: T, hint: AnyRef) =
+      if (random.nextDouble < probability) target.react(x, hint)
     def except(t: Throwable) = target.except(t)
     def unreact() = target.unreact()
   }

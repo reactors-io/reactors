@@ -10,19 +10,19 @@ import scala.reflect.ClassTag
 class RFlatHashMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
   implicit val emptyKey: Arrayable[K],
   implicit val emptyVal: Arrayable[V]
-) extends RContainer[(K, V)] {
+) extends RMap[K, V] {
   private var keytable: Array[K] = null
   private var valtable: Array[V] = null
   private var sz = 0
-  private[reactors] var insertsEmitter: Events.Emitter[(K, V)] = null
-  private[reactors] var removesEmitter: Events.Emitter[(K, V)] = null
+  private[reactors] var insertsEmitter: Events.Emitter[K] = null
+  private[reactors] var removesEmitter: Events.Emitter[K] = null
   private[reactors] var subscription: Subscription = _
 
   protected def init(ek: Arrayable[K], ev: Arrayable[V]) {
     keytable = emptyKey.newArray(RFlatHashMap.initSize)
     valtable = emptyVal.newArray(RFlatHashMap.initSize)
-    insertsEmitter = new Events.Emitter[(K, V)]
-    removesEmitter = new Events.Emitter[(K, V)]
+    insertsEmitter = new Events.Emitter[K]
+    removesEmitter = new Events.Emitter[K]
     subscription = Subscription.empty
   }
 
@@ -32,17 +32,9 @@ class RFlatHashMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
 
   def nil: V = emptyVal.nil
 
-  def inserts: Events[(K, V)] = insertsEmitter
+  def inserts: Events[K] = insertsEmitter
 
-  def removes: Events[(K, V)] = removesEmitter
-
-  def +=(kv: (K, V)) = {
-    insertPair(kv._1, kv._2)
-  }
-
-  def -=(kv: (K, V)) = {
-    removePair(kv._1, kv._2)
-  }
+  def removes: Events[K] = removesEmitter
 
   def insertPair(k: K, v: V) = {
     insert(k, v)
@@ -67,9 +59,20 @@ class RFlatHashMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
     }
   }
 
-  def foreach(f: ((K, V)) => Unit) {
+  def foreachTuple(f: ((K, V)) => Unit) {
     foreachPair { (k, v) =>
       f((k, v))
+    }
+  }
+
+  def foreach(f: K => Unit) {
+    var i = 0
+    while (i < keytable.length) {
+      val k = keytable(i)
+      if (k != emptyKey.nil) {
+        f(k)
+      }
+      i += 1
     }
   }
 
@@ -114,11 +117,13 @@ class RFlatHashMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
   }
 
   private[reactors] def notifyInsert(k: K, v: V, notify: Boolean) {
-    if (notify && insertsEmitter.hasSubscriptions) insertsEmitter.react((k, v))
+    if (notify && insertsEmitter.hasSubscriptions)
+      insertsEmitter.react(k, v.asInstanceOf[AnyRef])
   }
 
   private[reactors] def notifyRemove(k: K, v: V, notify: Boolean) {
-    if (notify && removesEmitter.hasSubscriptions) removesEmitter.react((k, v))
+    if (notify && removesEmitter.hasSubscriptions)
+      removesEmitter.react(k, v.asInstanceOf[AnyRef])
   }
 
   private[reactors] def delete(k: K, expectedValue: V = emptyVal.nil): V = {
@@ -150,7 +155,7 @@ class RFlatHashMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
       keytable(h0) = emptyKey.nil
       valtable(h0) = emptyVal.nil
       sz -= 1
-      if (removesEmitter.hasSubscriptions) removesEmitter.react((k, previousValue))
+      notifyRemove(k, previousValue, true)
 
       previousValue
     } else emptyVal.nil
@@ -229,7 +234,7 @@ class RFlatHashMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
         keytable(pos) = emptyKey.nil
         valtable(pos) = emptyVal.nil
         sz -= 1
-        if (removesEmitter.hasSubscriptions) removesEmitter.react((k, v))
+        notifyRemove(k, v, true)
       }
 
       pos += 1
@@ -254,18 +259,34 @@ object RFlatHashMap {
     @spec(Int, Long, Double) K: Arrayable,
     @spec(Int, Long, Double) V: Arrayable
   ] = {
-    new RContainer.Factory[(K, V), RFlatHashMap[K, V]] {
+    new RMap.Factory[K, V, RFlatHashMap[K, V]] {
       def apply(
-        inserts: Events[(K, V)], removes: Events[(K, V)]
+        inserts: Events[K], removes: Events[K]
       ): RFlatHashMap[K, V] = {
         val hm = new RFlatHashMap[K, V]
         hm.subscription = new Subscription.Composite(
-          inserts.onEvent(hm += _),
-          removes.onEvent(hm -= _)
+          inserts.onReaction(new FactoryInsertObserver(hm)),
+          removes.onReaction(new FactoryRemoveObserver(hm))
         )
         hm
       }
     }
+  }
+
+  class FactoryInsertObserver[@spec(Int, Long, Double) K, V](
+    hm: RFlatHashMap[K, V]
+  ) extends Observer[K] {
+    def react(x: K, v: AnyRef) = hm.insert(x, v.asInstanceOf[V])
+    def except(t: Throwable) = {}
+    def unreact() = {}
+  }
+
+  class FactoryRemoveObserver[@spec(Int, Long, Double) K, V](
+    hm: RFlatHashMap[K, V]
+  ) extends Observer[K] {
+    def react(x: K, v: AnyRef) = hm.delete(x, v.asInstanceOf[V])
+    def except(t: Throwable) = {}
+    def unreact() = {}
   }
 
 }

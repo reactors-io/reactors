@@ -3,6 +3,7 @@ package container
 
 
 
+import io.reactors.algebra.XY
 import io.reactors.common.HashMatrix
 import scala.collection._
 import scala.reflect.ClassTag
@@ -15,17 +16,17 @@ import scala.reflect.ClassTag
  */
 class RHashMatrix[@spec(Int, Long, Double) T](
   implicit val arrayable: Arrayable[T]
-) {
+) extends RMap[XY, T] {
   private[reactors] var rawSize = 0
   private[reactors] var matrix: HashMatrix[T] = null
-  private[reactors] var insertsEmitter: Events.Emitter[T] = null
-  private[reactors] var removesEmitter: Events.Emitter[T] = null
+  private[reactors] var insertsEmitter: Events.Emitter[XY] = null
+  private[reactors] var removesEmitter: Events.Emitter[XY] = null
   private[reactors] var subscription: Subscription = null
 
   protected def init(self: RHashMatrix[T]) {
     matrix = new HashMatrix[T]
-    insertsEmitter = new Events.Emitter[T]
-    removesEmitter = new Events.Emitter[T]
+    insertsEmitter = new Events.Emitter[XY]
+    removesEmitter = new Events.Emitter[XY]
     subscription = Subscription.empty
   }
 
@@ -49,10 +50,12 @@ class RHashMatrix[@spec(Int, Long, Double) T](
     val prev = matrix.applyAndUpdate(x, y, v)
 
     if (prev != nil) {
-      removesEmitter.react(prev)
+      if (removesEmitter.hasSubscriptions)
+        removesEmitter.react(XY(x, y), prev.asInstanceOf[AnyRef])
       rawSize -= 1
       if (v != nil) {
-        insertsEmitter.react(prev)
+        if (insertsEmitter.hasSubscriptions)
+          insertsEmitter.react(XY(x, y), v.asInstanceOf[AnyRef])
         rawSize += 1
       }
     } else {
@@ -95,11 +98,11 @@ class RHashMatrix[@spec(Int, Long, Double) T](
 
   /** Traverses all the non-`nil` values in this matrix.
    */
-  def foreach(f: T => Unit): Unit = matrix.foreach(f)
+  def foreach(f: XY => Unit): Unit = matrix.foreach(f)
 
-  def inserts: Events[T] = insertsEmitter
+  def inserts: Events[XY] = insertsEmitter
 
-  def removes: Events[T] = removesEmitter
+  def removes: Events[XY] = removesEmitter
 
   def size: Int = rawSize
 

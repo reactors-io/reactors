@@ -87,7 +87,7 @@ object EventQueue {
         remaining = ring.size - 1
         ring.dequeue()
       }
-      emitter react x
+      emitter.react(x, null)
       remaining
     }
 

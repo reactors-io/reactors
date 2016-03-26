@@ -107,7 +107,7 @@ trait RContainer[@spec(Int, Long, Double) T] extends Subscription {
   def to[That](implicit factory: RContainer.Factory[T, That]): That = {
     val elements = new Events.Emitter[T]
     val container = factory(inserts union elements, removes)
-    for (x <- this) elements.react(x)
+    for (x <- this) elements.react(x, null)
     elements.unreact()
     container
   }
@@ -193,13 +193,13 @@ object RContainer {
   ) extends Observer[T] {
     var done = false
     def init(self: Observer[T]) {
-      target.react(count)
+      target.react(count, null)
     }
     init(this)
-    def react(x: T) = if (!done) {
+    def react(x: T, hint: AnyRef) = if (!done) {
       if (pred(x)) {
         count += 1
-        target.react(count)
+        target.react(count, hint)
       }
     }
     def except(t: Throwable) = if (!done) {
@@ -216,10 +216,10 @@ object RContainer {
     val insertObs: CountInsertObserver[T],
     val pred: T => Boolean
   ) extends Observer[T] {
-    def react(x: T) = if (!insertObs.done) {
+    def react(x: T, hint: AnyRef) = if (!insertObs.done) {
       if (pred(x)) {
         insertObs.count -= 1
-        target.react(insertObs.count)
+        target.react(insertObs.count, hint)
       }
     }
     def except(t: Throwable) = insertObs.except(t)
@@ -249,12 +249,12 @@ object RContainer {
   ) extends Observer[T] {
     var done = false
     def init(self: Observer[T]) {
-      target.react(count)
+      target.react(count, null)
     }
     init(this)
-    def react(x: T) = if (!done) {
+    def react(x: T, hint: AnyRef) = if (!done) {
       count += 1
-      target.react(count)
+      target.react(count, hint)
     }
     def except(t: Throwable) = if (!done) {
       target.except(t)
@@ -269,9 +269,9 @@ object RContainer {
     val target: Observer[Int],
     val insertObs: SizesInsertObserver[T]
   ) extends Observer[T] {
-    def react(x: T) = if (!insertObs.done) {
+    def react(x: T, hint: AnyRef) = if (!insertObs.done) {
       insertObs.count -= 1
-      target.react(insertObs.count)
+      target.react(insertObs.count, hint)
     }
     def except(t: Throwable) = insertObs.except(t)
     def unreact() = insertObs.unreact()
@@ -311,10 +311,10 @@ object RContainer {
   ) extends Observer[T] {
     var done = false
     def init(target: Observer[S]) {
-      target.react(current)
+      target.react(current, null)
     }
     init(target)
-    def react(x: T): Unit = if (!done) {
+    def react(x: T, hint: AnyRef): Unit = if (!done) {
       current = try {
         op(current, x)
       } catch {
@@ -322,7 +322,7 @@ object RContainer {
           except(t)
           return
       }
-      target.react(current)
+      target.react(current, hint)
     }
     def except(t: Throwable) = if (!done) {
       target.except(t)
@@ -339,7 +339,7 @@ object RContainer {
     val op: (S, T) => S,
     val inv: (S, T) => S
   ) extends Observer[T] {
-    def react(x: T): Unit = if (!insertObs.done) {
+    def react(x: T, hint: AnyRef): Unit = if (!insertObs.done) {
       insertObs.current = try {
         inv(insertObs.current, x)
       } catch {
@@ -347,7 +347,7 @@ object RContainer {
           except(t)
           return
       }
-      target.react(insertObs.current)
+      target.react(insertObs.current, hint)
     }
     def except(t: Throwable) = insertObs.except(t)
     def unreact() = insertObs.unreact()
@@ -413,7 +413,7 @@ object RContainer {
       val n = countMap.applyOrNil(x)
       if (n == countMap.nil) {
         countMap(x) = Union.one
-        insertsEmitter.react(x)
+        insertsEmitter.react(x, null)
       } else if (n == Union.one) {
         countMap(x) = Union.two
       } // ignore
@@ -424,7 +424,7 @@ object RContainer {
         // ignore
       } else if (n == Union.one) {
         countMap.remove(x)
-        removesEmitter.react(x)
+        removesEmitter.react(x, null)
       } else if (n == Union.two) {
         countMap(x) = Union.one
       }
@@ -433,7 +433,7 @@ object RContainer {
     def removes: Events[T] = removesEmitter
     def unsubscribe() = subscription.unsubscribe()
     def size = countMap.size
-    def foreach(f: T => Unit) = countMap.foreachKey(f)
+    def foreach(f: T => Unit) = countMap.foreach(f)
   }
 
   private[reactors] object Union {

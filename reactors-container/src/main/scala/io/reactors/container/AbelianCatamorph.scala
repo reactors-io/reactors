@@ -44,7 +44,7 @@ class AbelianCatamorph[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](
       val x = get(v)
       elements(v) = x
       value := op(value(), x)
-      insertsEmitter.react(v)
+      insertsEmitter.react(v, null)
       true
     } else false
   }
@@ -54,7 +54,7 @@ class AbelianCatamorph[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](
       val y = elements(v)
       elements.remove(v)
       value := inv(value(), y)
-      removesEmitter.react(v)
+      removesEmitter.react(v, null)
       true
     } else false
   }

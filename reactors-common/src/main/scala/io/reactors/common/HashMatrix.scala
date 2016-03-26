@@ -3,6 +3,7 @@ package common
 
 
 
+import io.reactors.algebra.XY
 import io.reactors.common.hash.spatial2D
 import scala.collection._
 
@@ -37,15 +38,21 @@ class HashMatrix[@specialized(Int, Long, Double) T](
 
   val nil = arrayable.nil
 
-  def foreach(f: T => Unit): Unit = {
+  def foreach(f: XY => Unit): Unit = {
     var i = 0
     while (i < blocks.size) {
       var curr = blocks(i)
       while (curr != null) {
+        val x0 = curr.x * 32
+        val y0 = curr.y * 32
         var k = 0
         while (k < curr.array.length) {
           val v = curr.array(k)
-          if (v != nil) f(v)
+          if (v != nil) {
+            val x = x0 * 32 + (k % 32)
+            val y = y0 * 32 + (k / 32)
+            f(XY(x, y))
+          }
           k += 1
         }
         curr = curr.next

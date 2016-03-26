@@ -34,7 +34,7 @@ extends Signal[T] with Events.Push[T] {
    */
   def :=(v: T): Unit = {
     value = v
-    reactAll(v)
+    reactAll(v, null)
   }
 
   /** Same as `:=`. */

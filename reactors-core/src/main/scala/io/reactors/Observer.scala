@@ -15,8 +15,9 @@ trait Observer[@spec(Int, Long, Double) T] {
   /** Called by an event stream when an event `value` is produced.
    * 
    *  @param value   the event passed to the observer
+   *  @param hint    an additional, optional value from the event source, usually `null`
    */
-  def react(value: T): Unit
+  def react(value: T, hint: AnyRef): Unit
 
   /** Called by an event stream when an exception is produced.
    *

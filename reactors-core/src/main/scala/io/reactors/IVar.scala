@@ -87,7 +87,7 @@ class IVar[@spec(Int, Long, Double) T] extends Signal[T] {
       obs.unreact()
       Subscription.empty
     } else if (isAssigned) {
-      obs.react(this())
+      obs.react(this(), null)
       obs.unreact()
       Subscription.empty
     } else {
@@ -102,7 +102,7 @@ class IVar[@spec(Int, Long, Double) T] extends Signal[T] {
   def :=(x: T): Unit = if (state == 0) {
     state = 1
     value = x
-    pushSource.reactAll(x)
+    pushSource.reactAll(x, null)
     pushSource.unreactAll()
   } else sys.error("IVar is already assigned.")
 

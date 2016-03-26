@@ -209,9 +209,9 @@ object Signal {
     val target: Observer[T],
     var cached: T
   ) extends Observer[T] {
-    def react(x: T) = if (cached != x) {
+    def react(x: T, hint: AnyRef) = if (cached != x) {
       cached = x
-      target.react(x)
+      target.react(x, hint)
     }
     def except(t: Throwable) = target.except(t)
     def unreact() = target.unreact()
@@ -236,7 +236,7 @@ object Signal {
     val op: (T, T) => S,
     var last: T
   ) extends Observer[T] {
-    def react(x: T) {
+    def react(x: T, hint: AnyRef) {
       val d = try {
         op(x, last)
       } catch {
@@ -245,7 +245,7 @@ object Signal {
           return
       }
       last = x
-      target.react(d)
+      target.react(d, hint)
     }
     def except(t: Throwable) = target.except(t)
     def unreact() = target.unreact()
@@ -288,7 +288,7 @@ object Signal {
   ) extends Observer[T] {
     var subscription: Subscription = _
     var done = false
-    def react(x: T): Unit = if (!done) {
+    def react(x: T, hint: AnyRef): Unit = if (!done) {
       val event = try {
         f(x, that())
       } catch {
@@ -296,7 +296,7 @@ object Signal {
           target.except(t)
           return
       }
-      target.react(event)
+      target.react(event, null)
     }
     def except(t: Throwable) = if (!done) {
       target.except(t)
@@ -317,7 +317,7 @@ object Signal {
     val f: (T, S) => R,
     val thisObserver: ZipThisObserver[T, S, R]
   ) extends Observer[S] {
-    def react(x: S): Unit = if (!thisObserver.done) {
+    def react(x: S, hint: AnyRef): Unit = if (!thisObserver.done) {
       val event = try {
         f(thisObserver.self(), x)
       } catch {
@@ -325,7 +325,7 @@ object Signal {
           target.except(t)
           return
       }
-      target.react(event)
+      target.react(event, null)
     }
     def except(t: Throwable) = if (!thisObserver.done) {
       target.except(t)

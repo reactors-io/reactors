@@ -27,43 +27,47 @@ package object algebra {
     final def mult(thiz: XY, v: Int) = XY(thiz.x * v, thiz.y * v)
   }
 
-  trait Monoid[@spec(Int, Long, Double) T] {
+  trait Monoid[@specialized(Int, Long, Double) T] {
     def zero: T
     def operator: (T, T) => T
   }
 
   object Monoid {
-    def apply[@spec(Int, Long, Double) T](z: T)(op: (T, T) => T) = new Monoid[T] {
-      def zero = z
-      def operator = op
-    }
+    def apply[@specialized(Int, Long, Double) T](z: T)(op: (T, T) => T) =
+      new Monoid[T] {
+        def zero = z
+        def operator = op
+      }
   }
 
-  trait Commute[@spec(Int, Long, Double) T]
+  trait Commute[@specialized(Int, Long, Double) T]
   extends Monoid[T]
 
   object Commute {
-    def apply[@spec(Int, Long, Double) T](z: T)(op: (T, T) => T) = new Commute[T] {
-      def zero = z
-      def operator = op
-    }
-    def from[@spec(Int, Long, Double) T](m: Monoid[T]) = new Commute[T] {
+    def apply[@specialized(Int, Long, Double) T](z: T)(op: (T, T) => T) =
+      new Commute[T] {
+        def zero = z
+        def operator = op
+      }
+    def from[@specialized(Int, Long, Double) T](m: Monoid[T]) = new Commute[T] {
       def zero = m.zero
       def operator = m.operator
     }
   }
 
-  trait Abelian[@spec(Int, Long, Double) T]
+  trait Abelian[@specialized(Int, Long, Double) T]
   extends Commute[T] {
     def inverse: (T, T) => T
   }
 
   object Abelian {
-    def apply[@spec(Int, Long, Double) T](z: T)(op: (T, T) => T)(inv: (T, T) => T) = new Abelian[T] {
-      def zero = z
-      def operator = op
-      def inverse = inv
-    }
+    def apply[@specialized(Int, Long, Double) T](z: T)(op: (T, T) => T)
+      (inv: (T, T) => T) =
+      new Abelian[T] {
+        def zero = z
+        def operator = op
+        def inverse = inv
+      }
   }
 
   object structure {
