@@ -38,6 +38,9 @@ class RHashMatrix[@spec(Int, Long, Double) T](
 
   init(this)
 
+  /** Returns an `RMap` view of this matrix. May result in boxing if the matrix contains
+   *  primitive values.
+   */
   def asMap: RMap[XY, T] = rawMap
 
   /** Returns the value stored at the specified coordinates, or `nil` otherwise.

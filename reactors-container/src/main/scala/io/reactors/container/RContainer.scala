@@ -198,7 +198,7 @@ object RContainer {
       target.react(count, null)
     }
     init(this)
-    def react(x: T, hint: AnyRef) = if (!done) {
+    def react(x: T, hint: Any) = if (!done) {
       if (pred(x)) {
         count += 1
         target.react(count, hint)
@@ -218,7 +218,7 @@ object RContainer {
     val insertObs: CountInsertObserver[T],
     val pred: T => Boolean
   ) extends Observer[T] {
-    def react(x: T, hint: AnyRef) = if (!insertObs.done) {
+    def react(x: T, hint: Any) = if (!insertObs.done) {
       if (pred(x)) {
         insertObs.count -= 1
         target.react(insertObs.count, hint)
@@ -254,7 +254,7 @@ object RContainer {
       target.react(count, null)
     }
     init(this)
-    def react(x: T, hint: AnyRef) = if (!done) {
+    def react(x: T, hint: Any) = if (!done) {
       count += 1
       target.react(count, hint)
     }
@@ -271,7 +271,7 @@ object RContainer {
     val target: Observer[Int],
     val insertObs: SizesInsertObserver[T]
   ) extends Observer[T] {
-    def react(x: T, hint: AnyRef) = if (!insertObs.done) {
+    def react(x: T, hint: Any) = if (!insertObs.done) {
       insertObs.count -= 1
       target.react(insertObs.count, hint)
     }
@@ -316,7 +316,7 @@ object RContainer {
       target.react(current, null)
     }
     init(target)
-    def react(x: T, hint: AnyRef): Unit = if (!done) {
+    def react(x: T, hint: Any): Unit = if (!done) {
       current = try {
         op(current, x)
       } catch {
@@ -341,7 +341,7 @@ object RContainer {
     val op: (S, T) => S,
     val inv: (S, T) => S
   ) extends Observer[T] {
-    def react(x: T, hint: AnyRef): Unit = if (!insertObs.done) {
+    def react(x: T, hint: Any): Unit = if (!insertObs.done) {
       insertObs.current = try {
         inv(insertObs.current, x)
       } catch {

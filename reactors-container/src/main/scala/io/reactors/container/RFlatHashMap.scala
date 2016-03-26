@@ -42,6 +42,9 @@ class RFlatHashMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
 
   def removes: Events[K] = removesEmitter
 
+  /** Returns an `RMap` view of this hash map. May result in boxing if the map contains
+   *  primitive values.
+   */
   def asMap: RMap[K, V] = rawMap
 
   def foreachPair(f: (K, V) => Unit) {
@@ -271,7 +274,7 @@ object RFlatHashMap {
   class FactoryInsertObserver[@spec(Int, Long, Double) K, V](
     hm: RFlatHashMap[K, V]
   ) extends Observer[K] {
-    def react(x: K, v: AnyRef) = hm.insert(x, v.asInstanceOf[V])
+    def react(x: K, v: Any) = hm.insert(x, v.asInstanceOf[V])
     def except(t: Throwable) = {}
     def unreact() = {}
   }
@@ -279,7 +282,7 @@ object RFlatHashMap {
   class FactoryRemoveObserver[@spec(Int, Long, Double) K, V](
     hm: RFlatHashMap[K, V]
   ) extends Observer[K] {
-    def react(x: K, v: AnyRef) = hm.delete(x, v.asInstanceOf[V])
+    def react(x: K, v: Any) = hm.delete(x, v.asInstanceOf[V])
     def except(t: Throwable) = {}
     def unreact() = {}
   }

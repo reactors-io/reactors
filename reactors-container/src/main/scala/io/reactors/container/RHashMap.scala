@@ -424,7 +424,7 @@ object RHashMap {
   class FactoryInsertObserver[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
     hm: RHashMap[K, V]
   ) extends Observer[K] {
-    def react(x: K, v: AnyRef) = hm.insert(x, v.asInstanceOf[V])
+    def react(x: K, v: Any) = hm.insert(x, v.asInstanceOf[V])
     def except(t: Throwable) = {}
     def unreact() = {}
   }
@@ -432,7 +432,7 @@ object RHashMap {
   class FactoryRemoveObserver[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
     hm: RHashMap[K, V]
   ) extends Observer[K] {
-    def react(x: K, v: AnyRef) = hm.delete(x, v.asInstanceOf[V])
+    def react(x: K, v: Any) = hm.delete(x, v.asInstanceOf[V])
     def except(t: Throwable) = {}
     def unreact() = {}
   }

@@ -37,7 +37,7 @@ class SignalCatamorph[@spec(Int, Long, Double) T](
   def +=(s: Signal[T]): Boolean = {
     if (catamorph += s) {
       signalSubscriptions(s) = s.onReaction(new Observer[T] {
-        def react(v: T, hint: AnyRef) {
+        def react(v: T, hint: Any) {
           catamorph.push(s)
           defaultSignal.reactAll(catamorph.signal(), null)
         }
