@@ -86,7 +86,7 @@ class RHashMatrix[@spec(Int, Long, Double) T](
     if (removesEmitter.hasSubscriptions)
       removesEmitter.react(XY(x, y), null)
     if (pairRemovesEmitter.hasSubscriptions)
-      pairInsertsEmitter.react(XY(x, y), v.asInstanceOf[AnyRef])
+      pairRemovesEmitter.react(XY(x, y), v.asInstanceOf[AnyRef])
   }
 
   /** Sets the value at the specified coordinates to `nil`.
