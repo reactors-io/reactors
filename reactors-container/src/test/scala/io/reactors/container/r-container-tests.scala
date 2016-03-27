@@ -350,7 +350,7 @@ class RContainerCheck extends Properties("RContainer") with ExtendedProperties {
     }
   }
 
-  property("collectHint") = forAllNoShrink(sizes) { sz =>
+  property("collectValue") = forAllNoShrink(sizes) { sz =>
     stackTraced {
       val table = new RHashMap[Int, String]
       val longStrings = table.collectValue {

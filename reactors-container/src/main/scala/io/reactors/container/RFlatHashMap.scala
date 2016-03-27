@@ -268,6 +268,11 @@ object RFlatHashMap {
         )
         hm
       }
+      def apply(f: RFlatHashMap[K, V] => Subscription): RFlatHashMap[K, V] = {
+        val hm = new RFlatHashMap[K, V]
+        hm.subscription = f(hm)
+        hm
+      }
     }
   }
 

@@ -418,6 +418,11 @@ object RHashMap {
         )
         hm
       }
+      def apply(f: RHashMap[K, V] => Subscription): RHashMap[K, V] = {
+        val hm = new RHashMap[K, V]
+        hm.subscription = f(hm)
+        hm
+      }
     }
   }
 

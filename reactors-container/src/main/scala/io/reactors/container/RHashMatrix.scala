@@ -145,6 +145,11 @@ object RHashMatrix {
         )
         hm
       }
+      def apply(f: RHashMatrix[T] => Subscription): RHashMatrix[T] = {
+        val hm = new RHashMatrix[T]
+        hm.subscription = f(hm)
+        hm
+      }
     }
   }
 
