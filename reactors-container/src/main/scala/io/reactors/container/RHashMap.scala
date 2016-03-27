@@ -154,10 +154,8 @@ class RHashMap[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
     if (previousValue == null) elemCount += 1
     else needRemoveEvent = true
     
-    {
-      emitInserts(k, v)
-      if (needRemoveEvent) emitRemoves(k, previousValue)
-    }
+    emitInserts(k, v)
+    if (needRemoveEvent) emitRemoves(k, previousValue)
     
     entry.propagate()
 
