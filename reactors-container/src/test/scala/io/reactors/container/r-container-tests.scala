@@ -350,21 +350,6 @@ class RContainerCheck extends Properties("RContainer") with ExtendedProperties {
     }
   }
 
-  property("collectValue") = forAllNoShrink(sizes) { sz =>
-    stackTraced {
-      val table = new RHashMap[Int, String]
-      val longStrings = table.collectValue {
-        case s if s.length > 2 => s
-      }.toMap[RHashMap[Int, String]]
-      val seen = mutable.Set[Int]()
-      longStrings.inserts.onEvent(seen += _)
-      for (i <- 0 until sz) table(i) = i.toString
-      assert(seen == (100 until sz).toSet)
-      seen.clear()
-      for (k <- longStrings) seen += k
-      seen == (100 until sz).toSet
-    }
-  }
 
   property("be eagerly evaluated") = forAllNoShrink(sizes) { sz =>
     stackTraced {

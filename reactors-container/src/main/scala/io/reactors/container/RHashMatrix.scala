@@ -3,7 +3,7 @@ package container
 
 
 
-import io.reactors.algebra.XY
+import io.reactors.algebra._
 import io.reactors.common.HashMatrix
 import scala.collection._
 import scala.reflect.ClassTag
@@ -54,6 +54,10 @@ class RHashMatrix[@spec(Int, Long, Double) T](
   /** Update the value at the specified coordinates.
    */
   def update(x: Int, y: Int, v: T): Unit = set(x, y, v)
+
+  /** Update the value at the specified coordinates.
+   */
+  def update(xy: XY, v: T): Unit = set(xy.x, xy.y, v)
 
   /** Updates the value at the specified coordinates, and returns the previous value.
    */
@@ -134,14 +138,13 @@ class RHashMatrix[@spec(Int, Long, Double) T](
 object RHashMatrix {
   implicit def factory[@spec(Int, Long, Double) T](
     implicit a: Arrayable[T]
-  ): RContainer.Factory[(Int, Int, T), RHashMatrix[T]] = {
-    new RContainer.Factory[(Int, Int, T), RHashMatrix[T]] {
-      def apply(inserts: Events[(Int, Int, T)], removes: Events[(Int, Int, T)]):
-        RHashMatrix[T] = {
+  ): RMap.Factory[XY, T, RHashMatrix[T]] = {
+    new RMap.Factory[XY, T, RHashMatrix[T]] {
+      def apply(inserts: Events[XY], removes: Events[XY]): RHashMatrix[T] = {
         val hm = new RHashMatrix[T]
         hm.subscription = new Subscription.Composite(
-          inserts.onEvent({ case (x, y, v) => hm.update(x, y, v) }),
-          removes.onEvent({ case (x, y, v) => hm.remove(x, y) })
+          inserts.onReaction(new FactoryInsertObserver(hm)),
+          removes.onReaction(new FactoryRemoveObserver(hm))
         )
         hm
       }
@@ -153,7 +156,23 @@ object RHashMatrix {
     }
   }
 
-  class AsMap[T](
+  private[reactors] class FactoryInsertObserver[@spec(Int, Long, Double) T](
+    hm: RHashMatrix[T]
+  ) extends Observer[XY] {
+    def react(xy: XY, v: Any) = hm.update(xy, v.asInstanceOf[T])
+    def except(t: Throwable) = {}
+    def unreact() = {}
+  }
+
+  private[reactors] class FactoryRemoveObserver[@spec(Int, Long, Double) T](
+    hm: RHashMatrix[T]
+  ) extends Observer[XY] {
+    def react(xy: XY, v: Any) = hm.remove(xy.x, xy.y)
+    def except(t: Throwable) = {}
+    def unreact() = {}
+  }
+
+  private[reactors] class AsMap[T](
     val self: RHashMatrix[T]
   ) extends RMap[XY, T] {
     def apply(xy: XY): T = self.apply(XY.xOf(xy), XY.yOf(xy))
