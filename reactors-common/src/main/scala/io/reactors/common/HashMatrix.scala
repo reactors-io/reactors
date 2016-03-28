@@ -13,7 +13,7 @@ class HashMatrix[@specialized(Int, Long, Double) T](
   private[reactors] val initialSize: Int = 32
 )(
   implicit val arrayable: Arrayable[T]
-) {
+) extends Matrix[T] {
   private[reactors] var blocks = new Array[HashMatrix.Block[T]](initialSize)
   private[reactors] var numBlocks = 0
 
@@ -245,14 +245,14 @@ class HashMatrix[@specialized(Int, Long, Double) T](
     }
   }
 
-  def area(gxf: Int, gyf: Int, gxu: Int, gyu: Int): HashMatrix.Area[T] =
+  def area(gxf: Int, gyf: Int, gxu: Int, gyu: Int): Matrix.Area[T] =
     new HashMatrix.Area[T](this, gxf, gyf, gxu, gyu, true)
 
-  def nonNilArea(gxf: Int, gyf: Int, gxu: Int, gyu: Int): HashMatrix.Area[T] =
+  def nonNilArea(gxf: Int, gyf: Int, gxu: Int, gyu: Int): Matrix.Area[T] =
     new HashMatrix.Area[T](this, gxf, gyf, gxu, gyu, false)
 
   private[reactors] def foreachIn(
-    gxf: Int, gyf: Int, gxu: Int, gyu: Int, includeNil: Boolean, a: HashMatrix.Action[T]
+    gxf: Int, gyf: Int, gxu: Int, gyu: Int, includeNil: Boolean, a: Matrix.Action[T]
   ): Unit = {
     val minLength = math.max(0, gxu - gxf) * math.max(0, gyu - gyf)
     val width = gxu - gxf
@@ -334,15 +334,12 @@ class HashMatrix[@specialized(Int, Long, Double) T](
 object HashMatrix {
   val LOAD_FACTOR = 0.25
 
-  trait Action[@specialized(Int, Long, Double) T] {
-    def apply(x: Int, y: Int, v: T): Unit
-  }
-
-  class Area[@specialized(Int, Long, Double) T](
+  private[reactors] class Area[@specialized(Int, Long, Double) T](
     val self: HashMatrix[T], val gxf: Int, val gyf: Int, val gxu: Int, val gyu: Int,
     val includeNil: Boolean
-  ) {
-    def foreach(a: Action[T]): Unit = self.foreachIn(gxf, gyf, gxu, gyu, includeNil, a)
+  ) extends Matrix.Area[T] {
+    def foreach(a: Matrix.Action[T]): Unit =
+      self.foreachIn(gxf, gyf, gxu, gyu, includeNil, a)
   }
 
   class Block[@specialized(Int, Long, Double) T](

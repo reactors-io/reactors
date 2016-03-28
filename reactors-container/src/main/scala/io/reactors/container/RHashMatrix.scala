@@ -109,12 +109,12 @@ class RHashMatrix[@spec(Int, Long, Double) T](
 
   /** Returns a view used to traverse all elements in a rectangle.
    */
-  def area(gxf: Int, gyf: Int, gxu: Int, gyu: Int): HashMatrix.Area[T] =
+  def area(gxf: Int, gyf: Int, gxu: Int, gyu: Int): Matrix.Area[T] =
     matrix.area(gxf, gyf, gxu, gyu)
 
   /** Returns a view used to traverse non-`nil` elements in a rectangle.
    */
-  def nonNilArea(gxf: Int, gyf: Int, gxu: Int, gyu: Int): HashMatrix.Area[T] =
+  def nonNilArea(gxf: Int, gyf: Int, gxu: Int, gyu: Int): Matrix.Area[T] =
     matrix.nonNilArea(gxf, gyf, gxu, gyu)
 
   /** Returns the default, `nil` value for this matrix.
