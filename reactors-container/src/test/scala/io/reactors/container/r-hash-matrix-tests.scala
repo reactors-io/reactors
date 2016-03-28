@@ -9,7 +9,7 @@ import org.scalacheck.Gen._
 import org.scalacheck.Prop._
 import org.scalatest._
 import io.reactors.test._
-import io.reactors.common.HashMatrix
+import io.reactors.common.Matrix
 import scala.collection._
 
 
@@ -111,7 +111,7 @@ class RHashMatrixCheck extends Properties("RHashMatrix") with ExtendedProperties
     expected: Seq[Long]): Boolean = {
     val sz = math.max(0, end - start)
     val array = new Array[Long](sz * sz)
-    matrix.area(start, start, end, end).foreach(new HashMatrix.Action[Long] {
+    matrix.area(start, start, end, end).foreach(new Matrix.Action[Long] {
       def apply(x: Int, y: Int, v: Long) = array((y - start) * sz + (x - start)) = v
     })
     expected == array.toList
@@ -128,7 +128,7 @@ class RHashMatrixCheck extends Properties("RHashMatrix") with ExtendedProperties
           else Long.MinValue
         }
         val seen = mutable.Buffer[Long]()
-        matrix.nonNilArea(start, start, end, end).foreach(new HashMatrix.Action[Long] {
+        matrix.nonNilArea(start, start, end, end).foreach(new Matrix.Action[Long] {
           def apply(x: Int, y: Int, v: Long) = seen += v
         })
         assert(!seen.contains(Long.MinValue))
