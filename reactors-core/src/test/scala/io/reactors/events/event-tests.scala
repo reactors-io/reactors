@@ -1017,8 +1017,13 @@ class RCellSpec extends FunSuite with Matchers {
     val s = e.map {
       _ + 4
     }
+    var i = 0
     val a = s.onEvent { case x =>
-      assert(x == 7)
+      i match {
+        case 0 => assert(x == 4)
+        case 1 => assert(x == 7)
+      }
+      i += 1
     }
 
     e := 3
@@ -1035,11 +1040,11 @@ class RCellSpec extends FunSuite with Matchers {
     val sub = c.onEvent(buffer += _)
 
     for (i <- 110 until 210) e := i
-    assert(buffer == (1 to 100))
+    assert(buffer == (1 to 101))
   }
 
   test("emit once") {
-    val e = RCell(0)
+    val e = RCell(-1)
     val s = e.once
     val check = mutable.Buffer[Int]()
     val adds = s.onEvent(check += _)
@@ -1048,12 +1053,12 @@ class RCellSpec extends FunSuite with Matchers {
     e := 2
     e := 3
 
-    assert(check == Seq(1))
+    assert(check == Seq(-1))
   }
 
   test("not propagate exceptions after it emitted once") {
     val e = RCell(0)
-    val s = e.once
+    val s = e.dropWhile(_ == 0).once
     var exceptions = 0
     val h = s.onExcept { case _ => exceptions += 1 }
 
@@ -1068,7 +1073,7 @@ class RCellSpec extends FunSuite with Matchers {
 
   test("be scanned past") {
     val cell = RCell(0)
-    val s = cell.scanPast(List[Int]()) { (acc, x) =>
+    val s = cell.dropWhile(_ == 0).scanPast(List[Int]()) { (acc, x) =>
       x :: acc
     }
     val a = s onEvent { case xs =>
@@ -1090,7 +1095,9 @@ class RCellSpec extends FunSuite with Matchers {
     val e = RCell(0)
     val start = RCell(false)
     val buffer = mutable.Buffer[Int]()
-    val s = (e after start) onEvent { case x => buffer += x }
+    val s = (e.drop(1) after start.tail) onEvent {
+      case x => buffer += x
+    }
 
     e := 1
     e := 2
@@ -1165,7 +1172,7 @@ class RCellSpec extends FunSuite with Matchers {
     val e = RCell(0)
     val end = RCell(false)
     val buffer = mutable.Buffer[Int]()
-    val s = (e until end) onEvent { x => buffer += x }
+    val s = (e.tail until end.tail) onEvent { x => buffer += x }
 
     e := 1
     e := 2
@@ -1180,7 +1187,7 @@ class RCellSpec extends FunSuite with Matchers {
     val xs = RCell(0)
     val ys = RCell(0)
     val buffer = mutable.Buffer[Int]()
-    val s = (xs union ys) onEvent { case x => buffer += x }
+    val s = (xs.tail union ys.tail) onEvent { case x => buffer += x }
 
     xs := 1
     ys := 11
@@ -1295,7 +1302,7 @@ class RCellSpec extends FunSuite with Matchers {
     val e4 = new Events.Emitter[Int]
     val closeE4 = new Events.Emitter[Unit]
     val buffer = mutable.Buffer[Int]()
-    val s = cell.union onEvent { case x => buffer += x }
+    val s = cell.tail.union onEvent { case x => buffer += x }
 
     e1 react -1
     e2 react -2
@@ -1335,7 +1342,7 @@ class RCellSpec extends FunSuite with Matchers {
     val closeE3 = new Events.Emitter[Unit]
     val e4 = new Events.Emitter[Int]
     val buffer = mutable.Buffer[Int]()
-    val s = cell.concat onEvent { x => buffer += x }
+    val s = cell.tail.concat onEvent { x => buffer += x }
 
     e1 react -1
     e2 react -2

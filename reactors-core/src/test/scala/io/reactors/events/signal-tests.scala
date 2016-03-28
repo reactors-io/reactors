@@ -139,7 +139,7 @@ class SignalSpec extends FunSuite {
     val s = rt.x.map {
       _ + 1
     }
-    val a = s onEvent { case x =>
+    val a = s.tail onEvent { case x =>
       assert(x == 2)
     }
 
@@ -150,7 +150,7 @@ class SignalSpec extends FunSuite {
     val cell = RCell(1)
     val diff = cell.diffPast(_ - _)
     var total = 0
-    val a = diff onEvent { case d =>
+    val a = diff.tail onEvent { case d =>
       total += 2
       assert(d == 2)
     }
