@@ -778,7 +778,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  @param init      an initial value for the signal
    *  @return          the signal version of the current event stream
    */
-  def toEmptySignal: Signal[T] =
+  def toEmpty: Signal[T] =
     new Events.ToSignal(this, false, null.asInstanceOf[T])
 
   /** Given an initial event `init`, converts this event stream into a `Signal`.
@@ -816,7 +816,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  on subscription. Otherwise, this method throws a `NoSuchElementException`.
    */
   def get: T = {
-    val sig = this.once.toEmptySignal
+    val sig = this.once.toEmpty
     sig.unsubscribe()
     sig()
   }

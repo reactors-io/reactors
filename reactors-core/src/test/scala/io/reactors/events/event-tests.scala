@@ -286,9 +286,9 @@ class EventsSpec extends FunSuite {
     assert(buffer == Seq(15))
   }
 
-  test("toEmptySignal") {
+  test("toEmpty") {
     val emitter = new Events.Emitter[Int]
-    val signal = emitter.toEmptySignal
+    val signal = emitter.toEmpty
 
     intercept[NoSuchElementException] {
       signal()

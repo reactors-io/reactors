@@ -37,11 +37,11 @@ class RHashMapCheck extends Properties("RHashMap") with ExtendedProperties {
     stackTraced {
       val table = new RHashMap[Int, String]
       for (i <- 0 until many) table(i) = i.toString
-      val signals = for (i <- 0 until many) yield table.at(i).toEmptySignal
+      val signals = for (i <- 0 until many) yield table.at(i).toEmpty
       for (i <- 0 until sz) table(i) = s"value$i"
       for (i <- 0 until many)
         assert(i >= sz || signals(i)() == s"value$i", signals(i)())
-      val moresignals = for (i <- many until sz) yield table.at(i).toEmptySignal
+      val moresignals = for (i <- many until sz) yield table.at(i).toEmpty
       for (i <- many until sz) assert(moresignals(i - many)() == s"value$i")
       true
     }
@@ -128,7 +128,7 @@ class RHashMapSpec extends FlatSpec with Matchers {
     val many = 512
     val table = new RHashMap[Int, String]
     for (i <- 0 until many) table(i) = i.toString
-    val atSpecificKey = table.at(128).toEmptySignal
+    val atSpecificKey = table.at(128).toEmpty
 
     table(128) = "new value"
     atSpecificKey() should equal ("new value")
