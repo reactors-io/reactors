@@ -493,7 +493,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  }}}
    *
    *  @param p          the predicate that specifies whether to take the element
-   *  @return           a subscription and event stream value with the forwarded events
+   *  @return           event stream with the forwarded events
    */
   def takeWhile(p: T => Boolean): Events[T] = new Events.TakeWhile(this, p)
 
@@ -513,9 +513,22 @@ trait Events[@spec(Int, Long, Double) T] {
    *  }}}
    *
    *  @param p          the predicate that specifies whether to take the element
-   *  @return           event stream value with the forwarded events
+   *  @return           event stream with the forwarded events
    */
   def dropWhile(p: T => Boolean): Events[T] = new Events.DropWhile(this, p)
+
+  /** Drops `n` events from this event stream, and emits the rest.
+   *
+   *  @param n          number of events to drop
+   *  @return           event stream with the forwarded events
+   */
+  def drop(n: Int): Events[T] = new Events.Drop(this, n)
+
+  /** Emits all the events from this even stream except the first one.
+   *
+   *  @return           event stream with the forwarded events
+   */
+  def tail: Events[T] = drop(1)
 
   /** Returns events from the last event stream that `this` emitted as an
    *  event of its own, in effect multiplexing the nested reactives.
@@ -1834,6 +1847,26 @@ object Events {
     def react(value: T, hint: Any) = {
       if (!started && !p(value)) started = true
       if (started) target.react(value, hint)
+    }
+    def except(t: Throwable) = target.except(t)
+    def unreact() = target.unreact()
+  }
+
+  private[reactors] class Drop[@spec(Int, Long, Double) T](
+    val self: Events[T],
+    val n: Int
+  ) extends Events[T] {
+    def onReaction(observer: Observer[T]): Subscription =
+      self.onReaction(new DropObserver(observer, n))
+  }
+
+  private[reactors] class DropObserver[@spec(Int, Long, Double) T](
+    val target: Observer[T],
+    var n: Int
+  ) extends Observer[T] {
+    def react(value: T, hint: Any) = {
+      if (n <= 0) target.react(value, hint)
+      else n -= 1
     }
     def except(t: Throwable) = target.except(t)
     def unreact() = target.unreact()
