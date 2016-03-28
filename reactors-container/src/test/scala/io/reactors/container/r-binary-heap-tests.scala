@@ -1,4 +1,4 @@
-package scala.reactive
+package io.reactors
 package container
 
 
@@ -20,19 +20,19 @@ class RBinaryHeapCheck extends Properties("RBinaryHeap") with ExtendedProperties
     stackTraced {
       val q = new RBinaryHeap[Int]
       val buffer = mutable.Buffer[Int]()
-      val heads = q.react.head.foreach(buffer += _)
+      val heads = q.head.tail.onEvent(buffer += _)
 
       for (i <- (0 until size).reverse) q.enqueue(i)
 
       for (i <- 0 until size) {
         assert(q.dequeue() == i)
         if (i < (size - 1)) {
-          assert(q.head == i + 1)
+          assert(q.head() == i + 1)
         }
       }
 
       s"buffer contents ok: $buffer" |:
-        buffer == ((0 until size).reverse ++ (1 until size))
+        buffer == ((0 until size).reverse ++ (1 until size) ++ Seq(q.nil))
     }
   }
 
