@@ -14,10 +14,8 @@ import scala.reflect.ClassTag
  *  @tparam T         the type of the values it stores
  *  @param value      the initial value of the reactive cell
  */
-class RCell[@spec(Int, Long, Double) T] private (
-  private var value: T,
-  private var full: Boolean
-) extends Signal[T] {
+class RCell[@spec(Int, Long, Double) T](private var value: T)
+extends Signal[T] {
   private var pushSource: Events.PushSource[T] = _
 
   private[reactors] def init(dummy: RCell[T]) {
@@ -26,24 +24,12 @@ class RCell[@spec(Int, Long, Double) T] private (
 
   init(this)
 
-  def this(v: T) = this(v, true)
-
   /** Returns the current value in the reactive cell.
    */
-  def apply(): T = {
-    if (isEmpty) throw new NoSuchElementException("empty")
-    else value
-  }
+  def apply(): T = value
 
-  /** Clears the cell, making it empty.
-   */
-  def clear() {
-    value = null.asInstanceOf[T]
-    full = false
-  }
-
-  /** Returns `true` if cell contains no value. */
-  def isEmpty = !full
+  /** Returns `false`. */
+  def isEmpty = false
 
   /** Does nothing. */
   def unsubscribe() {}
@@ -55,7 +41,6 @@ class RCell[@spec(Int, Long, Double) T] private (
    */
   def :=(v: T): Unit = {
     value = v
-    full = true
     pushSource.reactAll(v, null)
   }
 
