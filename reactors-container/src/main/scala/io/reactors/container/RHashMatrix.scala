@@ -5,6 +5,7 @@ package container
 
 import io.reactors.algebra._
 import io.reactors.common.HashMatrix
+import io.reactors.common.Matrix
 import scala.collection._
 import scala.reflect.ClassTag
 
@@ -16,7 +17,7 @@ import scala.reflect.ClassTag
  */
 class RHashMatrix[@spec(Int, Long, Double) T](
   implicit val arrayable: Arrayable[T]
-) extends RContainer[XY] {
+) extends RContainer[XY] with Matrix[T] {
   private[reactors] var rawSize = 0
   private[reactors] var matrix: HashMatrix[T] = null
   private[reactors] var insertsEmitter: Events.Emitter[XY] = null
