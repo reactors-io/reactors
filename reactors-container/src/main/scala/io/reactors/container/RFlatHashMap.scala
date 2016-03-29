@@ -292,8 +292,9 @@ object RFlatHashMap {
     def unreact() = {}
   }
 
-  class AsMap[@spec(Int, Long, Double) K, V](val self: RFlatHashMap[K, V])
-  extends RMap[K, V] {
+  class AsMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
+    val self: RFlatHashMap[K, V]
+  ) extends RMap[K, V] {
     def apply(k: K) = self.apply(k)
     def inserts = self.pairInsertsEmitter
     def removes = self.pairRemovesEmitter

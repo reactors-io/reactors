@@ -173,7 +173,7 @@ object RHashMatrix {
     def unreact() = {}
   }
 
-  private[reactors] class AsMap[T](
+  private[reactors] class AsMap[@spec(Int, Long, Double) T](
     val self: RHashMatrix[T]
   ) extends RMap[XY, T] {
     def apply(xy: XY): T = self.apply(XY.xOf(xy), XY.yOf(xy))
