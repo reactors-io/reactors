@@ -868,7 +868,7 @@ object Events {
    *
    *  @tparam T       type of the events in this event stream value
    */
-  private[reactors] trait Push[@spec(Int, Long, Double) T] extends Events[T] {
+  trait Push[@spec(Int, Long, Double) T] extends Events[T] {
     private[reactors] var demux: AnyRef = null
     private[reactors] var eventsUnreacted: Boolean = false
     def onReaction(observer: Observer[T]): Subscription = {
