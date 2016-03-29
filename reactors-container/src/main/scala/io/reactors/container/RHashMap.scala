@@ -404,6 +404,21 @@ object RHashMap {
 
   val loadFactor = 750
 
+  implicit def containerFactory[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
+    implicit a: Arrayable[K], hash: Hash[K], spec: Spec[K]
+  ) = {
+    new RContainer.Factory[(K, V), RHashMap[K, V]] {
+      def apply(inserts: Events[(K, V)], removes: Events[(K, V)]): RHashMap[K, V] = {
+        val hm = new RHashMap[K, V]
+        hm.subscription = new Subscription.Composite(
+          inserts.onEvent(hm += _),
+          removes.onEvent(hm -= _)
+        )
+        hm
+      }
+    }
+  }
+
   implicit def factory[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
     implicit a: Arrayable[K], hash: Hash[K], spec: Spec[K]
   ) = {
