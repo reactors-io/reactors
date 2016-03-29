@@ -15,7 +15,7 @@ import scala.reflect.ClassTag
  *  @param value      the initial value of the reactive cell
  */
 class RCell[@spec(Int, Long, Double) T](private var value: T)
-extends Signal[T] {
+extends Signal[T] with Observer[T] {
   private var pushSource: Events.PushSource[T] = _
 
   private[reactors] def init(dummy: RCell[T]) {
@@ -47,9 +47,15 @@ extends Signal[T] {
   /** Same as `:=`. */
   def react(x: T) = this := x
 
+  def react(x: T, hint: Any) = react(x)
+
   /** Propagates the exception to all the reactors.
    */
   def except(t: Throwable) = pushSource.exceptAll(t)
+
+  /** Does nothing -- a cell never unreacts.
+   */
+  def unreact() {}
 
   def onReaction(obs: Observer[T]): Subscription = {
     obs.react(value, null)
