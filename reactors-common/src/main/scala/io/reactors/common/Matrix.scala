@@ -20,6 +20,7 @@ object Matrix {
     def copy(a: Array[T], gxf: Int, gyf: Int, gxu: Int, gyu: Int): Unit
     def area(gxf: Int, gyf: Int, gxu: Int, gyu: Int): Matrix.Area[T]
     def nonNilArea(gxf: Int, gyf: Int, gxu: Int, gyu: Int): Matrix.Area[T]
+    def foreach(f: XY => Unit): Unit
   }
 
   trait Action[@specialized(Int, Long, Double) T] {

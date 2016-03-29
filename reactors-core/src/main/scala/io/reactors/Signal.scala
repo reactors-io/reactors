@@ -145,6 +145,15 @@ object Signal {
     }
   }
 
+  /** Signal containing a mutable value.
+   *
+   *  Value can be accessed with the `apply` method.
+   *  To modify the content, clients must use the `mutate` method on event streams.
+   */
+  class Mutable[M >: Null <: AnyRef](c: M) extends Events.Mutable[M](c) {
+    def apply(): M = content
+  }
+
   /** A signal that is the aggregation of the values of other `signals`.
    *
    *  At any point during execution this signal will contain
