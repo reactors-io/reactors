@@ -915,7 +915,7 @@ object Events {
           wht.invalidateEntry(r)
       }
     }
-    private[reactors] def reactAll(value: T, hint: Any) {
+    protected[reactors] def reactAll(value: T, hint: Any) {
       demux match {
         case null =>
           // no need to inform anybody
@@ -929,7 +929,7 @@ object Events {
           tableReactAll(wht, value, hint)
       }
     }
-    private[reactors] def exceptAll(t: Throwable) {
+    protected[reactors] def exceptAll(t: Throwable) {
       demux match {
         case null =>
           // no need to inform anybody
@@ -943,7 +943,7 @@ object Events {
           tableExceptAll(wht, t)
       }
     }
-    private[reactors] def unreactAll() {
+    protected[reactors] def unreactAll() {
       eventsUnreacted = true
       demux match {
         case null =>
