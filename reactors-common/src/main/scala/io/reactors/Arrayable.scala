@@ -45,7 +45,7 @@ trait Arrayable[@specialized(Byte, Short, Int, Float, Long, Double) T] {
 
   /** Returns a new arrayable with an alternative nil.
    */
-  def withNil(n: T) = new Arrayable.WithNil(this, n)
+  def withNil(n: T) = new Arrayable.WithNil(this, classTag, n)
 }
 
 
@@ -70,9 +70,9 @@ object Arrayable extends LowPriorityArrayableImplicits {
 
   class WithNil[@specialized(Byte, Short, Int, Float, Long, Double) T](
     val arrayable: Arrayable[T],
+    val classTag: ClassTag[T],
     val nil: T
   ) extends Arrayable[T] {
-    val classTag = arrayable.classTag
     def newArray(sz: Int) = {
       val a = arrayable.newRawArray(sz)
       var i = 0
