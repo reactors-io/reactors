@@ -17,24 +17,24 @@ import scala.reflect.ClassTag
  */
 class RHashMatrix[@spec(Int, Long, Double) T](
   implicit val arrayable: Arrayable[T]
-) extends RContainer[XY] with Matrix[T] {
+) extends Matrix[T] {
   private[reactors] var rawSize = 0
   private[reactors] var matrix: HashMatrix[T] = null
   private[reactors] var insertsEmitter: Events.Emitter[XY] = null
   private[reactors] var removesEmitter: Events.Emitter[XY] = null
   private[reactors] var pairInsertsEmitter: Events.Emitter[XY] = null
   private[reactors] var pairRemovesEmitter: Events.Emitter[XY] = null
-  private[reactors] var rawMap: RHashMatrix.AsMap[T] = null
   private[reactors] var subscription: Subscription = null
+  private[reactors] var rawMap: RHashMatrix.AsMap[T] = null
 
-  protected def init(self: RHashMatrix[T]) {
+  private[reactors] def init(self: RHashMatrix[T]) {
     matrix = new HashMatrix[T]
     insertsEmitter = new Events.Emitter[XY]
     removesEmitter = new Events.Emitter[XY]
     pairInsertsEmitter = new Events.Emitter[XY]
     pairRemovesEmitter = new Events.Emitter[XY]
     subscription = Subscription.empty
-    rawMap = new RHashMatrix.AsMap(this)
+    rawMap = new RHashMatrix.AsMap[T](this)
   }
 
   init(this)
@@ -173,7 +173,7 @@ object RHashMatrix {
     def unreact() = {}
   }
 
-  private[reactors] class AsMap[@spec(Int, Long, Double) T](
+  private[reactors] class AsMap[T](
     val self: RHashMatrix[T]
   ) extends RMap[XY, T] {
     def apply(xy: XY): T = self.apply(XY.xOf(xy), XY.yOf(xy))
