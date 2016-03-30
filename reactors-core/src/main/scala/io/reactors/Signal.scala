@@ -140,6 +140,7 @@ object Signal {
     def isEmpty = false
     def unsubscribe() = {}
     def onReaction(obs: Observer[T]) = {
+      obs.react(value, null)
       obs.unreact()
       Subscription.empty
     }

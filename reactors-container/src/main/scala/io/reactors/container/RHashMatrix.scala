@@ -66,7 +66,7 @@ class RHashMatrix[@spec(Int, Long, Double) T](
     val prev = matrix.applyAndUpdate(x, y, v)
 
     if (prev != nil) {
-      notifyRemove(x, y, v)
+      notifyRemove(x, y, prev)
       rawSize -= 1
     }
     if (v != nil) {

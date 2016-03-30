@@ -8,8 +8,9 @@ import org.scalacheck._
 import org.scalacheck.Gen._
 import org.scalacheck.Prop._
 import org.scalatest._
-import io.reactors.test._
+import io.reactors.algebra._
 import io.reactors.common.Matrix
+import io.reactors.test._
 import scala.collection._
 
 
@@ -54,6 +55,15 @@ class RHashMatrixCheck extends Properties("RHashMatrix") with ExtendedProperties
       for (x <- sz / 2 until sz; y <- sz / 2 until sz)
         assert(matrix(x, y) == Long.MinValue)
       assert(matrix.size == 0, s"size = ${matrix.size}")
+      true
+    }
+  }
+
+  property("traverse all elements") = forAllNoShrink(sizes) { sz =>
+    stackTraced {
+      val matrix = new RHashMatrix[Long]
+      for (x <- 0 until sz; y <- 0 until sz) matrix(x, y) = x * y
+      for (xy <- matrix) assert(matrix(xy.x, xy.y) == xy.x * xy.y)
       true
     }
   }

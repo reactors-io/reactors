@@ -109,8 +109,9 @@ object CommuteCatamorph {
     def localString: String
   }
 
-  class Inner[@spec(Int, Long, Double) T](var height: Int, var left: Node[T], var right: Node[T], var parent: Inner[T])
-  extends Node[T] {
+  class Inner[@spec(Int, Long, Double) T](
+    var height: Int, var left: Node[T], var right: Node[T], var parent: Inner[T]
+  ) extends Node[T] {
     private var v: T = _
     def value: T = v
     def value_=(v: T) = this.v = v
@@ -135,8 +136,8 @@ object CommuteCatamorph {
       this
     }
     def fix(op: (T, T) => T): Node[T] = {
-      // check if both children are non-null
-      // note that both can never be null
+      // Check if both children are non-null.
+      // Note that both can never be null.
       def isLeft = parent.left eq this
       val result = if (left == null) {
         if (parent == null) {
@@ -159,28 +160,30 @@ object CommuteCatamorph {
           parent.fix(op)
         }
       } else {
-        // check if unbalanced
+        // Check if unbalanced.
         val lheight = left.height
         val rheight = right.height
         val diff = lheight - rheight
         
-        // see if rebalancing is necessary
+        // See if rebalancing is necessary.
         if (diff > 1) {
-          // note that this means left is inner
+          // Note that this means left is inner.
           val leftInner = left.asInstanceOf[Inner[T]]
           if (leftInner.left.height > leftInner.right.height) {
-            // new left is the bigger left grandchild
+            // New left is the bigger left grandchild.
             val nleft = leftInner.left
             nleft.parent = this
-            // new right is an inner node above the right child and the smaller left grandchild
-            val nright = new Inner(heightOf(leftInner.right, right), leftInner.right, right, this)
+            // New right is an inner node above the right child
+            // and the smaller left grandchild.
+            val nright =
+              new Inner(heightOf(leftInner.right, right), leftInner.right, right, this)
             nright.left.parent = nright
             nright.right.parent = nright
-            // and we update the children
+            // And we update the children.
             left = nleft
             right = nright
           } else {
-            // everything mirrored
+            // Everything mirrored.
             val nleft = leftInner.right
             nleft.parent = this
             val nright = new Inner(heightOf(leftInner.left, right), leftInner.left, right, this)
@@ -190,7 +193,7 @@ object CommuteCatamorph {
             right = nright
           }
         } else if (diff < -1) {
-          // note that this means right is inner -- everything mirrored
+          // Note that this means right is inner -- everything mirrored.
           val rightInner = right.asInstanceOf[Inner[T]]
           if (rightInner.left.height > rightInner.right.height) {
             val nright = rightInner.left
@@ -240,7 +243,7 @@ object CommuteCatamorph {
     }
     def remove(zero: T, op: (T, T) => T): Node[T] = {
       if (parent == null) {
-        // the only value left
+        // The only value left.
         new Empty(zero)
       } else {
         def isLeft = parent.left eq this

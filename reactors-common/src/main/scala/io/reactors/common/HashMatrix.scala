@@ -43,14 +43,14 @@ class HashMatrix[@specialized(Int, Long, Double) T](
     while (i < blocks.size) {
       var curr = blocks(i)
       while (curr != null) {
-        val x0 = curr.x * 32
-        val y0 = curr.y * 32
+        val x0 = curr.x * 32 - (1 << 30)
+        val y0 = curr.y * 32 - (1 << 30)
         var k = 0
         while (k < curr.array.length) {
           val v = curr.array(k)
           if (v != nil) {
-            val x = x0 * 32 + (k % 32)
-            val y = y0 * 32 + (k / 32)
+            val x = x0 + (k % 32)
+            val y = y0 + (k / 32)
             f(XY(x, y))
           }
           k += 1
