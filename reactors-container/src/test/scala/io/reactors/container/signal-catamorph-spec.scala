@@ -93,7 +93,8 @@ with ExtendedProperties {
       }
     }
   
-    property(s"$structure: reflect removal of signals") = forAllNoShrink(sizes) { size =>
+    property(s"$structure: reflect removal of signals") = forAllNoShrink(sizes) {
+      size =>
       stackTraced {
         val catamorph = newSignalCatamorph
         val cells = for (i <- 0 until size) yield RCell(i)
@@ -109,7 +110,8 @@ with ExtendedProperties {
       }
     }
   
-    property(s"$structure: reflect removing and adding") = forAllNoShrink(sizes) { max =>
+    property(s"$structure: reflect removing and adding") = forAllNoShrink(sizes) {
+      max =>
       stackTraced {
         val catamorph = newSignalCatamorph
         val cells = for (i <- 0 until max) yield RCell(i)
@@ -144,7 +146,7 @@ class SignalCatamorphSpec extends FlatSpec with Matchers {
   plus("Int Abelian", SignalCatamorph(Abelian(0)(_ + _)(_ - _)))
 
   def concat(structure: String, newSignalCatamorph: =>SignalCatamorph[String]) {
-    s"A SignalCatamorph using ${structure}s" should "correctly reflect added signals" in {
+    s"A SignalCatamorph using ${structure}s" should "correctly reflect signals" in {
       val catamorph = newSignalCatamorph
       val rc1 = RCell("a")
       val rc2 = RCell("b")
@@ -169,7 +171,8 @@ class SignalCatamorphSpec extends FlatSpec with Matchers {
       for (c <- cells) catamorph += c
       for ((c, i) <- cells.zipWithIndex; if (i % 2 == 0)) {
         catamorph -= c
-        val expected = (0 until 50).filter(x => x % 2 == 1 || x > i).foldLeft("")(_ + _ + " ")
+        val expected = (0 until 50).filter(x => x % 2 == 1 || x > i)
+          .foldLeft("")(_ + _ + " ")
         catamorph.signal() should equal (expected)
       }
     }
@@ -277,4 +280,3 @@ class SignalCatamorphSpec extends FlatSpec with Matchers {
   }
 
 }
-

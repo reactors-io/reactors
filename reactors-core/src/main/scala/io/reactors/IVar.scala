@@ -3,7 +3,6 @@ package io.reactors
 
 
 import scala.collection._
-import scala.reactive.util._
 
 
 
