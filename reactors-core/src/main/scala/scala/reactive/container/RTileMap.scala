@@ -20,7 +20,6 @@ class RTileMap[@spec(Int, Long, Double) T: ClassTag](
   private var previous: Ref[T] = null
   private var sz = 0
   private[reactive] var hiddenRoot: Node[T] = null
-  private[reactive] var valueContainer: RContainer.Emitter[T] = null
   private[reactive] var insertsEmitter: Events.Emitter[(Int, Int, T)] = null
   private[reactive] var removesEmitter: Events.Emitter[(Int, Int, T)] = null
   private[reactive] var updatesEmitter: Events.Emitter[XY] = null
@@ -46,9 +45,6 @@ class RTileMap[@spec(Int, Long, Double) T: ClassTag](
     pow2size = nextPow2(dim)
     previous = new Ref[T]
     hiddenRoot = new Node.Leaf(d)
-    valueContainer = new RContainer.Emitter[T](f => foreachNonDefaultTile(0, 0, dim, dim)(new Applier[T] {
-      def apply(x: Int, y: Int, elem: T) = f(elem)
-    }), () => size)
     insertsEmitter = new Events.Emitter[(Int, Int, T)]
     removesEmitter = new Events.Emitter[(Int, Int, T)]
     updatesEmitter = new Events.Emitter[XY]
@@ -72,8 +68,6 @@ class RTileMap[@spec(Int, Long, Double) T: ClassTag](
 
   def container = this
   
-  def values: RContainer[T] = valueContainer
-
   def updates: Events[XY] = {
     checkRoot(dflt)
     updatesEmitter
@@ -139,14 +133,12 @@ class RTileMap[@spec(Int, Long, Double) T: ClassTag](
     else if (!prevDefault && currDefault) sz -= 1
 
     if (!prevDefault) {
-      valueContainer.removes.react(prevelem)
       if (removesEmitter.hasSubscriptions) {
         removesEmitter.react((x, y, prevelem))
       }
     }
 
     if (!currDefault) {
-      valueContainer.inserts.react(elem)
       if (insertsEmitter.hasSubscriptions) {
         insertsEmitter.react((x, y, elem))
       }
@@ -185,7 +177,6 @@ class RTileMap[@spec(Int, Long, Double) T: ClassTag](
     if (removesEmitter.hasSubscriptions) {
       oldroot.foreachTile(0, 0, dim, dim, 0, 0, dim, dflt, true)(new Applier[T] {
         def apply(x: Int, y: Int, elem: T) = {
-          valueContainer.removes.react(elem)
           removesEmitter.react((x, y, elem))
         }
       })
