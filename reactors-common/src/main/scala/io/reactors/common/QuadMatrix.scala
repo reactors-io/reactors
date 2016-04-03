@@ -10,7 +10,8 @@ import io.reactors.algebra._
 /** Quad-based matrix for spatial querying of sparse data.
  */
 class QuadMatrix[@specialized(Int, Long, Double) T](
-  val blockExponent: Int = 8
+  val blockExponent: Int = 8,
+  val poolSize: Int = 32
 )(
   implicit val arrayable: Arrayable[T]
 ) extends Matrix[T] {
@@ -19,6 +20,8 @@ class QuadMatrix[@specialized(Int, Long, Double) T](
   private[reactors] var roots: HashMatrix[QuadMatrix.Node[T]] = _
   private[reactors] var size: Int = _
   private[reactors] var empty: QuadMatrix.Node.Empty[T] = _
+  private[reactors] var forkPool: FixedSizePool[QuadMatrix.Node.Fork[T]] = _
+  private[reactors] var leafPool: FixedSizePool[QuadMatrix.Node.Leaf[T]] = _
   val nil = arrayable.nil
 
   private[reactors] def init(self: QuadMatrix[T]) {
@@ -27,8 +30,31 @@ class QuadMatrix[@specialized(Int, Long, Double) T](
     blockMask = blockSize - 1
     size = 0
     empty = new QuadMatrix.Node.Empty[T]
+    forkPool = new FixedSizePool(
+      poolSize,
+      () => QuadMatrix.Node.Fork.empty(this),
+      n => {},
+      n => n.clear(self))
+    leafPool = new FixedSizePool(
+      poolSize,
+      () => QuadMatrix.Node.Leaf.empty[T],
+      n => {},
+      n => n.clear())
   }
   init(this)
+
+  private[reactors] def fillPools(self: QuadMatrix[T]) {
+    var i = 0
+    while (i < poolSize) {
+      forkPool.release(QuadMatrix.Node.Fork.empty(self))
+      leafPool.release(QuadMatrix.Node.Leaf.empty[T])
+      i += 1
+    }
+  }
+
+  def fillPools() {
+    fillPools(this)
+  }
 
   def update(gx: Int, gy: Int, v: T): Unit = {
     val bx = gx >> blockExponent
@@ -37,7 +63,7 @@ class QuadMatrix[@specialized(Int, Long, Double) T](
     val qy = gy & blockMask
     var root = roots(bx, by)
     if (root == null) {
-      root = new QuadMatrix.Node.Empty[T]
+      root = empty
       roots(bx, by) = root
     }
     val nroot = root.update(qx, qy, v, blockExponent, this)
@@ -84,7 +110,7 @@ object QuadMatrix {
       def apply(x: Int, y: Int, exp: Int, self: QuadMatrix[T]): T =
         self.arrayable.nil
       def update(x: Int, y: Int, v: T, exp: Int, self: QuadMatrix[T]): Node[T] = {
-        val leaf = new Leaf[T]()(self.arrayable)
+        val leaf = self.leafPool.acquire()
         leaf.update(x, y, v, exp, self)
         leaf
       }
@@ -124,7 +150,16 @@ object QuadMatrix {
         val idx = (yidx << 1) + (xidx)
         val nx = x - (xidx << nexp)
         val ny = y - (yidx << nexp)
-        children(idx) = children(idx).update(nx, ny, v, nexp, self)
+        val child = children(idx)
+        val nchild = child.update(nx, ny, v, nexp, self)
+        if (child ne nchild) {
+          children(idx) = nchild
+          child match {
+            case l: Leaf[T] => self.leafPool.release(l)
+            case f: Fork[T] => self.forkPool.release(f)
+            case _ => // Not releasing Empty nodes.
+          }
+        }
         this
       }
 
@@ -191,7 +226,7 @@ object QuadMatrix {
           return this
         } else {
           assert(exp >= 2)
-          var fork: Node[T] = Fork.empty(self)
+          var fork: Node[T] = self.forkPool.acquire()
           var i = 0
           while (i < elements.length) {
             val cx = coordinates(i * 2)
@@ -205,6 +240,14 @@ object QuadMatrix {
         }
       }
 
+      def clear() {
+        val nil = arrayable.nil
+        elements(0) = nil
+        elements(1) = nil
+        elements(2) = nil
+        elements(3) = nil
+      }
+
       def foreach(exp: Int, x0: Int, y0: Int, f: XY => Unit): Unit = {
         var i = 0
         val nil = arrayable.nil
@@ -215,6 +258,10 @@ object QuadMatrix {
           i += 1
         }
       }
+    }
+
+    object Leaf {
+      def empty[@specialized(Int, Long, Double) T: Arrayable] = new Leaf[T]
     }
   }
 }

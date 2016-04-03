@@ -16,7 +16,6 @@ import scala.util.Random
 
 
 class QuadMatrixCheck extends Properties("QuadMatrix") with ExtendedProperties {
-
   val sizes = detChoose(0, 512)
 
   property("should update and apply rectangle") = forAllNoShrink(sizes) {
@@ -96,5 +95,4 @@ class QuadMatrixCheck extends Properties("QuadMatrix") with ExtendedProperties {
       seen.map(xy => (xy.x, xy.y)) == (xs.zip(ys)).toSet
     }
   }
-
 }

@@ -7,23 +7,6 @@ import scala.util.Random
 
 
 
-/** Reactive random value.
- *
- *  It can be used as a regular random generator that produces random values:
- *
- *  {{{
- *  val r = new ReactRandom(1L)
- *  r.double()
- *  }}}
- *
- *  Or, as a reactive random value, by subscribing to events produced when `emit` is called:
- *
- *  {{{
- *  val evens = r.react.int().filter(_ % 2 == 0)
- *  }}}
- *
- *  Above, `evens` contains random values.
- */
 class PowerRandom(private val jucRandom: java.util.Random) {
   self =>
 
