@@ -9,6 +9,11 @@ import scala.collection._
 
 
 
+/** Hash-based sparse matrix with an efficient O(1) indexing and update operations.
+ *
+ *  Ideal for sparse and dense data, where clusters are tightly packed together.
+ *  For spatial queries on sparse data, it is usually better to use `QuadMatrix`.
+ */
 class HashMatrix[@specialized(Int, Long, Double) T](
   private[reactors] val initialSize: Int = 32
 )(
@@ -16,6 +21,7 @@ class HashMatrix[@specialized(Int, Long, Double) T](
 ) extends Matrix[T] {
   private[reactors] var blocks = new Array[HashMatrix.Block[T]](initialSize)
   private[reactors] var numBlocks = 0
+  val nil = arrayable.nil
 
   private def hashblock(xb: Int, yb: Int): Int = {
     //byteswap32(xb ^ yb)
@@ -35,8 +41,6 @@ class HashMatrix[@specialized(Int, Long, Double) T](
     }
     m
   }
-
-  val nil = arrayable.nil
 
   def foreach(f: XY => Unit): Unit = {
     var i = 0

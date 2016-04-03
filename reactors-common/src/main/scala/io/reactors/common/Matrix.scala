@@ -17,10 +17,10 @@ trait Matrix[@specialized(Int, Long, Double) T] extends Matrix.Immutable[T] {
 object Matrix {
   trait Immutable[@specialized(Int, Long, Double) T] {
     def apply(x: Int, y: Int): T
+    def foreach(f: XY => Unit): Unit
     def copy(a: Array[T], gxf: Int, gyf: Int, gxu: Int, gyu: Int): Unit
     def area(gxf: Int, gyf: Int, gxu: Int, gyu: Int): Matrix.Area[T]
     def nonNilArea(gxf: Int, gyf: Int, gxu: Int, gyu: Int): Matrix.Area[T]
-    def foreach(f: XY => Unit): Unit
   }
 
   trait Action[@specialized(Int, Long, Double) T] {

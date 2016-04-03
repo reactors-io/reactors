@@ -57,7 +57,3 @@ class RBinaryHeap[@spec(Int, Long, Double) T](val initialSize: Int = 16)(
   def head: Signal[T] = headCell
 
 }
-
-
-object RBinaryHeap {
-}
