@@ -14,12 +14,15 @@ class QuadMatrixAllocationBench extends Bench.Forked[Long] {
     exec.minWarmupRuns -> 2,
     exec.maxWarmupRuns -> 5,
     exec.independentSamples -> 1,
-    verbose -> true
+    verbose -> false
   )
 
   def measurer: Measurer[Long] = {
     val tableMeasurer = Measurer.MethodInvocationCount(
-      InvocationCountMatcher.allocations(classOf[QuadMatrix.Node.Fork[String]]))
+      new InvocationCountMatcher(
+        InvocationCountMatcher.ClassMatcher.Descendants(
+          classOf[QuadMatrix.Node[String]].getName, false, false),
+        InvocationCountMatcher.MethodMatcher.Allocation))
     for (table <- tableMeasurer) yield {
       table.copy(value = table.value.valuesIterator.sum)
     }
@@ -33,7 +36,7 @@ class QuadMatrixAllocationBench extends Bench.Forked[Long] {
   )
 
   val matrices = for (sz <- Gen.single("size")(64)) yield {
-    val quad = new QuadMatrix[String](poolSize = 512)
+    val quad = new QuadMatrix[String](poolSize = 1024)
     for (x <- 0 until sz / 3; y <- 0 until sz / 3) {
       quad(x * 3, y * 3) = ""
     }
@@ -50,5 +53,4 @@ class QuadMatrixAllocationBench extends Bench.Forked[Long] {
       }
     }
   }
-
 }
