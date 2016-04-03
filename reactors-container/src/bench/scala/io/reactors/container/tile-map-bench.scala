@@ -3,9 +3,9 @@ package container
 
 
 
+import io.reactors.common.QuadMatrix
 import org.scalameter.api._
 import org.scalameter.japi.JBench
-import scala.reactive.RTileMap
 
 
 
@@ -29,10 +29,11 @@ trait TileMapBench extends JBench.OfflineReport {
     (sz, hm)
   }
 
-  val rTileMaps = for (sz <- sidelengths) yield {
-    val tilemap = new RTileMap[Int](sz, 0)
-    for (x <- 0 until sz; y <- 0 until sz) tilemap(x, y) = x * y
-    (sz, tilemap)
+  val quadMatrices = for (sz <- sidelengths) yield {
+    val quad = new QuadMatrix[Int]
+    for (x <- 0 until sz; y <- 0 until sz) quad(x, y) = x * y + 1
+    for (x <- 0 until sz; y <- 0 until sz) assert(quad(x, y) != quad.nil, quad(x, y))
+    (sz, quad)
   }
 
   override def defaultConfig = Context(
@@ -90,18 +91,18 @@ trait TileMapBench extends JBench.OfflineReport {
     }
   }
 
-  @gen("rTileMaps")
+  @gen("quadMatrices")
   @benchmark("tilemap.apply")
-  @curve("RTileMap")
-  def tileMapApply(p: (Int, RTileMap[Int])) {
+  @curve("QuadMatrix")
+  def quadMatrixApply(p: (Int, QuadMatrix[Int])) {
     val sidelength = p._1
-    val tilemap = p._2
+    val quad = p._2
     var i = 0
     var y = 0
     while (y < sidelength) {
       var x = 0
       while (x < sidelength) {
-        load = tilemap(x, y)
+        load = quad(x, y)
         x += 1
         i += 1
         if (i > maxIterations) return
@@ -126,14 +127,6 @@ trait TileMapBench extends JBench.OfflineReport {
   def hashMatrixCopy(p: (Int, RHashMatrix[Int])) {
     val (sidelength, matrix) = p
     matrix.copy(array, 0, 0, sidelength, sidelength)
-  }
-
-  @gen("rTileMaps")
-  @benchmark("tilemap.copy")
-  @curve("RTileMap")
-  def tileMapCopy(p: (Int, RTileMap[Int])) {
-    val (sidelength, tilemap) = p
-    tilemap.read(array, sidelength, sidelength, 0, 0, sidelength, sidelength)
   }
 }
 
