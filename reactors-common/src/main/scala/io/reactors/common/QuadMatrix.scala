@@ -54,7 +54,14 @@ class QuadMatrix[@specialized(Int, Long, Double) T](
     else root.apply(qx, qy, blockExponent, this)
   }
 
-  def foreach(f: XY => Unit): Unit = ???
+  def foreach(f: XY => Unit): Unit = {
+    for (rxy <- roots) {
+      val root = roots(rxy.x, rxy.y)
+      val x0 = rxy.x << blockExponent
+      val y0 = rxy.y << blockExponent
+      root.foreach(blockExponent, x0, y0, f)
+    }
+  }
 
   def copy(a: Array[T], gxf: Int, gyf: Int, gxu: Int, gyu: Int): Unit = ???
 
@@ -68,6 +75,7 @@ object QuadMatrix {
   trait Node[@specialized(Int, Long, Double) T] {
     def apply(x: Int, y: Int, exp: Int, self: QuadMatrix[T]): T
     def update(x: Int, y: Int, v: T, exp: Int, self: QuadMatrix[T]): Node[T]
+    def foreach(exp: Int, x0: Int, y0: Int, f: XY => Unit): Unit
   }
 
   object Node {
@@ -80,6 +88,7 @@ object QuadMatrix {
         leaf.update(x, y, v, exp, self)
         leaf
       }
+      def foreach(exp: Int, x0: Int, y0: Int, f: XY => Unit): Unit = {}
     }
 
     class Fork[@specialized(Int, Long, Double) T]
@@ -107,6 +116,7 @@ object QuadMatrix {
         val ny = y - (yidx << nexp)
         children(idx).apply(nx, ny, nexp, self)
       }
+
       def update(x: Int, y: Int, v: T, exp: Int, self: QuadMatrix[T]): Node[T] = {
         val nexp = exp - 1
         val xidx = x >>> nexp
@@ -116,6 +126,15 @@ object QuadMatrix {
         val ny = y - (yidx << nexp)
         children(idx) = children(idx).update(nx, ny, v, nexp, self)
         this
+      }
+
+      def foreach(exp: Int, x0: Int, y0: Int, f: XY => Unit): Unit = {
+        val nexp = exp - 1
+        val m = 1 << nexp
+        children(0).foreach(nexp, x0, y0, f)
+        children(1).foreach(nexp, x0 + m, y0, f)
+        children(2).foreach(nexp, x0, y0 + m, f)
+        children(3).foreach(nexp, x0 + m, y0 + m, f)
       }
     }
 
@@ -152,6 +171,7 @@ object QuadMatrix {
         }
         self.arrayable.nil
       }
+
       def update(x: Int, y: Int, v: T, exp: Int, self: QuadMatrix[T]): Node[T] = {
         var i = 0
         val nil = self.arrayable.nil
@@ -182,6 +202,17 @@ object QuadMatrix {
           }
           fork = fork.update(x, y, v, exp, self)
           fork
+        }
+      }
+
+      def foreach(exp: Int, x0: Int, y0: Int, f: XY => Unit): Unit = {
+        var i = 0
+        val nil = arrayable.nil
+        while (i < elements.length && elements(i) != nil) {
+          val x = x0 + coordinates(2 * i)
+          val y = y0 + coordinates(2 * i + 1)
+          f(XY(x, y))
+          i += 1
         }
       }
     }
