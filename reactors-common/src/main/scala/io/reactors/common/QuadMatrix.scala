@@ -7,7 +7,7 @@ import io.reactors.algebra._
 
 
 
-/** Quad-based matrix for spatial querying.
+/** Quad-based matrix for spatial querying of sparse data.
  */
 class QuadMatrix[@specialized(Int, Long, Double) T](
   val blockExponent: Int = 8
