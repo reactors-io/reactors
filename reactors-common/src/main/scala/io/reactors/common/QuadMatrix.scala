@@ -10,15 +10,14 @@ import io.reactors.algebra._
 /** Quad-based matrix for spatial querying of sparse data.
  */
 class QuadMatrix[@specialized(Int, Long, Double) T](
-  val blockExponent: Int = 8,
-  val poolSize: Int = 32
+  private[reactors] val blockExponent: Int = 8,
+  private[reactors] val poolSize: Int = 32
 )(
   implicit val arrayable: Arrayable[T]
 ) extends Matrix[T] {
   private[reactors] var blockSize: Int = _
   private[reactors] var blockMask: Int = _
   private[reactors] var roots: HashMatrix[QuadMatrix.Node[T]] = _
-  private[reactors] var size: Int = _
   private[reactors] var empty: QuadMatrix.Node.Empty[T] = _
   private[reactors] var forkPool: FixedSizePool[QuadMatrix.Node.Fork[T]] = _
   private[reactors] var leafPool: FixedSizePool[QuadMatrix.Node.Leaf[T]] = _
@@ -28,17 +27,14 @@ class QuadMatrix[@specialized(Int, Long, Double) T](
     roots = new HashMatrix[QuadMatrix.Node[T]]
     blockSize = 1 << blockExponent
     blockMask = blockSize - 1
-    size = 0
     empty = new QuadMatrix.Node.Empty[T]
     forkPool = new FixedSizePool(
       poolSize,
       () => QuadMatrix.Node.Fork.empty(this),
-      n => {},
       n => n.clear(self))
     leafPool = new FixedSizePool(
       poolSize,
       () => QuadMatrix.Node.Leaf.empty[T],
-      n => {},
       n => n.clear())
   }
   init(this)

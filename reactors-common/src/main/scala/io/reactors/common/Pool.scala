@@ -15,7 +15,6 @@ abstract class Pool[T >: Null <: AnyRef] {
 object Pool {
   class Zero[T >: Null <: AnyRef](
     val create: () => T,
-    val onAcquire: T => Unit,
     val onRelease: T => Unit
   ) extends Pool[T] {
     def acquire(): T = create()

@@ -9,7 +9,6 @@ import scala.reflect.ClassTag
 class FixedSizePool[T >: Null <: AnyRef: ClassTag](
   val capacity: Int,
   val create: () => T,
-  val onAcquire: T => Unit,
   val onRelease: T => Unit
 ) extends Pool[T] {
   private val queue = new Array[T](capacity + 1)
@@ -21,7 +20,6 @@ class FixedSizePool[T >: Null <: AnyRef: ClassTag](
       val cur = queue(start)
       queue(start) = null
       start = (start + 1) % queue.length
-      onAcquire(cur)
       cur
     } else create()
   }

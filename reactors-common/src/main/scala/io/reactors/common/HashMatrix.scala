@@ -15,13 +15,25 @@ import scala.collection._
  *  For spatial queries on sparse data, it is usually better to use `QuadMatrix`.
  */
 class HashMatrix[@specialized(Int, Long, Double) T](
-  private[reactors] val initialSize: Int = 32
+  private[reactors] val initialSize: Int = 32,
+  private[reactors] val poolSize: Int = 2
 )(
   implicit val arrayable: Arrayable[T]
 ) extends Matrix[T] {
   private[reactors] var blocks = new Array[HashMatrix.Block[T]](initialSize)
   private[reactors] var numBlocks = 0
+  private[reactors] var blockPool: Pool[HashMatrix.Block[T]] = _
   val nil = arrayable.nil
+
+  private def init(self: HashMatrix[T]) {
+    blockPool = new FixedSizePool(
+      poolSize,
+      () => new HashMatrix.Block(arrayable.newArray(32 * 32)),
+      b => {})
+  }
+  init(this)
+
+  private[reactors] def getNumBlocks: Int = numBlocks
 
   private def hashblock(xb: Int, yb: Int): Int = {
     //byteswap32(xb ^ yb)
@@ -101,6 +113,7 @@ class HashMatrix[@specialized(Int, Long, Double) T](
     val hash = hashblock(xb, yb)
     val idx = (hash & 0x7fffffff) % blocks.size
 
+    var prevblock: HashMatrix.Block[T] = null
     var block = blocks(idx)
     while (block != null) {
       if (block.x == xb && block.y == yb) {
@@ -110,16 +123,27 @@ class HashMatrix[@specialized(Int, Long, Double) T](
         arrayable.update(block.array, ym * 32 + xm, v)
         if (previous != nil && v == nil) block.nonNilCount -= 1
         if (previous == nil && v != nil) block.nonNilCount += 1
+        if (block.nonNilCount == 0) {
+          if (prevblock != null) prevblock.next = block.next
+          else blocks(idx) = block.next
+          numBlocks -= 1
+          blockPool.release(block)
+        }
         return previous
       }
+      prevblock = block
       block = block.next
     }
+
+    if (v == nil) return nil
 
     if (1.0 * numBlocks / blocks.length > HashMatrix.LOAD_FACTOR) {
       increaseSize()
     }
 
-    block = new HashMatrix.Block(xb, yb, arrayable.newArray(32 * 32))
+    block = blockPool.acquire()
+    block.x = xb
+    block.y = yb
     val xm = x % 32
     val ym = y % 32
     arrayable.update(block.array, ym * 32 + xm, v)
@@ -347,10 +371,10 @@ object HashMatrix {
   }
 
   class Block[@specialized(Int, Long, Double) T](
-    val x: Int,
-    val y: Int,
     val array: Array[T]
   ) {
+    var x: Int = 0
+    var y: Int = 0
     var nonNilCount = 0
     var next: Block[T] = null
 
