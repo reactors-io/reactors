@@ -42,6 +42,7 @@ object ReactorsBuild extends MechaRepoBuild {
       testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
       parallelExecution in Test := false,
       parallelExecution in ThisBuild := false,
+      concurrentRestrictions in Global += Tags.limit(Tags.Test, 1),
       fork in Test := true,
       javaOptions in test += "-Xmx2G -XX:MaxPermSize=384m",
       scalacOptions ++= Seq(
