@@ -3,7 +3,7 @@ scala:
   - "2.10.4"
   - "2.11.0"
 jdk:
-  - oraclejdk7
+  - oraclejdk8
 script: ./tools/validate-pr.sh ++${TRAVIS_SCALA_VERSION}
 env:
   global:
