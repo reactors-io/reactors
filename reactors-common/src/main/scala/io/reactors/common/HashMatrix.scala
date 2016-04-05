@@ -11,12 +11,13 @@ import scala.collection._
 
 /** Hash-based sparse matrix with an efficient O(1) indexing and update operations.
  *
- *  Ideal for sparse and dense data, where clusters are tightly packed together.
- *  For spatial queries on sparse data, it is usually better to use `QuadMatrix`.
+ *  Ideal for sparse or dense data, particularly with many clusters that are tightly
+ *  packed together. For spatial queries on sparse data, it is usually better to use
+ *  `QuadMatrix`.
  */
 class HashMatrix[@specialized(Int, Long, Double) T](
   private[reactors] val initialSize: Int = 32,
-  private[reactors] val poolSize: Int = 2
+  private[reactors] val poolSize: Int = 4
 )(
   implicit val arrayable: Arrayable[T]
 ) extends Matrix[T] {

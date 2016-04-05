@@ -18,7 +18,7 @@ import scala.util.Random
 class QuadMatrixCheck extends Properties("QuadMatrix") with ExtendedProperties {
   val sizes = detChoose(0, 512)
 
-  property("should update and apply rectangle") = forAllNoShrink(sizes) {
+  property("update and apply rectangle") = forAllNoShrink(sizes) {
     sz =>
     stackTraced {
       val quad = new QuadMatrix[Int]
@@ -36,7 +36,7 @@ class QuadMatrixCheck extends Properties("QuadMatrix") with ExtendedProperties {
     }
   }
 
-  property("should update and apply in random order") = forAllNoShrink(sizes) {
+  property("update and apply in random order") = forAllNoShrink(sizes) {
     sz =>
     stackTraced {
       val quad = new QuadMatrix[Int]
@@ -61,7 +61,7 @@ class QuadMatrixCheck extends Properties("QuadMatrix") with ExtendedProperties {
     }
   }
 
-  property("should traverse its random dense elements") = forAllNoShrink(sizes) {
+  property("traverse its random dense elements") = forAllNoShrink(sizes) {
     sz =>
     stackTraced {
       val quad = new QuadMatrix[Int]
@@ -79,7 +79,7 @@ class QuadMatrixCheck extends Properties("QuadMatrix") with ExtendedProperties {
     }
   }
 
-  property("should traverse its random sparse elements") = forAllNoShrink(sizes) {
+  property("traverse its random sparse elements") = forAllNoShrink(sizes) {
     sz =>
     stackTraced {
       val quad = new QuadMatrix[Int]
@@ -95,4 +95,44 @@ class QuadMatrixCheck extends Properties("QuadMatrix") with ExtendedProperties {
       seen.map(xy => (xy.x, xy.y)) == (xs.zip(ys)).toSet
     }
   }
+
+  property("remove elements in a rectangle") = forAllNoShrink(sizes) {
+    sz =>
+    stackTraced {
+      val quad = new QuadMatrix[Int]
+      for (x <- 0 until sz; y <- 0 until sz) {
+        quad(x, y) = x * y
+      }
+      for (x <- 0 until sz; y <- 0 until sz) {
+        assert(quad(x, y) == x * y)
+        quad.remove(x, y)
+        assert(quad(x, y) == quad.nil)
+      }
+      true
+    }
+  }
+
+  property("remove random elements") = forAllNoShrink(sizes) {
+    sz =>
+    stackTraced {
+      val quad = new QuadMatrix[Int]
+      val rand = new Random(sz + 2)
+      val xs = rand.shuffle((0 until sz).to[mutable.Buffer])
+      val ys = rand.shuffle((0 until sz).to[mutable.Buffer])
+
+      for ((x, y) <- xs.zip(ys)) {
+        quad(x, y) = x * y
+      }
+      for ((x, y) <- xs.zip(ys)) {
+        assert(quad(x, y) == x * y)
+        quad.remove(x, y)
+        assert(quad(x, y) == quad.nil)
+      }
+      for ((x, y) <- xs.zip(ys)) {
+        assert(quad(x, y) == quad.nil)
+      }
+      true
+    }
+  }
+
 }

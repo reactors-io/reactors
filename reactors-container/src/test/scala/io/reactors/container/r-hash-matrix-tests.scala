@@ -151,7 +151,7 @@ class RHashMatrixCheck extends Properties("RHashMatrix") with ExtendedProperties
       stackTraced {
         val hash = new RHashMatrix[Long]
         for (x <- 0 until sz; y <- 0 until sz) hash(x, y) = x * y
-        for (x <- 0 until sz; y <- 0 until sz) hash(x, y) = hash.nil
+        for (x <- 0 until sz; y <- 0 until sz) hash.remove(x, y)
         for (x <- 0 until sz; y <- 0 until sz) assert(hash(x, y) == hash.nil)
         hash.matrix.getNumBlocks == 0
       }

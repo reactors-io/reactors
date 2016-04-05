@@ -50,6 +50,12 @@ class QuadMatrix[@specialized(Int, Long, Double) T](
     }
   }
 
+  private[reactors] def release(n: QuadMatrix.Node[T]) = n match {
+    case l: QuadMatrix.Node.Leaf[T] => leafPool.release(l)
+    case f: QuadMatrix.Node.Fork[T] => forkPool.release(f)
+    case _ => // Not releasing Empty nodes.
+  }
+
   def fillPools() {
     fillPools(this)
   }
@@ -80,6 +86,10 @@ class QuadMatrix[@specialized(Int, Long, Double) T](
     if (root == null) nil
     else {
       val nroot = root.remove(qx, qy, blockExponent, this)
+      if (nroot ne root) {
+        roots(bx, by) = nroot
+        release(root)
+      }
       if (nroot.isEmpty) roots.remove(bx, by)
       val prev = removedValue
       removedValue = nil
@@ -177,17 +187,30 @@ object QuadMatrix {
         val nchild = child.update(nx, ny, v, nexp, self)
         if (child ne nchild) {
           children(idx) = nchild
-          child match {
-            case l: Leaf[T] => self.leafPool.release(l)
-            case f: Fork[T] => self.forkPool.release(f)
-            case _ => // Not releasing Empty nodes.
-          }
+          self.release(child)
         }
         this
       }
 
       def remove(x: Int, y: Int, exp: Int, self: QuadMatrix[T]): Node[T] = {
-        ???
+        val nexp = exp - 1
+        val xidx = x >>> nexp
+        val yidx = y >>> nexp
+        val idx = (yidx << 1) + (xidx)
+        val nx = x - (xidx << nexp)
+        val ny = y - (yidx << nexp)
+        val child = children(idx)
+        val nchild = child.remove(nx, ny, nexp, self)
+        if (child ne nchild) {
+          children(idx) = nchild
+          self.release(child)
+          if (nchild.isEmpty) {
+            val cs = children
+            if (cs(0).isEmpty && cs(1).isEmpty && cs(2).isEmpty && cs(3).isEmpty) {
+              self.empty
+            } else this
+          } else this
+        } else this
       }
 
       def foreach(exp: Int, x0: Int, y0: Int, f: XY => Unit): Unit = {
@@ -225,7 +248,8 @@ object QuadMatrix {
 
       def apply(x: Int, y: Int, exp: Int, self: QuadMatrix[T]): T = {
         var i = 0
-        while (i < elements.length) {
+        val nil = self.nil
+        while (i < elements.length && elements(i) != nil) {
           val cx = coordinates(i * 2)
           val cy = coordinates(i * 2 + 1)
           if (cx == x && cy == y) {
@@ -238,7 +262,7 @@ object QuadMatrix {
 
       def update(x: Int, y: Int, v: T, exp: Int, self: QuadMatrix[T]): Node[T] = {
         var i = 0
-        val nil = self.arrayable.nil
+        val nil = self.nil
         while (i < elements.length && elements(i) != nil) {
           val cx = coordinates(i * 2)
           val cy = coordinates(i * 2 + 1)
@@ -274,22 +298,26 @@ object QuadMatrix {
         var i = elements.length - 1
         var lasti = -1
         while (i >= 0) {
-          val cx = coordinates(i * 2)
-          val cy = coordinates(i * 2 + 1)
-          if (cx == x && cy == y) {
-            self.removedValue = elements(i)
-            elements(i) = nil
-            if (lasti != -1) {
-              elements(i) = elements(lasti)
-              coordinates(i * 2) = coordinates(lasti * 2)
-              coordinates(i * 2 + 1) = coordinates(lasti * 2 + 1)
-              return this
-            } else {
-              if (i == 0) return self.empty
-              else return this
+          val elem = elements(i)
+          if (elem != nil) {
+            val cx = coordinates(i * 2)
+            val cy = coordinates(i * 2 + 1)
+            if (cx == x && cy == y) {
+              self.removedValue = elem
+              if (lasti != -1) {
+                elements(i) = elements(lasti)
+                elements(lasti) = nil
+                coordinates(i * 2) = coordinates(lasti * 2)
+                coordinates(i * 2 + 1) = coordinates(lasti * 2 + 1)
+                return this
+              } else {
+                elements(i) = nil
+                if (i == 0) return self.empty
+                else return this
+              }
             }
+            if (lasti == -1) lasti = i
           }
-          if (lasti == -1) lasti = i
           i -= 1
         }
         return this
