@@ -105,6 +105,8 @@ class HashMatrix[@specialized(Int, Long, Double) T](
 
   def update(x: Int, y: Int, v: T): Unit = applyAndUpdate(x, y, v)
 
+  def remove(x: Int, y: Int): T = applyAndUpdate(x, y, nil)
+
   def applyAndUpdate(xr: Int, yr: Int, v: T): T = {
     val x = xr + (1 << 30)
     val y = yr + (1 << 30)

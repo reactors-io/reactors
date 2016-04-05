@@ -17,6 +17,7 @@ class QuadMatrix[@specialized(Int, Long, Double) T](
 ) extends Matrix[T] {
   private[reactors] var blockSize: Int = _
   private[reactors] var blockMask: Int = _
+  private[reactors] var removedValue: T = _
   private[reactors] var roots: HashMatrix[QuadMatrix.Node[T]] = _
   private[reactors] var empty: QuadMatrix.Node.Empty[T] = _
   private[reactors] var forkPool: FixedSizePool[QuadMatrix.Node.Fork[T]] = _
@@ -36,6 +37,7 @@ class QuadMatrix[@specialized(Int, Long, Double) T](
       poolSize,
       () => QuadMatrix.Node.Leaf.empty[T],
       n => n.clear())
+    removedValue = nil
   }
   init(this)
 
@@ -53,17 +55,36 @@ class QuadMatrix[@specialized(Int, Long, Double) T](
   }
 
   def update(gx: Int, gy: Int, v: T): Unit = {
+    if (v == nil) remove(gx, gy)
+    else {
+      val bx = gx >> blockExponent
+      val by = gy >> blockExponent
+      val qx = gx & blockMask
+      val qy = gy & blockMask
+      var root = roots(bx, by)
+      if (root == null) {
+        root = empty
+        roots(bx, by) = root
+      }
+      val nroot = root.update(qx, qy, v, blockExponent, this)
+      if (root ne nroot) roots(bx, by) = nroot
+    }
+  }
+
+  def remove(gx: Int, gy: Int): T = {
     val bx = gx >> blockExponent
     val by = gy >> blockExponent
     val qx = gx & blockMask
     val qy = gy & blockMask
-    var root = roots(bx, by)
-    if (root == null) {
-      root = empty
-      roots(bx, by) = root
+    val root = roots(bx, by)
+    if (root == null) nil
+    else {
+      val nroot = root.remove(qx, qy, blockExponent, this)
+      if (nroot.isEmpty) roots.remove(bx, by)
+      val prev = removedValue
+      removedValue = nil
+      prev
     }
-    val nroot = root.update(qx, qy, v, blockExponent, this)
-    if (root ne nroot) roots(bx, by) = nroot
   }
 
   def apply(gx: Int, gy: Int): T = {
@@ -95,14 +116,17 @@ class QuadMatrix[@specialized(Int, Long, Double) T](
 
 object QuadMatrix {
   trait Node[@specialized(Int, Long, Double) T] {
+    def isEmpty: Boolean
     def apply(x: Int, y: Int, exp: Int, self: QuadMatrix[T]): T
     def update(x: Int, y: Int, v: T, exp: Int, self: QuadMatrix[T]): Node[T]
+    def remove(x: Int, y: Int, exp: Int, self: QuadMatrix[T]): Node[T]
     def foreach(exp: Int, x0: Int, y0: Int, f: XY => Unit): Unit
   }
 
   object Node {
     class Empty[@specialized(Int, Long, Double) T]
     extends Node[T] {
+      def isEmpty = true
       def apply(x: Int, y: Int, exp: Int, self: QuadMatrix[T]): T =
         self.arrayable.nil
       def update(x: Int, y: Int, v: T, exp: Int, self: QuadMatrix[T]): Node[T] = {
@@ -110,6 +134,7 @@ object QuadMatrix {
         leaf.update(x, y, v, exp, self)
         leaf
       }
+      def remove(x: Int, y: Int, exp: Int, self: QuadMatrix[T]): Node[T] = this
       def foreach(exp: Int, x0: Int, y0: Int, f: XY => Unit): Unit = {}
     }
 
@@ -121,6 +146,8 @@ object QuadMatrix {
         children = new Array(4)
       }
       init(this)
+
+      def isEmpty = false
 
       def clear(self: QuadMatrix[T]) {
         children(0) = self.empty
@@ -159,6 +186,10 @@ object QuadMatrix {
         this
       }
 
+      def remove(x: Int, y: Int, exp: Int, self: QuadMatrix[T]): Node[T] = {
+        ???
+      }
+
       def foreach(exp: Int, x0: Int, y0: Int, f: XY => Unit): Unit = {
         val nexp = exp - 1
         val m = 1 << nexp
@@ -189,6 +220,8 @@ object QuadMatrix {
         elements = arrayable.newArray(4)
       }
       init(this)
+
+      def isEmpty = false
 
       def apply(x: Int, y: Int, exp: Int, self: QuadMatrix[T]): T = {
         var i = 0
@@ -234,6 +267,32 @@ object QuadMatrix {
           fork = fork.update(x, y, v, exp, self)
           fork
         }
+      }
+
+      def remove(x: Int, y: Int, exp: Int, self: QuadMatrix[T]): Node[T] = {
+        val nil = self.nil
+        var i = elements.length - 1
+        var lasti = -1
+        while (i >= 0) {
+          val cx = coordinates(i * 2)
+          val cy = coordinates(i * 2 + 1)
+          if (cx == x && cy == y) {
+            self.removedValue = elements(i)
+            elements(i) = nil
+            if (lasti != -1) {
+              elements(i) = elements(lasti)
+              coordinates(i * 2) = coordinates(lasti * 2)
+              coordinates(i * 2 + 1) = coordinates(lasti * 2 + 1)
+              return this
+            } else {
+              if (i == 0) return self.empty
+              else return this
+            }
+          }
+          if (lasti == -1) lasti = i
+          i -= 1
+        }
+        return this
       }
 
       def clear() {
