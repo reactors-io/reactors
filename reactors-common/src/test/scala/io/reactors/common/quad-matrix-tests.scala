@@ -16,7 +16,7 @@ import scala.util.Random
 
 
 class QuadMatrixCheck extends Properties("QuadMatrix") with ExtendedProperties {
-  val sizes = detChoose(0, 512)
+  val sizes = detChoose(0, 32)
 
   property("update and apply rectangle") = forAllNoShrink(sizes) {
     sz =>
@@ -132,6 +132,23 @@ class QuadMatrixCheck extends Properties("QuadMatrix") with ExtendedProperties {
         assert(quad(x, y) == quad.nil)
       }
       true
+    }
+  }
+
+  property("compress the quad tree after removing") = forAllNoShrink(sizes) {
+    sz =>
+    stackTraced {
+      val quad = new QuadMatrix[(Int, Int)]
+      for (x <- 0 until sz; y <- 0 until sz) quad(x, y) = (x, y)
+
+      for (x <- 0 until sz; y <- 0 until (sz - 1)) quad.remove(x, y)
+      for (x <- 0 until (sz - 1)) quad.remove(x, sz - 1)
+
+      for (x <- 0 until sz; y <- 0 until sz) {
+        if (x == sz - 1 && y == sz - 1) assert(quad(x, y) == (x, y))
+        else assert(quad(x, y) == quad.nil)
+      }
+      sz == 0 || quad.isTopLevelLeafAt(sz - 1, sz - 1)
     }
   }
 

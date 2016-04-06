@@ -50,6 +50,13 @@ class QuadMatrix[@specialized(Int, Long, Double) T](
     }
   }
 
+  private[reactors] def isTopLevelLeafAt(gx: Int, gy: Int): Boolean = {
+    val bx = gx >> blockExponent
+    val by = gy >> blockExponent
+    val quad = roots(bx, by)
+    quad != null && quad.isInstanceOf[QuadMatrix.Node.Leaf[_]]
+  }
+
   private[reactors] def release(n: QuadMatrix.Node[T]) = n match {
     case l: QuadMatrix.Node.Leaf[T] => leafPool.release(l)
     case f: QuadMatrix.Node.Fork[T] => forkPool.release(f)
@@ -204,10 +211,25 @@ object QuadMatrix {
         if (child ne nchild) {
           children(idx) = nchild
           self.release(child)
-          if (nchild.isEmpty) {
+          if (nchild.isEmpty || nchild.isInstanceOf[Leaf[_]]) {
             val cs = children
-            if (cs(0).isEmpty && cs(1).isEmpty && cs(2).isEmpty && cs(3).isEmpty) {
-              self.empty
+            var emptynum = 0
+            if (cs(0).isEmpty) emptynum += 1
+            if (cs(1).isEmpty) emptynum += 1
+            if (cs(2).isEmpty) emptynum += 1
+            if (cs(3).isEmpty) emptynum += 1
+            if (emptynum == cs.length) self.empty
+            else if (emptynum == cs.length - 1) {
+              var i = 0
+              while (i < cs.length) {
+                if (cs(i).isInstanceOf[Leaf[_]]) {
+                  val leaf = cs(i).asInstanceOf[Leaf[T]]
+                  leaf.rise((i % 2) * (1 << nexp), (i / 2) * (1 << nexp))
+                  return leaf
+                }
+                i += 1
+              }
+              this
             } else this
           } else this
         } else this
@@ -250,7 +272,7 @@ object QuadMatrix {
         var i = 0
         val nil = self.nil
         while (i < elements.length && elements(i) != nil) {
-          val cx = coordinates(i * 2)
+          val cx = coordinates(i * 2 + 0)
           val cy = coordinates(i * 2 + 1)
           if (cx == x && cy == y) {
             return elements(i)
@@ -264,7 +286,7 @@ object QuadMatrix {
         var i = 0
         val nil = self.nil
         while (i < elements.length && elements(i) != nil) {
-          val cx = coordinates(i * 2)
+          val cx = coordinates(i * 2 + 0)
           val cy = coordinates(i * 2 + 1)
           if (cx == x && cy == y) {
             elements(i) = v
@@ -274,7 +296,7 @@ object QuadMatrix {
         }
         if (i < elements.length) {
           elements(i) = v
-          coordinates(i * 2) = x
+          coordinates(i * 2 + 0) = x
           coordinates(i * 2 + 1) = y
           return this
         } else {
@@ -282,7 +304,7 @@ object QuadMatrix {
           var fork: Node[T] = self.forkPool.acquire()
           var i = 0
           while (i < elements.length) {
-            val cx = coordinates(i * 2)
+            val cx = coordinates(i * 2 + 0)
             val cy = coordinates(i * 2 + 1)
             val cv = elements(i)
             fork = fork.update(cx, cy, cv, exp, self)
@@ -300,14 +322,14 @@ object QuadMatrix {
         while (i >= 0) {
           val elem = elements(i)
           if (elem != nil) {
-            val cx = coordinates(i * 2)
+            val cx = coordinates(i * 2 + 0)
             val cy = coordinates(i * 2 + 1)
             if (cx == x && cy == y) {
               self.removedValue = elem
               if (lasti != -1) {
                 elements(i) = elements(lasti)
                 elements(lasti) = nil
-                coordinates(i * 2) = coordinates(lasti * 2)
+                coordinates(i * 2 + 0) = coordinates(lasti * 2 + 0)
                 coordinates(i * 2 + 1) = coordinates(lasti * 2 + 1)
                 return this
               } else {
@@ -323,6 +345,16 @@ object QuadMatrix {
         return this
       }
 
+      def rise(x: Int, y: Int) {
+        var i = 0
+        val nil = arrayable.nil
+        while (i < elements.length && elements(i) != nil) {
+          coordinates(i * 2 + 0) += x
+          coordinates(i * 2 + 1) += y
+          i += 1
+        }
+      }
+
       def clear() {
         val nil = arrayable.nil
         elements(0) = nil
@@ -335,8 +367,8 @@ object QuadMatrix {
         var i = 0
         val nil = arrayable.nil
         while (i < elements.length && elements(i) != nil) {
-          val x = x0 + coordinates(2 * i)
-          val y = y0 + coordinates(2 * i + 1)
+          val x = x0 + coordinates(i * 2 + 0)
+          val y = y0 + coordinates(i * 2 + 1)
           f(XY(x, y))
           i += 1
         }
