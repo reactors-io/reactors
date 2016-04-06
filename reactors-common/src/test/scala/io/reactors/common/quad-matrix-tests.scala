@@ -16,7 +16,7 @@ import scala.util.Random
 
 
 class QuadMatrixCheck extends Properties("QuadMatrix") with ExtendedProperties {
-  val sizes = detChoose(0, 32)
+  val sizes = detChoose(0, 512)
 
   property("update and apply rectangle") = forAllNoShrink(sizes) {
     sz =>
@@ -149,6 +149,57 @@ class QuadMatrixCheck extends Properties("QuadMatrix") with ExtendedProperties {
         else assert(quad(x, y) == quad.nil)
       }
       sz == 0 || quad.isTopLevelLeafAt(sz - 1, sz - 1)
+    }
+  }
+
+  def copyBlockEqual(matrix: QuadMatrix[Long], start: Int, end: Int,
+    expected: Seq[Long]): Boolean = {
+    val sz = math.max(0, end - start)
+    val array = new Array[Long](sz * sz)
+    matrix.copy(array, start, start, end, end)
+    expected == array.toList
+  }
+
+  property("copy all from a random sub-block") = forAllNoShrink(sizes, sizes, sizes) {
+    (sz, start, end) =>
+    stackTraced {
+      val quad = new QuadMatrix[Long]
+      for (x <- sz / 2 until sz; y <- sz / 2 until sz) quad(x, y) = x * y
+      val expected = for (x <- start until end; y <- start until end) yield {
+        if (x >= sz || y >= sz) Long.MinValue
+        else if (x >= sz / 2 && y >= sz / 2) (x * y).toLong
+        else Long.MinValue
+      }
+      copyBlockEqual(quad, start, end, expected)
+    }
+  }
+
+  property("traverse random elements in a spatial query") = forAllNoShrink(sizes) {
+    sz =>
+    stackTraced {
+      val quad = new QuadMatrix[(Int, Int)]
+      val rand = new Random(sz + 17)
+      val xs = rand.shuffle((0 until sz).to[mutable.Buffer])
+      val ys = rand.shuffle((0 until sz).to[mutable.Buffer])
+
+      for ((x, y) <- xs.zip(ys)) {
+        quad(x, y) = (x, y)
+        assert(quad(x, y) == (x, y))
+      }
+      for ((x, y) <- xs.zip(ys)) {
+        assert(quad(x, y) == (x, y))
+      }
+
+      val expected = for ((x, y) <- xs.zip(ys); if x >= sz / 2 && y >= sz / 2) yield {
+        (x, y)
+      }
+      val seen = mutable.Map[(Int, Int), (Int, Int)]()
+      quad.nonNilArea(sz / 2, sz / 2, sz, sz).foreach(new Matrix.Action[(Int, Int)] {
+        def apply(x: Int, y: Int, v: (Int, Int)) = seen((x, y)) = v
+      })
+      assert(seen.forall({ case (k, v) => k == v }))
+      assert(seen.size == expected.size)
+      expected.forall(t => seen.contains(t))
     }
   }
 

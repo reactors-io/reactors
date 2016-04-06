@@ -123,21 +123,85 @@ class QuadMatrix[@specialized(Int, Long, Double) T](
     }
   }
 
-  def copy(a: Array[T], gxf: Int, gyf: Int, gxu: Int, gyu: Int): Unit = ???
+  def copy(a: Array[T], gxf: Int, gyf: Int, gxu: Int, gyu: Int): Unit = {
+    val width = gxu - gxf
+    area(gxf, gyf, gxu, gyu).foreach(new Matrix.Action[T] {
+      def apply(x: Int, y: Int, v: T) {
+        a((y - gyf) * width + (x - gxf)) = v
+      }
+    })
+  }
 
-  def area(gxf: Int, gyf: Int, gxu: Int, gyu: Int): Matrix.Area[T] = ???
+  def area(gxf: Int, gyf: Int, gxu: Int, gyu: Int): Matrix.Area[T] =
+    new QuadMatrix.Area[T](this, gxf, gyf, gxu, gyu, true)
 
-  def nonNilArea(gxf: Int, gyf: Int, gxu: Int, gyu: Int): Matrix.Area[T] = ???
+  def nonNilArea(gxf: Int, gyf: Int, gxu: Int, gyu: Int): Matrix.Area[T] =
+    new QuadMatrix.Area[T](this, gxf, gyf, gxu, gyu, false)
 }
 
 
 object QuadMatrix {
+  private[reactors] class Area[@specialized(Int, Long, Double) T](
+    val self: QuadMatrix[T], val gxf: Int, val gyf: Int, val gxu: Int, val gyu: Int,
+    val includeNil: Boolean
+  ) extends Matrix.Area[T] {
+    def foreach(a: Matrix.Action[T]) {
+      val exp = self.blockExponent
+      var byc = gyf >> exp
+      val byt = gyu >> exp
+      while (byc <= byt) {
+        var bxc = gxf >> exp
+        val bxt = gxu >> exp
+        while (bxc <= bxt) {
+          val root = self.roots(bxc, byc)
+          if (root != null) {
+            root.areaForeach(
+              math.max(bxc << exp, gxf),
+              math.max(byc << exp, gyf),
+              math.min((bxc << exp) + (1 << exp), gxu),
+              math.min((byc << exp) + (1 << exp), gyu),
+              (bxc << exp) + (1 << (exp - 1)),
+              (byc << exp) + (1 << (exp - 1)),
+              1 << (exp - 1),
+              a, includeNil, self.nil)
+          } else {
+            if (includeNil) {
+              foreachNil(
+                math.max(bxc << exp, gxf),
+                math.max(byc << exp, gyf),
+                math.min((bxc << exp) + (1 << exp), gxu),
+                math.min((byc << exp) + (1 << exp), gyu),
+                a)
+            }
+          }
+          bxc += 1
+        }
+        byc += 1
+      }
+    }
+
+    def foreachNil(gxf: Int, gyf: Int, gxu: Int, gyu: Int, a: Matrix.Action[T]) {
+      val nil = self.nil
+      var y = gyf
+      while (y < gyu) {
+        var x = gxf
+        while (x < gxu) {
+          a(x, y, nil)
+          x += 1
+        }
+        y += 1
+      }
+    }
+  }
+
   trait Node[@specialized(Int, Long, Double) T] {
     def isEmpty: Boolean
     def apply(x: Int, y: Int, exp: Int, self: QuadMatrix[T]): T
     def update(x: Int, y: Int, v: T, exp: Int, self: QuadMatrix[T]): Node[T]
     def remove(x: Int, y: Int, exp: Int, self: QuadMatrix[T]): Node[T]
     def foreach(exp: Int, x0: Int, y0: Int, f: XY => Unit): Unit
+    def areaForeach(gxf: Int, gyf: Int, gxu: Int, gyu: Int, gxm: Int, gym: Int,
+      hsz: Int, a: Matrix.Action[T], includeNil: Boolean, nil: T): Unit
   }
 
   object Node {
@@ -153,6 +217,20 @@ object QuadMatrix {
       }
       def remove(x: Int, y: Int, exp: Int, self: QuadMatrix[T]): Node[T] = this
       def foreach(exp: Int, x0: Int, y0: Int, f: XY => Unit): Unit = {}
+      def areaForeach(gxf: Int, gyf: Int, gxu: Int, gyu: Int, gxm: Int, gym: Int,
+        hsz: Int, a: Matrix.Action[T], includeNil: Boolean, nil: T) {
+        if (includeNil) {
+          var y = gyf
+          while (y < gyu) {
+            var x = gxf
+            while (x < gxu) {
+              a(x, y, nil)
+              x += 1
+            }
+            y += 1
+          }
+        }
+      }
     }
 
     class Fork[@specialized(Int, Long, Double) T]
@@ -242,6 +320,27 @@ object QuadMatrix {
         children(1).foreach(nexp, x0 + m, y0, f)
         children(2).foreach(nexp, x0, y0 + m, f)
         children(3).foreach(nexp, x0 + m, y0 + m, f)
+      }
+
+      def areaForeach(gxf: Int, gyf: Int, gxu: Int, gyu: Int, gxm: Int, gym: Int,
+        hsz: Int, a: Matrix.Action[T], includeNil: Boolean, nil: T) {
+        val nhsz = hsz >> 1
+        if (gxf < gxm && gyf < gym)
+          children(0).areaForeach(
+            gxf, gyf, math.min(gxm, gxu), math.min(gym, gyu),
+            gxm - nhsz, gym - nhsz, nhsz, a, includeNil, nil)
+        if (gxu >= gxm && gyf < gym)
+          children(1).areaForeach(
+            math.max(gxf, gxm), gyf, gxu, math.min(gym, gyu),
+            gxm + nhsz, gym - nhsz, nhsz, a, includeNil, nil)
+        if (gxf < gxm && gyu >= gym)
+          children(2).areaForeach(
+            gxf, math.max(gyf, gym), math.min(gxm, gxu), gyu,
+            gxm - nhsz, gym + nhsz, nhsz, a, includeNil, nil)
+        if (gxu >= gxm && gyu >= gym)
+          children(3).areaForeach(
+            math.max(gxf, gxm), math.max(gyf, gym), gxu, gyu,
+            gxm + nhsz, gym + nhsz, nhsz, a, includeNil, nil)
       }
     }
 
@@ -371,6 +470,43 @@ object QuadMatrix {
           val y = y0 + coordinates(i * 2 + 1)
           f(XY(x, y))
           i += 1
+        }
+      }
+
+      def areaForeach(gxf: Int, gyf: Int, gxu: Int, gyu: Int, gxm: Int, gym: Int,
+        hsz: Int, a: Matrix.Action[T], includeNil: Boolean, nil: T) {
+        if (!includeNil) {
+          var i = 0
+          while (i < elements.length && elements(i) != nil) {
+            val cx = gxm - hsz + coordinates(i * 2 + 0)
+            val cy = gym - hsz + coordinates(i * 2 + 1)
+            if (cx >= gxf && cx < gxu && cy >= gyf && cy < gyu) {
+              a(cx, cy, elements(i))
+            }
+            i += 1
+          }
+        } else {
+          val cx0 = gxm - hsz + coordinates(0 * 2 + 0)
+          val cy0 = gym - hsz + coordinates(0 * 2 + 1)
+          val cx1 = gxm - hsz + coordinates(1 * 2 + 0)
+          val cy1 = gym - hsz + coordinates(1 * 2 + 1)
+          val cx2 = gxm - hsz + coordinates(2 * 2 + 0)
+          val cy2 = gym - hsz + coordinates(2 * 2 + 1)
+          val cx3 = gxm - hsz + coordinates(3 * 2 + 0)
+          val cy3 = gym - hsz + coordinates(3 * 2 + 1)
+          var y = gyf
+          while (y < gyu) {
+            var x = gxf
+            while (x < gxu) {
+              if (x == cx0 && y == cy0) a(x, y, elements(0))
+              else if (x == cx1 && y == cy1) a(x, y, elements(1))
+              else if (x == cx2 && y == cy2) a(x, y, elements(2))
+              else if (x == cx3 && y == cy3) a(x, y, elements(3))
+              else a(x, y, nil)
+              x += 1
+            }
+            y += 1
+          }
         }
       }
     }
