@@ -3,6 +3,7 @@ package container
 
 
 
+import io.reactors.common.QuadMatrix
 import org.scalameter.api._
 import org.scalameter.picklers.noPickler._
 
@@ -69,7 +70,7 @@ class RContainerBoxingBench extends Bench.Forked[Long] {
     reports.validation.predicate -> { (n: Any) => n == 0 }
   } in {
     using(Gen.single("numEvents")(10000)) in { numEvents =>
-      val matrix = new common.HashMatrix[Int]
+      val matrix = new RHashMatrix[Int]
       var i = 0
       while (i < numEvents) {
         matrix(i % 100, i / 100) = matrix(i % 10, i / 10)
@@ -77,6 +78,19 @@ class RContainerBoxingBench extends Bench.Forked[Long] {
       }
 
       matrix.copy(new Array(100 * 100), 0, 0, 100, 100)
+    }
+  }
+
+  measure method "QuadMatrix" config {
+    reports.validation.predicate -> { (n: Any) => n == 0 }
+  } in {
+    using(Gen.single("numEvents")(10000)) in { numEvents =>
+      val matrix = new QuadMatrix[Int]
+      var i = 0
+      while (i < numEvents) {
+        matrix(i % 100, i / 100) = matrix(i % 10, i / 10)
+        i += 1
+      }
     }
   }
 
