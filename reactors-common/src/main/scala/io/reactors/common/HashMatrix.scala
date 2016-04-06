@@ -201,6 +201,17 @@ class HashMatrix[@specialized(Int, Long, Double) T](
   }
 
   def copy(a: Array[T], gxf: Int, gyf: Int, gxu: Int, gyu: Int): Unit = {
+    // Coordinate values name encoding:
+    //   [coordinate system] [coordinate (x or y)] [semantics]
+    //
+    // Coordinate systems:
+    //   - g -- global (user coordinates)
+    //   - m -- matrix coordinates, offsets negative values to get positive-only values
+    //   - b -- block, the coordinates of a block
+    //   - l -- local, coordinates within a block
+    //   - a -- array, coordinates within the target array
+    //
+    // Semantics: c (current), f (from), u (until), bf (block from), etc.
     val minLength = math.max(0, gxu - gxf) * math.max(0, gyu - gyf)
     assert(a.length >= minLength,
       "Array with length " + a.length + ", needed: " + minLength)
