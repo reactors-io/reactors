@@ -11,6 +11,7 @@ import scala.collection._
 
 trait Matrix[@specialized(Int, Long, Double) T] extends Matrix.Immutable[T] {
   def update(x: Int, y: Int, v: T): Unit
+  def applyAndUpdate(x: Int, y: Int, v: T): T
   def remove(x: Int, y: Int): T
 }
 

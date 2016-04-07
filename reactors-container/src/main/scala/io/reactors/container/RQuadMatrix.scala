@@ -4,37 +4,37 @@ package container
 
 
 import io.reactors.algebra._
-import io.reactors.common.HashMatrix
+import io.reactors.common.QuadMatrix
 import io.reactors.common.Matrix
 import scala.collection._
 import scala.reflect.ClassTag
 
 
 
-/** A reactive hash matrix.
+/** A reactive quad matrix.
  *
  *  @tparam T       type of the keys in the map, specialized
  */
-class RHashMatrix[@spec(Int, Long, Double) T](
+class RQuadMatrix[@spec(Int, Long, Double) T](
   implicit val arrayable: Arrayable[T]
 ) extends Matrix[T] {
   private[reactors] var rawSize = 0
-  private[reactors] var matrix: HashMatrix[T] = null
+  private[reactors] var matrix: QuadMatrix[T] = null
   private[reactors] var insertsEmitter: Events.Emitter[XY] = null
   private[reactors] var removesEmitter: Events.Emitter[XY] = null
   private[reactors] var pairInsertsEmitter: Events.Emitter[XY] = null
   private[reactors] var pairRemovesEmitter: Events.Emitter[XY] = null
   private[reactors] var subscription: Subscription = null
-  private[reactors] var rawMap: RHashMatrix.AsMap[T] = null
+  private[reactors] var rawMap: RQuadMatrix.AsMap[T] = null
 
-  private[reactors] def init(self: RHashMatrix[T]) {
-    matrix = new HashMatrix[T]
+  private[reactors] def init(self: RQuadMatrix[T]) {
+    matrix = new QuadMatrix[T]
     insertsEmitter = new Events.Emitter[XY]
     removesEmitter = new Events.Emitter[XY]
     pairInsertsEmitter = new Events.Emitter[XY]
     pairRemovesEmitter = new Events.Emitter[XY]
     subscription = Subscription.empty
-    rawMap = new RHashMatrix.AsMap[T](this)
+    rawMap = new RQuadMatrix.AsMap[T](this)
   }
 
   init(this)
@@ -136,21 +136,21 @@ class RHashMatrix[@spec(Int, Long, Double) T](
 }
 
 
-object RHashMatrix {
+object RQuadMatrix {
   implicit def factory[@spec(Int, Long, Double) T](
     implicit a: Arrayable[T]
-  ): RMap.Factory[XY, T, RHashMatrix[T]] = {
-    new RMap.Factory[XY, T, RHashMatrix[T]] {
-      def apply(inserts: Events[XY], removes: Events[XY]): RHashMatrix[T] = {
-        val hm = new RHashMatrix[T]
+  ): RMap.Factory[XY, T, RQuadMatrix[T]] = {
+    new RMap.Factory[XY, T, RQuadMatrix[T]] {
+      def apply(inserts: Events[XY], removes: Events[XY]): RQuadMatrix[T] = {
+        val hm = new RQuadMatrix[T]
         hm.subscription = new Subscription.Composite(
           inserts.onReaction(new FactoryInsertObserver(hm)),
           removes.onReaction(new FactoryRemoveObserver(hm))
         )
         hm
       }
-      def apply(f: RHashMatrix[T] => Subscription): RHashMatrix[T] = {
-        val hm = new RHashMatrix[T]
+      def apply(f: RQuadMatrix[T] => Subscription): RQuadMatrix[T] = {
+        val hm = new RQuadMatrix[T]
         hm.subscription = f(hm)
         hm
       }
@@ -158,7 +158,7 @@ object RHashMatrix {
   }
 
   private[reactors] class FactoryInsertObserver[@spec(Int, Long, Double) T](
-    hm: RHashMatrix[T]
+    hm: RQuadMatrix[T]
   ) extends Observer[XY] {
     def react(xy: XY, v: Any) = hm.update(xy, v.asInstanceOf[T])
     def except(t: Throwable) = {}
@@ -166,7 +166,7 @@ object RHashMatrix {
   }
 
   private[reactors] class FactoryRemoveObserver[@spec(Int, Long, Double) T](
-    hm: RHashMatrix[T]
+    hm: RQuadMatrix[T]
   ) extends Observer[XY] {
     def react(xy: XY, v: Any) = hm.remove(xy.x, xy.y)
     def except(t: Throwable) = {}
@@ -174,7 +174,7 @@ object RHashMatrix {
   }
 
   private[reactors] class AsMap[T](
-    val self: RHashMatrix[T]
+    val self: RQuadMatrix[T]
   ) extends RMap[XY, T] {
     def apply(xy: XY): T = self.apply(XY.xOf(xy), XY.yOf(xy))
     def inserts = self.pairInsertsEmitter

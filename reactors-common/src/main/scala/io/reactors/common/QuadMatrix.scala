@@ -67,7 +67,9 @@ class QuadMatrix[@specialized(Int, Long, Double) T](
     fillPools(this)
   }
 
-  def update(gx: Int, gy: Int, v: T): Unit = {
+  def update(gx: Int, gy: Int, v: T): Unit = applyAndUpdate(gx, gy, v)
+
+  def applyAndUpdate(gx: Int, gy: Int, v: T): T = {
     if (v == nil) remove(gx, gy)
     else {
       val bx = gx >> blockExponent
@@ -81,6 +83,9 @@ class QuadMatrix[@specialized(Int, Long, Double) T](
       }
       val nroot = root.update(qx, qy, v, blockExponent, this)
       if (root ne nroot) roots(bx, by) = nroot
+      val prev = removedValue
+      if (removedValue != nil) removedValue = nil
+      prev
     }
   }
 
@@ -104,6 +109,14 @@ class QuadMatrix[@specialized(Int, Long, Double) T](
     }
   }
 
+  protected def clearSpecialized(self: QuadMatrix[T]) {
+    roots.clear()
+  }
+
+  def clear() {
+    clearSpecialized(this)
+  }
+
   def apply(gx: Int, gy: Int): T = {
     val bx = gx >> blockExponent
     val by = gy >> blockExponent
@@ -112,6 +125,11 @@ class QuadMatrix[@specialized(Int, Long, Double) T](
     val root = roots(bx, by)
     if (root == null) nil
     else root.apply(qx, qy, blockExponent, this)
+  }
+
+  def orElse(xr: Int, yr: Int, v: T): T = {
+    val cur = apply(xr, yr)
+    if (cur != nil) cur else v
   }
 
   def foreach(f: XY => Unit): Unit = {
@@ -388,6 +406,7 @@ object QuadMatrix {
           val cx = coordinates(i * 2 + 0)
           val cy = coordinates(i * 2 + 1)
           if (cx == x && cy == y) {
+            self.removedValue = elements(i)
             elements(i) = v
             return this
           }
