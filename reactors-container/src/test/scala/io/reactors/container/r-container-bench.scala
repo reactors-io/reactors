@@ -91,6 +91,8 @@ class RContainerBoxingBench extends Bench.Forked[Long] {
         matrix(i % 100, i / 100) = matrix(i % 10, i / 10)
         i += 1
       }
+
+      matrix.copy(new Array(100 * 100), 0, 0, 100, 100)
     }
   }
 

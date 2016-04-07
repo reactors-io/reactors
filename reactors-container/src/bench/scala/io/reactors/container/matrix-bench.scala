@@ -9,7 +9,7 @@ import org.scalameter.japi.JBench
 
 
 
-trait TileMapBench extends JBench.OfflineReport {
+trait MatrixBench extends JBench.OfflineReport {
 
   class Matrix(val width: Int, val height: Int) {
     val array = new Array[Int](width * height)
@@ -46,8 +46,8 @@ trait TileMapBench extends JBench.OfflineReport {
   @volatile var load = 0
 
   @gen("matrices")
-  @benchmark("tilemap.apply")
-  @curve("Matrix")
+  @benchmark("matrix.apply")
+  @curve("Array")
   def matrixApply(matrix: Matrix) {
     var i = 0
     var y = 0
@@ -72,7 +72,7 @@ trait TileMapBench extends JBench.OfflineReport {
   }
 
   @gen("hashMatrices")
-  @benchmark("tilemap.apply")
+  @benchmark("matrix.apply")
   @curve("HashMatrix")
   def hashMatrixApply(p: (Int, RHashMatrix[Int])) {
     val sidelength = p._1
@@ -92,7 +92,7 @@ trait TileMapBench extends JBench.OfflineReport {
   }
 
   @gen("quadMatrices")
-  @benchmark("tilemap.apply")
+  @benchmark("matrix.apply")
   @curve("QuadMatrix")
   def quadMatrixApply(p: (Int, QuadMatrix[Int])) {
     val sidelength = p._1
@@ -114,25 +114,33 @@ trait TileMapBench extends JBench.OfflineReport {
   val array = new Array[Int](62500000)
 
   @gen("matrices")
-  @benchmark("tilemap.copy")
-  @curve("Matrix")
+  @benchmark("matrix.copy")
+  @curve("Array")
   def matrixCopy(matrix: Matrix) {
     val len = matrix.width * matrix.height
     System.arraycopy(matrix.array, 0, array, 0, len)
   }
 
   @gen("hashMatrices")
-  @benchmark("tilemap.copy")
+  @benchmark("matrix.copy")
   @curve("HashMatrix")
   def hashMatrixCopy(p: (Int, RHashMatrix[Int])) {
+    val (sidelength, matrix) = p
+    matrix.copy(array, 0, 0, sidelength, sidelength)
+  }
+
+  @gen("quadMatrices")
+  @benchmark("matrix.copy")
+  @curve("QuadMatrix")
+  def quadMatrixCopy(p: (Int, QuadMatrix[Int])) {
     val (sidelength, matrix) = p
     matrix.copy(array, 0, 0, sidelength, sidelength)
   }
 }
 
 
-class TileMapBenches extends Bench.Group {
+class MatrixBenches extends Bench.Group {
 
-  include(new TileMapBench {})
+  include(new MatrixBench {})
 
 }
