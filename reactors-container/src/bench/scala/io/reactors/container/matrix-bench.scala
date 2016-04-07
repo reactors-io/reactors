@@ -36,6 +36,13 @@ trait MatrixBench extends JBench.OfflineReport {
     (sz, quad)
   }
 
+  val sparseQuadMatrices = for (sz <- sidelengths) yield {
+    val k = 5
+    val quad = new QuadMatrix[Int]
+    for (x <- 0 until sz / k; y <- 0 until sz / k) quad(x * k, y * k) = x * y + 1
+    (sz, quad)
+  }
+
   override def defaultConfig = Context(
     exec.minWarmupRuns -> 20,
     exec.maxWarmupRuns -> 40,
@@ -91,6 +98,26 @@ trait MatrixBench extends JBench.OfflineReport {
     }
   }
 
+  @gen("sparseQuadMatrices")
+  @benchmark("matrix.apply")
+  @curve("QuadMatrix.sparse")
+  def sparseQuadMatrixApply(p: (Int, QuadMatrix[Int])) {
+    val sidelength = p._1
+    val quad = p._2
+    var i = 0
+    var y = 0
+    while (y < sidelength) {
+      var x = 0
+      while (x < sidelength) {
+        load = quad(x, y)
+        x += 1
+        i += 1
+        if (i > maxIterations) return
+      }
+      y += 1
+    }
+  }
+
   @gen("quadMatrices")
   @benchmark("matrix.apply")
   @curve("QuadMatrix")
@@ -125,6 +152,14 @@ trait MatrixBench extends JBench.OfflineReport {
   @benchmark("matrix.copy")
   @curve("HashMatrix")
   def hashMatrixCopy(p: (Int, RHashMatrix[Int])) {
+    val (sidelength, matrix) = p
+    matrix.copy(array, 0, 0, sidelength, sidelength)
+  }
+
+  @gen("sparseQuadMatrices")
+  @benchmark("matrix.copy")
+  @curve("QuadMatrix.sparse")
+  def sparseQuadMatrixCopy(p: (Int, QuadMatrix[Int])) {
     val (sidelength, matrix) = p
     matrix.copy(array, 0, 0, sidelength, sidelength)
   }
