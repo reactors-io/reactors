@@ -22,6 +22,7 @@ class QuadMatrix[@specialized(Int, Long, Double) T](
   private[reactors] var empty: QuadMatrix.Node.Empty[T] = _
   private[reactors] var forkPool: FixedSizePool[QuadMatrix.Node.Fork[T]] = _
   private[reactors] var leafPool: FixedSizePool[QuadMatrix.Node.Leaf[T]] = _
+  private[reactors] var flatPool: FixedSizePool[QuadMatrix.Node.Flat[T]] = _
   val nil = arrayable.nil
 
   private[reactors] def init(self: QuadMatrix[T]) {
@@ -37,6 +38,10 @@ class QuadMatrix[@specialized(Int, Long, Double) T](
       poolSize,
       () => QuadMatrix.Node.Leaf.empty[T],
       n => n.clear())
+    flatPool = new FixedSizePool(
+      poolSize,
+      () => new QuadMatrix.Node.Flat[T],
+      n => {})
     removedValue = nil
   }
   init(this)
@@ -54,7 +59,7 @@ class QuadMatrix[@specialized(Int, Long, Double) T](
     val bx = gx >> blockExponent
     val by = gy >> blockExponent
     val quad = roots(bx, by)
-    quad != null && quad.isInstanceOf[QuadMatrix.Node.Leaf[_]]
+    quad != null && quad.isLeaf
   }
 
   private[reactors] def release(n: QuadMatrix.Node[T]) = n match {
@@ -257,6 +262,7 @@ object QuadMatrix {
 
   trait Node[@specialized(Int, Long, Double) T] {
     def isEmpty: Boolean
+    def isLeaf: Boolean
     def apply(x: Int, y: Int, exp: Int, self: QuadMatrix[T]): T
     def update(x: Int, y: Int, v: T, exp: Int, self: QuadMatrix[T]): Node[T]
     def remove(x: Int, y: Int, exp: Int, self: QuadMatrix[T]): Node[T]
@@ -271,6 +277,7 @@ object QuadMatrix {
     class Empty[@specialized(Int, Long, Double) T]
     extends Node[T] {
       def isEmpty = true
+      def isLeaf = false
       def apply(x: Int, y: Int, exp: Int, self: QuadMatrix[T]): T =
         self.arrayable.nil
       def update(x: Int, y: Int, v: T, exp: Int, self: QuadMatrix[T]): Node[T] = {
@@ -322,6 +329,8 @@ object QuadMatrix {
 
       def isEmpty = false
 
+      def isLeaf = false
+
       def clear(self: QuadMatrix[T]) {
         children(0) = self.empty
         children(1) = self.empty
@@ -367,7 +376,7 @@ object QuadMatrix {
         if (child ne nchild) {
           children(idx) = nchild
           self.release(child)
-          if (nchild.isEmpty || nchild.isInstanceOf[Leaf[_]]) {
+          if (nchild.isEmpty || nchild.isLeaf) {
             val cs = children
             var emptynum = 0
             if (cs(0).isEmpty) emptynum += 1
@@ -458,13 +467,14 @@ object QuadMatrix {
       private[reactors] var elements: Array[T] = _
 
       private[reactors] def init(self: Leaf[T]) {
-        implicit val tag = arrayable.classTag
         coordinates = new Array(8)
         elements = arrayable.newArray(4)
       }
       init(this)
 
       def isEmpty = false
+
+      def isLeaf = true
 
       def apply(x: Int, y: Int, exp: Int, self: QuadMatrix[T]): T = {
         var i = 0
@@ -500,17 +510,20 @@ object QuadMatrix {
           return this
         } else {
           assert(exp >= 2)
-          var fork: Node[T] = self.forkPool.acquire()
+          var forkOrFlat: Node[T] = {
+            if (exp > 2) self.forkPool.acquire()
+            else self.flatPool.acquire()
+          }
           var i = 0
           while (i < elements.length) {
             val cx = coordinates(i * 2 + 0)
             val cy = coordinates(i * 2 + 1)
             val cv = elements(i)
-            fork = fork.update(cx, cy, cv, exp, self)
+            forkOrFlat = forkOrFlat.update(cx, cy, cv, exp, self)
             i += 1
           }
-          fork = fork.update(x, y, v, exp, self)
-          fork
+          forkOrFlat = forkOrFlat.update(x, y, v, exp, self)
+          forkOrFlat
         }
       }
 
@@ -642,6 +655,109 @@ object QuadMatrix {
 
     object Leaf {
       def empty[@specialized(Int, Long, Double) T: Arrayable] = new Leaf[T]
+    }
+
+    class Flat[@specialized(Int, Long, Double) T](
+      implicit val arrayable: Arrayable[T]
+    ) extends Node[T] {
+      private[reactors] var matrix: Array[T] = _
+      private[reactors] var count: Int =_
+
+      private[reactors] def init(self: Flat[T]) {
+        matrix = arrayable.newArray(16)
+        count = 0
+      }
+      init(this)
+
+      def isEmpty = false
+
+      def isLeaf = false
+
+      def apply(x: Int, y: Int, exp: Int, self: QuadMatrix[T]): T =
+        matrix(y * 4 + x)
+
+      def update(x: Int, y: Int, v: T, exp: Int, self: QuadMatrix[T]): Node[T] = {
+        val nil = self.nil
+        val prev = matrix(y * 4 + x)
+        matrix(y * 4 + x) = v
+        if (prev != nil) count -= 1
+        if (v != nil) count += 1
+        this
+      }
+
+      def remove(x: Int, y: Int, exp: Int, self: QuadMatrix[T]): Node[T] = {
+        val nil = self.nil
+        val prev = matrix(y * 4 + x)
+        if (prev != nil) {
+          self.removedValue = prev
+          matrix(y * 4 + x) = nil
+          count -= 1
+          if (count <= 2) {
+            var leaf: Node[T] = self.leafPool.acquire()
+            var y = 0
+            while (y < 4) {
+              var x = 0
+              while (x < 4) {
+                val v = matrix(y * 4 + x)
+                if (v != nil) {
+                  leaf = leaf.update(x, y, v, exp, self)
+                  matrix(y * 4 + x) = nil
+                }
+                x += 1
+              }
+              y += 1
+            }
+            leaf
+          } else this
+        } else this
+      }
+
+      def foreach(exp: Int, x0: Int, y0: Int, f: XY => Unit): Unit = {
+        var y = 0
+        while (y < 4) {
+          var x = 0
+          while (x < 4) {
+            f(XY(x0 + x, y0 + y))
+            x += 1
+          }
+          y += 1
+        }
+      }
+
+      def areaForeach(gxf: Int, gyf: Int, gxu: Int, gyu: Int, gxm: Int, gym: Int,
+        hsz: Int, a: Matrix.Action[T], includeNil: Boolean, nil: T) {
+        var y = gyf
+        while (y < gyu) {
+          var x = gxf
+          while (x < gxu) {
+            val cx = x - (gxm - hsz)
+            val cy = y - (gym - hsz)
+            val v = matrix(cy * 4 + cx)
+            if (includeNil || v != nil) a(x, y, v)
+            x += 1
+          }
+          y += 1
+        }
+      }
+
+      def copy(gxf: Int, gyf: Int, gxu: Int, gyu: Int, gxm: Int, gym: Int,
+        hsz: Int, a: Array[T], area: Area[T], nil: T): Unit = {
+        val x0 = area.gxf
+        val y0 = area.gyf
+        val width = area.gxu - x0
+        var y = gyf
+        while (y < gyu) {
+          var x = gxf
+          while (x < gxu) {
+            val cx = x - (gxm - hsz)
+            val cy = y - (gym - hsz)
+            val v = matrix(cy * 4 + cx)
+            a((y - y0) * width + (x - x0)) = v
+            x += 1
+          }
+          y += 1
+        }
+      }
     }
   }
 }
