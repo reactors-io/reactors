@@ -16,7 +16,7 @@ class QuadMatrixAllocationBench extends JBench.Forked[Long] {
     exec.minWarmupRuns -> 2,
     exec.maxWarmupRuns -> 5,
     exec.independentSamples -> 1,
-    verbose -> false
+    verbose -> true
   )
 
   def measurer: Measurer[Long] = {
@@ -70,7 +70,7 @@ class QuadMatrixAllocationBench extends JBench.Forked[Long] {
   }
 
   val emptyPoolCtx = Context(
-    reports.validation.predicate -> { (n: Any) => n == 31 }
+    reports.validation.predicate -> { (n: Any) => n == 15 }
   )
 
   @gen("matrices")

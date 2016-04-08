@@ -40,7 +40,7 @@ class QuadMatrix[@specialized(Int, Long, Double) T](
       n => n.clear())
     flatPool = new FixedSizePool(
       poolSize,
-      () => new QuadMatrix.Node.Flat[T],
+      () => QuadMatrix.Node.Flat.empty[T],
       n => {})
     removedValue = nil
   }
@@ -51,6 +51,7 @@ class QuadMatrix[@specialized(Int, Long, Double) T](
     while (i < poolSize) {
       forkPool.release(QuadMatrix.Node.Fork.empty(self))
       leafPool.release(QuadMatrix.Node.Leaf.empty[T])
+      flatPool.release(QuadMatrix.Node.Flat.empty[T])
       i += 1
     }
   }
@@ -65,6 +66,7 @@ class QuadMatrix[@specialized(Int, Long, Double) T](
   private[reactors] def release(n: QuadMatrix.Node[T]) = n match {
     case l: QuadMatrix.Node.Leaf[T] => leafPool.release(l)
     case f: QuadMatrix.Node.Fork[T] => forkPool.release(f)
+    case f: QuadMatrix.Node.Flat[T] => flatPool.release(f)
     case _ => // Not releasing Empty nodes.
   }
 
@@ -87,7 +89,9 @@ class QuadMatrix[@specialized(Int, Long, Double) T](
         roots(bx, by) = root
       }
       val nroot = root.update(qx, qy, v, blockExponent, this)
-      if (root ne nroot) roots(bx, by) = nroot
+      if (root ne nroot) {
+        roots(bx, by) = nroot
+      }
       val prev = removedValue
       if (removedValue != nil) removedValue = nil
       prev
@@ -758,6 +762,10 @@ object QuadMatrix {
           y += 1
         }
       }
+    }
+
+    object Flat {
+      def empty[@specialized(Int, Long, Double) T: Arrayable] = new Flat[T]
     }
   }
 }
