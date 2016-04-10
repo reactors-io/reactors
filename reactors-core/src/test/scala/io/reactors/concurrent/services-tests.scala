@@ -19,22 +19,22 @@ class NetTest extends FunSuite with Matchers with BeforeAndAfterAll {
 
   val system = ReactorSystem.default("TestSystem")
 
-  // test("Resource string should be resolved") {
-  //   val res = Promise[String]()
-  //   val resolver = (url: URL) => IOUtils.toInputStream("ok", "UTF-8")
-  //   system.spawn(Proto[ResourceStringReactor](res, resolver)
-  //     .withScheduler(ReactorSystem.Bundle.schedulers.piggyback))
-  //   assert(res.future.value.get.get == "ok", s"got ${res.future.value}")
-  // }
+  test("Resource string should be resolved") {
+    val res = Promise[String]()
+    val resolver = (url: URL) => IOUtils.toInputStream("ok", "UTF-8")
+    system.spawn(Proto[ResourceStringReactor](res, resolver)
+      .withScheduler(ReactorSystem.Bundle.schedulers.piggyback))
+    assert(res.future.value.get.get == "ok", s"got ${res.future.value}")
+  }
 
-  // test("Resource string should throw an exception") {
-  //   val testError = new Exception
-  //   val res = Promise[String]()
-  //   val resolver: URL => InputStream = url => throw testError
-  //   system.spawn(Proto[ResourceStringReactor](res, resolver)
-  //     .withScheduler(ReactorSystem.Bundle.schedulers.piggyback))
-  //   assert(res.future.value.get == Failure(testError), s"got ${res.future.value}")
-  // }
+  test("Resource string should throw an exception") {
+    val testError = new Exception
+    val res = Promise[String]()
+    val resolver: URL => InputStream = url => throw testError
+    system.spawn(Proto[ResourceStringReactor](res, resolver)
+      .withScheduler(ReactorSystem.Bundle.schedulers.piggyback))
+    assert(res.future.value.get == Failure(testError), s"got ${res.future.value}")
+  }
 
   override def afterAll() {
     system.shutdown()
