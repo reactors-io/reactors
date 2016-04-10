@@ -13,7 +13,7 @@ package object remoting {
   
   case class ReactorUrl(systemUrl: SystemUrl, name: String)
   
-  case class ChannelUrl(isoUrl: ReactorUrl, anchor: String) {
-    val channelName = s"${isoUrl.name}#$anchor"
+  case class ChannelUrl(reactorUrl: ReactorUrl, anchor: String) {
+    val channelName = s"${reactorUrl.name}#$anchor"
   }
 }

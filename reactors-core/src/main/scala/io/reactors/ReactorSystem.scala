@@ -38,19 +38,6 @@ class ReactorSystem(
    */
   private[reactors] val frames = new UniqueStore[Frame]("reactor", monitor)
 
-  /** Contains channels of various system reactors.
-   */
-  class StandardReactors {
-    /** Replies to channel lookup requests.
-     */
-    // val resolver = {
-    //   val p = Proto[Services.NameResolverReactor]
-    //     .withName("resolver")
-    //     .withChannelName("find")
-    //   ReactorSystem.this.spawn(p)
-    // }
-  }
-
   /** Shuts down services. */
   def shutdown() {
     shutdownServices()

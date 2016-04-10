@@ -42,6 +42,9 @@ abstract class Services {
   /** I/O services. */
   val io = service[Services.Io]
 
+  /** Naming services. */
+  val names = service[Services.Names]
+
   /** Network services. */
   val net = service[Services.Net]
 
@@ -84,6 +87,29 @@ object Services {
     val defaultCharset = Charset.defaultCharset.name
 
     def shutdown() {}
+  }
+
+  private[reactors] class NameResolverReactor
+  extends Reactor[(String, Channel[Option[Channel[_]]])] {
+    main.events onMatch {
+      case (name, answer) => answer ! system.channels.find(name)
+    }
+  }
+
+  /** Contains name resolution reactors.
+   */
+  class Names(val system: ReactorSystem) extends Protocol.Service {
+    /** Replies to channel lookup requests.
+     */
+    lazy val resolve = {
+      val p = Proto[NameResolverReactor]
+        .withName("~names/resolve")
+        .withChannelName("channel")
+      system.spawn(p)
+    }
+
+    def shutdown() {
+    }
   }
 
   /** Contains common network protocol services.
@@ -251,22 +277,15 @@ object Services {
     }
   }
 
-  private[reactors] class NameResolverReactor
-  extends Reactor[(String, Channel[Option[Channel[_]]])] {
-    main.events onMatch {
-      case (name, answer) => answer ! system.channels.find(name)
-    }
-  }
-
   /** The channel register used for channel lookup by name.
    *
    *  It can be used to query the channels in the local isolate system.
+   *  To query channels in remote isolate systems, `Names` service should be used.
    */
   class Channels(val system: ReactorSystem)
   extends ReactorSystem.ChannelBuilder(null, false, EventQueue.UnrolledRing.Factory)
   with Protocol.Service {
     def shutdown() {
-      // TODO: shut down the name resolver iso
     }
 
     /** Optionally returns the channel with the given name, if it exists.

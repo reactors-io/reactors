@@ -272,128 +272,18 @@ extends Reactor[Unit] {
 }
 
 
-// class ChannelsAskReactor(val p: Promise[Boolean]) extends Reactor[Unit] {
-//   val answer = system.channels.daemon.open[Option[Channel[_]]]
-//   system.iso.resolver ! (("chaki#main", answer.channel))
-//   answer.events onMatch {
-//     case Some(ch: Channel[Unit] @unchecked) => ch ! (())
-//     case None => sys.error("chaki#main not found")
-//   }
-//   main.events on {
-//     main.seal()
-//     p.success(true)
-//   }
-// }
-
-
-// class RequestReactor(val p: Promise[Boolean]) extends Reactor[Unit] {
-//   import patterns._
-//   import scala.concurrent.duration._
-//   val server = system.channels.daemon.open[(String, Channel[String])]
-//   server.events onMatch {
-//     case ("request", r) => r ! "reply"
-//   }
-//   sysEvents onMatch {
-//     case ReactorStarted =>
-//       server.channel.request("request", 2.seconds) onMatch {
-//         case "reply" =>
-//           main.seal()
-//           p.success(true)
-//       }
-//   }
-// }
-
-
-// class TimeoutRequestReactor(val p: Promise[Boolean]) extends Reactor[Unit] {
-//   import patterns._
-//   import scala.concurrent.duration._
-//   val server = system.channels.daemon.open[(String, Channel[String])]
-//   server.events onMatch {
-//     case ("request", r) => // staying silent
-//   }
-//   sysEvents onMatch {
-//     case ReactorStarted =>
-//       server.channel.request("request", 1.seconds) onExcept {
-//         case t =>
-//           main.seal()
-//           p.success(true)
-//       }
-//   }
-// }
-
-
-// class SecondRetryAfterTimeoutReactor(val p: Promise[Int]) extends Reactor[Unit] {
-//   import patterns._
-//   val requests = system.channels.daemon.open[(String, Channel[String])]
-//   var firstRequest = true
-//   var numAttempts = 0
-//   def test(x: String) = {
-//     numAttempts += 1
-//     true
-//   }
-//   requests.events onMatch {
-//     case ("try", answer) =>
-//       if (firstRequest) firstRequest = false
-//       else answer ! "yes"
-//   }
-//   sysEvents onMatch {
-//     case ReactorStarted =>
-//       requests.channel.retry("try", test, 4, 200.millis) onMatch {
-//         case "yes" => p.success(numAttempts)
-//       }
-//   }
-// }
-
-
-// class SecondRetryAfterDropReactor(val p: Promise[Boolean]) extends Reactor[Unit] {
-//   import patterns._
-//   val requests = system.channels.daemon.open[(String, Channel[String])]
-//   var numReplies = 0
-//   requests.events onMatch {
-//     case ("try", answer) => answer ! "yes"
-//   }
-//   def test(x: String) = {
-//     numReplies += 1
-//     numReplies == 2
-//   }
-//   sysEvents onMatch {
-//     case ReactorStarted =>
-//       requests.channel.retry("try", test, 4, 200.millis) onMatch {
-//         case "yes" => p.success(true)
-//       }
-//   }
-// }
-
-
-// class FailedRetryReactor(val p: Promise[Boolean]) extends Reactor[Unit] {
-//   import patterns._
-//   val requests = system.channels.daemon.open[(String, Channel[String])]
-//   requests.events onMatch {
-//     case ("try", answer) => answer ! "yes"
-//   }
-//   sysEvents onMatch {
-//     case ReactorStarted =>
-//       requests.channel.retry("try", _ => false, 4, 50.millis).onReaction(
-//         new Reactor[String] {
-//           def react(x: String) = p.success(false)
-//           def except(t: Throwable) = t match {
-//             case r: RuntimeException => p.success(true)
-//             case _ => p.success(false)
-//           }
-//           def unreact() = {}
-//         })
-//   }
-// }
-
-
-// class NameFinderReactor extends Reactor[Unit] {
-//   import patterns._
-//   system.iso.resolver.retry("fluffy#main", _ != None, 20, 50.millis) onMatch {
-//     case Some(ch: Channel[String] @unchecked) =>
-//       ch ! "die"
-//       main.seal()
-//   }
-// }
+class ChannelsAskReactor(val p: Promise[Boolean]) extends Reactor[Unit] {
+  val answer = system.channels.daemon.open[Option[Channel[_]]]
+  system.names.resolve ! (("chaki#main", answer.channel))
+  answer.events onMatch {
+    case Some(ch: Channel[Unit] @unchecked) => ch ! (())
+    case None => sys.error("chaki#main not found")
+  }
+  main.events on {
+    main.seal()
+    p.success(true)
+  }
+}
 
 
 class NamedReactor(val p: Promise[Boolean]) extends Reactor[String] {
@@ -651,7 +541,8 @@ object GlobalExecutionContextReactorSystemCheck extends ReactorSystemCheck("ECSy
 }
 
 
-object DefaultSchedulerReactorSystemCheck extends ReactorSystemCheck("DefaultSchedulerSystem") {
+object DefaultSchedulerReactorSystemCheck
+extends ReactorSystemCheck("DefaultSchedulerSystem") {
   val scheduler = ReactorSystem.Bundle.schedulers.default
 }
 
@@ -906,7 +797,8 @@ class ReactorSystemTest extends FunSuite with Matchers {
     try {
       val started = Promise[Boolean]()
       val ended = Promise[Boolean]()
-      val channel = system.spawn(Proto[LookupChannelReactor](started, ended).withName("pi"))
+      val channel = system.spawn(Proto[LookupChannelReactor](started, ended)
+        .withName("pi"))
       assert(Await.result(started.future, 10.seconds))
       system.channels.find[String]("pi#terminator") match {
         case Some(ch) => ch ! "end"
@@ -916,69 +808,13 @@ class ReactorSystemTest extends FunSuite with Matchers {
     } finally system.shutdown()
   }
 
-  // test("channels reactor should look up channels when asked") {
-  //   val system = ReactorSystem.default("test")
-  //   try {
-  //     val p = Promise[Boolean]
-  //     system.spawn(Proto[ChannelsAskReactor](p).withName("chaki"))
-  //     assert(Await.result(p.future, 10.seconds))
-  //   } finally system.shutdown()
-  // }
-
-  // test("request should return the result once") {
-  //   val system = ReactorSystem.default("test")
-  //   try {
-  //     val p = Promise[Boolean]
-  //     system.spawn(Proto[RequestReactor](p))
-  //     assert(Await.result(p.future, 10.seconds))
-  //   } finally system.shutdown()
-  // }
-
-  // test("request should timeout once") {
-  //   val system = ReactorSystem.default("test")
-  //   try {
-  //     val p = Promise[Boolean]
-  //     system.spawn(Proto[TimeoutRequestReactor](p))
-  //     assert(Await.result(p.future, 10.seconds))
-  //   } finally system.shutdown()
-  // }
-
-  // test("retry should succeed the second time after timeout") {
-  //   val system = ReactorSystem.default("test")
-  //   try {
-  //     val p = Promise[Int]
-  //     system.spawn(Proto[SecondRetryAfterTimeoutReactor](p))
-  //     assert(Await.result(p.future, 10.seconds) == 1)
-  //   } finally system.shutdown()
-  // }
-
-  // test("retry should succeed the second time after dropping reply") {
-  //   val system = ReactorSystem.default("test")
-  //   try {
-  //     val p = Promise[Boolean]
-  //     system.spawn(Proto[SecondRetryAfterDropReactor](p))
-  //     assert(Await.result(p.future, 10.seconds))
-  //   } finally system.shutdown()
-  // }
-
-  // test("retry should fail after 5 retries") {
-  //   val system = ReactorSystem.default("test")
-  //   try {
-  //     val p = Promise[Boolean]
-  //     system.spawn(Proto[FailedRetryReactor](p))
-  //     assert(Await.result(p.future, 10.seconds))
-  //   } finally system.shutdown()
-  // }
-
-  // test("should resolve name before failing") {
-  //   val system = ReactorSystem.default("test")
-  //   try {
-  //     val p = Promise[Boolean]
-  //     system.spawn(Proto[NameFinderReactor])
-  //     Thread.sleep(100)
-  //     system.spawn(Proto[NamedReactor](p).withName("fluffy"))
-  //     assert(Await.result(p.future, 10.seconds))
-  //   } finally system.shutdown()
-  // }
+  test("channels reactor should look up channels when asked") {
+    val system = ReactorSystem.default("test")
+    try {
+      val p = Promise[Boolean]
+      system.spawn(Proto[ChannelsAskReactor](p).withName("chaki"))
+      assert(Await.result(p.future, 10.seconds))
+    } finally system.shutdown()
+  }
 
 }
