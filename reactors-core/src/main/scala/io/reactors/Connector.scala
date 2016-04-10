@@ -23,7 +23,7 @@ class Connector[@spec(Int, Long, Double) T](
 
   def events: Events[T] = queue.events
 
-  def seal(): Unit = frame.sealConnector(sharedChannel.asLocal.uid)
+  def seal(): Boolean = frame.sealConnector(sharedChannel.asLocal.uid)
 
   def dequeue(): Int = queue.dequeue()
 }

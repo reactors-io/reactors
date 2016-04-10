@@ -35,6 +35,9 @@ trait EventQueue[@spec(Int, Long, Double) T] {
   def dequeue()(implicit s: Spec[T]): Int
 
   /** Unreact the event stream associated with this queue.
+   *
+   *  Can only be called by the queue's owner.
+   *  After calling this method, `dequeue` must not be called any more.
    */
   def unreact(): Unit
 

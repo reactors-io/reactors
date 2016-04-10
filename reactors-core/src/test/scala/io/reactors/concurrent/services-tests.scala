@@ -8,6 +8,7 @@ import java.net.URL
 import org.apache.commons.io._
 import org.scalatest._
 import org.scalatest.concurrent.TimeLimitedTests
+import scala.collection._
 import scala.concurrent._
 import scala.concurrent.duration._
 import scala.util.Failure
@@ -78,10 +79,10 @@ with TimeLimitedTests {
   }
 
   test("Countdown should accumulate 45") {
-    val total = Promise[Int]()
+    val total = Promise[Seq[Int]]()
     system.spawn(Proto[CountdownReactor](total).withScheduler(
       ReactorSystem.Bundle.schedulers.piggyback))
-    assert(total.future.value.get.get == 45,
+    assert(total.future.value.get.get == Seq(9, 8, 7, 6, 5, 4, 3, 2, 1, 0),
       s"Total sum of countdowns = ${total.future.value}")
   }
 
@@ -113,12 +114,12 @@ class TimeoutReactor(val timeoutCount: Promise[Int]) extends Reactor[Unit] {
 }
 
 
-class CountdownReactor(val total: Promise[Int]) extends Reactor[Unit] {
-  var sum = 0
+class CountdownReactor(val total: Promise[Seq[Int]]) extends Reactor[Unit] {
+  val elems = mutable.Buffer[Int]()
   system.clock.countdown(10, 50.millis).onEventOrDone {
-    x => sum += x
+    x => elems += x
   } {
-    total.success(sum)
+    total.success(elems)
     main.seal()
   }
 }

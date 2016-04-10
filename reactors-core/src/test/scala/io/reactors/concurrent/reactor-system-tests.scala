@@ -152,7 +152,7 @@ class ReactorPreemptedReactor(val p: Promise[Boolean]) extends Reactor[String] {
     case ReactorPreempted =>
       left -= 1
       if (left > 0) main.channel ! "dummy"
-      else main.seal()
+      else if (left == 0) main.seal()
     case ReactorTerminated =>
       p.success(true)
   }
@@ -419,8 +419,7 @@ abstract class BaseReactorSystemCheck(name: String) extends Properties(name) {
         case ReactorPreempted =>
           if (n > 0) self.main.channel ! "count"
           else {
-            self.main.seal()
-            p.success(true)
+            if (self.main.seal()) p.success(true)
           }
       }
       self.main.events onMatch {
@@ -592,7 +591,13 @@ abstract class ReactorSystemCheck(name: String) extends BaseReactorSystemCheck(n
         val events = mutable.Buffer[SysEvent]()
         self.sysEvents onMatch {
           case ReactorTerminated =>
-            val expected = Seq(ReactorStarted, ReactorScheduled, ReactorPreempted)
+            val expected = Seq(
+              ReactorStarted,
+              ReactorScheduled,
+              ReactorPreempted,
+              ReactorScheduled,
+              ChannelSealed(self.main),
+              ReactorPreempted)
             p.trySuccess(events == expected)
           case e =>
             events += e
