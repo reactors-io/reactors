@@ -3,15 +3,15 @@ package io.reactors
 
 
 import com.typesafe.config._
-import java.util.concurrent.atomic._
-import scala.annotation.tailrec
-import scala.collection._
-import scala.collection.JavaConverters._
 import io.reactors.common.Monitor
 import io.reactors.concurrent._
 import io.reactors.remoting.ReactorUrl
 //import io.reactors.remoting.Remoting
 import io.reactors.remoting.SystemUrl
+import java.util.concurrent.atomic._
+import scala.annotation.tailrec
+import scala.collection._
+import scala.collection.JavaConverters._
 
 
 
@@ -26,7 +26,9 @@ import io.reactors.remoting.SystemUrl
 class ReactorSystem(
   val name: String,
   val bundle: ReactorSystem.Bundle = ReactorSystem.defaultBundle
-) extends concurrent.Services {
+) extends Services {
+
+  def system = this
 
   /** Protects the internal state of the reactor system.
    */
@@ -48,9 +50,6 @@ class ReactorSystem(
     //   ReactorSystem.this.spawn(p)
     // }
   }
-
-  /** Contains channels for standard reactors. */
-  val iso = new StandardReactors
 
   /** Shuts down services. */
   def shutdown() {

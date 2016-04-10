@@ -72,7 +72,6 @@ import io.reactors.concurrent._
  */
 trait Reactor[@spec(Int, Long, Double) T] {
   @volatile private[reactors] var frame: Frame = _
-  @volatile private[reactors] var internalEventSub: Subscription = _
   private[reactors] val sysEmitter = new Events.Emitter[SysEvent]
 
   private def illegal() =
@@ -83,10 +82,18 @@ trait Reactor[@spec(Int, Long, Double) T] {
   private def init(dummy: Reactor[T]) {
     frame = Reactor.selfFrame.get match {
       case null => illegal()
-      case eq => eq.asInstanceOf[Frame]
+      case f => f.asInstanceOf[Frame]
     }
     frame.reactor = this
-    internalEventSub = internal.events.onEvent(x => sysEmitter.react(x, null))
+    internal.events.onEvent { x =>
+      x match {
+        case ChannelSealed(conn) =>
+          frame.decrementConnectorCount(conn)
+          conn.queue.unreact()
+        case _ =>
+      }
+      sysEmitter.react(x, null)
+    }
     Reactor.selfReactor.set(this)
   }
 
@@ -112,7 +119,7 @@ trait Reactor[@spec(Int, Long, Double) T] {
 
   /** The system connector of this reactor, which is a daemon.
    */
-  private def internal: Connector[SysEvent] = {
+  private[reactors] def internal: Connector[SysEvent] = {
     frame.internalConnector.asInstanceOf[Connector[SysEvent]]
   }
 

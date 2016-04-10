@@ -95,7 +95,8 @@ class TwoDuringFirstReactor(val p: Promise[Boolean]) extends Reactor[String] {
 }
 
 
-class CountdownReactor(val p: Promise[Boolean], var count: Int) extends Reactor[String] {
+class CountdownPromiseReactor(val p: Promise[Boolean], var count: Int)
+extends Reactor[String] {
   main.events onMatch {
     case "dec" =>
       count -= 1
@@ -783,7 +784,7 @@ class ReactorSystemTest extends FunSuite with Matchers {
     val system = ReactorSystem.default("test")
     try {
       val p = Promise[Boolean]()
-      val ch = system.spawn(Proto[CountdownReactor](p, 100))
+      val ch = system.spawn(Proto[CountdownPromiseReactor](p, 100))
       Thread.sleep(250)
       for (i <- 0 until 100) ch ! "dec"
       assert(Await.result(p.future, 10.seconds))

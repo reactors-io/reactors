@@ -226,10 +226,14 @@ final class Frame(
     if (conn == null) false
     else {
       conn.sharedChannel.asLocal.isOpen = false
-      if (!conn.isDaemon) nonDaemonCount -= 1
+      reactor.internal.channel ! ChannelSealed(conn)
       assert(connectors.tryReleaseById(uid))
       true
     }
+  }
+
+  def decrementConnectorCount(conn: Connector[_]) = monitor.synchronized {
+    if (!conn.isDaemon) nonDaemonCount -= 1
   }
 
 }

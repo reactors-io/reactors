@@ -15,6 +15,7 @@ import scala.annotation.tailrec
 import scala.collection._
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
+import scala.concurrent.blocking
 import scala.concurrent.duration._
 //import io.reactors.remoting.Remoting
 import scala.reflect.ClassTag
@@ -28,7 +29,7 @@ import scala.util.Try
 /** Defines services used by an isolate system.
  */
 abstract class Services {
-  system: ReactorSystem =>
+  def system: ReactorSystem
 
   private val services = mutable.Map[ClassTag[_], AnyRef]()
 
@@ -64,7 +65,7 @@ abstract class Services {
   }
 
   /** Shut down all services. */
-  protected def shutdownServices() {
+  def shutdownServices() {
     for ((_, service) <- services) {
       service.asInstanceOf[Protocol.Service].shutdown()
     }
@@ -108,22 +109,26 @@ object Services {
 
       /** Asynchronously retrieves the resource at the given URL.
        *
-       *  Once the resource is retrieved, the resulting event stream emits an event with
-       *  the string with the resource contents, and unreacts.
+       *  Once the resource is retrieved, the resulting `IVar` gets a string event with
+       *  the resource contents.
        *  In the case of failure, the event stream raises an exception and unreacts.
        *
        *  @param url     the url to load the resource from
        *  @param cs      the name of the charset to use
-       *  @return        the event stream with the resource string
+       *  @return        a single-assignment variable with the resource string
        */
-      def string(url: String, cs: String = system.io.defaultCharset): Events[String] = {
+      def asString(
+        url: String, cs: String = system.io.defaultCharset
+      ): IVar[String] = {
         val connector = system.channels.daemon.open[Try[String]]
         Future {
-          val inputStream = resolver(new URL(url))
-          try {
-            IOUtils.toString(inputStream, cs)
-          } finally {
-            inputStream.close()
+          blocking {
+            val inputStream = resolver(new URL(url))
+            try {
+              IOUtils.toString(inputStream, cs)
+            } finally {
+              inputStream.close()
+            }
           }
         } onComplete {
           case s @ Success(_) =>
@@ -136,7 +141,7 @@ object Services {
         connector.events.map({
           case Success(s) => s
           case Failure(t) => throw t
-        })
+        }).toIVar
       }
 
     }
@@ -145,9 +150,8 @@ object Services {
 
   /** Contains various time-related services.
    */
-  class Clock(val system: ReactorSystem)
-  extends Protocol.Service {
-    private val timer = new Timer(s"${system.name}.timer-service", true)
+  class Clock(val system: ReactorSystem) extends Protocol.Service {
+    private val timer = new Timer(s"reactors-io.${system.name}.timer-service", true)
 
     def shutdown() {
       timer.cancel()
@@ -161,24 +165,23 @@ object Services {
      *  The channel through which the events arrive is daemon.
      *
      *  @param d        duration between events
-     *  @return         an event stream and subscription
+     *  @return         a signal and subscription
      */
-    def periodic(d: Duration): Events[Unit] = {
-      // val connector = system.channels.daemon.open[Unit]
-      // val task = new TimerTask {
-      //   def run() {
-      //     connector.channel ! (())
-      //   }
-      // }
-      // timer.schedule(task, d.toMillis, d.toMillis)
-      // val sub = new Subscription {
-      //   def unsubscribe() {
-      //     task.cancel()
-      //     connector.seal()
-      //   }
-      // }
-      // connector.events
-      ???
+    def periodic(d: Duration): Signal[Unit] = {
+      val connector = system.channels.daemon.open[Unit]
+      val task = new TimerTask {
+        def run() {
+          connector.channel ! (())
+        }
+      }
+      timer.schedule(task, d.toMillis, d.toMillis)
+      val sub = new Subscription {
+        def unsubscribe() {
+          task.cancel()
+          connector.seal()
+        }
+      }
+      connector.events.toSignal(()).withSubscription(sub)
     }
 
     /** Emits an event after a timeout specified by the duration `d`.
@@ -189,23 +192,24 @@ object Services {
      *  The channel through which the event arrives is daemon.
      *
      *  @param d        duration after which the timeout event fires
-     *  @return         an event stream and subscription
+     *  @return         a signal that emits the event on timeout
      */
-    def timeout(d: Duration): Events[Unit] with Subscription = {
-      // val connector = system.channels.daemon.open[Unit]
-      // val task = new TimerTask {
-      //   def run() {
-      //     connector.channel ! (())
-      //     connector.seal()
-      //   }
-      // }
-      // timer.schedule(task, d.toMillis)
-      // val sub = Subscription {
-      //   task.cancel()
-      //   connector.seal()
-      // }
-      // connector.events.withSubscription(sub)
-      ???
+    def timeout(d: Duration): Signal[Unit] = {
+      val connector = system.channels.daemon.open[Unit]
+      val task = new TimerTask {
+        def run() {
+          connector.channel ! (())
+          connector.seal()
+        }
+      }
+      timer.schedule(task, d.toMillis)
+      val sub = new Subscription {
+        def unsubscribe() {
+          task.cancel()
+          connector.seal()
+        }
+      }
+      connector.events.toSignal(()).withSubscription(sub)
     }
 
     /** Emits an event at regular intervals, until the specified count reaches zero.
@@ -220,29 +224,30 @@ object Services {
      *
      *  @param n        the starting value of the countdown
      *  @param d        period between countdowns
-     *  @return         an event stream and subscription
+     *  @return         a signal with the countdown events
      */
-    def countdown(n: Int, d: Duration): Events[Int] with Subscription = {
-      // assert(n > 0)
-      // val connector = system.channels.daemon.open[Int]
-      // val task = new TimerTask {
-      //   var left = n
-      //   def run() = if (left > 0) {
-      //     left -= 1
-      //     connector.channel ! left
-      //     if (left == 0) {
-      //       this.cancel()
-      //       connector.seal()
-      //     }
-      //   }
-      // }
-      // timer.schedule(task, d.toMillis, d.toMillis)
-      // val sub = Subscription {
-      //   task.cancel()
-      //   connector.seal()
-      // }
-      // connector.events.takeWhile(_ > 0).withSubscription(sub)
-      ???
+    def countdown(n: Int, d: Duration): Signal[Int] = {
+      assert(n > 0)
+      val connector = system.channels.daemon.open[Int]
+      val task = new TimerTask {
+        var left = n
+        def run() = if (left > 0) {
+          left -= 1
+          connector.channel ! left
+          if (left == 0) {
+            this.cancel()
+            connector.seal()
+          }
+        }
+      }
+      timer.schedule(task, d.toMillis, d.toMillis)
+      val sub = new Subscription {
+        def unsubscribe() = {
+          task.cancel()
+          connector.seal()
+        }
+      }
+      connector.events.toSignal(n).withSubscription(sub)
     }
   }
 

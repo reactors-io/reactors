@@ -34,6 +34,10 @@ trait EventQueue[@spec(Int, Long, Double) T] {
    */
   def dequeue()(implicit s: Spec[T]): Int
 
+  /** Unreact the event stream associated with this queue.
+   */
+  def unreact(): Unit
+
   /** Event stream on which this event queue releases events.
    *
    *  An event is released when `dequeue` is called. Note that only the owning reactor
@@ -62,6 +66,7 @@ object EventQueue {
   extends EventQueue[T] {
     def enqueue(x: T) = 0
     def dequeue()(implicit s: Spec[T]) = 0
+    def unreact() {}
     def size = 0
     val events = new Events.Never[T]
   }
@@ -90,6 +95,8 @@ object EventQueue {
       emitter.react(x, null)
       remaining
     }
+
+    def unreact() = emitter.unreact()
 
     def events: Events[T] = emitter
 
