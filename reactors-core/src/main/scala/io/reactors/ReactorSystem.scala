@@ -5,9 +5,7 @@ package io.reactors
 import com.typesafe.config._
 import io.reactors.common.Monitor
 import io.reactors.concurrent._
-import io.reactors.remoting.ReactorUrl
-//import io.reactors.remoting.Remoting
-import io.reactors.remoting.SystemUrl
+//import io.reactors.remote.Remoting
 import java.util.concurrent.atomic._
 import scala.annotation.tailrec
 import scala.collection._
@@ -89,7 +87,7 @@ class ReactorSystem(
     try {
       // 3. allocate the standard connectors
       frame.name = uname
-      frame.url = ReactorUrl(bundle.urlsBySchema(proto.transport), uname)
+      frame.url = ReactorUrl(bundle.urlMap(proto.transport), uname)
       frame.defaultConnector = frame.openConnector[T](proto.channelName, factory, false)
       frame.internalConnector = frame.openConnector[SysEvent]("system", factory, true)
 
@@ -132,7 +130,7 @@ object ReactorSystem {
    */
   val defaultConfig: Config = {
     ConfigFactory.parseString("""
-      remoting = {
+      remote = {
         udp = {
           schema = "reactors.udp"
           host = "localhost"
@@ -143,6 +141,7 @@ object ReactorSystem {
           host = "localhost"
           port = 17773
         }
+        pickler = io.reactors.remote.Remote.Pickler.JavaSerialization
       }
       system = {
         net = {
@@ -167,18 +166,14 @@ object ReactorSystem {
      */
     val config = customConfig.withFallback(defaultConfig)
 
-    val urlsBySchema = config.getConfig("remoting").root.values.asScala.collect {
+    val urlMap = config.getConfig("remote").root.values.asScala.collect {
       case c: ConfigObject => c.toConfig
     } map { c =>
       (c.getString("schema"),
         SystemUrl(c.getString("schema"), c.getString("host"), c.getInt("port")))
     } toMap
 
-    val urls = urlsBySchema.map(_._2).toSet
-
-    /** Pickler implementation for this reactor system.
-     */
-    //val pickler = new Remoting.Pickler.JavaSerialization
+    val urls = urlMap.map(_._2).toSet
 
     /** Retrieves the scheduler registered under the specified name.
      *  

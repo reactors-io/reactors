@@ -7,7 +7,6 @@ import java.util.concurrent.atomic._
 import scala.annotation.tailrec
 import scala.collection._
 import io.reactors.common.UnrolledRing
-import io.reactors.remoting._
 import io.reactors.common.Monitor
 
 

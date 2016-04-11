@@ -4,7 +4,6 @@ package io.reactors
 
 import scala.collection._
 import io.reactors.concurrent.Frame
-import io.reactors.remoting.ChannelUrl
 // import io.reactors.remoting.Remoting
 
 
