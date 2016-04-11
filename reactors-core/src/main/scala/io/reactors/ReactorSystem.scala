@@ -5,7 +5,6 @@ package io.reactors
 import com.typesafe.config._
 import io.reactors.common.Monitor
 import io.reactors.concurrent._
-//import io.reactors.remote.Remoting
 import java.util.concurrent.atomic._
 import scala.annotation.tailrec
 import scala.collection._
