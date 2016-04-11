@@ -140,7 +140,7 @@ object ReactorSystem {
           host = "localhost"
           port = 17773
         }
-        pickler = io.reactors.remote.Remote.Pickler.JavaSerialization
+        pickler = io.reactors.remote.pickler.JavaSerialization
       }
       system = {
         net = {
