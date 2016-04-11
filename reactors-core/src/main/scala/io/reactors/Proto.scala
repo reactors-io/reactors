@@ -18,7 +18,7 @@ final class Proto[+I <: Reactor[_]] private[reactors] (
   val eventQueueFactory: EventQueue.Factory = null,
   val name: String = null,
   val channelName: String = "main",
-  val transport: String = "reactors.udp"
+  val transport: String = "reactor.udp"
 ) {
 
   /** Instantiates and returns the reactor.

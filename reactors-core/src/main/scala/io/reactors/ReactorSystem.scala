@@ -5,6 +5,7 @@ package io.reactors
 import com.typesafe.config._
 import io.reactors.common.Monitor
 import io.reactors.concurrent._
+import io.reactors.pickle.Pickler
 import java.util.concurrent.atomic._
 import scala.annotation.tailrec
 import scala.collection._
@@ -86,7 +87,7 @@ class ReactorSystem(
     try {
       // 3. allocate the standard connectors
       frame.name = uname
-      frame.url = ReactorUrl(bundle.urlMap(proto.transport), uname)
+      frame.url = ReactorUrl(bundle.urlMap(proto.transport).url, uname)
       frame.defaultConnector = frame.openConnector[T](proto.channelName, factory, false)
       frame.internalConnector = frame.openConnector[SysEvent]("system", factory, true)
 
@@ -129,18 +130,14 @@ object ReactorSystem {
    */
   val defaultConfig: Config = {
     ConfigFactory.parseString("""
+      pickler = io.reactors.pickle.JavaSerialization
       remote = {
         udp = {
-          schema = "reactors.udp"
+          schema = "reactor.udp"
+          transport = io.reactors.remote.UdpTransport
           host = "localhost"
           port = 17771
         }
-        tcp = {
-          schema = "reactors.tcp"
-          host = "localhost"
-          port = 17773
-        }
-        pickler = io.reactors.remote.pickler.JavaSerialization
       }
       system = {
         net = {
@@ -168,11 +165,17 @@ object ReactorSystem {
     val urlMap = config.getConfig("remote").root.values.asScala.collect {
       case c: ConfigObject => c.toConfig
     } map { c =>
-      (c.getString("schema"),
-        SystemUrl(c.getString("schema"), c.getString("host"), c.getInt("port")))
+      val schema = c.getString("schema")
+      val url = SystemUrl(c.getString("schema"), c.getString("host"), c.getInt("port"))
+      val transportName = c.getString("transport")
+      (schema, Bundle.TransportInfo(url, transportName))
     } toMap
 
-    val urls = urlMap.map(_._2).toSet
+    val urls = urlMap.map(_._2.url).toSet
+
+    val pickler = {
+      Class.forName(config.getString("pickler")).newInstance.asInstanceOf[Pickler]
+    }
 
     /** Retrieves the scheduler registered under the specified name.
      *  
@@ -216,6 +219,8 @@ object ReactorSystem {
       val newThread = "org.reactors.Scheduler.newThread"
       val piggyback = "org.reactors.Scheduler.piggyback"
     }
+
+    case class TransportInfo(url: SystemUrl, transportName: String)
 
     /** A bundle with default schedulers from the `Scheduler` companion object.
      *  

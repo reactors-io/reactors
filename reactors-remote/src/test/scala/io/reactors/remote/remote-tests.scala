@@ -1,5 +1,5 @@
-package scala.reactive
-package remoting
+package io.reactors
+package remote
 
 
 
@@ -44,7 +44,7 @@ class RemotingTest extends FunSuite with Matchers {
           objectInputStream.readObject()
         }
 
-        assert(read() == "test-iso")
+        assert(read() == "test-reactor")
         assert(read() == "test-anchor")
         assert(read() == "test-event")
 
@@ -53,13 +53,13 @@ class RemotingTest extends FunSuite with Matchers {
     }
     server.start()
 
-    // start iso system
-    val system = IsoSystem.default("test-system")
+    // start reactor system
+    val system = ReactorSystem.default("test-system")
     try {
       val port = socket.getLocalPort
-      val sysUrl = SystemUrl("iso.udp", "localhost", port)
-      val channelUrl = ChannelUrl(IsoUrl(sysUrl, "test-iso"), "test-anchor")
-      val channel = system.remoting.resolve[String](channelUrl)
+      val sysUrl = SystemUrl("reactor.udp", "localhost", port)
+      val channelUrl = ChannelUrl(ReactorUrl(sysUrl, "test-reactor"), "test-anchor")
+      val channel = system.remote.resolve[String](channelUrl)
 
       // send message
       channel ! "test-event"
@@ -73,28 +73,28 @@ class RemotingTest extends FunSuite with Matchers {
   }
 
   test("UDP transport should send and receive events correctly") {
-    // start two iso systems
-    val sendSys = IsoSystem.default(
+    // start two reactor systems
+    val sendSys = ReactorSystem.default(
       "test-send-sys",
-      new IsoSystem.Bundle(Scheduler.default, "remoting.udp.port = 0"))
-    val recvSys = IsoSystem.default(
+      new ReactorSystem.Bundle(Scheduler.default, "remote.udp.port = 0"))
+    val recvSys = ReactorSystem.default(
       "test-recv-sys",
-      new IsoSystem.Bundle(Scheduler.default, "remoting.udp.port = 0"))
+      new ReactorSystem.Bundle(Scheduler.default, "remote.udp.port = 0"))
     try {
       // prepare channel
-      val sysUrl =
-        SystemUrl("iso.udp", "localhost", recvSys.remoting.udpTransport.port)
+      val sysUrl = SystemUrl("reactor.udp", "localhost",
+        recvSys.remote.transport("reactor.udp").asInstanceOf[UdpTransport].port)
       val channelUrl =
-        ChannelUrl(IsoUrl(sysUrl, "test-iso"), "test-anchor")
-      val ch = sendSys.remoting.resolve[String](channelUrl)
+        ChannelUrl(ReactorUrl(sysUrl, "test-reactor"), "test-anchor")
+      val ch = sendSys.remote.resolve[String](channelUrl)
 
-      // start receiving isolate
+      // start receiving reactor
       val started = Promise[Boolean]()
       val received = Promise[Boolean]()
       val receiverProto =
         Proto[RemotingTest.UdpReceiver](started, received)
-          .withName("test-iso").withChannelName("test-anchor")
-      recvSys.isolate(receiverProto)
+          .withName("test-reactor").withChannelName("test-anchor")
+      recvSys.spawn(receiverProto)
       assert(Await.result(started.future, 10.seconds))
       
       // send event and wait
@@ -111,10 +111,9 @@ class RemotingTest extends FunSuite with Matchers {
 
 object RemotingTest {
   class UdpReceiver(val started: Promise[Boolean], val received: Promise[Boolean])
-  extends Iso[String] {
-    import implicits.canLeak
+  extends Reactor[String] {
     sysEvents onMatch {
-      case IsoStarted => started.success(true)
+      case ReactorStarted => started.success(true)
     }
     main.events onMatch {
       case "test-event" => received.success(true)
