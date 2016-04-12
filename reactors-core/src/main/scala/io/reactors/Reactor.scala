@@ -28,7 +28,6 @@ import io.reactors.concurrent._
  *
  *  {{{
  *  class MyPrinter extends Reactor[String] {
- *    import implicits.canLeak
  *    main.events onEvent {
  *      e => println(e)
  *    }
@@ -57,7 +56,6 @@ import io.reactors.concurrent._
  *
  *  {{{
  *  class MyPrinter extends Reactor[String] {
- *    import implicits.canLeak
  *    main.events onEvent {
  *      e =>
  *      println(e)

@@ -120,8 +120,9 @@ object ReactorSystem {
    */
   def default(
     name: String, bundle: ReactorSystem.Bundle = ReactorSystem.defaultBundle
-  ) =
+  ) = {
     new ReactorSystem(name, bundle)
+  }
 
   /** Retrieves the default bundle config object.
    *

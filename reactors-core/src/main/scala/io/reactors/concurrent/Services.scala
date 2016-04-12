@@ -277,7 +277,7 @@ object Services {
     }
   }
 
-  /** The channel register used for channel lookup by name.
+  /** The channel register used for channel lookup by name, and creating new channels.
    *
    *  It can be used to query the channels in the local isolate system.
    *  To query channels in remote isolate systems, `Names` service should be used.
