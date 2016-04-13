@@ -65,7 +65,7 @@ class IVar[@spec(Int, Long, Double) T] extends Signal[T] {
     else sys.error("IVar unassigned.")
   }
 
-  def unsubscribe() = {}
+  def unsubscribe() = tryUnreact()
 
   /** Returns true if this ivar is unassigned or failed.
    */
