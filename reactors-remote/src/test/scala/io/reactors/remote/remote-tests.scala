@@ -13,7 +13,7 @@ import scala.concurrent.duration._
 
 
 
-class RemotingTest extends FunSuite with Matchers {
+class RemoteTest extends FunSuite with Matchers {
 
   test("UDP transport should send events correctly") {
     // start server
@@ -92,7 +92,7 @@ class RemotingTest extends FunSuite with Matchers {
       val started = Promise[Boolean]()
       val received = Promise[Boolean]()
       val receiverProto =
-        Proto[RemotingTest.UdpReceiver](started, received)
+        Proto[RemoteTest.UdpReceiver](started, received)
           .withName("test-reactor").withChannelName("test-anchor")
       recvSys.spawn(receiverProto)
       assert(Await.result(started.future, 10.seconds))
@@ -109,7 +109,7 @@ class RemotingTest extends FunSuite with Matchers {
 }
 
 
-object RemotingTest {
+object RemoteTest {
   class UdpReceiver(val started: Promise[Boolean], val received: Promise[Boolean])
   extends Reactor[String] {
     sysEvents onMatch {
