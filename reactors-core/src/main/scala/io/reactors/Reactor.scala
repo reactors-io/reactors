@@ -84,12 +84,6 @@ trait Reactor[@spec(Int, Long, Double) T] {
     }
     frame.reactor = this
     internal.events.onEvent { x =>
-      x match {
-        case ChannelSealed(conn) =>
-          frame.decrementConnectorCount(conn)
-          conn.queue.unreact()
-        case _ =>
-      }
       sysEmitter.react(x, null)
     }
     Reactor.selfReactor.set(this)
