@@ -36,5 +36,16 @@ trait ServerProtocols {
       server ! ((x, connector.channel))
       result
     }
+
+    /** Request a stream of replies from the server channel.
+     *
+     *  Server can reply with multiple events.
+     *
+     *  @param x     request event
+     *  @return      an event stream with the server replies
+     */
+    def stream(x: T): Events[S] = {
+      ???
+    }
   }
 }
