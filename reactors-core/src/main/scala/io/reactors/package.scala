@@ -101,6 +101,10 @@ package object reactors {
    */
   case object ReactorPreempted extends SysEvent
 
+  /** Denotes that a channel was sealed, used internally to unreact the event stream.
+   */
+  case class ChannelSealed(conn: Connector[_]) extends SysEvent
+
   /** Denotes that the isolate died due to an exception.
    *
    *  This event is sent after `ReactorStarted`.

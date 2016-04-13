@@ -84,6 +84,12 @@ trait Reactor[@spec(Int, Long, Double) T] {
     }
     frame.reactor = this
     internal.events.onEvent { x =>
+      x match {
+        case ChannelSealed(conn) =>
+          frame.decrementConnectorCount(conn)
+          conn.queue.unreact()
+        case _ =>
+      }
       sysEmitter.react(x, null)
     }
     Reactor.selfReactor.set(this)
@@ -159,7 +165,7 @@ object Reactor {
    *  @tparam I      the type of the current reactor
    *  @return        the current reactor, or `null`
    */
-  def selfAsOrNull[I <: Reactor[_]]: I = selfReactor.get.asInstanceOf[I]
+  def selfOrNull[I <: Reactor[_]]: I = selfReactor.get.asInstanceOf[I]
 
   /** Returns the current reactor that produces events of type `T`.
    */
