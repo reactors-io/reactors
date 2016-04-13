@@ -6,6 +6,8 @@ package protocol
 
 
 
+/** Communication patterns based on request-reply.
+ */
 trait ServerProtocols {
   /** A server channel accepts tuples with the request event and channel to reply on.
    */
@@ -39,13 +41,26 @@ trait ServerProtocols {
 
     /** Request a stream of replies from the server channel.
      *
+     *  The stream is interrupted when the server sends a `nil` event, as defined by the
+     *  `Arrayable` type class for type `S`.
+     *
      *  Server can reply with multiple events.
+     *  There is no backpressure in this algorithm, so users are responsible for
+     *  ensuring that the server does not flood the client.
+     *  Furthermote, the client can at any point unsubscribe from the event
+     *  stream without notifying the server, so ensuring that the server sends a finite
+     *  stream is strongly recommended.
      *
      *  @param x     request event
      *  @return      an event stream with the server replies
      */
-    def stream(x: T): Events[S] = {
-      ???
+    def stream(x: T): Signal[S] = {
+      val connector = Reactor.self.system.channels.open[S]
+      val nil = implicitly[Arrayable[S]].nil
+      val result = connector.events.takeWhile(_ != nil).toEmpty
+      result.onDone(connector.seal())
+      server ! ((x, connector.channel))
+      result
     }
   }
 }

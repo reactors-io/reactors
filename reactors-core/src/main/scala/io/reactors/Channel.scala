@@ -12,8 +12,14 @@ import io.reactors.concurrent.Frame
  *  By calling the channel's `!` method, an event is sent to the channel. The event is
  *  eventually emitted on the channel's corresponding event stream, which is readable
  *  only by the isolate that owns that channel.
+ *
+ *  @tparam T       type of the events propagated by this channel
  */
 trait Channel[@spec(Int, Long, Double) T] {
+  /** Sends a single event on this channel.
+   *
+   *  @param x      event sent to the channel
+   */
   def !(x: T): Unit
 }
 
