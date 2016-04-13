@@ -4,7 +4,6 @@ package io.reactors
 
 import scala.collection._
 import io.reactors.concurrent.Frame
-// import io.reactors.remoting.Remoting
 
 
 
@@ -34,8 +33,7 @@ object Channel {
           case None => underlying = new Failed
         }
       } else {
-        //underlying = system.service[Remoting].resolve[T](url)
-        ???
+        underlying = system.service[Remote].resolve[T](url)
       }
     }
 
