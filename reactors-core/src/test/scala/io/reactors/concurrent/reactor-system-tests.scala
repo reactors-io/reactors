@@ -553,7 +553,6 @@ object PiggybackReactorSystemCheck extends BaseReactorSystemCheck("PiggybackSyst
 
 
 class ReactorSystemTest extends FunSuite with Matchers {
-
   test("system should return without throwing") {
     val system = ReactorSystem.default("test")
     try {
@@ -816,5 +815,4 @@ class ReactorSystemTest extends FunSuite with Matchers {
       assert(Await.result(p.future, 10.seconds))
     } finally system.shutdown()
   }
-
 }

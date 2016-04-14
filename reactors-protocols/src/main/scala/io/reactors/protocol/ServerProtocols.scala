@@ -11,7 +11,11 @@ package protocol
 trait ServerProtocols {
   /** A server channel accepts tuples with the request event and channel to reply on.
    */
-  type Server[T, S] = Channel[(T, Channel[S])]
+  type Server[T, S] = Channel[Server.Req[T, S]]
+
+  object Server {
+    type Req[T, S] = (T, Channel[S])
+  }
 
   implicit class ServerSystemOps(val system: ReactorSystem) {
     /** Open a new server channel.
