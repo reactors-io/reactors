@@ -525,7 +525,9 @@ abstract class ReactorSystemCheck(name: String) extends BaseReactorSystemCheck(n
       }
       val ch = system.spawn(proto.withScheduler(scheduler))
       for (i <- 0 until total) ch ! "msg"
-      Await.result(p.future, 10.seconds) && fail.future.value != Some(Success(true))
+      assert(Await.result(p.future, 10.seconds))
+      Thread.sleep(2)
+      fail.future.value != Some(Success(true))
     }
 
 }

@@ -53,7 +53,7 @@ object ReactorsBuild extends MechaRepoBuild {
       ),
       testOptions in Test += Tests.Argument(
         TestFrameworks.ScalaCheck,
-        "-minSuccessfulTests", "150",
+        "-minSuccessfulTests", "200",
         "-workers", "1",
         "-verbosity", "2"),
       resolvers ++= Seq(

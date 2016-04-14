@@ -15,7 +15,6 @@ import scala.concurrent.duration._
 
 
 class ServerProtocolsSpec extends FunSuite {
-
   val system = ReactorSystem.default("server-protocols")
 
   test("request a reply from the server") {
@@ -37,7 +36,6 @@ class ServerProtocolsSpec extends FunSuite {
     system.spawn(proto)
     assert(Await.result(p.future, 10.seconds) == 2)
   }
-
 }
 
 
