@@ -12,7 +12,7 @@
   } yield (user, pass)
   val publishCreds: Seq[Setting[_]] = Seq(userPass match {
     case Some((user, pass)) =>
-      println(s"Username and password for Sonatype picked up: '$user', '${if (pass != "") ****** else ""}'")
+      println(s"Username and password for Sonatype picked up: '$user', '${if (pass != "") "******" else ""}'")
       credentials += Credentials("Sonatype Nexus Repository Manager", "oss.sonatype.org", user, pass)
     case None =>
       // prevent publishing
