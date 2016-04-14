@@ -20,7 +20,7 @@ trait ServerProtocols {
       system.channels.named(name).open[(T, Channel[S])]
   }
 
-  implicit class ServerChannelOps[T, @specialized(Int, Long, Double) S: Arrayable](
+  implicit class ServerOps[T, @specialized(Int, Long, Double) S: Arrayable](
     val server: Server[T, S]
   ) {
     /** Request a single reply from the server channel.
@@ -38,11 +38,14 @@ trait ServerProtocols {
       server ! ((x, connector.channel))
       result
     }
+  }
 
+  implicit class ServerStreamOps[T, @specialized(Int, Long, Double) S: Arrayable](
+    val server: Server[(T, S), S]
+  ) {
     /** Request a stream of replies from the server channel.
      *
-     *  The stream is interrupted when the server sends a `nil` event, as defined by the
-     *  `Arrayable` type class for type `S`.
+     *  The stream is interrupted when the server sends a `term` event.
      *
      *  Server can reply with multiple events.
      *  There is no backpressure in this algorithm, so users are responsible for
@@ -52,15 +55,15 @@ trait ServerProtocols {
      *  stream is strongly recommended.
      *
      *  @param x     request event
-     *  @return      an event stream with the server replies
+     *  @param term  termination event, server must use it to indicate the end of stream
+     *  @return      a signal emitting the server replies
      */
-    def stream(x: T): Signal[S] = {
+    def streaming(x: T, term: S): Signal[S] = {
       val connector = Reactor.self.system.channels.open[S]
-      val nil = implicitly[Arrayable[S]].nil
-      val result = connector.events.takeWhile(_ != nil).toEmpty
+      val result = connector.events.takeWhile(_ != term).toEmpty
       result.onDone(connector.seal())
-      server ! ((x, connector.channel))
-      result
+      server ! ((x, term), connector.channel)
+      result.withSubscription(Subscription { connector.seal() })
     }
   }
 }

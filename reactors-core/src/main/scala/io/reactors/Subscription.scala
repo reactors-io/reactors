@@ -36,6 +36,18 @@ trait Subscription {
  */
 object Subscription {
 
+  /** Returns a subscription that runs the specified action when unsubscribed.
+   *
+   *  The action **will not be** executed more than once.
+   */
+  def apply[U](action: =>U) = new Subscription {
+    var unsubscribed = false
+    def unsubscribe() = if (!unsubscribed) {
+      unsubscribed = true
+      action
+    }
+  }
+
   /** Does not unsubscribe from anything. */
   val empty = new Subscription {
     def unsubscribe() = {}
