@@ -36,8 +36,8 @@ trait EventQueue[@spec(Int, Long, Double) T] {
 
   /** Unreact the event stream associated with this queue.
    *
-   *  Can only be called by the queue's owner. This method removes all the remaining
-   *  events from the queue. Subsequent `enqueue` calls have no effect.
+   *  Can only be called by the queue's owner. Subsequent `dequeue` calls remove
+   *  elements, but do not emit them to the event stream.
    */
   def unreact(): Unit
 
@@ -86,17 +86,19 @@ object EventQueue {
     private[reactors] val emitter = new Events.Emitter[T]
 
     def enqueue(x: T): Int = monitor.synchronized {
-      if (live) ring.enqueue(x)
+      ring.enqueue(x)
       ring.size
     }
 
     def dequeue()(implicit s: Spec[T]): Int = {
       var remaining = -1
+      var isLive = true
       val x: T = monitor.synchronized {
+        isLive = live
         remaining = ring.size - 1
         ring.dequeue()
       }
-      emitter.react(x, null)
+      if (isLive) emitter.react(x, null)
       remaining
     }
 
