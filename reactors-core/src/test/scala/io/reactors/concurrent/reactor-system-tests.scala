@@ -10,6 +10,8 @@ import org.scalatest.{FunSuite, Matchers}
 import scala.annotation.unchecked
 import scala.collection._
 import scala.concurrent.Await
+import scala.concurrent.ExecutionContext.Implicits._
+import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.concurrent.duration._
 import scala.util.Success
@@ -349,13 +351,11 @@ abstract class ReactorSystemCheck(name: String) extends BaseReactorSystemCheck(n
       val proto = Reactor[String] { self =>
         var threadCount = 0
         var left = n
-        self.main.channel ! "dec"
         self.main.events onMatch {
           case "dec" =>
             if (threadCount != 1) count.success(threadCount)
             left -= 1
-            if (left > 0) self.main.channel ! "dec"
-            else self.main.seal()
+            if (left == 0) self.main.seal()
         }
         self.sysEvents onMatch {
           case ReactorScheduled => threadCount += 1
@@ -363,7 +363,10 @@ abstract class ReactorSystemCheck(name: String) extends BaseReactorSystemCheck(n
           case ReactorTerminated => done.success(true)
         }
       }
-      system.spawn(proto.withScheduler(scheduler))
+      val ch = system.spawn(proto.withScheduler(scheduler))
+      for (group <- (0 until n).grouped(n / 4 + 1)) Future {
+        for (e <- group) ch ! "dec"
+      }
       Await.ready(done.future, 10.seconds)
       assert(!count.future.value.isInstanceOf[Some[_]], count.future.value)
       done.future.value == Some(Success(true))
