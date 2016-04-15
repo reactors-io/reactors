@@ -342,6 +342,33 @@ abstract class ReactorSystemCheck(name: String) extends BaseReactorSystemCheck(n
     Await.result(p.future, 10.seconds)
   }
 
+  property("should be executed by at most one thread at a time") =
+    forAllNoShrink(choose(1, 32000)) { n =>
+      val count = Promise[Int]()
+      val done = Promise[Boolean]()
+      val proto = Reactor[String] { self =>
+        var threadCount = 0
+        var left = n
+        self.main.channel ! "dec"
+        self.main.events onMatch {
+          case "dec" =>
+            if (threadCount != 1) count.success(threadCount)
+            left -= 1
+            if (left > 0) self.main.channel ! "dec"
+            else self.main.seal()
+        }
+        self.sysEvents onMatch {
+          case ReactorScheduled => threadCount += 1
+          case ReactorPreempted => threadCount -= 1
+          case ReactorTerminated => done.success(true)
+        }
+      }
+      system.spawn(proto.withScheduler(scheduler))
+      Await.ready(done.future, 10.seconds)
+      assert(!count.future.value.isInstanceOf[Some[_]], count.future.value)
+      done.future.value == Some(Success(true))
+    }
+
   property("should receive many events through different sources") =
     forAllNoShrink(choose(1, 1024)) { n =>
       val p = Promise[Boolean]()
