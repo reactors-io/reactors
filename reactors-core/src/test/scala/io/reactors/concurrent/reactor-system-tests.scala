@@ -511,9 +511,6 @@ abstract class ReactorSystemCheck(name: String) extends BaseReactorSystemCheck(n
             val expected = Seq(
               ReactorStarted,
               ReactorScheduled,
-              ReactorPreempted,
-              ReactorScheduled,
-              ChannelSealed(self.main),
               ReactorPreempted)
             p.trySuccess(events == expected)
           case e =>

@@ -221,16 +221,21 @@ final class Frame(
   }
 
   def sealConnector(uid: Long): Boolean = {
-    monitor.synchronized {
+    val sealedConn = monitor.synchronized {
       val conn = connectors.forId(uid)
-      if (conn == null) false
+      if (conn == null) null
       else {
         conn.sharedChannel.asLocal.isOpen = false
-        reactor.internal.channel ! ChannelSealed(conn)
+        decrementConnectorCount(conn)
         assert(connectors.tryReleaseById(uid))
-        true
+        conn
       }
     }
+    if (sealedConn != null) {
+      assert(Reactor.selfAsOrNull != null)
+      sealedConn.queue.unreact()
+    }
+    sealedConn != null
   }
 
   def decrementConnectorCount(conn: Connector[_]) = monitor.synchronized {

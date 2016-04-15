@@ -92,20 +92,19 @@ object EventQueue {
 
     def dequeue()(implicit s: Spec[T]): Int = {
       var remaining = -1
-      var isLive = true
+      var shouldPropagate = true
       val x: T = monitor.synchronized {
-        isLive = live
+        shouldPropagate = live
         remaining = ring.size - 1
         ring.dequeue()
       }
-      if (isLive) emitter.react(x, null)
+      if (shouldPropagate) emitter.react(x, null)
       remaining
     }
 
     def unreact() = {
       monitor.synchronized {
         live = false
-        ring.clear()
       }
       emitter.unreact()
     }

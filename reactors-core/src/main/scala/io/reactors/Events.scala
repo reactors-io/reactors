@@ -489,7 +489,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  {{{
    *  time             ------------------------>
    *  this             -0---1--2--3-4--1-5--2-->
-   *  takeWhile(_ < 4)     -1--2--3-|---------->
+   *  takeWhile(_ < 4)     -1--2--3-|
    *  }}}
    *
    *  @param p          the predicate that specifies whether to take the element
@@ -509,13 +509,29 @@ trait Events[@spec(Int, Long, Double) T] {
    *  {{{
    *  time             ------------------------>
    *  this             -0---1--2--3-4--1-5--2-->
-   *  takeWhile(_ < 4)     -1--2--3-|---------->
+   *  dropWhile(_ < 4)     ---------4--1-5--2-->
    *  }}}
    *
    *  @param p          the predicate that specifies whether to take the element
    *  @return           event stream with the forwarded events
    */
   def dropWhile(p: T => Boolean): Events[T] = new Events.DropWhile(this, p)
+
+  /** Drop all events after an event that satisfies a predicate.
+   *
+   *  This is similar to `takeWhile`, but includes the event that satisfies the
+   *  predicate.
+   *
+   *  {{{
+   *  time                ------------------------>
+   *  this                -0---1--2--3-4--1-5--2-->
+   *  dropAfter(_ == 4)       -1--2--3-4|
+   *  }}}
+   *
+   *  @param p          the predicate that specifies whether to drop subsequent events
+   *  @return           event stream with the forwarded events
+   */
+  def dropAfter(p: T => Boolean): Events[T] = new Events.DropAfter(this, p)
 
   /** Drops `n` events from this event stream, and emits the rest.
    *
@@ -595,8 +611,8 @@ trait Events[@spec(Int, Long, Double) T] {
    *
    *  {{{
    *  time            ------------------->
-   *  this            --1--2-----3-|----->
-   *  currentEvent    -------------()-|-->
+   *  this            --1--2-----3-|
+   *  currentEvent    -------------()-|
    *  }}}
    *
    *  @return           the unreaction event stream and subscription
@@ -1815,6 +1831,45 @@ object Events {
       if (p(value)) target.react(value, hint)
       else {
         closed = true
+        subscription.unsubscribe()
+        target.unreact()
+      }
+    }
+    def except(t: Throwable) = if (!closed) {
+      target.except(t)
+    }
+    def unreact() = if (!closed) {
+      target.unreact()
+    }
+  }
+
+  private[reactors] class DropAfter[@spec(Int, Long, Double) T](
+    val self: Events[T],
+    val p: T => Boolean
+  ) extends Events[T] {
+    def onReaction(observer: Observer[T]): Subscription = {
+      val obs = new DropAfterObserver(observer, p)
+      val sub = self.onReaction(obs)
+      obs.subscription = sub
+      sub
+    }
+  }
+
+  private[reactors] class DropAfterObserver[@spec(Int, Long, Double) T](
+    val target: Observer[T],
+    val p: T => Boolean
+  ) extends Observer[T] {
+    private var closed: Boolean = _
+    var subscription = Subscription.empty
+    def init(dummy: Observer[T]) {
+      closed = false
+    }
+    init(this)
+    def react(value: T, hint: Any) = if (!closed) {
+      if (!p(value)) target.react(value, hint)
+      else {
+        closed = true
+        target.react(value, hint)
         subscription.unsubscribe()
         target.unreact()
       }

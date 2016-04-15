@@ -158,15 +158,15 @@ object Services {
         } onComplete {
           case s @ Success(_) =>
             connector.channel ! s
-            connector.seal()
           case f @ Failure(t) =>
             connector.channel ! f
-            connector.seal()
         }
-        connector.events.map({
+        val ivar = connector.events.map({
           case Success(s) => s
           case Failure(t) => throw t
         }).toIVar
+        ivar.ignoreExceptions.onDone(connector.seal())
+        ivar
       }
 
     }
@@ -185,18 +185,20 @@ object Services {
     /** Emits an event periodically, with the duration between events equal to `d`.
      *
      *  Note that these events are fired eventually, and have similar semantics as that
-     *  of `java.util.Timer`.
+     *  of fixed-delay execution in `java.util.Timer`.
      *
-     *  The channel through which the events arrive is daemon.
+     *  The channel through which the events arrive is a daemon.
      *
      *  @param d        duration between events
-     *  @return         a signal and subscription
+     *  @return         a signal with the index of the event
      */
-    def periodic(d: Duration): Signal[Unit] = {
-      val connector = system.channels.daemon.open[Unit]
+    def periodic(d: Duration): Signal[Long] = {
+      val connector = system.channels.daemon.open[Long]
       val task = new TimerTask {
+        var i = 0L
         def run() {
-          connector.channel ! (())
+          i += 1
+          connector.channel ! i
         }
       }
       timer.schedule(task, d.toMillis, d.toMillis)
@@ -206,7 +208,7 @@ object Services {
           connector.seal()
         }
       }
-      connector.events.toSignal(()).withSubscription(sub)
+      connector.events.toSignal(0L).withSubscription(sub)
     }
 
     /** Emits an event after a timeout specified by the duration `d`.
@@ -219,22 +221,20 @@ object Services {
      *  @param d        duration after which the timeout event fires
      *  @return         a signal that emits the event on timeout
      */
-    def timeout(d: Duration): Signal[Unit] = {
+    def timeout(d: Duration): IVar[Unit] = {
       val connector = system.channels.daemon.open[Unit]
       val task = new TimerTask {
         def run() {
           connector.channel ! (())
-          connector.seal()
         }
       }
       timer.schedule(task, d.toMillis)
-      val sub = new Subscription {
-        def unsubscribe() {
-          task.cancel()
-          connector.seal()
-        }
+      val ivar = connector.events.toIVar
+      ivar.onDone {
+        task.cancel()
+        connector.seal()
       }
-      connector.events.toSignal(()).withSubscription(sub)
+      ivar
     }
 
     /** Emits an event at regular intervals, until the specified count reaches zero.
@@ -259,20 +259,16 @@ object Services {
         def run() = if (left > 0) {
           left -= 1
           connector.channel ! left
-          if (left == 0) {
-            this.cancel()
-            connector.seal()
-          }
         }
       }
       timer.schedule(task, d.toMillis, d.toMillis)
-      val sub = new Subscription {
-        def unsubscribe() = {
-          task.cancel()
-          connector.seal()
-        }
+      val sub = Subscription {
+        task.cancel()
+        connector.seal()
       }
-      connector.events.toSignal(n).withSubscription(sub)
+      val signal = connector.events.dropAfter(_ == 0).toSignal(n).withSubscription(sub)
+      signal.ignoreExceptions.onDone(sub.unsubscribe())
+      signal
     }
   }
 

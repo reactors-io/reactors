@@ -300,7 +300,7 @@ object Scheduler {
 
       override def startSchedule(frame: Frame) {
         super.startSchedule(frame)
-        if (Reactor.selfOrNull != null)
+        if (Reactor.selfAsOrNull != null)
           throw new IllegalStateException(
             "Cannot use piggyback scheduler from within a reactor.")
       }
