@@ -3,6 +3,7 @@ package concurrent
 
 
 
+import io.reactors.test._
 import org.scalacheck._
 import org.scalacheck.Prop.forAllNoShrink
 import org.scalacheck.Gen.choose
@@ -325,7 +326,8 @@ abstract class BaseReactorSystemCheck(name: String) extends Properties(name) {
 }
 
 
-abstract class ReactorSystemCheck(name: String) extends BaseReactorSystemCheck(name) {
+abstract class ReactorSystemCheck(name: String)
+extends BaseReactorSystemCheck(name) with ExtendedProperties {
 
   property("should receive many events") = forAllNoShrink(choose(1, 1024)) { num =>
     val p = Promise[Boolean]()
@@ -344,7 +346,7 @@ abstract class ReactorSystemCheck(name: String) extends BaseReactorSystemCheck(n
     Await.result(p.future, 10.seconds)
   }
 
-  property("should be executed by at most one thread at a time") =
+  property("be executed by at most one thread at a time") =
     forAllNoShrink(choose(1, 32000)) { n =>
       val count = Promise[Int]()
       val done = Promise[Boolean]()
@@ -372,7 +374,33 @@ abstract class ReactorSystemCheck(name: String) extends BaseReactorSystemCheck(n
       done.future.value == Some(Success(true))
     }
 
-  property("should receive many events through different sources") =
+  property("not process events after getting sealed") =
+    forAllNoShrink(detChoose(1, 16000)) { n =>
+      val done = Promise[Boolean]()
+      val failed = Promise[Boolean]()
+      val proto = Reactor[String] { self =>
+        var left = n
+        self.main.events onMatch {
+          case "dec" =>
+            if (left > 0) left -= 1
+            else if (left == 0) {
+              self.main.seal()
+              done.success(true)
+            } else {
+              failed.success(true)
+            }
+        }
+      }
+      val ch = system.spawn(proto.withScheduler(scheduler))
+      for (group <- (0 until (2 * n)).grouped(n / 4 + 1)) Future {
+        for (e <- group) ch ! "dec"
+      }
+      assert(Await.result(done.future, 10.seconds))
+      Thread.sleep(1)
+      failed.future.value != Some(Success(true))
+    }
+
+  property("receive many events through different sources") =
     forAllNoShrink(choose(1, 1024)) { n =>
       val p = Promise[Boolean]()
       val proto = Reactor[Int] { self =>
@@ -408,7 +436,7 @@ abstract class ReactorSystemCheck(name: String) extends BaseReactorSystemCheck(n
       Await.result(p.future, 10.seconds)
     }
 
-  property("should be terminated after all its channels are sealed") =
+  property("be terminated after all its channels are sealed") =
     forAllNoShrink(choose(1, 128)) { n =>
       val p = Promise[Boolean]()
       val proto = Reactor[Int] { self =>
