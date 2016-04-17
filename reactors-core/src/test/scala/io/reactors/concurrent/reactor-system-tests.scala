@@ -374,7 +374,7 @@ extends BaseReactorSystemCheck(name) with ExtendedProperties {
       done.future.value == Some(Success(true))
     }
 
-  property("not process events after getting sealed") =
+  property("not process events sent by itself and others after getting sealed") =
     forAllNoShrink(detChoose(1, 16000)) { n =>
       val done = Promise[Boolean]()
       val failed = Promise[Boolean]()
@@ -389,6 +389,7 @@ extends BaseReactorSystemCheck(name) with ExtendedProperties {
             } else {
               failed.success(true)
             }
+            self.main.channel ! "dec"
         }
       }
       val ch = system.spawn(proto.withScheduler(scheduler))
