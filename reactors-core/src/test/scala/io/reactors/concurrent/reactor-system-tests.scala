@@ -554,8 +554,8 @@ extends BaseReactorSystemCheck(name) with ExtendedProperties {
       Await.result(p.future, 10.seconds)
     }
 
-  property("should not process any events after sealing") =
-    forAllNoShrink(choose(1, 32000)) { n =>
+  property("not process any events after sealing") =
+    forAllNoShrink(detChoose(1, 32000)) { n =>
       val total = 32000
       val p = Promise[Boolean]()
       val fail = Promise[Boolean]()
@@ -584,6 +584,28 @@ extends BaseReactorSystemCheck(name) with ExtendedProperties {
       assert(Await.result(p.future, 10.seconds))
       Thread.sleep(2)
       fail.future.value != Some(Success(true))
+    }
+
+  property("always receive unreact after getting sealed") =
+    forAllNoShrink(detChoose(1, 32000)) { n =>
+      stackTraced {
+        val done = Promise[Boolean]()
+        val proto = Reactor[String] { self =>
+          var left = n
+          self.main.events onEvent {
+            case "dec" =>
+              if (left > 0) left -= 1
+              if (left == 0) self.main.seal()
+          }
+          self.main.events onDone {
+            done.success(true)
+          }
+        }
+        val ch = system.spawn(proto)
+        for (x <- 0 until n) ch ! "dec"
+        assert(Await.result(done.future, 10.seconds))
+        true
+      }
     }
 
 }
