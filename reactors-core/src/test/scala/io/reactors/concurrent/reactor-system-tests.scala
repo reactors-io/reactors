@@ -608,6 +608,27 @@ extends BaseReactorSystemCheck(name) with ExtendedProperties {
       }
     }
 
+  property("receive events in the same order they were sent") =
+    forAllNoShrink(detChoose(1, 32000)) { n =>
+      stackTraced {
+        val done = Promise[Seq[Int]]()
+        val proto = Reactor[Int] { self =>
+          val seen = mutable.Buffer[Int]()
+          self.main.events.onEvent { i =>
+            seen += i
+            if (i == n - 1) {
+              done.success(seen)
+              self.main.seal()
+            }
+          }
+        }
+        val ch = system.spawn(proto)
+        for (x <- 0 until n) ch ! x
+        assert(Await.result(done.future, 10.seconds) == (0 until n))
+        true
+      }
+    }
+
 }
 
 
