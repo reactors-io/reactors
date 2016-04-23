@@ -629,6 +629,33 @@ extends BaseReactorSystemCheck(name) with ExtendedProperties {
       }
     }
 
+  property("ReactorScheduled before event, ReactorPreempted after event") =
+    forAllNoShrink(detChoose(1, 32000)) { n =>
+      stackTraced {
+        val done = Promise[Boolean]()
+        val proto = Reactor[Int] { self =>
+          var seqnumber = 0
+          var left = n
+          self.main.events.onEvent { i =>
+            if (seqnumber % 2 == 0) done.success(false)
+            left -= 1
+            if (left == 0) {
+              done.success(true)
+              self.main.seal()
+            }
+          }
+          self.sysEvents.onMatch {
+            case ReactorScheduled => if (seqnumber % 2 == 0) seqnumber += 1
+            case ReactorPreempted => if (seqnumber % 2 == 1) seqnumber += 1
+          }
+        }
+        val ch = system.spawn(proto)
+        for (x <- 0 until n) ch ! x
+        assert(Await.result(done.future, 10.seconds))
+        true
+      }
+    }
+
 }
 
 
