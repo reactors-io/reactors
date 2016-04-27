@@ -168,9 +168,7 @@ object Services {
         ivar.ignoreExceptions.onDone(connector.seal())
         ivar
       }
-
     }
-
   }
 
   /** Contains various time-related services.

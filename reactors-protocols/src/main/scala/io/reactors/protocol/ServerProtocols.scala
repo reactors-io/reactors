@@ -17,11 +17,22 @@ trait ServerProtocols {
     type Req[T, S] = (T, Channel[S])
   }
 
-  implicit class ServerSystemOps(val system: ReactorSystem) {
+  implicit class ServerChannelBuilderOps(val builder: ReactorSystem.ChannelBuilder) {
     /** Open a new server channel.
      */
-    def server[T, S](name: String = ""): Connector[(T, Channel[S])] =
-      system.channels.named(name).open[(T, Channel[S])]
+    def server[T, S]: Connector[(T, Channel[S])] = builder.open[(T, Channel[S])]
+  }
+
+  implicit class ServerSystemOps(val system: ReactorSystem) {
+    /** Creates a server isolate.
+     */
+    def server[T, S](f: T => S): Server[T, S] = {
+      system.spawn(Reactor[Server.Req[T, S]] { self =>
+        self.main.events onMatch {
+          case (x, ch) => ch ! f(x)
+        }
+      })
+    }
   }
 
   implicit class ServerOps[T, @specialized(Int, Long, Double) S: Arrayable](

@@ -20,7 +20,7 @@ class ServerProtocolsSpec extends FunSuite {
   test("request a reply from the server") {
     val p = Promise[Int]()
     val proto = Reactor[String] { self =>
-      val server = system.server[String, Int]("length-server")
+      val server = system.channels.named("length-server").server[String, Int]
       server.events onEvent {
         case (s, ch) => ch ! s.length
       }
@@ -35,6 +35,17 @@ class ServerProtocolsSpec extends FunSuite {
     }
     system.spawn(proto)
     assert(Await.result(p.future, 10.seconds) == 2)
+  }
+
+  test("request a reply from a server reactor") {
+    val p = Promise[Int]()
+    val server = system.server((x: Int) => x + 17)
+    val client = system.spawn(Reactor[Int] { self =>
+      (server ? 11) onEvent { y =>
+        p.success(y)
+      }
+    })
+    assert(Await.result(p.future, 10.seconds) == 28)
   }
 }
 
