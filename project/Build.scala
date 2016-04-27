@@ -118,7 +118,7 @@ object ReactorsBuild extends MechaRepoBuild {
   def defaultDependencies(scalaVersion: String): Seq[ModuleID] =
     CrossVersion.partialVersion(scalaVersion) match {
       case Some((2, major)) if major >= 11 => Seq(
-        "org.scalatest" % "scalatest_2.11" % "2.2.4" % "test",
+        "org.scalatest" % "scalatest_2.11" % "2.2.6" % "test",
         "org.scalacheck" %% "scalacheck" % "1.11.4" % "test",
         "org.scala-lang" % "scala-reflect" % "2.11.1"
       )
