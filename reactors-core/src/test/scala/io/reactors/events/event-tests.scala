@@ -981,6 +981,30 @@ class EventsSpec extends FunSuite {
     assert(done4)
   }
 
+  test("postfix first with early subscription") {
+    val e = new Events.Emitter[Int]
+    val ivar = IVar(e)
+    val f = ivar.first
+    val b = mutable.Buffer[Int]()
+    var done = false
+    f.onEventOrDone(b += _)(done = true)
+    e.react(7)
+    assert(b == Seq(7))
+    assert(!done)
+    e.unreact()
+    assert(b == Seq(7))
+    assert(done)
+
+    val nested = IVar(11)
+    val top = IVar(nested)
+    val first = top.first
+    val buffer = mutable.Buffer[Int]()
+    var completed = false
+    first.onEventOrDone(buffer += _)(completed = true)
+    assert(buffer == Seq(11))
+    assert(completed)
+  }
+
   test("ivar") {
     var result = 0
     var done = 0

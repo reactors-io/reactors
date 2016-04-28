@@ -2403,7 +2403,7 @@ object Events {
     val target: Observer[S],
     val postfixObserver: PostfixFirstObserver[T, S]
   ) extends Observer[S] {
-    private[reactors] var subscription: Subscription = null
+    private[reactors] var subscription: Subscription = Subscription.empty
     def react(x: S, hint: Any) = {
       if (postfixObserver.first == null) {
         postfixObserver.topSub.unsubscribe()
