@@ -6,5 +6,6 @@ package io.reactors
 
 
 package object protocol
-extends ServerProtocols {
-}
+extends ServerProtocols
+with Patterns
+with Conversions
