@@ -78,7 +78,7 @@ object Subscription {
     private val set = mutable.Set[Subscription]()
     def unsubscribe() {
       done = true
-      for (s <- set) s.unsubscribe()
+      for (s <- set.toArray) s.unsubscribe()
     }
     def addAndGet(s: Subscription): Subscription = {
       if (done) {
@@ -95,6 +95,7 @@ object Subscription {
         ns
       }
     }
+    def remove(s: Subscription): Boolean = set.remove(s)
     def isEmpty: Boolean = set.isEmpty
   }
 

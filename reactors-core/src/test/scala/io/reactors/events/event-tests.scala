@@ -870,6 +870,117 @@ class EventsSpec extends FunSuite {
     assert(done)
   }
 
+  test("postfix first") {
+    var done = false
+    val emitter = new Events.Emitter[Events[Int]]
+    val e0 = new Events.Emitter[Int]
+    val e1 = new Events.Emitter[Int]
+    val e2 = new Events.Emitter[Int]
+
+    val b0 = mutable.Buffer[Int]()
+    val f0 = emitter.first
+    f0.onEvent(b0 += _)
+    emitter.react(e1)
+    emitter.react(e2)
+    emitter.react(e0)
+    assert(b0 == Seq())
+    e1.react(7)
+    assert(b0 == Seq(7))
+    e2.react(11)
+    assert(b0 == Seq(7))
+    e0.react(17)
+    e1.react(19)
+    assert(b0 == Seq(7, 19))
+
+    val b1 = mutable.Buffer[Int]()
+    val f1 = emitter.first
+    var done1 = false
+    f1.onEventOrDone(b1 += _)(done1 = true)
+    emitter.react(e0)
+    e0.react(111)
+    assert(b1 == Seq(111))
+    emitter.react(e1)
+    emitter.react(e2)
+    e2.react(123)
+    e1.react(191)
+    assert(b1 == Seq(111))
+    e0.react(145)
+    assert(b1 == Seq(111, 145))
+    e2.unreact()
+    e0.react(157)
+    assert(b1 == Seq(111, 145, 157))
+    e1.react(117)
+    e1.unreact()
+    e0.react(231)
+    assert(b1 == Seq(111, 145, 157, 231))
+    assert(!done1)
+    e0.unreact()
+    assert(done1)
+    e0.react(299)
+    assert(b1 == Seq(111, 145, 157, 231))
+
+    val e3 = new Events.Emitter[Int]
+    val e4 = new Events.Emitter[Int]
+    val e5 = new Events.Emitter[Int]
+    val b2 = mutable.Buffer[Int]()
+    val f2 = emitter.first
+    var done2 = false
+    f2.onEventOrDone(b2 += _)(done2 = true)
+    emitter.react(e3)
+    emitter.react(e4)
+    e3.unreact()
+    assert(!done2)
+    assert(b2 == Seq())
+    e4.unreact()
+    assert(!done2)
+    assert(b2 == Seq())
+    emitter.react(e5)
+    e5.react(271)
+    assert(!done2)
+    e5.unreact()
+    assert(b2 == Seq(271))
+    assert(done2)
+
+    val e6 = new Events.Emitter[Int]
+    val e7 = new Events.Emitter[Int]
+    val e8 = new Events.Emitter[Int]
+    val b3 = mutable.Buffer[Int]()
+    val f3 = emitter.first
+    var done3 = false
+    f3.onEventOrDone(b3 += _)(done3 = true)
+    emitter.react(e6)
+    emitter.react(e7)
+    emitter.react(e8)
+    emitter.unreact()
+    e6.react(7)
+    assert(!done3)
+    assert(b3 == Seq(7))
+    e7.react(11)
+    emitter.unreact()
+    e8.react(17)
+    e6.react(23)
+    assert(!done3)
+    assert(b3 == Seq(7, 23))
+    e6.unreact()
+    assert(done3)
+
+    val earlyDoneEmitter = new Events.Emitter[Events[Int]]
+    val e9 = new Events.Emitter[Int]
+    val e10 = new Events.Emitter[Int]
+    val b4 = mutable.Buffer[Int]()
+    val f4 = earlyDoneEmitter.first
+    var done4 = false
+    f4.onEventOrDone(b4 += _)(done4 = true)
+    earlyDoneEmitter.react(e9)
+    earlyDoneEmitter.react(e10)
+    earlyDoneEmitter.unreact()
+    assert(!done4)
+    e9.unreact()
+    assert(!done4)
+    e10.unreact()
+    assert(done4)
+  }
+
   test("ivar") {
     var result = 0
     var done = 0

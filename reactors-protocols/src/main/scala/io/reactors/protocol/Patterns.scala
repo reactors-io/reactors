@@ -10,10 +10,13 @@ import scala.concurrent.duration._
 /** General communication patterns.
  *
  *  Allows specifying communication patterns in a generic way.
- *  For example, retry server requests until a timeout:
+ *
+ *  As an example, one can declaratively retry server requests until a timeout,
+ *  by sending a throttled sequence of requests until a timeout, and taking the first
+ *  reply that comes:
  *
  *  {{{
- *  Seq(1, 2, 4).toEvents.throttle(x => x.seconds).retry(server ? "req")
+ *  Seq(1, 2, 4).toEvents.throttle(x => x.seconds).map(server ? "req")
  *    .until(timeout(3.seconds)).first
  *  }}}
  */
@@ -37,14 +40,6 @@ trait Patterns {
      *  @return          an event stream with the throttled events
      */
     def throttle(f: T => Duration): Events[T] = new Patterns.Throttle(events, f)
-
-    /** Retries the specified `request` until receiving an event or a `timeout`.
-     *
-     *  @param request   function that maps each event to an event stream with replies
-     *  @return          an event stream with tuples of requests and replies
-     */
-    def retry[S](request: T => Events[S]): Events[(T, Events[S])] =
-      new Patterns.Retry(events, request)
   }
 }
 
@@ -53,10 +48,5 @@ object Patterns {
   private[protocol] class Throttle[T](val events: Events[T], val f: T => Duration)
   extends Events[T] {
     def onReaction(obs: Observer[T]) = ???
-  }
-
-  private[protocol] class Retry[T, S](val events: Events[T], val req: T => Events[S])
-  extends Events[(T, Events[S])] {
-    def onReaction(obs: Observer[(T, Events[S])]) = ???
   }
 }

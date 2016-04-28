@@ -722,6 +722,31 @@ trait Events[@spec(Int, Long, Double) T] {
   ): Events[S] =
     new Events.PostfixConcat[T, S](this, evidence, a)
 
+  /** Returns an event stream that forwards from the first active nested event stream.
+   *
+   *  Regardless of the order in which the nested event streams were emitted, only the
+   *  nested event stream that is the first to emit an event gets chosen.
+   *
+   *  This is illustrated in the following, where the second event stream in `this` is
+   *  the first to emit an event.
+   *
+   *  {{{
+   *  time   --------------------------->
+   *  this       ------4--7---11-------->
+   *               --1------2-----3----->
+   *                   --------0---5---->
+   *  first  --------1------1-----3----->
+   *  }}}
+   *
+   *  @tparam S         the type of the events in event stream emitted by `this`
+   *  @param evidence   evidence that events of type `T` produced by `this`
+   *                    are actually event streams of type `S`
+   *  @return           event stream that concatenates all the events from nested
+   *                    event streams
+   */
+  def first[@spec(Int, Long, Double) S](implicit evidence: T <:< Events[S]): Events[S] =
+    new Events.PostfixFirst[T, S](this, evidence)
+
   /** Syncs the arrival of events from `this` and `that` event stream.
    *  
    *  Ensures that pairs of events from this event stream and that event stream
@@ -2323,6 +2348,83 @@ object Events {
       while (concatObserver.queue.nonEmpty && concatObserver.queue.head.buffer.nonEmpty)
         target.react(concatObserver.queue.head.buffer.dequeue(), null)
       concatObserver.checkUnreact()
+    }
+  }
+
+  private[reactors] class PostfixFirst[T, @spec(Int, Long, Double) S](
+    val self: Events[T],
+    val evidence: T <:< Events[S]
+  ) extends Events[S] {
+    def onReaction(observer: Observer[S]): Subscription = {
+      val postfixObserver = new PostfixFirstObserver(observer, evidence)
+      val sub = self.onReaction(postfixObserver)
+      postfixObserver.topSub = sub
+      sub
+    }
+  }
+
+  private[reactors] class PostfixFirstObserver[T, @spec(Int, Long, Double) S](
+    val target: Observer[S],
+    val evidence: T <:< Events[S]
+  ) extends Observer[T] {
+    private[reactors] var first: Observer[S] = null
+    private[reactors] var done = false
+    private[reactors] var topSub: Subscription = Subscription.empty
+    private[reactors] val nestedSubs = new Subscription.Collection
+    def react(x: T, hint: Any) {
+      if (first != null) return
+      val events = try {
+        evidence(x)
+      } catch {
+        case NonLethal(t) =>
+          except(t)
+          return
+      }
+      val nestedObserver = new NestedPostfixFirstObserver(target, this)
+      val sub = try {
+        events.onReaction(nestedObserver)
+      } catch {
+        case NonLethal(t) =>
+          except(t)
+          return
+      }
+      nestedObserver.subscription = nestedSubs.addAndGet(sub)
+    }
+    def except(t: Throwable) = target.except(t)
+    def unreact() {
+      if (!done) {
+        done = true
+        if (nestedSubs.isEmpty) target.unreact()
+      }
+    }
+  }
+
+  private[reactors] class NestedPostfixFirstObserver[T, @spec(Int, Long, Double) S](
+    val target: Observer[S],
+    val postfixObserver: PostfixFirstObserver[T, S]
+  ) extends Observer[S] {
+    private[reactors] var subscription: Subscription = null
+    def react(x: S, hint: Any) = {
+      if (postfixObserver.first == null) {
+        postfixObserver.topSub.unsubscribe()
+        postfixObserver.nestedSubs.remove(subscription)
+        postfixObserver.nestedSubs.unsubscribe()
+        postfixObserver.first = this
+      }
+      if (postfixObserver.first eq this) target.react(x, hint)
+    }
+    def except(t: Throwable) = target.except(t)
+    def unreact() {
+      this.subscription.unsubscribe()
+      if (postfixObserver.done) {
+        if (postfixObserver.first eq null) {
+          if (postfixObserver.nestedSubs.isEmpty) target.unreact()
+        } else {
+          if (postfixObserver.first eq this) target.unreact()
+        }
+      } else {
+        if (postfixObserver.first eq this) target.unreact()
+      }
     }
   }
 
