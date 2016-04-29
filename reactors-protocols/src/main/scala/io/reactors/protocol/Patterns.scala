@@ -18,7 +18,7 @@ import scala.util._
  *  reply that comes:
  *
  *  {{{
- *  Seq(1, 2, 4).toEvents.throttle(x => x.seconds).map(server ? "req")
+ *  Seq(1, 2, 4).toEvents.throttle(x => x.seconds).map(_ => server ? "req")
  *    .first.until(timeout(3.seconds))
  *  }}}
  */
@@ -46,6 +46,30 @@ trait Patterns {
      */
     def throttle(f: T => Duration)(implicit a: Arrayable[T]): Events[T] =
       new Patterns.Throttle(events, f)
+
+    /** Retry the specified request a fixed number of times.
+     *
+     *  @param numTimes       the number of times to retry the request
+     *  @param period         the delay between each request
+     *  @param req            the code that creates the request and a stream of replies
+     *  @return               the stream of replies that was first to emit an event
+     */
+    def retry(numTimes: Int, period: Duration)(req: =>Events[T]): Events[T] = {
+      retry((0 until numTimes).map(_ => period))(req)
+    }
+
+    /** Retry the specified request with a backoff scheme.
+     *
+     *  After a stream from one of the requests starts emitting events, all the other
+     *  requests are unsubscribed from, and not further retrying takes place.
+     *
+     *  @param backoffScheme  the duration of subsequent delays between requests
+     *  @param req            the code that creates the request and a stream of replies
+     *  @return               the stream of replies that was first to emit an event
+     */
+    def retry(backoffScheme: Seq[Duration])(req: =>Events[T]): Events[T] = {
+      backoffScheme.toEvents.throttle(x => x).map(_ => req).first
+    }
   }
 }
 
