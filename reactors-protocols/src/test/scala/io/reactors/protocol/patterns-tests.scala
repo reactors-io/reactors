@@ -9,7 +9,8 @@ import org.scalacheck.Prop.forAllNoShrink
 import org.scalacheck.Gen.choose
 import org.scalatest._
 import scala.collection._
-import scala.concurrent._
+import scala.concurrent.Await
+import scala.concurrent.Promise
 import scala.concurrent.duration._
 
 
@@ -45,6 +46,40 @@ class PatternsSpec extends FunSuite {
     assert(a0.future.value == None)
     Thread.sleep(500)
     assert(a0.future.value.get.get == 17)
+  }
+
+  def retryTest() {
+    val done = Promise[Boolean]()
+    val seen = Promise[Seq[Duration]]()
+    val start = System.currentTimeMillis()
+    val server = system.spawn(Reactor[(Unit, Channel[Unit])] { self =>
+      val timestamps = mutable.Buffer[Duration]()
+      self.main.events onMatch { case (_, ch) =>
+        val current = System.currentTimeMillis()
+        timestamps += (current - start).millis
+        if (timestamps.length == 3) {
+          seen.success(timestamps.toList)
+          ch ! (())
+          self.main.seal()
+        }
+      }
+    })
+    val ch = system.spawn(Reactor[Unit] { self =>
+      var left = 3
+      retry(3, 500.millis)(server ? (())) onEvent { _ =>
+        self.main.seal()
+        done.success(true)
+      }
+    })
+    assert(Await.result(done.future, 10.seconds) == true)
+    val timestamps = seen.future.value.get.get
+    assert(timestamps(0) > 0.millis && timestamps(0) < 250.millis)
+    assert(timestamps(1) > 450.millis && timestamps(1) < 750.millis)
+    assert(timestamps(2) > 950.millis && timestamps(2) < 1250.millis)
+  }
+
+  test("retry constant") {
+    retryTest()
   }
 }
 

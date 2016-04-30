@@ -27,6 +27,9 @@ trait ServerProtocols {
 
   implicit class ServerSystemOps(val system: ReactorSystem) {
     /** Creates a server isolate.
+     *
+     *  This isolate always responds by mapping the request of type `T` into a response
+     *  of type `S`, with the specified function `f`.
      */
     def server[T, S](f: T => S): Server[T, S] = {
       system.spawn(Reactor[Server.Req[T, S]] { self =>
@@ -35,6 +38,10 @@ trait ServerProtocols {
         }
       })
     }
+
+    /** TODO: Implement and describe.
+     */
+    def optionalServer[T, S](f: T => Option[S]): Server[T, S] = ???
   }
 
   implicit class ServerOps[T, @specialized(Int, Long, Double) S: Arrayable](
