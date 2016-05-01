@@ -91,6 +91,15 @@ class PatternsSpec extends FunSuite {
       assert(timestamps(2) >= 1450.millis && timestamps(2) < 1750.millis)
     }
   }
+
+  test("retry exponential") {
+    retryTest(Backoff.exp(4, 500.millis)) { timestamps =>
+      assert(timestamps(0) >= 0.millis && timestamps(0) < 250.millis)
+      assert(timestamps(1) >= 450.millis && timestamps(1) < 750.millis)
+      assert(timestamps(2) >= 1450.millis && timestamps(2) < 1750.millis)
+      assert(timestamps(3) >= 3450.millis && timestamps(3) < 3750.millis)
+    }
+  }
 }
 
 
