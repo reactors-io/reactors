@@ -64,6 +64,8 @@ trait Patterns {
    *  After a stream from one of the requests starts emitting events, all the other
    *  requests are unsubscribed from, and not further retrying takes place.
    *
+   *  To create different backoff schemes, see the `Backoff` object.
+   *
    *  @param backoffScheme  the duration of subsequent delays between requests
    *  @param req            the code that creates the request and a stream of replies
    *  @return               the stream of replies that was first to emit an event
@@ -77,8 +79,8 @@ trait Patterns {
   object Backoff {
     def regular(n: Int, delay: Duration): Seq[Duration] =
       (0 until n).map(_ => delay)
-    def linear(n: Int, base: Duration): Seq[Duration] =
-      (1 to n).map(_ * base)
+    def linear(n: Int, base: Duration, offset: Duration = 0.seconds): Seq[Duration] =
+      (1 to n).map(_ * base + offset)
     def exp(n: Int, base: Duration, factor: Double = 2.0): Seq[Duration] =
       (0 until n).map(i => math.pow(factor, i) * base)
     def randexp(n: Int, base: Duration, factor: Double = 2.0): Seq[Duration] =

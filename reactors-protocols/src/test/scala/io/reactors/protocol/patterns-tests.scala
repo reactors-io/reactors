@@ -48,7 +48,7 @@ class PatternsSpec extends FunSuite {
     assert(a0.future.value.get.get == 17)
   }
 
-  def retryTest() {
+  def retryTest(delays: Seq[Duration])(check: Seq[Duration] => Unit) {
     val done = Promise[Boolean]()
     val seen = Promise[Seq[Duration]]()
     val start = System.currentTimeMillis()
@@ -57,7 +57,7 @@ class PatternsSpec extends FunSuite {
       self.main.events onMatch { case (_, ch) =>
         val current = System.currentTimeMillis()
         timestamps += (current - start).millis
-        if (timestamps.length == 3) {
+        if (timestamps.length == delays.length) {
           seen.success(timestamps.toList)
           ch ! (())
           self.main.seal()
@@ -66,20 +66,30 @@ class PatternsSpec extends FunSuite {
     })
     val ch = system.spawn(Reactor[Unit] { self =>
       var left = 3
-      retry(3, 500.millis)(server ? (())) onEvent { _ =>
+      retry(delays)(server ? (())) onEvent { _ =>
         self.main.seal()
         done.success(true)
       }
     })
     assert(Await.result(done.future, 10.seconds) == true)
     val timestamps = seen.future.value.get.get
-    assert(timestamps(0) > 0.millis && timestamps(0) < 250.millis)
-    assert(timestamps(1) > 450.millis && timestamps(1) < 750.millis)
-    assert(timestamps(2) > 950.millis && timestamps(2) < 1250.millis)
+    check(timestamps)
   }
 
-  test("retry constant") {
-    retryTest()
+  test("retry regular") {
+    retryTest(Backoff.regular(3, 500.millis)) { timestamps =>
+      assert(timestamps(0) > 0.millis && timestamps(0) < 250.millis)
+      assert(timestamps(1) > 450.millis && timestamps(1) < 750.millis)
+      assert(timestamps(2) > 950.millis && timestamps(2) < 1250.millis)
+    }
+  }
+
+  test("retry linear") {
+    retryTest(Backoff.linear(3, 500.millis)) { timestamps =>
+      assert(timestamps(0) >= 0.millis && timestamps(0) < 250.millis)
+      assert(timestamps(1) >= 450.millis && timestamps(1) < 750.millis)
+      assert(timestamps(2) >= 1450.millis && timestamps(2) < 1750.millis)
+    }
   }
 }
 
