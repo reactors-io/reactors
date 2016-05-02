@@ -30,18 +30,44 @@ trait ServerProtocols {
      *
      *  This isolate always responds by mapping the request of type `T` into a response
      *  of type `S`, with the specified function `f`.
+     *
+     *  If `term` parameter is not `None` and the server receives the specified
+     *  termination value, it will seal its main channel.
      */
-    def server[T, S](f: T => S): Server[T, S] = {
+    def server[T, S](f: T => S, term: Option[T] = None): Server[T, S] = {
       system.spawn(Reactor[Server.Req[T, S]] { self =>
         self.main.events onMatch {
-          case (x, ch) => ch ! f(x)
+          case (x, ch) =>
+            if (term != None && term.get == x) {
+              main.seal()
+            } else {
+              ch ! f(x)
+            }
         }
       })
     }
 
-    /** TODO: Implement and describe.
+    /** Creates a server isolate that optionally responds to requests.
+     *
+     *  This isolate uses the function `f` to create a response of type `S` from the
+     *  request type `T`. If the value obtained this way is not `nil`, the server
+     *  responds.
+     *
+     *  If `term` parameter is not `None` and the server receives the specified
+     *  termination value, it will seal its main channel.
      */
-    def optionalServer[T, S](f: T => Option[S]): Server[T, S] = ???
+    def optServer[T, S](f: T => S, nil: S, term: Option[T]): Server[T, S] = {
+      system.spawn(Reactor[Server.Req[T, S]] { self =>
+        self.main.events onMatch {
+          case (x, ch) =>
+            if (term != None && term.get == x) main.seal()
+            else {
+              val resp = f(x)
+              if (resp != nil) ch ! resp
+            }
+        }
+      })
+    }
   }
 
   implicit class ServerOps[T, @specialized(Int, Long, Double) S: Arrayable](
