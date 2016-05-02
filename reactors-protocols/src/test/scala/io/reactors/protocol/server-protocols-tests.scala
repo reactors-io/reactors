@@ -47,6 +47,25 @@ class ServerProtocolsSpec extends FunSuite {
     })
     assert(Await.result(p.future, 10.seconds) == 28)
   }
+
+  test("request a reply from a maybe-server reactor") {
+    val p = Promise[Int]()
+    val failed = Promise[Boolean]()
+    val server = system.maybeServer((x: Int) => x + 17, -1)
+    val client = system.spawn(Reactor[Int] { self =>
+      (server ? -18) on {
+        failed.success(true)
+      }
+      Thread.sleep(50)
+      (server ? 11) onEvent { y =>
+        p.success(y)
+        self.main.seal()
+      }
+    })
+    assert(Await.result(p.future, 10.seconds) == 28)
+    Thread.sleep(10)
+    assert(failed.future.value == None)
+  }
 }
 
 

@@ -176,8 +176,8 @@ class EventBoxingBench extends Bench.Forked[Long] {
       postfixConcatEmitter.concat.on(postfixConcatCount += 1)
       postfixConcatEmitter.react(emitter)
 
-      // maybe
-      emitter.maybe(0.5).on({})
+      // possibly
+      emitter.possibly(0.5).on({})
 
       // changes
       var changeCount = 0

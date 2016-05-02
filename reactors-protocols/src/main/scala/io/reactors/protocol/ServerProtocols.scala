@@ -17,6 +17,24 @@ trait ServerProtocols {
 
   object Server {
     type Req[T, S] = (T, Channel[S])
+
+    /** Typeclass that describes common server options
+     */
+    abstract class Opts[+T] {
+      def term: Option[T]
+    }
+
+    /** Options for which the server does not terminate.
+     */
+    object NoTerm extends Opts[Nothing] {
+      def term = None
+    }
+
+    object Opts {
+      def apply[T](x: T): Opts[T] = new Opts[T] {
+        val term = Some(x)
+      }
+    }
   }
 
   implicit class ServerChannelBuilderOps(val builder: ReactorSystem.ChannelBuilder) {
@@ -31,15 +49,17 @@ trait ServerProtocols {
      *  This isolate always responds by mapping the request of type `T` into a response
      *  of type `S`, with the specified function `f`.
      *
-     *  If `term` parameter is not `None` and the server receives the specified
+     *  If `opts` parameter has a non-`None` terminator and the server receives that
      *  termination value, it will seal its main channel.
      */
-    def server[T, S](f: T => S, term: Option[T] = None): Server[T, S] = {
+    def server[T, S](f: T => S)(
+      implicit opts: Server.Opts[T] = Server.NoTerm
+    ): Server[T, S] = {
       system.spawn(Reactor[Server.Req[T, S]] { self =>
         self.main.events onMatch {
           case (x, ch) =>
-            if (term != None && term.get == x) {
-              main.seal()
+            if (opts.term != None && opts.term.get == x) {
+              self.main.seal()
             } else {
               ch ! f(x)
             }
@@ -53,15 +73,18 @@ trait ServerProtocols {
      *  request type `T`. If the value obtained this way is not `nil`, the server
      *  responds.
      *
-     *  If `term` parameter is not `None` and the server receives the specified
+     *  If `opts` parameter has a non-`None` terminator and the server receives that
      *  termination value, it will seal its main channel.
      */
-    def optServer[T, S](f: T => S, nil: S, term: Option[T]): Server[T, S] = {
+    def maybeServer[T, S](f: T => S, nil: S)(
+      implicit opts: Server.Opts[T] = Server.NoTerm
+    ): Server[T, S] = {
       system.spawn(Reactor[Server.Req[T, S]] { self =>
         self.main.events onMatch {
           case (x, ch) =>
-            if (term != None && term.get == x) main.seal()
-            else {
+            if (opts.term != None && opts.term.get == x) {
+              self.main.seal()
+            } else {
               val resp = f(x)
               if (resp != nil) ch ! resp
             }

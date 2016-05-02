@@ -812,7 +812,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  @param probability    the probability to forward an event
    *  @return               the event stream that forwards events with some probability
    */
-  def maybe(probability: Double): Events[T] = new Events.Maybe(this, probability)
+  def possibly(probability: Double): Events[T] = new Events.Maybe(this, probability)
 
   /** Zips values from this event stream with the hint value.
    */
