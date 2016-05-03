@@ -53,6 +53,10 @@ object Channel {
     }
   }
 
+  class Zero[@spec(Int, Long, Double) T] extends Channel[T] {
+    def !(x: T) = {}
+  }
+
   class Failed[@spec(Int, Long, Double) T] extends Channel[T] {
     def !(x: T) = sys.error("Failed channel cannot deliver messages.")
   }
