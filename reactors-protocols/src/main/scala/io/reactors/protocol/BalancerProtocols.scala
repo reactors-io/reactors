@@ -13,7 +13,13 @@ trait BalancerProtocols {
   self: Patterns =>
 
   object Balancer {
+    /** Describes how to pick the next channel.
+     */
     abstract class Policy {
+      /** For a sequence of channels, returns a function that picks the next channel.
+       *
+       *  The returned function implements a specific policy for picking channels.
+       */
       def apply[T](targets: Seq[Channel[T]]): () => Channel[T] = {
         if (targets.length == 0) {
           val ch = new Channel.Zero[T]
@@ -22,12 +28,16 @@ trait BalancerProtocols {
           forNonEmpty(targets)
         }
       }
-      def forNonEmpty[T](targets: Seq[Channel[T]]): () => Channel[T]
+      /** Same as `apply`, but assumes non-empty `targets`.
+       */
+      protected def forNonEmpty[T](targets: Seq[Channel[T]]): () => Channel[T]
     }
 
     object Policy {
+      /** Picks channels in a round-robin manner.
+       */
       object RoundRobin extends Policy {
-        def forNonEmpty[T](targets: Seq[Channel[T]]) = {
+        protected def forNonEmpty[T](targets: Seq[Channel[T]]) = {
           var i = 0
           () => {
             val ch = targets(i)
@@ -37,8 +47,10 @@ trait BalancerProtocols {
         }
       }
 
+      /** Picks channels from a random uniform distribution.
+       */
       object Rand extends Policy {
-        def forNonEmpty[T](targets: Seq[Channel[T]]) = {
+        protected def forNonEmpty[T](targets: Seq[Channel[T]]) = {
           val rand = new Random
           () => targets(rand.nextInt(targets.length))
         }
@@ -48,6 +60,8 @@ trait BalancerProtocols {
 
   implicit class BalancerChannelBuilderOps(val builder: ReactorSystem.ChannelBuilder) {
     /** Create a new balancer channel.
+     *
+     *  The balancer channel balances incoming events across a sequence of channels.
      */
     def balancer[@spec(Int, Long, Double) T: Arrayable](
       targets: Seq[Channel[T]],

@@ -16,7 +16,7 @@ import scala.concurrent.duration._
 
 
 class ConversionsSpec extends FunSuite {
-  val system = ReactorSystem.default("server-protocols")
+  val system = ReactorSystem.default("conversions")
 
   test("Traversable#toEvents") {
     val events = Seq(1, 2, 3, 4).toEvents
