@@ -49,7 +49,7 @@ trait BalancerProtocols {
 
       /** Picks channels from a random uniform distribution.
        */
-      object Rand extends Policy {
+      object Uniform extends Policy {
         protected def forNonEmpty[T](targets: Seq[Channel[T]]) = {
           val rand = new Random
           () => targets(rand.nextInt(targets.length))
