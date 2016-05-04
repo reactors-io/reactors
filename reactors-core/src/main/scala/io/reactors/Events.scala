@@ -812,7 +812,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  @param probability    the probability to forward an event
    *  @return               the event stream that forwards events with some probability
    */
-  def possibly(probability: Double): Events[T] = new Events.Maybe(this, probability)
+  def possibly(probability: Double): Events[T] = new Events.Possibly(this, probability)
 
   /** Zips values from this event stream with the hint value.
    */
@@ -2351,7 +2351,7 @@ object Events {
     }
   }
 
-  private[reactors] class PostfixFirst[T, @spec(Int, Long, Double) S](
+  private[reactors] class PostfixFirst[T, @spec(Int, Long, Double) S: Spec](
     val self: Events[T],
     val evidence: T <:< Events[S]
   ) extends Events[S] {
@@ -2363,7 +2363,7 @@ object Events {
     }
   }
 
-  private[reactors] class PostfixFirstObserver[T, @spec(Int, Long, Double) S](
+  private[reactors] class PostfixFirstObserver[T, @spec(Int, Long, Double) S: Spec](
     val target: Observer[S],
     val evidence: T <:< Events[S]
   ) extends Observer[T] {
@@ -2371,6 +2371,8 @@ object Events {
     private[reactors] var done = false
     private[reactors] var topSub: Subscription = Subscription.empty
     private[reactors] val nestedSubs = new Subscription.Collection
+    def newNestedPostfixFirstObserver =
+      new NestedPostfixFirstObserver(target, this)
     def react(x: T, hint: Any) {
       if (first != null) return
       val events = try {
@@ -2380,7 +2382,7 @@ object Events {
           except(t)
           return
       }
-      val nestedObserver = new NestedPostfixFirstObserver(target, this)
+      val nestedObserver = newNestedPostfixFirstObserver
       val sub = try {
         events.onReaction(nestedObserver)
       } catch {
@@ -2399,7 +2401,9 @@ object Events {
     }
   }
 
-  private[reactors] class NestedPostfixFirstObserver[T, @spec(Int, Long, Double) S](
+  private[reactors] class NestedPostfixFirstObserver[
+    T, @spec(Int, Long, Double) S: Spec
+  ](
     val target: Observer[S],
     val postfixObserver: PostfixFirstObserver[T, S]
   ) extends Observer[S] {
@@ -2428,15 +2432,15 @@ object Events {
     }
   }
 
-  private[reactors] class Maybe[@spec(Int, Long, Double) T](
+  private[reactors] class Possibly[@spec(Int, Long, Double) T](
     val self: Events[T],
     val probability: Double
   ) extends Events[T] {
     def onReaction(obs: Observer[T]): Subscription =
-      self.onReaction(new MaybeObserver(obs, probability))
+      self.onReaction(new PossiblyObserver(obs, probability))
   }
 
-  private[reactors] class MaybeObserver[@spec(Int, Long, Double) T](
+  private[reactors] class PossiblyObserver[@spec(Int, Long, Double) T](
     val target: Observer[T],
     val probability: Double
   ) extends Observer[T] {

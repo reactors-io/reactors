@@ -176,6 +176,12 @@ class EventBoxingBench extends Bench.Forked[Long] {
       postfixConcatEmitter.concat.on(postfixConcatCount += 1)
       postfixConcatEmitter.react(emitter)
 
+      // postfix first
+      var postfixFirstEmitterCount = 0
+      var postfixFirstEmitter = new Events.Emitter[Events.Emitter[Int]]
+      postfixFirstEmitter.first.on(postfixFirstEmitterCount += 1)
+      postfixFirstEmitter.react(emitter)
+
       // possibly
       emitter.possibly(0.5).on({})
 
