@@ -413,7 +413,9 @@ object ConcChecks extends Properties("Conc") with ConcSnippets
       )
     }
 
-  property("conqueue normalized") = forAll(queues(15), detChoose(1, 1000000), detChoose(1, 10000)) { (conq, seed, numops) =>
+  property("conqueue normalized") = forAll(
+    queues(15), detChoose(1, 1000000), detChoose(1, 10000)
+  ) { (conq, seed, numops) =>
     var modified: Conqueue[Int] = conq
     val random = new scala.util.Random(seed)
     for (i <- 0 until numops) {
@@ -439,9 +441,10 @@ object ConcChecks extends Properties("Conc") with ConcSnippets
       s"Invariants are met." |: checkInvs(normalized),
       s"Same sequence after normalization: $normalizedFlushed vs $flushed\n" +
       s"; conq:\n${ConcUtils.queueString(conq, (num: Num[Int]) => num.toString)}\n" +
-      s"; lwings: ${toSeq(ConcUtils.normalizeLeftWingsAndTip(modified, Conc.Empty))}\n" +
-      s"; rwings: ${toSeq(ConcUtils.normalizeRightWings(modified, Conc.Empty))}\n" +
-      s"; length: ${normalizedFlushed.length} vs ${flushed.length}" |: normalizedFlushed == flushed
+      s"; lwings:${toSeq(ConcUtils.normalizeLeftWingsAndTip(modified, Conc.Empty))}\n" +
+      s"; rwings:${toSeq(ConcUtils.normalizeRightWings(modified, Conc.Empty))}\n" +
+      s"; length:${normalizedFlushed.length} vs ${flushed.length}" |:
+      normalizedFlushed == flushed
     )
   }
 
@@ -494,7 +497,13 @@ object ConcChecks extends Properties("Conc") with ConcSnippets
     val appended = s1 ++ s2
     val concatenated = c1 <|> c2
     val labelString = {
-      s"${ConcUtils.queueString(c1)}\n---- concat with ----\n${ConcUtils.queueString(c2)}\n$s1\n---- ++ ----\n$s2\n==========\n${toSeq(concatenated)}\n---- vs ----\n$appended\n" +
+      s"""
+        ${ConcUtils.queueString(c1)}\n
+        ---- concat with ----\n
+        ${ConcUtils.queueString(c2)}\n
+        $s1\n---- ++ ----\n$s2\n==========\n
+        ${toSeq(concatenated)}\n---- vs ----\n$appended\n
+      """ +
       s"\n------\n" +
       s"c1.normalized = ${toSeq(c1.normalized)}\n" +
       s"c2.normalized = ${toSeq(c2.normalized)}\n"
@@ -508,7 +517,10 @@ object ConcChecks extends Properties("Conc") with ConcSnippets
     val cb = new ConcBuffer[Int](32)
     for (i <- 0 until num) cb += i
     val conc = cb.extractConc()
-    s"Conc buffer contains correct elements:\n$conc\n${toSeq(conc)}\n---- vs ----\n${0 until num}" |: toSeq(conc) == (0 until num)
+    s"""
+      Conc buffer contains correct elements:\n
+      $conc\n${toSeq(conc)}\n---- vs ----\n${0 until num}
+    """ |: toSeq(conc) == (0 until num)
   }
 
   property("conqueue buffer correct pushLast") = forAll(detChoose(1, 10000)) { num =>
@@ -516,7 +528,10 @@ object ConcChecks extends Properties("Conc") with ConcSnippets
       val cb = new ConqueueBuffer[Int](32)
       for (i <- 0 until num) cb.pushLast(i)
       val conq = cb.extractConqueue()
-      s"Conqueue buffer contains correct elements:\n$conq\n${toSeq(conq)}\n---- vs ----\n${0 until num}}" |: toSeq(conq) == (0 until num)
+      s"""
+        Conqueue buffer contains correct elements:\n
+        $conq\n${toSeq(conq)}\n---- vs ----\n${0 until num}}
+      """ |: toSeq(conq) == (0 until num)
     }
   }
 
@@ -525,7 +540,10 @@ object ConcChecks extends Properties("Conc") with ConcSnippets
       val cb = new ConqueueBuffer[Int](32)
       for (i <- 0 until num) cb.pushHead(i)
       val conq = cb.extractConqueue()
-      s"Conqueue buffer contains correct elements:\n$conq\n${toSeq(conq)}\n---- vs ----\n${(0 until num).reverse}}" |: toSeq(conq) == (0 until num).reverse
+      s"""
+        Conqueue buffer contains correct elements:\n
+        $conq\n${toSeq(conq)}\n---- vs ----\n${(0 until num).reverse}}
+      """ |: toSeq(conq) == (0 until num).reverse
     }
   }
 
@@ -535,7 +553,10 @@ object ConcChecks extends Properties("Conc") with ConcSnippets
       for (i <- 0 until num) cb.pushLast(i)
       val buffer = mutable.Buffer[Int]()
       while (cb.nonEmpty) buffer += cb.popLast()
-      s"Conqueue buffer pops correct elements:\nbuffer\n---- vs ----\n${(0 until num).reverse}}" |: buffer == (0 until num).reverse
+      s"""
+        Conqueue buffer pops correct elements:\n
+        buffer\n---- vs ----\n${(0 until num).reverse}}
+      """ |: buffer == (0 until num).reverse
     }
   }
 
@@ -545,13 +566,16 @@ object ConcChecks extends Properties("Conc") with ConcSnippets
       for (i <- 0 until num) cb.pushLast(i)
       val buffer = mutable.Buffer[Int]()
       while (cb.nonEmpty) buffer += cb.popHead()
-      s"Conqueue buffer pops correct elements:\nbuffer\n---- vs ----\n${(0 until num)}}" |: buffer == (0 until num)
+      s"""
+        Conqueue buffer pops correct elements:\n
+        buffer\n---- vs ----\n${(0 until num)}}
+      """ |: buffer == (0 until num)
     }
   }
 
-  property("conqueue buffer all combinations of operations correct") = forAll(detChoose(1, 64), detChoose(1, 64), detChoose(1, 10000), detChoose(1, 1000000)) { (prehead, prelast, numops, seed) =>
-    //forAll(detOneOf(0, 0), detOneOf(0, 0), detOneOf(2659, 2659), detOneOf(0, 0)) { (prehead, prelast, numops, seed) =>
-    //forAll(detOneOf(0, 0), detOneOf(0, 0), detOneOf(1770, 1770), detOneOf(0, 0)) { (prehead, prelast, numops, seed) =>
+  property("conqueue buffer all combinations of operations correct") = forAll(
+    detChoose(1, 64), detChoose(1, 64), detChoose(1, 10000), detChoose(1, 1000000)
+  ) { (prehead, prelast, numops, seed) =>
     noExceptions(s"$prehead, $prelast, $numops, $seed") {
       val cb = new ConqueueBuffer[Int](32)
       var v = Vector[Int]()
@@ -594,13 +618,19 @@ object ConcChecks extends Properties("Conc") with ConcSnippets
           println(v)
           println(condition)
           println("assertion!")
-          assert(false, s"op: $op, i: $i\n$cb\n$v\noperation history: $opHistory\ncondition: $condition")
+          assert(false, s"""
+            op: $op, i: $i\n$cb\n$v\noperation history: $opHistory\n
+            condition: $condition
+          """)
         }
       }
       val conq = cb.extractConqueue()
       val seq = toSeq(conq)
       all(
-        s"Represents the same sequence:\n${v.mkString(", ")}\n---- vs ----\n${seq.mkString(", ")}" |: v == seq
+        s"""
+          Represents the same sequence:\n
+          ${v.mkString(", ")}\n---- vs ----\n${seq.mkString(", ")}
+        """ |: v == seq
       )
     }
   }

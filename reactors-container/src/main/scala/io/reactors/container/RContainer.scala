@@ -279,7 +279,10 @@ object RContainer {
     def unreact() = insertObs.unreact()
   }
 
-  private[reactors] class Reduce[@spec(Int, Long, Double) S, @spec(Int, Long, Double) T](
+  private[reactors] class Reduce[
+    @spec(Int, Long, Double) S,
+    @spec(Int, Long, Double) T
+  ](
     val self: RContainer[T],
     val z: S,
     val op: (S, T) => S,
@@ -305,7 +308,10 @@ object RContainer {
     }
   }
 
-  private[reactors] class ReduceInsertObserver[@spec(Int, Long, Double) S, @spec(Int, Long, Double) T](
+  private[reactors] class ReduceInsertObserver[
+    @spec(Int, Long, Double) S,
+    @spec(Int, Long, Double) T
+  ](
     val target: Observer[S],
     var current: S,
     val op: (S, T) => S,
@@ -335,7 +341,10 @@ object RContainer {
     }
   }
 
-  private[reactors] class ReduceRemoveObserver[@spec(Int, Long, Double) S, @spec(Int, Long, Double) T](
+  private[reactors] class ReduceRemoveObserver[
+    @spec(Int, Long, Double) S,
+    @spec(Int, Long, Double) T
+  ](
     val target: Observer[S],
     val insertObs: ReduceInsertObserver[S, T],
     val op: (S, T) => S,

@@ -60,38 +60,41 @@ trait ConcSnippets {
       true
   }
 
-  def checkConqueueInvs(conq: Conc[Int], level: Int): Boolean = (conq: Conc[Int] @unchecked) match {
-    case Lazy(_, q, _) =>
-      assert(level == 0)
-      checkConqueueInvs(q, 0)
-    case s: Spine[Int] =>
-      if (s.lwing == Zero || s.rwing == Zero) {
-        assert(false, "Evaluated Spine cannot contain Zero.")
-      }
-      checkConqueueInvs(s.lwing, level) && checkConqueueInvs(s.rwing, level) && checkConqueueInvs(s.rear, level + 1)
-    case Tip(tip) =>
-      checkConqueueInvs(tip, level)
-    case Zero =>
-      true
-    case One(_1) =>
-      assert(_1.level == level, s"levels: ${_1.level} vs $level")
-      checkInvs(_1)
-    case Two(_1, _2) =>
-      assert(_1.level == level)
-      assert(_2.level == level)
-      checkInvs(_1) && checkInvs(_2)
-    case Three(_1, _2, _3) =>
-      assert(_1.level == level)
-      assert(_2.level == level)
-      assert(_3.level == level)
-      checkInvs(_1) && checkInvs(_2) && checkInvs(_3)
-    case Four(_1, _2, _3, _4) =>
-      assert(_1.level == level)
-      assert(_2.level == level)
-      assert(_3.level == level)
-      assert(_4.level == level)
-      checkInvs(_1) && checkInvs(_2) && checkInvs(_3) && checkInvs(_4)
-  }
+  def checkConqueueInvs(conq: Conc[Int], level: Int): Boolean =
+    (conq: Conc[Int] @unchecked) match {
+      case Lazy(_, q, _) =>
+        assert(level == 0)
+        checkConqueueInvs(q, 0)
+      case s: Spine[Int] =>
+        if (s.lwing == Zero || s.rwing == Zero) {
+          assert(false, "Evaluated Spine cannot contain Zero.")
+        }
+        checkConqueueInvs(s.lwing, level) &&
+        checkConqueueInvs(s.rwing, level) &&
+        checkConqueueInvs(s.rear, level + 1)
+      case Tip(tip) =>
+        checkConqueueInvs(tip, level)
+      case Zero =>
+        true
+      case One(_1) =>
+        assert(_1.level == level, s"levels: ${_1.level} vs $level")
+        checkInvs(_1)
+      case Two(_1, _2) =>
+        assert(_1.level == level)
+        assert(_2.level == level)
+        checkInvs(_1) && checkInvs(_2)
+      case Three(_1, _2, _3) =>
+        assert(_1.level == level)
+        assert(_2.level == level)
+        assert(_3.level == level)
+        checkInvs(_1) && checkInvs(_2) && checkInvs(_3)
+      case Four(_1, _2, _3, _4) =>
+        assert(_1.level == level)
+        assert(_2.level == level)
+        assert(_3.level == level)
+        assert(_4.level == level)
+        checkInvs(_1) && checkInvs(_2) && checkInvs(_3) && checkInvs(_4)
+    }
 
   def testConcatCorrectness(n: Int, m: Int) = {
     var xs: Conc[Int] = concList(0 until n)

@@ -37,13 +37,16 @@ object Conc {
     def size = 0
   }
   
-  class Single[@specialized(Byte, Char, Int, Long, Float, Double) T](val x: T) extends Leaf[T] {
+  class Single[@specialized(Byte, Char, Int, Long, Float, Double) T](val x: T)
+  extends Leaf[T] {
     def level = 0
     def size = 1
     override def toString = s"Single($x)"
   }
   
-  class Chunk[@specialized(Byte, Char, Int, Long, Float, Double) T](val array: Array[T], val size: Int, val k: Int) extends Leaf[T] {
+  class Chunk[@specialized(Byte, Char, Int, Long, Float, Double) T](
+    val array: Array[T], val size: Int, val k: Int
+  ) extends Leaf[T] {
     def level = 0
     override def toString = s"Chunk(${array.mkString("", ", ", "")}; $size; $k)"
   }
@@ -191,7 +194,9 @@ object Conqueue {
 
   def empty[T]: Conqueue[T] = Tip(Zero)
 
-  case class Lazy[+T](lstack: List[Spine[T]], queue: Conqueue[T], rstack: List[Spine[T]]) extends Conqueue[T] {
+  case class Lazy[+T](
+    lstack: List[Spine[T]], queue: Conqueue[T], rstack: List[Spine[T]]
+  ) extends Conqueue[T] {
     def left = queue.left
     def right = queue.right
     def level = queue.level
@@ -201,7 +206,9 @@ object Conqueue {
     override def normalized = queue.normalized
   }
 
-  class Spine[+T](val lwing: Num[T], val rwing: Num[T], @volatile var evaluateTail: AnyRef) extends Conqueue[T] {
+  class Spine[+T](
+    val lwing: Num[T], val rwing: Num[T], @volatile var evaluateTail: AnyRef
+  ) extends Conqueue[T] {
     lazy val rear: Conqueue[T] = {
       val t = (evaluateTail: @unchecked) match {
         case eager: Conqueue[T] => eager
@@ -211,12 +218,15 @@ object Conqueue {
       t
     }
     def evaluated = evaluateTail == null
-    override def addIfUnevaluated[U >: T](stack: List[Conqueue.Spine[U]]) = if (!evaluated) this :: stack else stack
+    override def addIfUnevaluated[U >: T](stack: List[Conqueue.Spine[U]]) =
+      if (!evaluated) this :: stack else stack
     def left = lwing
     def right = new <>(rear, rwing)
     lazy val level: Int = 1 + math.max(lwing.level, math.max(rear.level, rwing.level))
     lazy val size: Int = lwing.size + rear.size + rwing.size
-    override def normalized = ConcUtils.normalizeLeftWingsAndTip(this, Conc.Empty) <> ConcUtils.normalizeRightWings(this, Conc.Empty)
+    override def normalized =
+      ConcUtils.normalizeLeftWingsAndTip(
+        this, Conc.Empty) <> ConcUtils.normalizeRightWings(this, Conc.Empty)
   }
 
   object Spine {
@@ -287,12 +297,14 @@ object Conqueue {
     override def normalized = _1 <> _2 <> _3
   }
 
-  case class Four[+T](_1: Conc[T], _2: Conc[T], _3: Conc[T], _4: Conc[T]) extends Num[T] {
+  case class Four[+T](_1: Conc[T], _2: Conc[T], _3: Conc[T], _4: Conc[T])
+  extends Num[T] {
     def left = new <>(_1, _2)
     def right = new <>(_3, _4)
     def leftmost = _1
     def rightmost = _4
-    def level: Int = 1 + math.max(math.max(_1.level, _2.level), math.max(_3.level, _4.level))
+    def level: Int =
+      1 + math.max(math.max(_1.level, _2.level), math.max(_3.level, _4.level))
     def size: Int = _1.size + _2.size + _3.size + _4.size
     def digit = 4
     override def normalized = _1 <> _2 <> _3 <> _4
@@ -316,11 +328,13 @@ object ConcUtils {
 
   def levelFormatter[T](num: Num[T]): String = num match {
     case Zero => "Zero"
-    case One(_1) if _1.level == 0 || (_1.left.level == _1.right.level) => s"One*(${_1.level})"
+    case One(_1) if _1.level == 0 || (_1.left.level == _1.right.level) =>
+      s"One*(${_1.level})"
     case One(_1) => s"One(${_1.level})"
     case Two(_1, _2) => s"Two(${_1.level}, ${_2.level})"
     case Three(_1, _2, _3) => s"Three(${_1.level}, ${_2.level}, ${_3.level})"
-    case Four(_1, _2, _3, _4) => s"Four(${_1.level}, ${_2.level}, ${_3.level}, ${_4.level})"
+    case Four(_1, _2, _3, _4) =>
+      s"Four(${_1.level}, ${_2.level}, ${_3.level}, ${_4.level})"
   }
 
   private def mkstr[T](c: Conc[T]) = toSeq(c).mkString(s"l${c.level}:[", ", ", "]")
@@ -343,15 +357,20 @@ object ConcUtils {
     case Four(_, _, _, _) => invalid("never four.")
   }
 
-  def queueString[T](conq: Conqueue[T], showNum: Num[T] => String = levelFormatter _, spacing: Int = 80): String = {
+  def queueString[T](
+    conq: Conqueue[T], showNum: Num[T] => String = levelFormatter _, spacing: Int = 80
+  ): String = {
     val buffer = new StringBuffer
 
-    def traverse(rank: Int, indent: Int, conq: Conqueue[T]): Unit = (conq: @unchecked) match {
+    def traverse(
+      rank: Int, indent: Int, conq: Conqueue[T]
+    ): Unit = (conq: @unchecked) match {
       case s: Spine[T] =>
         val lefts = showNum(s.lwing)
         val rights = showNum(s.rwing)
         val spines = "Spine(+)"
-        buffer.append(" " * (indent - lefts.length) + lefts + " " + spines + " " + rights)
+        buffer.append(
+          " " * (indent - lefts.length) + lefts + " " + spines + " " + rights)
         buffer.append("\n")
         traverse(rank + 1, indent, s.rear)
       case Tip(tip) =>
@@ -414,7 +433,9 @@ object ConcUtils {
       invalid("All cases should have been covered: " + xs + ", " + xs.getClass)
   }
 
-  def foreachLeafLeft[T](xs: Conc[T])(f: Leaf[T] => Unit): Unit = (xs: @unchecked) match {
+  def foreachLeafLeft[T](xs: Conc[T])(
+    f: Leaf[T] => Unit
+  ): Unit = (xs: @unchecked) match {
     case left <> right =>
       foreachLeafLeft(left)(f)
       foreachLeafLeft(right)(f)
@@ -448,7 +469,9 @@ object ConcUtils {
       invalid("All cases should have been covered: " + xs + ", " + xs.getClass)
   }
 
-  def foreachLeafRight[T](xs: Conc[T])(f: Leaf[T] => Unit): Unit = (xs: @unchecked) match {
+  def foreachLeafRight[T](xs: Conc[T])(
+    f: Leaf[T] => Unit
+  ): Unit = (xs: @unchecked) match {
     case left <> right =>
       foreachLeafRight(right)(f)
       foreachLeafRight(left)(f)
@@ -482,7 +505,9 @@ object ConcUtils {
       invalid("All cases should have been covered: " + xs + ", " + xs.getClass)
   }
 
-  def apply[@specialized(Byte, Char, Int, Long, Float, Double) T](xs: Conc[T], i: Int): T = (xs: @unchecked) match {
+  def apply[@specialized(Byte, Char, Int, Long, Float, Double) T](
+    xs: Conc[T], i: Int
+  ): T = (xs: @unchecked) match {
     case left <> _ if i < left.size =>
       apply(left, i)
     case left <> right =>
@@ -516,7 +541,9 @@ object ConcUtils {
       apply(conq, i)
   }
 
-  private def updatedArray[@specialized(Byte, Char, Int, Long, Float, Double) T: ClassTag](a: Array[T], i: Int, y: T, sz: Int): Array[T] = {
+  private def updatedArray[
+    @specialized(Byte, Char, Int, Long, Float, Double) T: ClassTag
+  ](a: Array[T], i: Int, y: T, sz: Int): Array[T] = {
     val na = new Array[T](a.length)
     System.arraycopy(a, 0, na, 0, sz)
     na(i) = y
@@ -527,7 +554,9 @@ object ConcUtils {
 
   def asNum[T](xs: Conc[T]) = xs.asInstanceOf[Num[T]]
 
-  def update[@specialized(Byte, Char, Int, Long, Float, Double) T: ClassTag](xs: Conc[T], i: Int, y: T): Conc[T] = (xs: @unchecked) match {
+  def update[
+    @specialized(Byte, Char, Int, Long, Float, Double) T: ClassTag
+  ](xs: Conc[T], i: Int, y: T): Conc[T] = (xs: @unchecked) match {
     case left <> right if i < left.size =>
       new <>(update(left, i, y), right)
     case left <> right =>
@@ -628,7 +657,9 @@ object ConcUtils {
     }
   }
 
-  private[common] def insertedArray[@specialized(Byte, Char, Int, Long, Float, Double) T: ClassTag](a: Array[T], from: Int, i: Int, y: T, sz: Int): Array[T] = {
+  private[common] def insertedArray[
+    @specialized(Byte, Char, Int, Long, Float, Double) T: ClassTag
+  ](a: Array[T], from: Int, i: Int, y: T, sz: Int): Array[T] = {
     val na = new Array[T](sz + 1)
     System.arraycopy(a, from, na, 0, i)
     na(i) = y
@@ -636,20 +667,26 @@ object ConcUtils {
     na
   }
 
-  private[common] def removedArray[T: ClassTag](a: Array[T], from: Int, at: Int, sz: Int): Array[T] = {
+  private[common] def removedArray[T: ClassTag](
+    a: Array[T], from: Int, at: Int, sz: Int
+  ): Array[T] = {
     val na = new Array[T](sz - 1)
     System.arraycopy(a, from, na, 0, at)
     System.arraycopy(a, from + at + 1, na, at, sz - at - 1)
     na
   }
 
-  private[common] def copiedArray[T: ClassTag](a: Array[T], from: Int, sz: Int): Array[T] = {
+  private[common] def copiedArray[T: ClassTag](
+    a: Array[T], from: Int, sz: Int
+  ): Array[T] = {
     val na = new Array[T](sz)
     System.arraycopy(a, from, na, 0, sz)
     na
   }
 
-  def insert[@specialized(Byte, Char, Int, Long, Float, Double) T: ClassTag](xs: Conc[T], i: Int, y: T): Conc[T] = (xs.normalized: @unchecked) match {
+  def insert[@specialized(Byte, Char, Int, Long, Float, Double) T: ClassTag](
+    xs: Conc[T], i: Int, y: T
+  ): Conc[T] = (xs.normalized: @unchecked) match {
     case left <> right if i < left.size =>
       insert(left, i, y) <> right
     case left <> right =>
@@ -752,29 +789,47 @@ object ConcUtils {
       new <>(nl, nr)
     } else if (xs.right.left.left.level >= xs.right.left.right.level) {
       //
-      //                    n                                             n                
-      //          +---------+---------+                         +---------+---------+      
-      //        n - 2               n - 1      =>             n - 1               n - 2    
-      //      +---+---+           +---+---+              +------+------+        +---+---+  
-      //    n - 4   n - 3       n - 2   n - 3          n - 2         n - 3    n - 3   n - 3
-      //                      +---+---+              +---+---+      (n - 3)  (n - 4)       
-      //                    n - 3   n - 3          n - 4   n - 3                           
-      //                   (n - 3) (n - 4)                                                 
+      //                    n                    
+      //          +---------+---------+          
+      //        n - 2               n - 1      =>
+      //      +---+---+           +---+---+      
+      //    n - 4   n - 3       n - 2   n - 3    
+      //                      +---+---+          
+      //                    n - 3   n - 3        
+      //                   (n - 3) (n - 4)       
+      //
+      //                           n                
+      //                 +---------+---------+      
+      //               n - 1               n - 2    
+      //          +------+------+        +---+---+  
+      //        n - 2         n - 3    n - 3   n - 3
+      //      +---+---+      (n - 3)  (n - 4)       
+      //    n - 4   n - 3                           
       //
       val nl = new <>(xs.left, xs.right.left.left)
       val nr = new <>(xs.right.left.right, xs.right.right)
       new <>(nl, nr)
     } else {
       //
-      //                       n                                                    n - 1                 
-      //          +------------+------------+                            +------------+------------+      
-      //        n - 2                     n - 1      =>                n - 2                     n - 2    
-      //      +---+---+                 +---+---+              +---------+---------+           +---+---+  
-      //    n - 4   n - 3             n - 2   n - 3          n - 3               n - 3       n - 3   n - 3
-      //          +---+---+         +---+---+              +---+---+           +---+---+                  
-      //        n - 4   n - 4     n - 4   n - 3          n - 4   n - 4       n - 4   n - 4                
-      //       (n - 4) (n - 5)                                  (n - 4)     (n - 5)                       
-      //       (n - 5) (n - 4)                                  (n - 5)     (n - 4)                       
+      //                       n                       
+      //          +------------+------------+          
+      //        n - 2                     n - 1      =>
+      //      +---+---+                 +---+---+      
+      //    n - 4   n - 3             n - 2   n - 3    
+      //          +---+---+         +---+---+          
+      //        n - 4   n - 4     n - 4   n - 3        
+      //       (n - 4) (n - 5)                         
+      //       (n - 5) (n - 4)                         
+      //
+      //                             n - 1                 
+      //                  +------------+------------+      
+      //                n - 2                     n - 2    
+      //        +---------+---------+           +---+---+  
+      //      n - 3               n - 3       n - 3   n - 3
+      //    +---+---+           +---+---+                  
+      //  n - 4   n - 4       n - 4   n - 4                
+      //         (n - 4)     (n - 5)                       
+      //         (n - 5)     (n - 4)                       
       //
       val nll = new <>(xs.left.left, xs.left.right.left)
       val nlr = new <>(xs.left.right.right, xs.right.left.left)
@@ -855,29 +910,48 @@ object ConcUtils {
       new <>(nl, nr)
     } else if (xs.left.right.right.level >= xs.left.right.left.level) {
       //
-      //                    n                                      n                       
-      //          +---------+---------+                  +---------+---------+             
-      //        n - 1               n - 2      =>      n - 2               n - 1           
-      //      +---+---+           +---+---+          +---+---+        +------+------+      
-      //    n - 3   n - 2       n - 3   n - 4      n - 3   n - 3    n - 3         n - 2    
-      //          +---+---+                               (n - 4)  (n - 3)      +---+---+  
-      //        n - 3   n - 3                                                 n - 3   n - 4
-      //       (n - 4) (n - 3)                                                             
+      //                    n                    
+      //          +---------+---------+          
+      //        n - 1               n - 2      =>
+      //      +---+---+           +---+---+      
+      //    n - 3   n - 2       n - 3   n - 4    
+      //          +---+---+                      
+      //        n - 3   n - 3                    
+      //       (n - 4) (n - 3)                   
+      //
+      //                  n                       
+      //        +---------+---------+             
+      //      n - 2               n - 1           
+      //    +---+---+        +------+------+      
+      //  n - 3   n - 3    n - 3         n - 2    
+      //         (n - 4)  (n - 3)      +---+---+  
+      //                             n - 3   n - 4
+      //                                          
       //
       val nl = new <>(xs.left.left, xs.left.right.left)
       val nr = new <>(xs.left.right.right, xs.right)
       new <>(nl, nr)
     } else {
       //
-      //                       n                                          n - 1                           
-      //          +------------+------------+                  +------------+------------+                
-      //        n - 1                     n - 2      =>      n - 2                     n - 2              
-      //      +---+---+                 +---+---+          +---+---+           +---------+---------+      
-      //    n - 3   n - 2             n - 3   n - 4      n - 3   n - 3       n - 3               n - 3    
-      //          +---+---+         +---+---+                              +---+---+           +---+---+  
-      //        n - 3   n - 4     n - 4   n - 4                          n - 4   n - 4       n - 4   n - 4
-      //                         (n - 5) (n - 4)                                (n - 5)     (n - 4)       
-      //                         (n - 4) (n - 5)                                (n - 4)     (n - 5)       
+      //                       n                       
+      //          +------------+------------+          
+      //        n - 1                     n - 2      =>
+      //      +---+---+                 +---+---+      
+      //    n - 3   n - 2             n - 3   n - 4    
+      //          +---+---+         +---+---+          
+      //        n - 3   n - 4     n - 4   n - 4        
+      //                         (n - 5) (n - 4)       
+      //                         (n - 4) (n - 5)       
+      //
+      //                   n - 1                           
+      //        +------------+------------+                
+      //      n - 2                     n - 2              
+      //    +---+---+           +---------+---------+      
+      //  n - 3   n - 3       n - 3               n - 3    
+      //                    +---+---+           +---+---+  
+      //                  n - 4   n - 4       n - 4   n - 4
+      //                         (n - 5)     (n - 4)       
+      //                         (n - 4)     (n - 5)       
       //
       val nl = new <>(xs.left.left, xs.left.right.left)
       val nrl = new <>(xs.left.right.right, xs.right.left.left)
@@ -887,43 +961,46 @@ object ConcUtils {
     }
   }
 
-  def pay[T](work: List[Spine[T]], n: Int): List[Spine[T]] = if (n == 0) work else work match {
-    case head :: rest =>
-      // do 2 units of work
-      val tail = head.rear
-      pay(tail.addIfUnevaluated(rest), n - 1)
-    case Nil =>
-      // hoorah - nothing to do
-      Nil
-  }
+  def pay[T](work: List[Spine[T]], n: Int): List[Spine[T]] =
+    if (n == 0) work else work match {
+      case head :: rest =>
+        // do 2 units of work
+        val tail = head.rear
+        pay(tail.addIfUnevaluated(rest), n - 1)
+      case Nil =>
+        // hoorah - nothing to do
+        Nil
+    }
 
   val doNothing = () => {}
 
-  def noCarryPushHead[T](num: Num[T], c: Conc[T]): Num[T] = (num.digit: @switch) match {
-    case 0 =>
-      One(c)
-    case 1 =>
-      val One(_1) = num
-      Two(c, _1)
-    case 2 =>
-      val Two(_1, _2) = num
-      Three(c, _1, _2)
-    case _ =>
-      invalid("Causes a carry.")
-  }
+  def noCarryPushHead[T](num: Num[T], c: Conc[T]): Num[T] =
+    (num.digit: @switch) match {
+      case 0 =>
+        One(c)
+      case 1 =>
+        val One(_1) = num
+        Two(c, _1)
+      case 2 =>
+        val Two(_1, _2) = num
+        Three(c, _1, _2)
+      case _ =>
+        invalid("Causes a carry.")
+    }
 
-  def noCarryPushLast[T](num: Num[T], c: Conc[T]): Num[T] = (num.digit: @switch) match {
-    case 0 =>
-      One(c)
-    case 1 =>
-      val One(_1) = num
-      Two(_1, c)
-    case 2 =>
-      val Two(_1, _2) = num
-      Three(_1, _2, c)
-    case _ =>
-      invalid("Causes a carry.")
-  }
+  def noCarryPushLast[T](num: Num[T], c: Conc[T]): Num[T] =
+    (num.digit: @switch) match {
+      case 0 =>
+        One(c)
+      case 1 =>
+        val One(_1) = num
+        Two(_1, c)
+      case 2 =>
+        val Two(_1, _2) = num
+        Three(_1, _2, c)
+      case _ =>
+        invalid("Causes a carry.")
+    }
 
   def noCarryAdd[T](n: Num[T], m: Num[T]): Num[T] = (n.digit: @switch) match {
     case 0 =>
@@ -1009,7 +1086,9 @@ object ConcUtils {
       invalid("Four should never happen.")
   }
 
-  def pushHead[T](conq: Conqueue[T], c: Conc[T], onPush: () => Unit = doNothing): Conqueue[T] = {
+  def pushHead[T](
+    conq: Conqueue[T], c: Conc[T], onPush: () => Unit = doNothing
+  ): Conqueue[T] = {
     onPush()
 
     (conq: @unchecked) match {
@@ -1038,7 +1117,9 @@ object ConcUtils {
     }
   }
 
-  def pushHeadTop[T](conq: Conqueue[T], leaf: Leaf[T], onPush: () => Unit = doNothing): Conqueue[T] = conq match {
+  def pushHeadTop[T](
+    conq: Conqueue[T], leaf: Leaf[T], onPush: () => Unit = doNothing
+  ): Conqueue[T] = conq match {
     case Conqueue.Lazy(lstack, queue, rstack) =>
       val nqueue = pushHead(queue, leaf, onPush)
       val nlstack = pay(nqueue.addIfUnevaluated(lstack), 2)
@@ -1049,7 +1130,9 @@ object ConcUtils {
   }
 
   def fixLeft[T](s: Spine[T], onFix: () => Unit = doNothing): Spine[T] = {
-    def spreadBorrow(b: Conc[T], otail: Spine[T], nttail: Conqueue[T], continue: Boolean): Spine[T] = {
+    def spreadBorrow(
+      b: Conc[T], otail: Spine[T], nttail: Conqueue[T], continue: Boolean
+    ): Spine[T] = {
       val bshaken = shakeRight(b)
       if (bshaken.level == b.level) {
         if (bshaken.left.level == b.level - 1) {
@@ -1122,15 +1205,16 @@ object ConcUtils {
     }
   }
 
-  def popHeadTop[T](conq: Conqueue[T], onFix: () => Unit = doNothing): Conqueue[T] = conq match {
-    case Conqueue.Lazy(lstack, queue, rstack) =>
-      val nqueue = popHead(queue, onFix)
-      val nlstack = pay(nqueue.addIfUnevaluated(lstack), 2)
-      val nrstack = pay(rstack, 2)
-      Conqueue.Lazy(nlstack, nqueue, nrstack)
-    case _ =>
-      popHead(conq, onFix)
-  }
+  def popHeadTop[T](conq: Conqueue[T], onFix: () => Unit = doNothing): Conqueue[T] =
+    conq match {
+      case Conqueue.Lazy(lstack, queue, rstack) =>
+        val nqueue = popHead(queue, onFix)
+        val nlstack = pay(nqueue.addIfUnevaluated(lstack), 2)
+        val nrstack = pay(rstack, 2)
+        Conqueue.Lazy(nlstack, nqueue, nrstack)
+      case _ =>
+        popHead(conq, onFix)
+    }
 
   def head[T](conq: Conqueue[T]): Leaf[T] = {
     @tailrec def leftmost(c: Conc[T]): Leaf[T] = c match {
@@ -1152,7 +1236,9 @@ object ConcUtils {
     }
   }
 
-  def pushLast[T](conq: Conqueue[T], c: Conc[T], onPush: () => Unit = doNothing): Conqueue[T] = {
+  def pushLast[T](
+    conq: Conqueue[T], c: Conc[T], onPush: () => Unit = doNothing
+  ): Conqueue[T] = {
     onPush()
 
     (conq: @unchecked) match {
@@ -1181,7 +1267,9 @@ object ConcUtils {
     }
   }
 
-  def pushLastTop[T](conq: Conqueue[T], leaf: Leaf[T], onPush: () => Unit = doNothing): Conqueue[T] = conq match {
+  def pushLastTop[T](
+    conq: Conqueue[T], leaf: Leaf[T], onPush: () => Unit = doNothing
+  ): Conqueue[T] = conq match {
     case Conqueue.Lazy(lstack, queue, rstack) =>
       val nqueue = pushLast(queue, leaf, onPush)
       val nlstack = pay(lstack, 2)
@@ -1193,7 +1281,9 @@ object ConcUtils {
 
   def fixRight[T](s: Spine[T], onFix: () => Unit = doNothing): Spine[T] = {
     onFix()
-    def spreadBorrow(b: Conc[T], otail: Spine[T], nttail: Conqueue[T], continued: Boolean): Spine[T] = {
+    def spreadBorrow(
+      b: Conc[T], otail: Spine[T], nttail: Conqueue[T], continued: Boolean
+    ): Spine[T] = {
       val bshaken = shakeLeft(b)
       if (bshaken.level == b.level) {
         if (bshaken.right.level == b.level - 1) {
@@ -1263,7 +1353,9 @@ object ConcUtils {
     }
   }
 
-  def popLastTop[T](conq: Conqueue[T], onFix: () => Unit = doNothing): Conqueue[T] = conq match {
+  def popLastTop[T](
+    conq: Conqueue[T], onFix: () => Unit = doNothing
+  ): Conqueue[T] = conq match {
     case Conqueue.Lazy(lstack, queue, rstack) =>
       val nqueue = popLast(queue, onFix)
       val nlstack = pay(lstack, 2)
@@ -1293,8 +1385,12 @@ object ConcUtils {
     }
   }
 
-  @tailrec def normalizeLeftWingsAndTip[T](conq: Conqueue[T], front: Conc[T]): Conc[T] = {
-    @tailrec def wrapUntil(s: Spine[T], wrapped: Conc[T], level: Int): (Conc[T], Conqueue[T]) = {
+  @tailrec def normalizeLeftWingsAndTip[T](
+    conq: Conqueue[T], front: Conc[T]
+  ): Conc[T] = {
+    @tailrec def wrapUntil(
+      s: Spine[T], wrapped: Conc[T], level: Int
+    ): (Conc[T], Conqueue[T]) = {
       if (wrapped.level >= level) (wrapped, s)
       else {
         val nwrapped = wrapped <> s.lwing.normalized
@@ -1315,7 +1411,9 @@ object ConcUtils {
   }
 
   @tailrec def normalizeRightWings[T](conq: Conqueue[T], back: Conc[T]): Conc[T] = {
-    @tailrec def wrapUntil(s: Spine[T], wrapped: Conc[T], level: Int): (Conc[T], Conqueue[T]) = {
+    @tailrec def wrapUntil(
+      s: Spine[T], wrapped: Conc[T], level: Int
+    ): (Conc[T], Conqueue[T]) = {
       if (wrapped.level >= level) (wrapped, s)
       else {
         val nwrapped = s.rwing.normalized <> wrapped
@@ -1358,27 +1456,27 @@ object ConcUtils {
   }
 
   private def unwrap[T](xs: <>[T], log: Log = noLog): Conqueue[T] = {
-    def zip(rank: Int, lstack: List[Num[T]], rstack: List[Num[T]]): Conqueue[T] = ((lstack, rstack): @unchecked) match {
-      case (lwing :: Nil, Nil) =>
-        assert(lwing.leftmost.level == rank)
-        Tip(lwing)
-      case (Nil, rwing :: Nil) =>
-        assert(rwing.rightmost.level == rank)
-        Tip(rwing)
-      case (lwing :: Nil, rwing :: Nil) =>
-        assert(lwing.leftmost.level == rank)
-        assert(rwing.rightmost.level == rank)
-        new Spine(lwing, rwing, Tip(Zero))
-      case (lwing :: ltail, rwing :: rtail) =>
-        new Spine(lwing, rwing, zip(rank + 1, ltail, rtail))
-    }
+    def zip(rank: Int, lstack: List[Num[T]], rstack: List[Num[T]]): Conqueue[T] =
+      ((lstack, rstack): @unchecked) match {
+        case (lwing :: Nil, Nil) =>
+          assert(lwing.leftmost.level == rank)
+          Tip(lwing)
+        case (Nil, rwing :: Nil) =>
+          assert(rwing.rightmost.level == rank)
+          Tip(rwing)
+        case (lwing :: Nil, rwing :: Nil) =>
+          assert(lwing.leftmost.level == rank)
+          assert(rwing.rightmost.level == rank)
+          new Spine(lwing, rwing, Tip(Zero))
+        case (lwing :: ltail, rwing :: rtail) =>
+          new Spine(lwing, rwing, zip(rank + 1, ltail, rtail))
+      }
 
     //def unwrap = unwrap1 _
     @tailrec
-    def unwrap(lstack: List[Num[T]], rstack: List[Num[T]], rem: Conqueue[Conc[T]]): (List[Num[T]], List[Num[T]]) = {
-      //def unwrap = unwrap1 _
-      //assert(lstack.map(_.leftmost.level).reverse == (0 until lstack.length), lstack.map(_.leftmost.level))
-      //assert(rstack.map(_.leftmost.level).reverse == (0 until rstack.length), rstack.map(_.leftmost.level))
+    def unwrap(
+      lstack: List[Num[T]], rstack: List[Num[T]], rem: Conqueue[Conc[T]]
+    ): (List[Num[T]], List[Num[T]]) = {
       if (rem.isEmpty) (lstack.reverse, rstack.reverse)
       else if (lstack.length < rstack.length) {
         val remhead = rem.head
@@ -1391,11 +1489,13 @@ object ConcUtils {
         } else (lstack: @unchecked) match {
           case Three(_1, _2, _3) :: ltail =>
             val added = _3 <> remhead
-            if (added.level == _3.level) unwrap(Three(_1, _2, added) :: ltail, rstack, rem.tail)
+            if (added.level == _3.level)
+              unwrap(Three(_1, _2, added) :: ltail, rstack, rem.tail)
             else unwrap(One(added) :: Two(_1, _2) :: ltail, rstack, rem.tail)
           case Two(_1, _2) :: ltail =>
             val added = _2 <> remhead
-            if (added.level == _2.level) unwrap(Two(_1, added) :: ltail, rstack, rem.tail)
+            if (added.level == _2.level)
+              unwrap(Two(_1, added) :: ltail, rstack, rem.tail)
             else unwrap(One(added) :: One(_1) :: ltail, rstack, rem.tail)
           case One(_1) :: Nil =>
             val added = _1 <> remhead
@@ -1403,11 +1503,19 @@ object ConcUtils {
           case One(_1) :: num :: ltail =>
             val added = _1 <> remhead
             val shaken = if (added.level == _1.level) added else shakeRight(added)
-            if (shaken.level == _1.level) unwrap(One(shaken) :: num :: ltail, rstack, rem.tail)
-            else if (shaken.left.level == shaken.right.level) unwrap(Two(shaken.left, shaken.right) :: num :: ltail, rstack, rem.tail)
+            if (shaken.level == _1.level)
+              unwrap(One(shaken) :: num :: ltail, rstack, rem.tail)
+            else if (shaken.left.level == shaken.right.level)
+              unwrap(Two(shaken.left, shaken.right) :: num :: ltail, rstack, rem.tail)
             else num match {
-              case Three(n1, n2, n3) => unwrap(Two(n3 <> shaken.left, shaken.right) :: Two(n1, n2) :: ltail, rstack, rem.tail)
-              case num => unwrap(One(shaken.right) :: noCarryPushLast(num, shaken.left) :: ltail, rstack, rem.tail)
+              case Three(n1, n2, n3) =>
+                unwrap(
+                  Two(n3 <> shaken.left, shaken.right) :: Two(n1, n2) :: ltail,
+                  rstack, rem.tail)
+              case num =>
+                unwrap(
+                  One(shaken.right) :: noCarryPushLast(num, shaken.left) :: ltail,
+                  rstack, rem.tail)
             }
           case Nil =>
             unwrap(One(remhead) :: Nil, rstack, rem.tail)
@@ -1423,11 +1531,13 @@ object ConcUtils {
         } else (rstack: @unchecked) match {
           case Three(_1, _2, _3) :: rtail =>
             val added = remlast <> _1
-            if (added.level == _1.level) unwrap(lstack, Three(added, _2, _3) :: rtail, rem.init)
+            if (added.level == _1.level)
+              unwrap(lstack, Three(added, _2, _3) :: rtail, rem.init)
             else unwrap(lstack, One(added) :: Two(_2, _3) :: rtail, rem.init)
           case Two(_1, _2) :: rtail =>
             val added = remlast <> _1
-            if (added.level == _1.level) unwrap(lstack, Two(added, _2) :: rtail, rem.init)
+            if (added.level == _1.level)
+              unwrap(lstack, Two(added, _2) :: rtail, rem.init)
             else unwrap(lstack, One(added) :: One(_2) :: rtail, rem.init)
           case One(_1) :: Nil =>
             val added = remlast <> _1
@@ -1435,11 +1545,19 @@ object ConcUtils {
           case One(_1) :: num :: ltail =>
             val added = remlast <> _1
             val shaken = if (added.level == _1.level) added else shakeLeft(added)
-            if (shaken.level == _1.level) unwrap(lstack, One(shaken) :: num :: ltail, rem.init)
-            else if (shaken.left.level == shaken.right.level) unwrap(lstack, Two(shaken.left, shaken.right) :: num :: ltail, rem.init)
+            if (shaken.level == _1.level)
+              unwrap(lstack, One(shaken) :: num :: ltail, rem.init)
+            else if (shaken.left.level == shaken.right.level)
+              unwrap(lstack, Two(shaken.left, shaken.right) :: num :: ltail, rem.init)
             else num match {
-              case Three(n1, n2, n3) => unwrap(lstack, Two(shaken.left, shaken.right <> n1) :: Two(n2, n3) :: ltail, rem.init)
-              case num => unwrap(lstack, One(shaken.left) :: noCarryPushHead(num, shaken.right) :: ltail, rem.init)
+              case Three(n1, n2, n3) =>
+                unwrap(lstack,
+                  Two(shaken.left, shaken.right <> n1) :: Two(n2, n3) :: ltail,
+                  rem.init)
+              case num =>
+                unwrap(lstack,
+                  One(shaken.left) :: noCarryPushHead(num, shaken.right) :: ltail,
+                  rem.init)
             }
           case Nil =>
             unwrap(lstack, One(remlast) :: Nil, rem.init)
@@ -1451,7 +1569,9 @@ object ConcUtils {
     zip(0, lwings, rwings)
   }
 
-  def split[@specialized(Byte, Char, Int, Long, Float, Double) T: ClassTag](xs: Conc[T], n: Int, rref: ObjectRef[Conc[T]]): Conc[T] = (xs.normalized: @unchecked) match {
+  def split[@specialized(Byte, Char, Int, Long, Float, Double) T: ClassTag](
+    xs: Conc[T], n: Int, rref: ObjectRef[Conc[T]]
+  ): Conc[T] = (xs.normalized: @unchecked) match {
     case left <> right =>
       if (n < left.size) {
         val ll = split(left, n, rref)
@@ -1528,5 +1648,3 @@ object ConcUtils {
   }
 
 }
-
-

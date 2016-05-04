@@ -186,7 +186,8 @@ object CommuteCatamorph {
             // Everything mirrored.
             val nleft = leftInner.right
             nleft.parent = this
-            val nright = new Inner(heightOf(leftInner.left, right), leftInner.left, right, this)
+            val nright =
+              new Inner(heightOf(leftInner.left, right), leftInner.left, right, this)
             nright.left.parent = nright
             nright.right.parent = nright
             left = nleft
@@ -198,7 +199,8 @@ object CommuteCatamorph {
           if (rightInner.left.height > rightInner.right.height) {
             val nright = rightInner.left
             nright.parent = this
-            val nleft = new Inner(heightOf(rightInner.right, left), rightInner.right, left, this)
+            val nleft =
+              new Inner(heightOf(rightInner.right, left), rightInner.right, left, this)
             nleft.left.parent = nleft
             nleft.right.parent = nleft
             left = nleft
@@ -206,7 +208,8 @@ object CommuteCatamorph {
           } else {
             val nright = rightInner.right
             nright.parent = this
-            val nleft = new Inner(heightOf(rightInner.left, left), rightInner.left, left, this)
+            val nleft =
+              new Inner(heightOf(rightInner.left, left), rightInner.left, left, this)
             nleft.left.parent = nleft
             nleft.right.parent = nleft
             left = nleft
@@ -228,7 +231,8 @@ object CommuteCatamorph {
     def localString = s"Inner(h = $height, l.h = ${left.height}, r.h = ${right.height})"
   }
 
-  class Leaf[@spec(Int, Long, Double) T](val get: () => T, var parent: Inner[T]) extends Node[T] {
+  class Leaf[@spec(Int, Long, Double) T](val get: () => T, var parent: Inner[T])
+  extends Node[T] {
     def height = 0
     def value = get()
     def pushUp(op: (T, T) => T) {

@@ -27,11 +27,11 @@ trait Arrayable[@specialized(Byte, Short, Int, Float, Long, Double) T] {
    */
   val nil: T
 
-  /** Creates a new array of type `T` initialized with `nil`.
+  /** Creates an array of type `T` initialized with `nil`.
    */
   def newArray(sz: Int): Array[T]
 
-  /** Creates a new array of type `T` initialized with the default JVM value for that type.
+  /** Creates an array of type `T` initialized with the default JVM value for that type.
    */
   def newRawArray(sz: Int): Array[T]
 

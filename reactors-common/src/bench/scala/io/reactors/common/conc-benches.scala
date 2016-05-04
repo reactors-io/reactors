@@ -10,7 +10,8 @@ import org.scalameter.api._
 
 trait ConcUtils extends Bench.OfflineReport {
 
-  override def historian = org.scalameter.reporting.RegressionReporter.Historian.Complete()
+  override def historian =
+    org.scalameter.reporting.RegressionReporter.Historian.Complete()
 
   def sizes(from: Int, until: Int) = Gen.range("size")(from, until, (until - from) / 4)
 
@@ -202,7 +203,9 @@ class ConcTimeBenches extends ConcUtils {
   }
 
   performance of "concat" config(opts) in {
-    using(concs(300000, 1500000) zip concs(3000, 300000).rename("size" -> "thatSize")) curve("ConcList") in { case (conc, thatConc) =>
+    using(
+      concs(300000, 1500000) zip concs(3000, 300000).rename("size" -> "thatSize")
+    ) curve("ConcList") in { case (conc, thatConc) =>
       var i = 0
       while (i < 10000) {
         conc <> thatConc
@@ -210,7 +213,10 @@ class ConcTimeBenches extends ConcUtils {
       }
     }
 
-    using(ropes(128, 300000, 1500000) zip ropes(128, 3000, 300000).rename("size" -> "thatSize")) curve("Conc.Buffer(128)") in { case (rope, thatRope) =>
+    using(
+      ropes(128, 300000, 1500000) zip ropes(128, 3000, 300000).rename(
+        "size" -> "thatSize")) curve("Conc.Buffer(128)"
+    ) in { case (rope, thatRope) =>
       var i = 0
       while (i < 10000) {
         rope <> thatRope
@@ -218,7 +224,10 @@ class ConcTimeBenches extends ConcUtils {
       }
     }
 
-    using(conqueues(128, 300000, 1500000) zip conqueues(128, 3000, 300000).rename("size" -> "thatSize")) curve("Conqueue.Buffer(128)") in { case (conq, thatConq) =>
+    using(
+      conqueues(128, 300000, 1500000) zip conqueues(128, 3000, 300000).rename(
+        "size" -> "thatSize")
+    ) curve("Conqueue.Buffer(128)") in { case (conq, thatConq) =>
       var i = 0
       while (i < 10000) {
         conq <> thatConq
@@ -226,7 +235,9 @@ class ConcTimeBenches extends ConcUtils {
       }
     }
 
-    using(vectors(300, 1500) zip vectors(30, 150).rename("size" -> "thatSize")) curve("Vector") config(
+    using(
+      vectors(300, 1500) zip vectors(30, 150).rename("size" -> "thatSize")
+    ) curve("Vector") config(
       exec.minWarmupRuns -> 1,
       exec.maxWarmupRuns -> 1,
       exec.benchRuns -> 2,

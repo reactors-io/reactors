@@ -102,7 +102,9 @@ package object common {
     def rappend(y: T) = ConcRope.append(self, new Conc.Single(y))
   }
 
-  implicit class ConqueueOps[T: ClassTag](@specialized(Byte, Char, Int, Long, Float, Double) val self: Conqueue[T]) {
+  implicit class ConqueueOps[
+    @specialized(Byte, Char, Int, Long, Float, Double) T: ClassTag
+  ](val self: Conqueue[T]) {
     import Conc._
     import Conqueue._
     def head: T = (ConcUtils.head(self): @unchecked) match {
@@ -122,7 +124,8 @@ package object common {
         val popped = ConcUtils.popHeadTop(self)
         if (c.size == 1) popped
         else {
-          val nhead = new Chunk(ConcUtils.removedArray(c.array, 0, 0, c.size), c.size - 1, c.k)
+          val nhead =
+            new Chunk(ConcUtils.removedArray(c.array, 0, 0, c.size), c.size - 1, c.k)
           ConcUtils.pushHeadTop(popped, nhead)
         }
       case null =>
@@ -135,7 +138,8 @@ package object common {
         val popped = ConcUtils.popLastTop(self)
         if (c.size == 1) popped
         else {
-          val nlast = new Chunk(ConcUtils.removedArray(c.array, 0, c.size - 1, c.size), c.size - 1, c.k)
+          val nlast = new Chunk(ConcUtils.removedArray(
+            c.array, 0, c.size - 1, c.size), c.size - 1, c.k)
           ConcUtils.pushLastTop(popped, nlast)
         }
       case null =>
@@ -151,7 +155,8 @@ package object common {
         ConcUtils.pushLastTop(self, nc)
       case c: Chunk[T] =>
         val popped = ConcUtils.popLastTop(self)
-        val nlast = new Chunk(ConcUtils.insertedArray(c.array, 0, c.size, y, c.size), c.size + 1, c.k)
+        val nlast = new Chunk(ConcUtils.insertedArray(
+          c.array, 0, c.size, y, c.size), c.size + 1, c.k)
         ConcUtils.pushLastTop(popped, nlast)
       case null =>
         Tip(One(new Single(y)))
@@ -166,7 +171,8 @@ package object common {
         ConcUtils.pushHeadTop(self, nc)
       case c: Chunk[T] =>
         val popped = ConcUtils.popHeadTop(self)
-        val nlast = new Chunk(ConcUtils.insertedArray(c.array, 0, 0, y, c.size), c.size + 1, c.k)
+        val nlast = new Chunk(ConcUtils.insertedArray(
+          c.array, 0, 0, y, c.size), c.size + 1, c.k)
         ConcUtils.pushHeadTop(popped, nlast)
       case null =>
         Tip(One(new Single(y)))

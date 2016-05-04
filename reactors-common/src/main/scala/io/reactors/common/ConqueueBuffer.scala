@@ -6,7 +6,9 @@ import scala.reflect.ClassTag
 
 
 
-class ConqueueBuffer[@specialized(Byte, Char, Int, Long, Float, Double) T: ClassTag](val k: Int, val isLazy: Boolean, private var conqueue: Conqueue[T]) {
+class ConqueueBuffer[@specialized(Byte, Char, Int, Long, Float, Double) T: ClassTag](
+  val k: Int, val isLazy: Boolean, private var conqueue: Conqueue[T]
+) {
   import Conc._
   import Conqueue._
 
@@ -32,12 +34,15 @@ class ConqueueBuffer[@specialized(Byte, Char, Int, Long, Float, Double) T: Class
 
   def this(k: Int) = this(k, true, Conqueue.Lazy(Nil, Conqueue.empty, Nil))
 
-  def this(k: Int, lazyConqueue: Boolean) = this(k, lazyConqueue, if (lazyConqueue) Conqueue.Lazy(Nil, Conqueue.empty, Nil) else Conqueue.empty)
+  def this(k: Int, lazyConqueue: Boolean) =
+    this(k, lazyConqueue,
+      if (lazyConqueue) Conqueue.Lazy(Nil, Conqueue.empty, Nil) else Conqueue.empty)
 
   def size = conqueue.size
 
   def isEmpty = {
-    leftIndex == leftStart && ConcUtils.isEmptyConqueue(conqueue) && rightIndex == rightStart
+    leftIndex == leftStart && ConcUtils.isEmptyConqueue(conqueue) &&
+    rightIndex == rightStart
   }
 
   def nonEmpty = !isEmpty

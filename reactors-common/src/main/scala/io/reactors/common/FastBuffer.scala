@@ -70,5 +70,7 @@ class FastBuffer[M >: Null <: AnyRef](initialSize: Int = 4) {
     }
   }
 
-  override def toString = getClass.getSimpleName + array.filter(_ != null).map(_.get).mkString(s"($size, ${array.length}:", ", ", ")")
+  override def toString =
+    getClass.getSimpleName +
+    array.filter(_ != null).map(_.get).mkString(s"($size, ${array.length}:", ", ", ")")
 }
