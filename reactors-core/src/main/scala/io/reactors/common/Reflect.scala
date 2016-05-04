@@ -37,11 +37,13 @@ private[reactors] object Reflect {
       }
       val cs = clazz.getDeclaredConstructors.filter(matches)
       if (cs.length == 0) exception.illegalArg(s"No match for $clazz and $params")
-      else if (cs.length > 1) exception.illegalArg(s"Multiple matches for $clazz and $params")
+      else if (cs.length > 1)
+        exception.illegalArg(s"Multiple matches for $clazz and $params")
       else cs.head.asInstanceOf[Constructor[T]]
     }
   } catch {
-    case e: Exception => throw new IllegalArgumentException(s"Could not find constructor for $clazz.", e)
+    case e: Exception =>
+      throw new IllegalArgumentException(s"Could not find constructor for $clazz.", e)
   }
 
   private val boxedMapping = Map[Class[_], Class[_]](
