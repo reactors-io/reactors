@@ -15,8 +15,8 @@ object ReactorsBuild extends MechaRepoBuild {
 
   val frameworkVersion = Def.setting {
     ConfigParsers.versionFromFile(
-        (baseDirectory in reactors).value / "version.conf",
-        List("reactors_major", "reactors_minor"))
+      (baseDirectory in reactors).value / "version.conf",
+      List("reactors_major", "reactors_minor"))
   }
 
   val reactorsCrossScalaVersions = Def.setting {
@@ -107,13 +107,15 @@ object ReactorsBuild extends MechaRepoBuild {
       .dependsOn(test in (reactorsCore, Test))
       .dependsOn(test in (reactorsContainer, Test))
       .dependsOn(test in (reactorsRemote, Test))
-      .dependsOn(test in (reactorsProtocols, Test)),
+      .dependsOn(test in (reactorsProtocols, Test))
+      .dependsOn(test in (reactorsExtra, Test)),
     publish <<= publish
       .dependsOn(publish in reactorsCommon)
       .dependsOn(publish in reactorsCore)
       .dependsOn(publish in reactorsContainer)
       .dependsOn(publish in reactorsRemote)
       .dependsOn(publish in reactorsProtocols)
+      .dependsOn(publish in reactorsExtra)
   )
 
   def defaultDependencies(scalaVersion: String): Seq[ModuleID] =
@@ -154,11 +156,11 @@ object ReactorsBuild extends MechaRepoBuild {
     defaultDependencies(scalaVersion) ++ extraDeps
   }
 
-  val reactorsCommonSettings = projectSettings("-common", commonDependencies)
+  def reactorsCommonSettings = projectSettings("-common", commonDependencies)
 
   def commonDependencies(scalaVersion: String) = defaultDependencies(scalaVersion)
 
-  val reactorsContainerSettings = projectSettings("-container", containerDependencies)
+  def reactorsContainerSettings = projectSettings("-container", containerDependencies)
 
   def containerDependencies(scalaVersion: String) = defaultDependencies(scalaVersion)
 
@@ -169,6 +171,13 @@ object ReactorsBuild extends MechaRepoBuild {
   def reactorsProtocolsSettings = projectSettings("-protocols", protocolsDependencies)
 
   def protocolsDependencies(scalaVersion: String) = defaultDependencies(scalaVersion)
+
+  def reactorsExtraSettings = projectSettings("-extra", extraDependencies)
+
+  def extraDependencies(scalaVersion: String) = {
+    val extraDeps = Nil
+    defaultDependencies(scalaVersion) ++ extraDeps
+  }
 
   lazy val Benchmarks = config("bench") extend (Test)
 
@@ -181,13 +190,15 @@ object ReactorsBuild extends MechaRepoBuild {
     reactorsCore,
     reactorsContainer,
     reactorsRemote,
-    reactorsProtocols
+    reactorsProtocols,
+    reactorsExtra
   ) dependsOn(
     reactorsCommon % "compile->compile;test->test",
     reactorsCore % "compile->compile;test->test",
     reactorsContainer % "compile->compile;test->test",
     reactorsRemote % "compile->compile;test->test",
-    reactorsProtocols % "compile->compile;test->test"
+    reactorsProtocols % "compile->compile;test->test",
+    reactorsExtra % "compile->compile;test->test"
   ) dependsOnSuperRepo
 
   lazy val reactorsCommon = Project(
@@ -248,6 +259,18 @@ object ReactorsBuild extends MechaRepoBuild {
     reactorsCommon % "compile->compile;test->test",
     reactorsCore % "compile->compile;test->test",
     reactorsContainer % "compile->compile;test->test"
+  ) dependsOnSuperRepo
+
+  lazy val reactorsExtra: Project = Project(
+    "reactors-extra",
+    file("reactors-extra"),
+    settings = reactorsExtraSettings
+  ) configs(
+    Benchmarks
+  ) settings(
+    inConfig(Benchmarks)(Defaults.testSettings): _*
+  ) dependsOn(
+    reactorsCore % "compile->compile;test->test"
   ) dependsOnSuperRepo
 
 }

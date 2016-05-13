@@ -283,7 +283,7 @@ object Services {
 
     /** Optionally returns the channel with the given name, if it exists.
      *
-     *  @param name      name of the isolate and channel, separate with a `#` character
+     *  @param name      names of the isolate and the channel, separated with a `#`
      */
     def find[T](name: String): Option[Channel[T]] = {
       val parts = name.split("#")
