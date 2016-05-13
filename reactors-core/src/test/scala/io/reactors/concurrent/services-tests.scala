@@ -19,7 +19,7 @@ class NetTest extends FunSuite with Matchers with BeforeAndAfterAll {
 
   val system = ReactorSystem.default("TestSystem")
 
-  test("Resource string should be resolved") {
+  test("resource string should be resolved") {
     val res = Promise[String]()
     val resolver = (url: URL) => IOUtils.toInputStream("ok", "UTF-8")
     system.spawn(Proto[ResourceStringReactor](res, resolver)
@@ -27,7 +27,7 @@ class NetTest extends FunSuite with Matchers with BeforeAndAfterAll {
     assert(res.future.value.get.get == "ok", s"got ${res.future.value}")
   }
 
-  test("Resource string should throw an exception") {
+  test("resource string should throw an exception") {
     val testError = new Exception
     val res = Promise[String]()
     val resolver: URL => InputStream = url => throw testError
@@ -65,12 +65,12 @@ with TimeLimitedTests {
 
   def timeLimit = 10 seconds
 
-  test("Periodic timer should fire 3 times") {
+  test("periodic timer should fire 3 times") {
     system.spawn(Proto[PeriodReactor].withScheduler(
       ReactorSystem.Bundle.schedulers.piggyback))
   }
 
-  test("Timeout should fire exactly once") {
+  test("timeout should fire exactly once") {
     val timeoutCount = Promise[Int]()
     system.spawn(Proto[TimeoutReactor](timeoutCount).withScheduler(
       ReactorSystem.Bundle.schedulers.piggyback))
@@ -78,7 +78,7 @@ with TimeLimitedTests {
       s"Total timeouts: ${timeoutCount.future.value}")
   }
 
-  test("Countdown should accumulate 45") {
+  test("countdown should accumulate 45") {
     val total = Promise[Seq[Int]]()
     system.spawn(Proto[CountdownReactor](total).withScheduler(
       ReactorSystem.Bundle.schedulers.piggyback))
@@ -126,10 +126,9 @@ class CountdownReactor(val total: Promise[Seq[Int]]) extends Reactor[Unit] {
 
 
 class CustomServiceTest extends FunSuite with Matchers with BeforeAndAfterAll {
-
   val system = ReactorSystem.default("TestSystem")
 
-  test("Custom service should be retrieved") {
+  test("custom service should be retrieved") {
     val done = Promise[Boolean]()
     system.spawn(Proto[CustomServiceReactor](done).withScheduler(
       ReactorSystem.Bundle.schedulers.piggyback))
@@ -139,7 +138,6 @@ class CustomServiceTest extends FunSuite with Matchers with BeforeAndAfterAll {
   override def afterAll() {
     system.shutdown()
   }
-
 }
 
 
