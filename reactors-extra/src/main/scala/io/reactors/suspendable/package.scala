@@ -8,7 +8,7 @@ import scala.reflect.macros.whitebox.Context
 
 
 
-package object coroutines {
+package object suspendable {
   def reactorCoroutine[T: c.WeakTypeTag](c: Context)(body: c.Tree): c.Tree = {
     import c.universe._
     val coroutineName = TermName(c.freshName("c"))
@@ -38,15 +38,18 @@ package object coroutines {
   }
 
   implicit class EventsCoroutineOps[T <: AnyRef](val events: Events[T]) {
-    val receive = coroutine { () =>
+    def receive = {
       var result = null.asInstanceOf[T]
-      val onEvent = (observer: () => Unit) => {
-        events.once.onEvent { x =>
-          result = x
+      coroutine { () =>
+        val onEvent = (observer: () => Unit) => {
+          events.once.onEvent { x =>
+            result = x
+            observer()
+          }
         }
+        yieldval(onEvent)
+        result
       }
-      yieldval(onEvent)
-      result
     }
   }
 }
