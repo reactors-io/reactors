@@ -187,11 +187,7 @@ object ReactorsBuild extends MechaRepoBuild {
 
   def protocolsDependencies(scalaVersion: String) = defaultDependencies(scalaVersion)
 
-  def reactorsExtraSettings = {
-    val settings = projectSettings("-extra", extraDependencies)
-    val crossIndex = settings.indexWhere(_.key == crossScalaVersions)
-    settings.patch(crossIndex, Nil, 1)
-  }
+  def reactorsExtraSettings = projectSettings("-extra", extraDependencies)
 
   def extraDependencies(scalaVersion: String) = {
     val extraDeps = Nil
@@ -222,7 +218,7 @@ object ReactorsBuild extends MechaRepoBuild {
 
   lazy val reactors210: Project = Project(
     "reactors210",
-    file("."),
+    file("reactors210"),
     settings = reactors210Settings
   ) aggregate(
     reactorsCommon,
