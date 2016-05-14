@@ -19,7 +19,8 @@ package object coroutines {
   }
 
   implicit class ReactorCoroutineOps(val r: Reactor.type) extends AnyVal {
-    def suspendable[T](body: Reactor[T] => Unit): Proto[Reactor[T]] = macro reactorCoroutine[T]
+    def suspendable[T](body: Reactor[T] => Unit): Proto[Reactor[T]] =
+      macro reactorCoroutine[T]
     def fromCoroutine[@spec(Int, Long, Double) T, R](
       c: Reactor[T] ~~> ((() => Unit) => Subscription, R)
     ): Proto[Reactor[T]] = {
