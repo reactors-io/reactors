@@ -40,6 +40,23 @@ class SuspendableReactorTest extends FunSuite with Matchers with BeforeAndAfterA
     assert(Await.result(done.future, 10.seconds))
   }
 
+  test("reactor terminate after n messages") {
+    val n = 50
+    val done = Promise[Seq[String]]()
+    val ch = system.spawn(Reactor.suspendable { (self: Reactor[String]) =>
+      val seen = mutable.Buffer[String]()
+      var left = n
+      while (left > 0) {
+        seen += self.main.events.receive()
+        left -= 1
+      }
+      done.success(seen)
+      self.main.seal()
+    })
+    for (i <- 0 until n) ch ! i.toString
+    assert(Await.result(done.future, 10.seconds) == (0 until 50).map(_.toString))
+  }
+
   override def afterAll() {
     system.shutdown()
   }
