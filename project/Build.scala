@@ -118,7 +118,7 @@ object ReactorsBuild extends MechaRepoBuild {
       .dependsOn(publish in reactorsExtra)
   )
 
-  val reactors210Settings = projectSettings("-2.10", _ => Seq()) ++ Seq(
+  val reactors210Settings = projectSettings("210", _ => Seq()) ++ Seq(
     (test in Test) <<= (test in Test)
       .dependsOn(test in (reactorsCommon, Test))
       .dependsOn(test in (reactorsCore, Test))
