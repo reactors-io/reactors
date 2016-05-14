@@ -38,7 +38,24 @@ package object suspendable {
   }
 
   implicit class EventsCoroutineOps[T <: AnyRef](val events: Events[T]) {
-    def receive = {
+    /** Suspends execution of the reactor until the event stream produces an event.
+     *
+     *  This combinator can only be used inside suspendable reactors. The coroutine it
+     *  returns is meant to be invoked from another coroutine or a suspendable context,
+     *  but not started with the `call` combinator.
+     *
+     *  Example:
+     *
+     *  {{{
+     *  system.spawn(Reactor.suspendable { (self: Reactor[String]) =>
+     *    val x = self.main.events.receive()
+     *    println(x)
+     *  })
+     *  }}}
+     *
+     *  @return    A coroutine that yields an `onEvent` function, and returns the event.
+     */
+    def receive: ~~~>[(() => Unit) => Subscription, T] = {
       var result = null.asInstanceOf[T]
       coroutine { () =>
         val onEvent = (observer: () => Unit) => {

@@ -57,6 +57,39 @@ class SuspendableReactorTest extends FunSuite with Matchers with BeforeAndAfterA
     assert(Await.result(done.future, 10.seconds) == (0 until 50).map(_.toString))
   }
 
+  test("reactors play ping-pong") {
+    val n = 50
+    val done = Promise[Boolean]()
+
+    class PingPong {
+      val ping: Channel[String] = system.spawn(Reactor.suspendable {
+        (self: Reactor[String]) =>
+        val pong = system.spawn(Reactor.suspendable {
+          (self: Reactor[String]) =>
+          var left = n
+          while (left > 0) {
+            val x = self.main.events.receive()
+            ping ! "pong"
+            left -= 1
+          }
+          self.main.seal()
+        })
+        var left = n
+        while (left > 0) {
+          pong ! "ping"
+          val x = self.main.events.receive()
+          left -= 1
+        }
+        done.success(true)
+        self.main.seal()
+      })
+    }
+
+    new PingPong
+
+    assert(Await.result(done.future, 10.seconds))
+  }
+
   override def afterAll() {
     system.shutdown()
   }
