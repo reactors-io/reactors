@@ -138,7 +138,7 @@ object ReactorsBuild extends MechaRepoBuild {
       case Some((2, major)) if major >= 11 => Seq(
         "org.scalatest" % "scalatest_2.11" % "2.2.6" % "test",
         "org.scalacheck" %% "scalacheck" % "1.11.4" % "test",
-        "org.scala-lang" % "scala-reflect" % "2.11.1"
+        "org.scala-lang" % "scala-reflect" % "2.11.4"
       )
       case Some((2, 10)) => Seq(
         "org.scalatest" % "scalatest_2.10" % "2.2.4" % "test",

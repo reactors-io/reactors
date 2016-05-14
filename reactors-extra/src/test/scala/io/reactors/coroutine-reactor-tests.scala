@@ -15,10 +15,16 @@ import scala.concurrent.duration._
 class CoroutineReactorTest extends FunSuite with Matchers with BeforeAndAfterAll {
   val system = ReactorSystem.default("test-system")
 
-  test("reactor declared with a coroutine") {
-    val proto = Reactor.coroutine(coroutine { (self: Reactor[String]) =>
+  test("reactor defined from a coroutine") {
+    val proto = Reactor.fromCoroutine(coroutine { (self: Reactor[String]) =>
       val x = self.main.events.receive()
     })
+  }
+
+  test("reactor defined with suspendable") {
+    val proto = Reactor.suspendable { (self: Reactor[String]) =>
+      val x = self.main.events.receive()
+    }
   }
 
   override def afterAll() {

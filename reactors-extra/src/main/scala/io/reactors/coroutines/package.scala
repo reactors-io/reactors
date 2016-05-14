@@ -3,13 +3,24 @@ package io.reactors
 
 
 import org.coroutines._
+import scala.language.experimental.macros
+import scala.reflect.macros.whitebox.Context
 
 
 
 package object coroutines {
+  def reactorCoroutine[T: c.WeakTypeTag](c: Context)(body: c.Tree): c.Tree = {
+    import c.universe._
+    val coroutineName = TermName(c.freshName("c"))
+    q"""
+      val $coroutineName = coroutine($body)
+      _root_.io.reactors.Reactor.fromCoroutine($coroutineName)
+    """
+  }
 
   implicit class ReactorCoroutineOps(val r: Reactor.type) extends AnyVal {
-    def coroutine[@spec(Int, Long, Double) T, R](
+    def suspendable[T](body: Reactor[T] => Unit): Proto[Reactor[T]] = macro reactorCoroutine[T]
+    def fromCoroutine[@spec(Int, Long, Double) T, R](
       c: Reactor[T] ~~> ((() => Unit) => Subscription, R)
     ): Proto[Reactor[T]] = {
       Reactor[T] { self =>
@@ -37,5 +48,4 @@ package object coroutines {
       result
     }
   }
-
 }

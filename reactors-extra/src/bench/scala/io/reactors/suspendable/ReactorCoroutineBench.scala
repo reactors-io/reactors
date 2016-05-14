@@ -1,8 +1,8 @@
-package org.coroutines
+package io.reactors
+package suspendable
 
 
 
-import io.reactors._
 import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.atomic._
 import org.scalameter.api._
