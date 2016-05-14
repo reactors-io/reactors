@@ -13,7 +13,7 @@ package object suspendable {
     import c.universe._
     val coroutineName = TermName(c.freshName("c"))
     q"""
-      val $coroutineName = coroutine($body)
+      val $coroutineName = _root_.org.coroutines.coroutine($body)
       _root_.io.reactors.Reactor.fromCoroutine($coroutineName)
     """
   }

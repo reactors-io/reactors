@@ -60,11 +60,11 @@ object ReactorsBuild extends MechaRepoBuild {
         "Sonatype OSS Snapshots" at
           "https://oss.sonatype.org/content/repositories/snapshots",
         "Sonatype OSS Releases" at
-          "https://oss.sonatype.org/content/repositories/releases"
+          "https://oss.sonatype.org/content/repositories/releases",
+        "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/"
       ),
       ivyLoggingLevel in ThisBuild := UpdateLogging.Quiet,
-      publishMavenStyle := true,
-      publishTo <<= version { (v: String) =>
+      publishMavenStyle := true,      publishTo <<= version { (v: String) =>
         val nexus = "https://oss.sonatype.org/"
         if (v.trim.endsWith("SNAPSHOT"))
           Some("snapshots" at nexus + "content/repositories/snapshots")
@@ -138,7 +138,8 @@ object ReactorsBuild extends MechaRepoBuild {
       case Some((2, major)) if major >= 11 => Seq(
         "org.scalatest" % "scalatest_2.11" % "2.2.6" % "test",
         "org.scalacheck" %% "scalacheck" % "1.11.4" % "test",
-        "org.scala-lang" % "scala-reflect" % "2.11.4"
+        "org.scala-lang" % "scala-reflect" % "2.11.4",
+        "com.typesafe.akka" %% "akka-actor" % "2.3.15" % "bench"
       )
       case Some((2, 10)) => Seq(
         "org.scalatest" % "scalatest_2.10" % "2.2.4" % "test",

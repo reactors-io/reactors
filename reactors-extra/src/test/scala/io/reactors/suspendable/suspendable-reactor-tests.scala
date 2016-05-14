@@ -1,13 +1,14 @@
 package io.reactors
+package suspendable
 
 
 
-import io.reactors.suspendable._
 import org.coroutines._
 import org.scalatest._
 import org.scalatest.concurrent.TimeLimitedTests
 import scala.collection._
-import scala.concurrent._
+import scala.concurrent.Await
+import scala.concurrent.Promise
 import scala.concurrent.duration._
 
 
@@ -84,7 +85,6 @@ class SuspendableReactorTest extends FunSuite with Matchers with BeforeAndAfterA
         self.main.seal()
       })
     }
-
     new PingPong
 
     assert(Await.result(done.future, 10.seconds))
