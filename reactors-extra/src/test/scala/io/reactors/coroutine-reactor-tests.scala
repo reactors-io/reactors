@@ -12,7 +12,7 @@ import scala.concurrent.duration._
 
 
 
-class CoroutinesTest extends FunSuite with Matchers with BeforeAndAfterAll {
+class CoroutineReactorTest extends FunSuite with Matchers with BeforeAndAfterAll {
   val system = ReactorSystem.default("test-system")
 
   test("reactor declared with a coroutine") {

@@ -118,6 +118,21 @@ object ReactorsBuild extends MechaRepoBuild {
       .dependsOn(publish in reactorsExtra)
   )
 
+  val reactors210Settings = projectSettings("-2.10", _ => Seq()) ++ Seq(
+    (test in Test) <<= (test in Test)
+      .dependsOn(test in (reactorsCommon, Test))
+      .dependsOn(test in (reactorsCore, Test))
+      .dependsOn(test in (reactorsContainer, Test))
+      .dependsOn(test in (reactorsRemote, Test))
+      .dependsOn(test in (reactorsProtocols, Test)),
+    publish <<= publish
+      .dependsOn(publish in reactorsCommon)
+      .dependsOn(publish in reactorsCore)
+      .dependsOn(publish in reactorsContainer)
+      .dependsOn(publish in reactorsRemote)
+      .dependsOn(publish in reactorsProtocols)
+  )
+
   def defaultDependencies(scalaVersion: String): Seq[ModuleID] =
     CrossVersion.partialVersion(scalaVersion) match {
       case Some((2, major)) if major >= 11 => Seq(
@@ -172,7 +187,11 @@ object ReactorsBuild extends MechaRepoBuild {
 
   def protocolsDependencies(scalaVersion: String) = defaultDependencies(scalaVersion)
 
-  def reactorsExtraSettings = projectSettings("-extra", extraDependencies)
+  def reactorsExtraSettings = {
+    val settings = projectSettings("-extra", extraDependencies)
+    val crossIndex = settings.indexWhere(_.key == crossScalaVersions)
+    settings.patch(crossIndex, Nil, 1)
+  }
 
   def extraDependencies(scalaVersion: String) = {
     val extraDeps = Nil
@@ -199,6 +218,24 @@ object ReactorsBuild extends MechaRepoBuild {
     reactorsRemote % "compile->compile;test->test",
     reactorsProtocols % "compile->compile;test->test",
     reactorsExtra % "compile->compile;test->test"
+  ) dependsOnSuperRepo
+
+  lazy val reactors210: Project = Project(
+    "reactors210",
+    file("."),
+    settings = reactors210Settings
+  ) aggregate(
+    reactorsCommon,
+    reactorsCore,
+    reactorsContainer,
+    reactorsRemote,
+    reactorsProtocols
+  ) dependsOn(
+    reactorsCommon % "compile->compile;test->test",
+    reactorsCore % "compile->compile;test->test",
+    reactorsContainer % "compile->compile;test->test",
+    reactorsRemote % "compile->compile;test->test",
+    reactorsProtocols % "compile->compile;test->test"
   ) dependsOnSuperRepo
 
   lazy val reactorsCommon = Project(
