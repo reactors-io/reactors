@@ -19,8 +19,8 @@ import scala.util.Failure
 
 class SuspendableReactorBench extends JBench.OfflineReport {
   override def defaultConfig = Context(
-    exec.minWarmupRuns -> 80,
-    exec.maxWarmupRuns -> 120,
+    exec.minWarmupRuns -> 800,
+    exec.maxWarmupRuns -> 1200,
     exec.benchRuns -> 36,
     exec.independentSamples -> 4,
     verbose -> true

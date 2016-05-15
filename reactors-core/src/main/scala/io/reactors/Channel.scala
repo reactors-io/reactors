@@ -44,6 +44,7 @@ object Channel {
     }
 
     def !(x: T): Unit = {
+      // TODO: Make thread-safe.
       if (underlying == null) resolve()
       underlying ! x
     }
@@ -63,12 +64,12 @@ object Channel {
 
   class Local[@spec(Int, Long, Double) T](
     val uid: Long,
-    val queue: EventQueue[T],
     val frame: Frame
   ) extends Channel[T] with Identifiable {
+    private[reactors] var connector: Connector[T] = _
     private[reactors] var isOpen = true
 
-    def !(x: T): Unit = if (isOpen) frame.enqueueEvent(uid, queue, x)
+    def !(x: T): Unit = if (isOpen) frame.enqueueEvent(connector, x)
 
     def isSealed: Boolean = !isOpen
   }

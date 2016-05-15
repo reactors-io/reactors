@@ -42,8 +42,10 @@ final class Frame(
     val uid = connectors.reserveId()
     val queue = factory.newInstance[Q]
     val chanUrl = ChannelUrl(url, name)
-    val chan = new Channel.Shared(chanUrl, new Channel.Local[Q](uid, queue, this))
+    val localChan = new Channel.Local[Q](uid, this)
+    val chan = new Channel.Shared(chanUrl, localChan)
     val conn = new Connector(chan, queue, this, isDaemon)
+    localChan.connector = conn
 
     // 2. acquire a unique name or break if not unique
     val uname = monitor.synchronized {
@@ -69,15 +71,14 @@ final class Frame(
     if (mustSchedule) scheduler.schedule(this)
   }
 
-  def enqueueEvent[@spec(Int, Long, Double) T](uid: Long, queue: EventQueue[T], x: T) {
+  def enqueueEvent[@spec(Int, Long, Double) T](conn: Connector[T], x: T) {
     // 1. add the event to the event queue
-    val size = queue.enqueue(x)
+    val size = conn.queue.enqueue(x)
 
     // 2. check if the frame should be scheduled for execution
     var mustSchedule = false
     if (size == 1) monitor.synchronized {
       // 3. add the queue to pending queues
-      val conn = connectors.forId(uid)
       pendingQueues.enqueue(conn)
 
       // 4. schedule the frame for later execution
@@ -246,7 +247,6 @@ final class Frame(
 
 
 object Frame {
-
   sealed trait LifecycleState
 
   case object Fresh extends LifecycleState
@@ -254,5 +254,4 @@ object Frame {
   case object Running extends LifecycleState
 
   case object Terminated extends LifecycleState
-
 }
