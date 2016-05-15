@@ -75,6 +75,8 @@ class SuspendableReactorTest extends FunSuite with Matchers with BeforeAndAfterA
           }
           self.main.seal()
         })
+        val start = self.main.events.receive()
+        assert(start == "start")
         var left = n
         while (left > 0) {
           pong ! "ping"
@@ -84,6 +86,7 @@ class SuspendableReactorTest extends FunSuite with Matchers with BeforeAndAfterA
         done.success(true)
         self.main.seal()
       })
+      ping ! "start"
     }
     new PingPong
 
