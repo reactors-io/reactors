@@ -38,7 +38,7 @@ final class Frame(
     factory: EventQueue.Factory,
     isDaemon: Boolean
   ): Connector[Q] = {
-    // 1. prepare and ensure a unique id for the channel
+    // 1. Prepare and ensure a unique id for the channel.
     val uid = connectors.reserveId()
     val queue = factory.newInstance[Q]
     val chanUrl = ChannelUrl(url, name)
@@ -47,14 +47,14 @@ final class Frame(
     val conn = new Connector(chan, queue, this, isDaemon)
     localChan.connector = conn
 
-    // 2. acquire a unique name or break if not unique
+    // 2. Acquire a unique name or break if not unique.
     val uname = monitor.synchronized {
       val u = connectors.tryStore(name, conn)
       if (!isDaemon) nonDaemonCount += 1
       u
     }
 
-    // 3. return connector
+    // 3. Return connector.
     conn
   }
 
@@ -72,16 +72,16 @@ final class Frame(
   }
 
   def enqueueEvent[@spec(Int, Long, Double) T](conn: Connector[T], x: T) {
-    // 1. add the event to the event queue
+    // 1. Add the event to the event queue.
     val size = conn.queue.enqueue(x)
 
-    // 2. check if the frame should be scheduled for execution
+    // 2. Check if the frame should be scheduled for execution.
     var mustSchedule = false
     if (size == 1) monitor.synchronized {
-      // 3. add the queue to pending queues
+      // 3. Add the queue to pending queues.
       pendingQueues.enqueue(conn)
 
-      // 4. schedule the frame for later execution
+      // 4. Schedule the frame for later execution.
       if (!executing) {
         executing = true
         mustSchedule = true
@@ -91,11 +91,11 @@ final class Frame(
   }
 
   def executeBatch() {
-    // 1. check the state
-    // this method can only be called if the frame is in the "executing" state
+    // 1. Check the state.
+    // This method can only be called if the frame is in the "executing" state.
     assert(executing)
 
-    // this method cannot be executed inside another reactor
+    // This method cannot be executed inside another reactor.
     if (Reactor.selfReactor.get != null) {
       throw new IllegalStateException(
         s"Cannot execute reactor inside another reactor: ${Reactor.selfReactor.get}.")
@@ -104,7 +104,7 @@ final class Frame(
     try {
       isolateAndProcessBatch()
     } finally {
-      // set the execution state to false if no more events, or otherwise re-schedule
+      // Set the execution state to false if no more events, or otherwise re-schedule.
       var mustSchedule = false
       monitor.synchronized {
         if (pendingQueues.nonEmpty) {
@@ -124,7 +124,7 @@ final class Frame(
       processBatch()
     } catch {
       case t: Throwable =>
-        // send the exception to the scheduler's handler, then immediately terminate
+        // Send the exception to the scheduler's handler, then immediately terminate.
         try scheduler.handler(t)
         finally try if (!hasTerminated) reactor.sysEmitter.react(ReactorDied(t))
         finally checkTerminated(true)
@@ -186,6 +186,7 @@ final class Frame(
     while (nc != null) {
       if (drain(nc)) {
         // Wait a bit for additional events, since preemption is expensive.
+        nc = null
         slow = 60
         while (slow > 0) {
           slow -= 1
