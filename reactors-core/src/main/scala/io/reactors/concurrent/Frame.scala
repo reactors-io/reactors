@@ -153,29 +153,51 @@ final class Frame(
     else null
   }
 
+  @volatile private var slow = 0
+
   private def processEvents() {
     schedulerState.onBatchStart(this)
 
-    // precondition: there is at least one pending event
-    @tailrec def loop(c: Connector[_]): Unit = {
+    // Precondition: there is at least one pending event.
+    // Return value:
+    // - `false` iff stopped by preemption
+    // - `true` iff stopped because there are no events
+    @tailrec def drain(c: Connector[_]): Boolean = {
       val remaining = c.dequeue()
-      schedulerState.onBatchEvent(this)
-      if (schedulerState.canConsume) {
-        // need to consume some more
-        if (remaining > 0 && !c.sharedChannel.asLocal.isSealed) loop(c)
-        else {
+      if (schedulerState.onBatchEvent(this)) {
+        // Need to consume some more.
+        if (remaining > 0 && !c.sharedChannel.asLocal.isSealed) {
+          assert(remaining > 0)
+          drain(c)
+        } else {
           val nc = popNextPending()
-          if (nc != null) loop(nc)
+          if (nc != null) drain(nc)
+          else true
         }
       } else {
-        // done consuming -- see if the connector needs to be enqueued
+        // Done consuming -- see if the connector needs to be enqueued.
         if (remaining > 0 && !c.sharedChannel.asLocal.isSealed) monitor.synchronized {
           pendingQueues.enqueue(c)
         }
+        false
       }
     }
-    val nc = popNextPending()
-    if (nc != null) loop(nc)
+    var nc = popNextPending()
+    while (nc != null) {
+      if (drain(nc)) {
+        // Wait a bit for additional events, since preemption is expensive.
+        slow = 60
+        while (slow > 0) {
+          slow -= 1
+          if (slow % 10 == 0) {
+            nc = popNextPending()
+            if (nc != null) slow = 0
+          }
+        }
+      } else {
+        nc = null
+      }
+    }
 
     schedulerState.onBatchStop(this)
   }

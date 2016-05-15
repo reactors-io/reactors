@@ -91,17 +91,12 @@ object Scheduler {
     def onBatchStart(frame: Frame): Unit = {
     }
 
-    /** Checks whether the reactor can process more events.
-     *  
-     *  @return         `true` if more events can be scheduled
-     */
-    def canConsume: Boolean
-
     /** Called just before an event gets scheduled.
      *  
      *  @param frame    the reactor frame
+     *  @return         `true` if scheduler can consume more events, `false` otherwise
      */
-    def onBatchEvent(frame: Frame): Unit
+    def onBatchEvent(frame: Frame): Boolean
 
     /** Called when scheduling stops.
      *  
@@ -121,10 +116,9 @@ object Scheduler {
         allowedBudget = 50
       }
 
-      def canConsume = allowedBudget > 0
-
-      def onBatchEvent(frame: Frame): Unit = {
+      def onBatchEvent(frame: Frame): Boolean = {
         allowedBudget -= 1
+        allowedBudget > 0
       }
 
       override def onBatchStop(frame: Frame): Unit = {
