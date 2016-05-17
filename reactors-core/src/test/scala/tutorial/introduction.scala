@@ -202,4 +202,166 @@ class Introduction extends FunSuite with Matchers {
   forming complex values by composing simpler ones. Consider the following example:
   !*/
 
+  test("onEvent square sum") {
+    /*!begin-code!*/
+    var squareSum = 0
+    val e = new Events.Emitter[Int]
+    e.onEvent(x => squareSum += x * x)
+    for (i <- 0 until 5) e react i
+    /*!end-code!*/
+
+    assert(squareSum == 30)
+
+    /*!md
+    The example is fairly straightforward, but what if we want to make `squareSum` an
+    event stream so that another part of the program can react to its changes? We would
+    have to create another emitter and have our `onEvent` callback invoke `react` on
+    that new emitter, passing it the value of `squareSum`. This could work, but it's
+    ugly:
+    !*/
+
+    /*!begin-code!*/
+    val ne = new Events.Emitter[Int]
+    e onEvent { x =>
+      squareSum += x * x
+      ne react squareSum
+    }
+    /*!end-code!*/
+  }
+
+  /*!md
+  Let's rewrite the previous snippet using event stream combinators.
+  We use the `map` and `scanPast` combinators.
+  The `map` combinator transforms events in one event stream into events for a derived
+  event stream -- we use it to square each integer event.
+  The `scanPast` combinator combines the last and the current event to produce a new
+  event for the derived event stream -- we use it to add the previous value of the sum
+  to the current one.
+  For example, if an input event stream produces numbers `0`, `1` and `2`, the
+  event stream returned by `scanPast(0)(_ + _)` produces numbers `0`, `1` and `3`.
+
+  Here is how we can rewrite the previous example:
+  !*/
+
+  test("functional square sum") {
+    /*!begin-code!*/
+    val e = new Events.Emitter[Int]
+    val sum = e.map(x => x * x).scanPast(0)(_ + _)
+    for (i <- 0 until 5) e react i
+    /*!end-code!*/
+
+    var seen = List[Int]()
+    sum.onEvent(seen ::= _)
+    e react 1
+    e react 2
+    e react 3
+    e react 4
+    assert(seen == 30 :: 14 :: 5 :: 1 :: Nil)
+  }
+
+  /*!md
+  The `Events[T]` type comes with a large number of predefined combinators.
+  You can inspect all of them in the online API documentation.
+  A set of event streams composed using functional combinators forms a
+  **dataflow graph**. Emitters are usually source nodes in this graph, event streams
+  created by various combinators are inner nodes, and callback methods like `onEvent`
+  are sink nodes. Combinators such as `union` take several input event streams.
+  Such event streams correspond to graph nodes with multiple input edges. Here is one
+  example:
+  !*/
+
+  test("filter and union") {
+    /*!begin-code!*/
+    val numbers = new Events.Emitter[Int]
+    val even = numbers.filter(_ % 2 == 0)
+    val odd = numbers.filter(_ % 2 == 1)
+    val numbersAgain = even union odd
+    /*!end-code!*/
+
+    var seen = List[Int]()
+    numbersAgain.onEvent(seen ::= _)
+    for (i <- 0 until 10) numbers react i
+    assert(seen == (0 until 10).reverse)
+
+    /*!md
+    The example above induces the following dataflow graph:
+
+    ```
+           /---filter---> even ----\
+    numbers                         union---> numbersAgain
+           \---filter---> odd  ----/
+    ```
+    !*/
+  }
+
+  /*!md
+  ### Higher-order event streams
+
+  In some cases event streams produce events that are themselves event streams -- we
+  call these **higher-order event streams**. A higher-order event stream can have a type
+  such as this one:
+
+  ```scala
+  Events[Events[T]]
+  ```
+
+  Calling `onEvent` on such an event stream is not always useful, because it gives us
+  access to nested event streams, and not their events.
+  There is more than one way to access events of type `T` from the inner event streams.
+  We might be interested in the events from the last `Events[T]` produced in the
+  higher-order event stream. To access those events, we use the `mux` operator. This
+  operator multiplexes events from the last `Events[T]` -- whenever a new nested event
+  stream is emitted, events from previously emitted nested event streams are ignored,
+  and only the events from the latest nested event stream get forwarded.
+
+  Consider the following example.
+  !*/
+
+  test("mux and union") {
+    /*!begin-code!*/
+    var seen = List[Int]()
+    val higherOrder = new Events.Emitter[Events[Int]]
+    val evens = new Events.Emitter[Int]
+    val odds = new Events.Emitter[Int]
+    higherOrder.mux.onEvent(seen ::= _)
+
+    evens react 2
+    odds react 1
+    higherOrder react evens
+    odds react 3
+    evens react 4
+    assert(seen == 4 :: Nil)
+    higherOrder react odds
+    evens react 6
+    odds react 5
+    assert(seen == 5 :: 4 :: Nil)
+    /*!end-code!*/
+
+    /*!md
+    In some cases we want to obtain all the events from all the even streams produced
+    by the higher-order event stream.
+    To achieve this, we use the postfix `union` combinator:
+    !*/
+
+    /*!begin-code!*/
+    var seen2 = List[Int]()
+    val higherOrder2 = new Events.Emitter[Events[Int]]
+    higherOrder2.union.onEvent(seen2 ::= _)
+   
+    higherOrder2 react evens
+    odds react 3
+    evens react 4
+    assert(seen2 == 4 :: Nil)
+    higherOrder2 react odds
+    evens react 6
+    assert(seen2 == 6 :: 4 :: Nil)
+    odds react 5
+    assert(seen2 == 5 :: 6 :: 4 :: Nil)
+    /*!end-code!*/
+
+    /*!md
+    For more examples of higher-order event stream combinators, please refer to the
+    online API.
+    !*/
+  }
 }
