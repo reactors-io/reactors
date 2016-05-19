@@ -287,9 +287,9 @@ class Introduction extends FunSuite with Matchers {
     The example above induces the following dataflow graph:
 
     ```
-           /---filter---> even ----\
-    numbers                         union---> numbersAgain
-           \---filter---> odd  ----/
+           /---filter---> [even] ----\
+    [numbers]                         union---> [numbersAgain]
+           \---filter---> [odd ] ----/
     ```
     !*/
   }
