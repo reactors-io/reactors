@@ -107,7 +107,7 @@ final class Frame(
       // Set the execution state to false if no more events, or otherwise re-schedule.
       var mustSchedule = false
       monitor.synchronized {
-        if (pendingQueues.nonEmpty) {
+        if (!hasTerminated) {
           mustSchedule = true
         } else {
           executing = false
@@ -124,10 +124,14 @@ final class Frame(
       processBatch()
     } catch {
       case t: Throwable =>
-        // Send the exception to the scheduler's handler, then immediately terminate.
-        try scheduler.handler(t)
-        finally try if (!hasTerminated) reactor.sysEmitter.react(ReactorDied(t))
-        finally checkTerminated(true)
+        try {
+          if (!hasTerminated) {
+            if (reactor != null) reactor.sysEmitter.react(ReactorDied(t))
+          }
+        } finally {
+          checkTerminated(true)
+        }
+        throw t
     } finally {
       Reactor.selfReactor.set(null)
       Reactor.selfFrame.set(null)
@@ -214,8 +218,11 @@ final class Frame(
       }
     }
     if (emitTerminated) {
-      try reactor.sysEmitter.react(ReactorTerminated)
-      finally reactorSystem.frames.tryRelease(name)
+      try {
+        if (reactor != null) reactor.sysEmitter.react(ReactorTerminated)
+      } finally {
+        reactorSystem.frames.tryRelease(name)
+      }
     }
   }
 
