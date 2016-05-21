@@ -25,7 +25,7 @@ import scala.util.Try
 
 
 
-/** Defines services used by an isolate system.
+/** Defines services used by an reactor system.
  */
 abstract class Services {
   def system: ReactorSystem
@@ -47,10 +47,10 @@ abstract class Services {
   /** Network services. */
   val net = service[Services.Net]
 
-  /** Remoting services, used to contact other isolate systems. */
+  /** Remoting services, used to contact other reactor systems. */
   lazy val remote = service[Remote]
 
-  /** The register of channels in this isolate system.
+  /** The register of channels in this reactor system.
    *
    *  Used for creating and finding channels.
    */
@@ -91,7 +91,7 @@ object Services {
   private[reactors] class NameResolverReactor
   extends Reactor[(String, Channel[Option[Channel[_]]])] {
     main.events onMatch {
-      case (name, answer) => answer ! system.channels.find(name)
+      case (name, answer) => answer ! system.channels.get(name)
     }
   }
 
@@ -272,8 +272,8 @@ object Services {
 
   /** The channel register used for channel lookup by name, and creating new channels.
    *
-   *  It can be used to query the channels in the local isolate system.
-   *  To query channels in remote isolate systems, `Names` service should be used.
+   *  It can be used to query the channels in the local reactor system.
+   *  To query channels in remote reactor systems, `Names` service should be used.
    */
   class Channels(val system: ReactorSystem)
   extends ReactorSystem.ChannelBuilder(null, false, EventQueue.UnrolledRing.Factory)
@@ -283,20 +283,20 @@ object Services {
 
     /** Optionally returns the channel with the given name, if it exists.
      *
-     *  @param name      names of the isolate and the channel, separated with a `#`
+     *  @param name      names of the reactor and the channel, separated with a `#`
      */
-    def find[T](name: String): Option[Channel[T]] = {
+    def get[T](name: String): Option[Channel[T]] = {
       val parts = name.split("#")
-      find[T](parts(0), parts(1))
+      get[T](parts(0), parts(1))
     }
 
     /** Optionally returns the channel with the given name, if it exists.
      *
-     *  @param isoName      name of the isolate
+     *  @param reactorName  name of the reactor
      *  @param channelName  name of the channel
      */
-    def find[T](isoName: String, channelName: String): Option[Channel[T]] = {
-      val frame = system.frames.forName(isoName)
+    def get[T](reactorName: String, channelName: String): Option[Channel[T]] = {
+      val frame = system.frames.forName(reactorName)
       if (frame == null) None
       else {
         val conn = frame.connectors.forName(channelName)

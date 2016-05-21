@@ -33,14 +33,7 @@ object Channel {
   ) extends Channel[T] with Serializable {
     private def resolve(): Unit = {
       val system = Reactor.self.system
-      if (system.bundle.urls.contains(url.reactorUrl.systemUrl)) {
-        system.channels.find[T](url.channelName) match {
-          case Some(ch) => underlying = ch
-          case None => underlying = new Failed
-        }
-      } else {
-        underlying = system.service[Remote].resolve[T](url)
-      }
+      underlying = system.service[Remote].resolve[T](url)
     }
 
     def !(x: T): Unit = {

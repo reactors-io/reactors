@@ -927,7 +927,7 @@ class ReactorSystemTest extends FunSuite with Matchers {
       val channel = system.spawn(Proto[LookupChannelReactor](started, ended)
         .withName("pi"))
       assert(Await.result(started.future, 10.seconds))
-      system.channels.find[String]("pi#terminator") match {
+      system.channels.get[String]("pi#terminator") match {
         case Some(ch) => ch ! "end"
         case None => sys.error("channel not found")
       }
