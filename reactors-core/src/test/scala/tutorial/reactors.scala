@@ -105,7 +105,8 @@ class Reactors extends FunSuite with Matchers {
     event stream, which the reactor can listen to. The channel and event stream can only
     pass events whose type corresponds to the type of the reactor.
 
-    Let's send an event to `HelloReactor`:
+    Let's send an event to `HelloReactor`. We do this by calling the bang operator `!`
+    on the channel:
     !*/
 
     /*!begin-code!*/
@@ -185,6 +186,9 @@ class ReactorsTopLevel extends FunSuite with Matchers {
     Thread.sleep(2000)
 
     /*!md
+    By running the code above, we can see that the event `"Ohayo!"` is processed only 1
+    second after the reactor starts.
+
     There are several other configuration options for `Proto` objects, listed in the
     online API docs. We can summarize this section as follows -- starting a reactor is
     generally a three step process:
@@ -202,13 +206,121 @@ class ReactorsTopLevel extends FunSuite with Matchers {
 
 
 /*!md
-### Creating channels
+### Using channels
 
 Now that we understand how to create and configure reactors in different ways, we can
 take a closer look at channels -- reactor's means of communicating with its environment.
 As noted before, every reactor is created with a default channel called `main`, which is
 usually sufficient. But sometimes a reactor needs to be able to receive more than just
 one type of an event, and needs additional channels for this purpose.
+
+Let's declare a reactor that stores key-value pairs. We can do this by defining the
+following reactor:
 !*/
+/*!begin-code!*/
+import scala.collection._
+
+class PutOnlyReactor[K, V] extends Reactor[(K, V)] {
+  val map = mutable.Map[K, V]()
+
+  main.events onEvent {
+    case (k, v) => map(k) = v
+  }
+}
+/*!end-code!*/
+
+
+/*!md
+The `MapPutReactor` keeps a local state in a `Map` collection. We use this reactor's
+main channel to add key-value pairs into this `Map`. However, clients have no way of
+asking this reactor about the existing key-value pairs in this map. For this, the
+reactor would need to expose another channel. Clients will use this second channel to
+provide two pieces of information -- first, the key whose value they're interested in,
+and second, the channel on which the map reactor should send them the values back.
+
+
+!*/
+/*!begin-code!*/
+case class Ops[K, V](put: Channel[(K, V)], get: Channel[(K, Channel[V])])
+/*!end-code!*/
+
+
+/*!md
+!*/
+/*!begin-code!*/
+class MapReactor[K, V] extends Reactor[Channel[Ops[K, V]]] {
+  val map = mutable.Map[K, V]()
+
+  val put = system.channels.open[(K, V)]
+  put.events onEvent {
+    case (k, v) => map(k) = v
+  }
+
+  val get = system.channels.open[(K, Channel[V])]
+  get.events onEvent {
+    case (k, ch) => ch ! map(k)
+  }
+
+  main.events onEvent { ch =>
+    ch ! Ops(put.channel, get.channel)
+  }
+}
+/*!end-code!*/
+/*!md
+The expression `system.channels` returns a channel builder object, which provides
+methods like `named`, `daemon` or `eventQueue` to customize the channel (see online API
+docs for more details). By calling `named`, we assign a name to the channel, and we then
+create it by calling `open` with the appropriate type parameter.
+!*/
+
+
 class ReactorChannels extends FunSuite with Matchers {
+  val system = new ReactorSystem("test-channels")
+
+  test("channel creation") {
+    val received = Promise[String]()
+    def println(x: String) = received.success(x)
+
+    /*!md
+    !*/
+
+    /*!begin-code!*/
+    val mapper = system.spawn(Proto[MapReactor[String, String]].withName("mapper"))
+    /*!end-code!*/
+
+    /*!md
+    !*/
+
+    /*!begin-code!*/
+    system.spawn(Reactor[Ops[String, String]] { self =>
+      mapper ! self.main.channel
+
+      self.main.events onEvent {
+        case Ops(put, get) =>
+          put ! ("dns-main", "dns1.lan")
+          put ! ("dns-backup", "dns2.lan")
+      }
+    })
+    /*!end-code!*/
+
+    Thread.sleep(1000)
+
+    /*!md
+    !*/
+
+    /*!begin-code!*/
+    system.spawn(Reactor[Ops[String, String]] { self =>
+      mapper ! self.main.channel
+
+      self.main.events onEvent {
+        case Ops(put, get) =>
+          val reply = system.channels.open[String]
+          get ! ("dns-main", reply.channel)
+          reply.events.onEvent(println)
+      }
+    })
+    /*!end-code!*/
+
+    assert(Await.result(received.future, 5.seconds) == "dns1.lan")
+  }
 }
