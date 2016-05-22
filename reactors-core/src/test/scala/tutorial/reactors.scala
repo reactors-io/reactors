@@ -11,7 +11,7 @@ import scala.concurrent.duration._
 
 
 /*!md
-## Reactors
+## Reactors 101
 
 As we learned previously, event streams always propagate events on a single thread.
 This is useful from the standpoint of program comprehension, but we still need a way
@@ -206,7 +206,7 @@ class ReactorsTopLevel extends FunSuite with Matchers {
 
 
 /*!md
-### Using channels
+## Using channels
 
 Now that we understand how to create and configure reactors in different ways, we can
 take a closer look at channels -- reactor's means of communicating with its environment.
@@ -292,12 +292,33 @@ class ReactorChannels extends FunSuite with Matchers {
     Thread.sleep(1000)
 
     /*!md
-    
+    Next, we create a client reactor that we control by sending it `String` events. This
+    means that the reactor's type will be `Reactor[String]`. However, the client reactor
+    will also have to contact the `MapReactor` and ask it for one of the URLs. Since the
+    `MapReactor` can only send it back events that are `List[String]`, its default
+    channel will not be able to receive the reply. The client will have to provide the
+    `MapReactor` with a different channel. The following expression is used to create
+    a new channel:
+
+    ```
+    val c: Connector[EventType] = system.channels.open[EventType]
+    ```
+
+    The `Connector` object contains two members: `channel`, which is the newly created
+    channel, and `events`, which is the event stream corresponding to that channel. The
+    event stream propagates all events that were sent and delivered on the channel, and
+    can only be used by the reactor that created it. The channel, on the other hand,
+    *can* be shared with other reactors.
+
+    > Event streams are not shareable objects -- never send an event stream created by
+    > one reactor to some other reactor.
 
     The expression `system.channels` returns a channel builder object, which provides
-    methods like `named`, `daemon` or `eventQueue` to customize the channel (see online
-    API docs for more details). To create a new channel, we call `open` on the channel
-    builder with the appropriate type parameter.
+    methods like `named` or `daemon`, used to customize the channel (see online API docs
+    for more details). In this example, we will use the `daemon` channel, to indicate
+    that the channel does not need to be closed (more on that a bit later). To create a
+    new channel, we call `open` on the channel builder with the appropriate type
+    parameter.
 
     Let's define a client reactor that waits for a `"start"` message, and then checks
     a DNS entry. This reactor will use the `onMatch` handler instead of `onEvent`, to
@@ -320,9 +341,20 @@ class ReactorChannels extends FunSuite with Matchers {
     /*!end-code!*/
 
     /*!md
-    Above, ...
+    Above, when the reactor receives the `"start"` event, it opens a new channel `reply`
+    that accepts `List[String]` events. It then sends the `MapReactor` a `Get` event
+    with the `"dns-main"` key and the channel. Then, the reactor listens to events sent
+    back and prints the URL to the standard output.
 
-    Another novelty in this code ...
+    Another new thing in this code is in the `"end"` case of the pattern match. Here,
+    the reactor calls `seal` on the main channel to indicate that it will not receive
+    any further events on that channel. Once all non-daemon channels become sealed, the
+    reactor terminates.
+
+    > A reactor terminates either when all its non-daemon channels are sealed, or when
+    > its constructor or some event handler throws an exception.
+
+    Lets start the client reactor and see what happens:
     !*/
 
     /*!begin-code!*/
@@ -332,6 +364,7 @@ class ReactorChannels extends FunSuite with Matchers {
     assert(Await.result(received.future, 5.seconds) == "dns1" :: "lan" :: Nil)
 
     /*!md
+    At this point, we should witness the URL on the standard output.
     Finally, we can send the `"end"` message to the `Reactor` to stop it.
     !*/
 
