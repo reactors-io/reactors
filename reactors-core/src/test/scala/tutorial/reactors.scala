@@ -231,96 +231,112 @@ class PutOnlyReactor[K, V] extends Reactor[(K, V)] {
 
 
 /*!md
-The `MapPutReactor` keeps a local state in a `Map` collection. We use this reactor's
-main channel to add key-value pairs into this `Map`. However, clients have no way of
-asking this reactor about the existing key-value pairs in this map. For this, the
-reactor would need to expose another channel. Clients will use this second channel to
-provide two pieces of information -- first, the key whose value they're interested in,
-and second, the channel on which the map reactor should send them the values back.
+The `PutOnlyReactor` accepts events of type `(K, V)` for some generic type parameters
+`K` and `V`. This is fine for the purposes of storing key-value pairs into this reactor,
+but it does not make it possible to query values stored to specific keys. For this, the
+sender must give the reactor the desired key of type `K` and a channel of type
+`Channel[V]`, on which the value `V` can be sent back.
 
-
+Since the same input channel serves two purposes, we need the following data type:
 !*/
 /*!begin-code!*/
-case class Ops[K, V](put: Channel[(K, V)], get: Channel[(K, Channel[V])])
+trait Op[K, V]
+
+case class Put[K, V](k: K, v: V) extends Op[K, V]
+
+case class Get[K, V](k: K, ch: Channel[V]) extends Op[K, V]
 /*!end-code!*/
 
 
 /*!md
+With the `Op[K, V]` data type, we can define the following reactor:
 !*/
 /*!begin-code!*/
-class MapReactor[K, V] extends Reactor[Channel[Ops[K, V]]] {
+class MapReactor[K, V] extends Reactor[Op[K, V]] {
   val map = mutable.Map[K, V]()
 
-  val put = system.channels.open[(K, V)]
-  put.events onEvent {
-    case (k, v) => map(k) = v
-  }
-
-  val get = system.channels.open[(K, Channel[V])]
-  get.events onEvent {
-    case (k, ch) => ch ! map(k)
-  }
-
-  main.events onEvent { ch =>
-    ch ! Ops(put.channel, get.channel)
+  main.events onEvent {
+    case Put(k, v) => map(k) = v
+    case Get(k, ch) => ch ! map(k)
   }
 }
 /*!end-code!*/
-/*!md
-The expression `system.channels` returns a channel builder object, which provides
-methods like `named`, `daemon` or `eventQueue` to customize the channel (see online API
-docs for more details). By calling `named`, we assign a name to the channel, and we then
-create it by calling `open` with the appropriate type parameter.
-!*/
 
 
 class ReactorChannels extends FunSuite with Matchers {
   val system = new ReactorSystem("test-channels")
 
   test("channel creation") {
-    val received = Promise[String]()
-    def println(x: String) = received.success(x)
+    val received = Promise[List[String]]()
+    def println(x: List[String]) = received.success(x)
 
     /*!md
+    Let's start `MapReactor` and test it. We will use the `MapReactor` to store some
+    DNS aliases. We will map each alias `String` key to a URL, where the URLs are
+    represented with the `List[String]` type. We first initialize as follows:
     !*/
 
     /*!begin-code!*/
-    val mapper = system.spawn(Proto[MapReactor[String, String]].withName("mapper"))
+    val mapper = system.spawn(Proto[MapReactor[String, List[String]]])
     /*!end-code!*/
 
     /*!md
+    We then send a couple of `Put` messages to store some alias values:
     !*/
 
     /*!begin-code!*/
-    system.spawn(Reactor[Ops[String, String]] { self =>
-      mapper ! self.main.channel
-
-      self.main.events onEvent {
-        case Ops(put, get) =>
-          put ! ("dns-main", "dns1.lan")
-          put ! ("dns-backup", "dns2.lan")
-      }
-    })
+    mapper ! Put("dns-main", "dns1" :: "lan" :: Nil)
+    mapper ! Put("dns-backup", "dns2" :: "com" :: Nil)
     /*!end-code!*/
 
     Thread.sleep(1000)
 
     /*!md
+    
+
+    The expression `system.channels` returns a channel builder object, which provides
+    methods like `named`, `daemon` or `eventQueue` to customize the channel (see online
+    API docs for more details). To create a new channel, we call `open` on the channel
+    builder with the appropriate type parameter.
+
+    Let's define a client reactor that waits for a `"start"` message, and then checks
+    a DNS entry. This reactor will use the `onMatch` handler instead of `onEvent`, to
+    listen only to certain `String` events and ignore others:
     !*/
 
     /*!begin-code!*/
-    system.spawn(Reactor[Ops[String, String]] { self =>
-      mapper ! self.main.channel
-
-      self.main.events onEvent {
-        case Ops(put, get) =>
-          val reply = system.channels.open[String]
-          get ! ("dns-main", reply.channel)
-          reply.events.onEvent(println)
+    val ch = system.spawn(Reactor[String] { self =>
+      self.main.events onMatch {
+        case "start" =>
+          val reply = system.channels.daemon.open[List[String]]
+          mapper ! Get("dns-main", reply.channel)
+          reply.events onEvent { url =>
+            println(url)
+          }
+        case "end" =>
+          self.main.seal()
       }
     })
     /*!end-code!*/
 
-    assert(Await.result(received.future, 5.seconds) == "dns1.lan")
+    /*!md
+    Above, ...
+
+    Another novelty in this code ...
+    !*/
+
+    /*!begin-code!*/
+    ch ! "start"
+    /*!end-code!*/
+
+    assert(Await.result(received.future, 5.seconds) == "dns1" :: "lan" :: Nil)
+
+    /*!md
+    Finally, we can send the `"end"` message to the `Reactor` to stop it.
+    !*/
+
+    /*!begin-code!*/
+    ch ! "end"
+    /*!end-code!*/
   }
 }
