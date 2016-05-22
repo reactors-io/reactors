@@ -2,9 +2,10 @@
 ---
 layout: tutorial
 title: Reactors
-permalink: /reactors/index.html
+permalink: /reactors/reactors/index.html
 pagenum: 2
 pagetot: 40
+section: guide
 ---
 !*/
 package tutorial

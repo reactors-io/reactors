@@ -2,9 +2,10 @@
 ---
 layout: tutorial
 title: Event Streams
-permalink: /event-streams/index.html
+permalink: /reactors/event-streams/index.html
 pagenum: 1
 pagetot: 40
+section: guide
 ---
 !*/
 package tutorial
