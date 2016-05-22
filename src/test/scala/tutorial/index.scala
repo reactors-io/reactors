@@ -31,7 +31,7 @@ The getting started guide has the following parts:
 {% for i in (1..totalPages) %}
   {% for pg in site.pages %}
     {% if pg.section == "guide" and pg.pagenum and pg.pagenum == i %}
-      <li><a href="{{ pg.url }}">{{ pg.title }}</a></li>
+      <li><a href="/tutorialdocs/{{ pg.url }}">{{ pg.title }}</a></li>
     {% endif %}
   {% endfor %}
 {% endfor %}
