@@ -107,7 +107,7 @@ final class Frame(
       // Set the execution state to false if no more events, or otherwise re-schedule.
       var mustSchedule = false
       monitor.synchronized {
-        if (!hasTerminated) {
+        if (pendingQueues.nonEmpty && !hasTerminated) {
           mustSchedule = true
         } else {
           executing = false
