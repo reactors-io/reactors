@@ -6,6 +6,7 @@ permalink: /reactors/event-streams/index.html
 pagenum: 1
 pagetot: 40
 section: guide
+topic: reactors
 ---
 !*/
 package tutorial

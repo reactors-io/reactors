@@ -3,6 +3,7 @@
 layout: tutorial
 title: Reactors
 permalink: /reactors/index.html
+topic: reactors
 ---
 
 
@@ -22,7 +23,7 @@ on Maven. If you are using SBT, add the following to your project definition:
 The getting started guide has the following parts:
 
 {% for pg in site.pages %}
-  {% if pg.section == "guide" and pg.pagetot %}
+  {% if pg.topic == "reactors" and pg.section == "guide" and pg.pagetot %}
     {% assign totalPages = pg.pagetot %}
   {% endif %}
 {% endfor %}
@@ -30,8 +31,10 @@ The getting started guide has the following parts:
 <ul>
 {% for i in (1..totalPages) %}
   {% for pg in site.pages %}
-    {% if pg.section == "guide" and pg.pagenum and pg.pagenum == i %}
-      <li><a href="/tutorialdocs/{{ pg.url }}">{{ pg.title }}</a></li>
+    {% if pg.topic == "reactors" and pg.section == "guide" %}
+      {% if pg.pagenum and pg.pagenum == i %}
+        <li><a href="/tutorialdocs/{{ pg.url }}">{{ pg.title }}</a></li>
+      {% endif %}
     {% endif %}
   {% endfor %}
 {% endfor %}
