@@ -2,11 +2,13 @@
 ---
 layout: tutorial
 title: Event Streams
+topic: reactors
+logoname: reactress-mini-logo.png
+projectname: Reactors.IO
 permalink: /reactors/event-streams/index.html
 pagenum: 1
 pagetot: 40
 section: guide
-topic: reactors
 ---
 !*/
 package tutorial
