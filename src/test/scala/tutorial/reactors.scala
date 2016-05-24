@@ -3,7 +3,7 @@
 layout: tutorial
 title: Reactors
 topic: reactors
-logoname: reactress-mini-logo.png
+logoname: reactress-mini-logo-flat.png
 projectname: Reactors.IO
 permalink: /reactors/reactors/index.html
 pagenum: 2

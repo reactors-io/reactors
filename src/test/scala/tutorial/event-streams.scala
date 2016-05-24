@@ -3,7 +3,7 @@
 layout: tutorial
 title: Event Streams
 topic: reactors
-logoname: reactress-mini-logo.png
+logoname: reactress-mini-logo-flat.png
 projectname: Reactors.IO
 permalink: /reactors/event-streams/index.html
 pagenum: 1
