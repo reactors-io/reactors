@@ -52,8 +52,8 @@ class Reactors extends FunSuite with Matchers {
     /*!md
     Before we can start a reactor instance, we need to define its template. One way to
     do this is to call `Reactor.apply[T]` method, which returns a `Proto` object for the
-    reactor. The following reactor prints all the events it receives to the standard
-    output:
+    reactor. The `Proto` object is called a *prototype* of the reactors.
+    The following reactor prints all the events it receives to the standard output:
     !*/
 
     val received = Promise[String]()
@@ -94,7 +94,7 @@ class Reactors extends FunSuite with Matchers {
     generally encode the reactor's constructor arguments, scheduler, name and other
     options. In our example, we created a `Proto` object for an anonymous reactor
     with the `Reactor.apply` method, so we don't have any constructor arguments. We will
-    later see alternative ways of declaring reactors and configuring `Proto` objects.
+    later see alternative ways of declaring reactors and configuring prototypes.
 
     The method `spawn` does two things. First, it registers and starts a new reactor
     instance. Second, it returns a `Channel` object, which is used to send events to
@@ -160,8 +160,8 @@ class ReactorsTopLevel extends FunSuite with Matchers {
 
   test("top-level reactor") {
     /*!md
-    To run this reactor, we first create a `Proto` object to configure it. The method
-    `Proto.apply` takes the type of the reactor and returns a `Proto` object for that
+    To run this reactor, we first create a prototype to configure it. The method
+    `Proto.apply` takes the type of the reactor and returns a prototype for that
     reactor type. We then call the `spawn` method with that `Proto` object to start the
     reactor:
     !*/
@@ -172,7 +172,7 @@ class ReactorsTopLevel extends FunSuite with Matchers {
     /*!end-code!*/
 
     /*!md
-    We can also use the `Proto` object to, for example, set the scheduler that the
+    We can also use the prototype to, for example, set the scheduler that the
     reactor instance should use. If we want the reactor instance to run on its
     dedicated thread to give it more priority, we can do the following:
     !*/
@@ -183,7 +183,7 @@ class ReactorsTopLevel extends FunSuite with Matchers {
     /*!end-code!*/
 
     /*!md
-    The call to `withScheduler` returns a new `Proto` object that runs on a predefined
+    The call to `withScheduler` returns a new prototype that runs on a predefined
     scheduler called `ReactorSystem.Bundle.schedulers.newThread`. A reactor started like
     this is using this scheduler. Reactor systems allow registering custom schedulers.
     In the following, we define a custom `Timer` scheduler, which schedules the reactor
@@ -211,8 +211,9 @@ class ReactorsTopLevel extends FunSuite with Matchers {
     3. A reactor instance is started with the `spawn` method of the reactor system.
 
     For convenience, we can fuse the first two steps by using the `Reactor.apply`
-    method, which creates an anonymous reactor template and directly returns a `Proto`
-    configuration object. Typically, we do this in tests or in the REPL.
+    method, which creates an anonymous reactor template and directly returns a
+    prototype object of type `Proto[I]`, for some reactor type `I`.
+    Typically, we do this in tests or in the REPL.
     !*/
   }
 }

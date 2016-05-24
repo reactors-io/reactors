@@ -65,22 +65,31 @@ final class Proto[+I <: Reactor[_]] private[reactors] (
 
 object Proto {
 
-  /** Creates prototype for instantiating an reactor that takes no parameters.
+  /** Creates a prototype for instantiating a reactor that takes no parameters.
+   *
+   *  @tparam I         type of the reactor
+   *  @param cls        class of that reactor
+   *  @return           a nre 
+   */
+  def apply[I <: Reactor[_]](cls: Class[_]) =
+    new Proto[I](cls, Seq())
+
+  /** Creates a prototype for instantiating an reactor that takes no parameters.
    *
    *  @tparam I         type of the reactor, must be a concrete type, or its class tag
    *                    must be in scope
-   *  @return           a new prototype of an reactor of type `T`
+   *  @return           a new prototype of an reactor of type `I`
    */
-  def apply[I <: Reactor[_]: ClassTag] =
-    new Proto[I](implicitly[ClassTag[I]].runtimeClass.asInstanceOf[Class[I]], Seq())
+  def apply[I <: Reactor[_]: ClassTag]: Proto[I] =
+    apply(implicitly[ClassTag[I]].runtimeClass.asInstanceOf[Class[I]])
 
-  /** Creates prototype for instantiating a reactor that takes specific parameters.
+  /** Creates a prototype for instantiating a reactor that takes specific parameters.
    *
    *  @tparam I         type of the reactor, must be a concrete type, or its class tag
    *                    must be in scope
    *  @param clazz      class that describes the reactor
    *  @param params     parameters for instantiating the prototype
-   *  @return           a new prototype of a reactor of type `T` with the specified
+   *  @return           a new prototype of a reactor of type `I` with the specified
    *                    parameters
    */
   def apply[I <: Reactor[_]: ClassTag](params: Any*) =
