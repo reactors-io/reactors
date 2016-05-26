@@ -90,6 +90,9 @@ class ReactorSystem(
       frame.url = ReactorUrl(bundle.urlMap(proto.transport).url, uname)
       frame.defaultConnector = frame.openConnector[T](proto.channelName, factory, false)
       frame.internalConnector = frame.openConnector[SysEvent]("system", factory, true)
+      frame.internalConnector.asInstanceOf[Connector[SysEvent]].events.onEvent { x =>
+        frame.sysEmitter.react(x, null)
+      }
 
       // 4. schedule for the first execution
       scheduler.startSchedule(frame)

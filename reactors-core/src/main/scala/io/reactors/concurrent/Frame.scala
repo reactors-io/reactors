@@ -25,6 +25,7 @@ final class Frame(
   private[reactors] var executing = false
   private[reactors] var lifecycleState: Frame.LifecycleState = Frame.Fresh
   private[reactors] val pendingQueues = new UnrolledRing[Connector[_]]
+  private[reactors] val sysEmitter = new Events.Emitter[SysEvent]
 
   @volatile var reactor: Reactor[_] = _
   @volatile var name: String = _
@@ -126,7 +127,7 @@ final class Frame(
       case t: Throwable =>
         try {
           if (!hasTerminated) {
-            if (reactor != null) reactor.sysEmitter.react(ReactorDied(t))
+            if (reactor != null) sysEmitter.react(ReactorDied(t))
           }
         } finally {
           checkTerminated(true)
@@ -148,7 +149,7 @@ final class Frame(
     }
     if (runCtor) {
       reactor = proto.create()
-      reactor.sysEmitter.react(ReactorStarted)
+      sysEmitter.react(ReactorStarted)
     }
   }
 
@@ -219,7 +220,7 @@ final class Frame(
     }
     if (emitTerminated) {
       try {
-        if (reactor != null) reactor.sysEmitter.react(ReactorTerminated)
+        if (reactor != null) sysEmitter.react(ReactorTerminated)
       } finally {
         reactorSystem.frames.tryRelease(name)
       }
@@ -229,9 +230,9 @@ final class Frame(
   private def processBatch() {
     checkFresh()
     try {
-      reactor.sysEmitter.react(ReactorScheduled)
+      sysEmitter.react(ReactorScheduled)
       processEvents()
-      reactor.sysEmitter.react(ReactorPreempted)
+      sysEmitter.react(ReactorPreempted)
     } finally {
       checkTerminated(false)
     }

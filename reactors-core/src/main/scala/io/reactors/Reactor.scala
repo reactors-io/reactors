@@ -70,7 +70,6 @@ import io.reactors.concurrent._
  */
 trait Reactor[@spec(Int, Long, Double) T] {
   @volatile private[reactors] var frame: Frame = _
-  private[reactors] val sysEmitter = new Events.Emitter[SysEvent]
 
   private def illegal() =
     throw new IllegalStateException("Only reactor systems can create reactors.")
@@ -83,9 +82,6 @@ trait Reactor[@spec(Int, Long, Double) T] {
       case f => f.asInstanceOf[Frame]
     }
     frame.reactor = this
-    internal.events.onEvent { x =>
-      sysEmitter.react(x, null)
-    }
     Reactor.selfReactor.set(this)
   }
 
@@ -109,15 +105,9 @@ trait Reactor[@spec(Int, Long, Double) T] {
     frame.defaultConnector.asInstanceOf[Connector[T]]
   }
 
-  /** The system connector of this reactor, which is a daemon.
-   */
-  private[reactors] def internal: Connector[SysEvent] = {
-    frame.internalConnector.asInstanceOf[Connector[SysEvent]]
-  }
-
   /** The system event stream of this isolate.
    */
-  final def sysEvents: Events[SysEvent] = sysEmitter
+  final def sysEvents: Events[SysEvent] = frame.sysEmitter
 
 }
 
