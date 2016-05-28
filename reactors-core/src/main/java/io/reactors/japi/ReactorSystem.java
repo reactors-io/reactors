@@ -2,6 +2,7 @@ package io.reactors.japi;
 
 
 
+import scala.reflect.*;
 
 
 
@@ -17,8 +18,10 @@ class ReactorSystem {
       name, io.reactors.ReactorSystem.defaultBundle());
   }
 
-  public <T> Channel<T> spawn() {
-    // TODO: Implement.
-    return null;
+  public <T> Channel<T> spawn(Proto<T> proto) {
+    ClassTag<T> tag = ClassTag$.MODULE$.apply(proto.getProxy().clazz());
+    io.reactors.Arrayable<T> a = io.reactors.Arrayable$.MODULE$.ref(tag);
+    io.reactors.Channel<T> ch = proxy.spawn(proto.getProxy(), a);
+    return new Channel(ch);
   }
 }

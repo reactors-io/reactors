@@ -208,4 +208,3 @@ object Arrayable extends LowPriorityArrayableImplicits {
   }
 
 }
-
