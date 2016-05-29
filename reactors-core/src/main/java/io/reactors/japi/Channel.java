@@ -5,7 +5,7 @@ package io.reactors.japi;
 
 
 
-class Channel<T> {
+public class Channel<T> {
   private io.reactors.Channel<T> proxy;
 
   Channel(io.reactors.Channel<T> proxy) {

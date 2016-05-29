@@ -115,7 +115,11 @@ object ReactorsBuild extends MechaRepoBuild {
       .dependsOn(publish in reactorsContainer)
       .dependsOn(publish in reactorsRemote)
       .dependsOn(publish in reactorsProtocols)
-      .dependsOn(publish in reactorsExtra)
+      .dependsOn(publish in reactorsExtra),
+    libraryDependencies ++= Seq(
+      "com.novocode" % "junit-interface" % "0.11" % "test",
+      "junit" % "junit" % "4.12" % "test"
+    )
   )
 
   val reactors210Settings = projectSettings("210", _ => Seq()) ++ Seq(

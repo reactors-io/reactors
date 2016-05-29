@@ -160,6 +160,8 @@ object Reactor {
    */
   class Placeholder
 
+  private[reactors] class Abstract[T] extends Reactor[T]
+
   /** Creates a reactor proto from a closure.
    *
    *  This is a short-hand for creating a reactor template.

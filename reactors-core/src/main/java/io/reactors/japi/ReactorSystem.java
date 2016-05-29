@@ -6,7 +6,7 @@ import scala.reflect.*;
 
 
 
-class ReactorSystem {
+public class ReactorSystem {
   public static ReactorSystem create(String name) {
     return new ReactorSystem(name);
   }

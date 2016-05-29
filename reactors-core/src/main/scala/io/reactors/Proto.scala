@@ -74,6 +74,9 @@ object Proto {
   def apply[I <: Reactor[_]](cls: Class[_]) =
     new Proto[I](cls, Seq())
 
+  def apply[I <: Reactor[_]](cls: Class[_], args: Array[Object]) =
+    new Proto[I](cls, args.toSeq)
+
   /** Creates a prototype for instantiating an reactor that takes no parameters.
    *
    *  @tparam I         type of the reactor, must be a concrete type, or its class tag
