@@ -7,7 +7,7 @@ package io.reactors.japi;
 
 class Proto<T> {
   public static <T, I extends Reactor<T>> Proto<Reactor<T>> create(Class<I> cls) {
-    return null;
+    return new Proto(cls);
   }
 
   private io.reactors.Proto<io.reactors.Reactor<T>> proxy;
