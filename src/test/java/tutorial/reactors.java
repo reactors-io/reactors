@@ -20,7 +20,7 @@ public class reactors {
     /*!begin-code!*/
     system.spawn(Proto.create(HelloReactor.class));
     /*!end-code!*/
-    /*!end-include(reactors-java-reactors-spawn.htm)!*/
+    /*!end-include(reactors-java-reactors-spawn.html)!*/
   }
 
 }

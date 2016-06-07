@@ -90,6 +90,13 @@ class Reactors extends FunSuite with Matchers {
     /*!end-code!*/
 
     /*!md
+    {% capture s %}
+    {% include reactors-java-reactors-spawn.html %}
+    {% endcapture %}
+    {{ s | markdownify }}
+    !*/
+
+    /*!md
     The method `spawn` takes a `Proto` object as a parameter. The `Proto` object can
     generally encode the reactor's constructor arguments, scheduler, name and other
     options. In our example, we created a `Proto` object for an anonymous reactor
