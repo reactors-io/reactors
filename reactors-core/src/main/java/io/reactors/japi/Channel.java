@@ -6,13 +6,13 @@ package io.reactors.japi;
 
 
 public class Channel<T> {
-  private io.reactors.Channel<T> proxy;
+  private io.reactors.Channel<T> self;
 
-  Channel(io.reactors.Channel<T> proxy) {
-    this.proxy = proxy;
+  Channel(io.reactors.Channel<T> self) {
+    this.self = self;
   }
 
   void send(T event) {
-    this.proxy.$bang(event);
+    this.self.$bang(event);
   }
 }

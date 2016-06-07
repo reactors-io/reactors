@@ -20,14 +20,14 @@ public class Proto<T> {
     }
   }
 
-  private io.reactors.Proto<io.reactors.Reactor<T>> proxy;
+  private io.reactors.Proto<io.reactors.Reactor<T>> self;
 
-  io.reactors.Proto<io.reactors.Reactor<T>> getProxy() {
-    return proxy;
+  io.reactors.Proto<io.reactors.Reactor<T>> getOriginal() {
+    return self;
   }
 
   private Proto(Class<?> cls) {
     Object[] args = new Object[] {cls};
-    this.proxy = io.reactors.Proto.apply(ProxyReactor.class, args);
+    this.self = io.reactors.Proto.apply(ProxyReactor.class, args);
   }
 }
