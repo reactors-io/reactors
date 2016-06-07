@@ -16,7 +16,11 @@ public class reactors {
 
   @Test
   public void runsReactor() {
+    /*!begin-include!*/
+    /*!begin-code!*/
     system.spawn(Proto.create(HelloReactor.class));
+    /*!end-code!*/
+    /*!end-include(reactors-java-reactors-spawn.htm)!*/
   }
 
 }
