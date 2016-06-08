@@ -90,10 +90,13 @@ class Reactors extends FunSuite with Matchers {
     /*!end-code!*/
 
     /*!md
-    {% capture s %}
-    {% include reactors-java-reactors-spawn.html %}
-    {% endcapture %}
-    {{ s | markdownify }}
+    <div data-role="collapsible">
+      <h4>Java</h4>
+      {% capture s %}
+      {% include reactors-java-reactors-spawn.html %}
+      {% endcapture %}
+      {{ s | markdownify }}
+    </div>
     !*/
 
     /*!md
