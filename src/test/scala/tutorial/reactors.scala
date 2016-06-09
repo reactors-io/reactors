@@ -88,16 +88,7 @@ class Reactors extends FunSuite with Matchers {
     /*!begin-code!*/
     val ch: Channel[String] = system.spawn(proto)
     /*!end-code!*/
-
-    /*!md
-    <div data-role="collapsible">
-      <h4>Java</h4>
-      {% capture s %}
-      {% include reactors-java-reactors-spawn.html %}
-      {% endcapture %}
-      {{ s | markdownify }}
-    </div>
-    !*/
+    /*!include-code Java:reactors-java-reactors-spawn.html!*/
 
     /*!md
     The method `spawn` takes a `Proto` object as a parameter. The `Proto` object can
