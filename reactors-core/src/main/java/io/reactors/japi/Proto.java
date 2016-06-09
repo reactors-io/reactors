@@ -6,7 +6,7 @@ package io.reactors.japi;
 
 
 public class Proto<T> {
-  public static <T, I extends Reactor<T>> Proto<Reactor<T>> create(Class<I> cls) {
+  public static <T, I extends Reactor<T>> Proto<T> create(Class<I> cls) {
     return new Proto(cls);
   }
 

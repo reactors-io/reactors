@@ -47,6 +47,7 @@ class Reactors extends FunSuite with Matchers {
   /*!begin-code!*/
   val system = new ReactorSystem("test-system")
   /*!end-code!*/
+  /*!include-code Java:reactors-java-reactors-system.html!*/
 
   test("simple reactor") {
     /*!md
@@ -66,6 +67,7 @@ class Reactors extends FunSuite with Matchers {
       }
     }
     /*!end-code!*/
+    /*!include-code Java:reactors-java-reactors-anonymous.html!*/
 
     /*!md
     Lets examine this code more closely. The `Reactor.apply` method is called with the
