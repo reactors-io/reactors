@@ -9,6 +9,10 @@ import java.lang.reflect._
 
 private[reactors] object Reflect {
 
+  def instantiate[T](clazz: Class[T], params: scala.Array[Any]): T = {
+    instantiate(clazz, params.toSeq)
+  }
+
   def instantiate[T](clazz: Class[T], params: Seq[Any]): T = {
     val ctor = matchingConstructor(clazz, params)
     ctor.setAccessible(true)

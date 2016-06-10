@@ -156,6 +156,7 @@ class HelloReactor extends Reactor[String] {
   }
 }
 /*!end-code!*/
+/*!include-code Java:reactors-java-reactors-template.html!*/
 
 
 class ReactorsTopLevel extends FunSuite with Matchers {

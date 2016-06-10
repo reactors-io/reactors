@@ -6,14 +6,14 @@ package io.reactors.japi;
 
 
 public class Proto<T> {
-  public static <T, I extends Reactor<T>> Proto<T> create(Class<I> cls) {
-    return new Proto(cls);
+  public static <T, I extends Reactor<T>> Proto<T> create(Class<I> cls, Object... as) {
+    return new Proto(cls, as);
   }
 
   public static class ProxyReactor<T> extends io.reactors.Reactor.Abstract<T> {
-    public ProxyReactor(Class<?> cls) {
+    public ProxyReactor(Class<?> cls, Object... as) {
       try {
-        cls.newInstance();
+        io.reactors.common.Reflect.instantiate(cls, as);
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
@@ -26,8 +26,8 @@ public class Proto<T> {
     return self;
   }
 
-  private Proto(Class<?> cls) {
-    Object[] args = new Object[] {cls};
+  private Proto(Class<?> cls, Object... as) {
+    Object[] args = new Object[] {cls, as};
     this.self = io.reactors.Proto.apply(ProxyReactor.class, args);
   }
 }

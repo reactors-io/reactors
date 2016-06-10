@@ -15,14 +15,13 @@ public class reactors {
   /*!end-code!*/
   /*!end-include(reactors-java-reactors-system.html)!*/
 
-  public static class HelloReactor extends Reactor<String> {
-  }
-
   @Test
-  public void runsReactor() {
+  public void runsAnonymousReactor() {
     /*!begin-include!*/
     /*!begin-code!*/
-    Proto<String> proto = Proto.create(HelloReactor.class);
+    Proto<String> proto = Reactor.apply(
+      (self) -> {}
+    );
     /*!end-code!*/
     /*!end-include(reactors-java-reactors-anonymous.html)!*/
 
@@ -33,4 +32,16 @@ public class reactors {
     /*!end-include(reactors-java-reactors-spawn.html)!*/
   }
 
+  /*!begin-include!*/
+  /*!begin-code!*/
+  public static class HelloReactor extends Reactor<String> {
+  }
+  /*!end-code!*/
+  /*!end-include(reactors-java-reactors-template.html)!*/
+
+  @Test
+  public void runsHelloReactor() {
+    Proto<String> proto = Proto.create(HelloReactor.class);
+    Channel<String> ch = system.spawn(proto);
+  }
 }
