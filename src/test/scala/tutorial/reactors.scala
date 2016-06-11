@@ -128,6 +128,7 @@ class Reactors extends FunSuite with Matchers {
     /*!begin-code!*/
     ch ! "Hola!"
     /*!end-code!*/
+    /*!include-code Java:reactors-java-reactors-send.html!*/
 
     assert(Await.result(received.future, 5.seconds) == "Hola!")
 
@@ -174,6 +175,7 @@ class ReactorsTopLevel extends FunSuite with Matchers {
     val ch = system.spawn(Proto[HelloReactor])
     ch ! "Howdee!"
     /*!end-code!*/
+    /*!include-code Java:reactors-java-reactors-spawn-template.html!*/
 
     /*!md
     We can also use the prototype to, for example, set the scheduler that the

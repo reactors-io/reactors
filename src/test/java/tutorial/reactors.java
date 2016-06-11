@@ -30,6 +30,12 @@ public class reactors {
     Channel<String> ch = system.spawn(proto);
     /*!end-code!*/
     /*!end-include(reactors-java-reactors-spawn.html)!*/
+
+    /*!begin-include!*/
+    /*!begin-code!*/
+    // ch.send("Hola!");
+    /*!end-code!*/
+    /*!end-include(reactors-java-reactors-send.html)!*/
   }
 
   /*!begin-include!*/
@@ -41,7 +47,12 @@ public class reactors {
 
   @Test
   public void runsHelloReactor() {
+    /*!begin-include!*/
+    /*!begin-code!*/
     Proto<String> proto = Proto.create(HelloReactor.class);
     Channel<String> ch = system.spawn(proto);
+    // ch.send("Howdee!");
+    /*!end-code!*/
+    /*!end-include(reactors-java-reactors-spawn-template.html)!*/
   }
 }
