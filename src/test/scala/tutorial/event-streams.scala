@@ -5,6 +5,7 @@ title: Event Streams
 topic: reactors
 logoname: reactress-mini-logo-flat.png
 projectname: Reactors.IO
+homepage: http://reactors.io
 permalink: /reactors/event-streams/index.html
 pagenum: 1
 pagetot: 40

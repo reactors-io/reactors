@@ -5,6 +5,7 @@ title: Reactors
 topic: reactors
 logoname: reactress-mini-logo-flat.png
 projectname: Reactors.IO
+homepage: http://reactors.io
 permalink: /reactors/index.html
 ---
 
