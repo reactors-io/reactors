@@ -27,7 +27,7 @@ public class ReactorSystem {
   }
 
   public <T> Channel<T> spawn(Proto<T> proto) {
-    ClassTag<T> tag = ClassTag$.MODULE$.apply(proto.getOriginal().clazz());
+    ClassTag<T> tag = ClassTag$.MODULE$.apply(Object.class);
     io.reactors.Arrayable<T> a = io.reactors.Arrayable$.MODULE$.ref(tag);
     io.reactors.Channel<T> ch = self.spawn(proto.getOriginal(), a);
     return new Channel(ch);

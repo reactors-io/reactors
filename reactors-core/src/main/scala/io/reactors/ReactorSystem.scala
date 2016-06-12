@@ -60,8 +60,7 @@ class ReactorSystem(
    *  @param scheduler  the scheduler used to scheduler the reactor
    *  @return           the channel for this reactor
    */
-  def spawn[@spec(Int, Long, Double) T: Arrayable](p: Proto[Reactor[T]]):
-    Channel[T] = {
+  def spawn[@spec(Int, Long, Double) T: Arrayable](p: Proto[Reactor[T]]): Channel[T] = {
     trySpawnReactor(p)
   }
 
