@@ -17,7 +17,7 @@ public class reactors {
   /*!end-code!*/
   /*!end-include(reactors-java-reactors-system.html)!*/
 
-  class FakeSystem {
+  static class FakeSystem {
     public class Out {
       public LinkedTransferQueue<Object> queue = new LinkedTransferQueue<>();
       public void println(Object x) {
@@ -27,10 +27,10 @@ public class reactors {
     public Out out = new Out();
   }
 
+  static FakeSystem System = new FakeSystem();
+
   @Test
   public void runsAnonymousReactor() {
-    FakeSystem System = new FakeSystem();
-
     /*!begin-include!*/
     /*!begin-code!*/
     Proto<String> proto = Reactor.apply(
@@ -61,6 +61,11 @@ public class reactors {
   /*!begin-include!*/
   /*!begin-code!*/
   public static class HelloReactor extends Reactor<String> {
+    public HelloReactor() {
+      main().events().onEvent(
+        x -> System.out.println(x)
+      );
+    }
   }
   /*!end-code!*/
   /*!end-include(reactors-java-reactors-template.html)!*/
@@ -71,8 +76,14 @@ public class reactors {
     /*!begin-code!*/
     Proto<String> proto = Proto.create(HelloReactor.class);
     Channel<String> ch = system.spawn(proto);
-    // ch.send("Howdee!");
+    ch.send("Howdee!");
     /*!end-code!*/
     /*!end-include(reactors-java-reactors-spawn-template.html)!*/
+
+    try {
+      Assert.assertEquals("Howdee!", System.out.queue.take());
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 }
