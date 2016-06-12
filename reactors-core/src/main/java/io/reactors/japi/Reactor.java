@@ -9,10 +9,12 @@ import java.util.function.Consumer;
 public abstract class Reactor<T> {
   private io.reactors.concurrent.Frame frame;
   private ReactorSystem system;
+  private Connector<T> defaultConnector;
 
   public Reactor() {
     frame = io.reactors.Reactor$.MODULE$.selfFrame().get();
     system = ReactorSystem.from(frame.reactorSystem());
+    defaultConnector = new Connector(frame.defaultConnector());
   }
 
   public ReactorSystem system() {
@@ -21,6 +23,10 @@ public abstract class Reactor<T> {
 
   public long uid() {
     return frame.uid();
+  }
+
+  public Connector<T> main() {
+    return defaultConnector;
   }
 
   private static class AnonymousReactor<T> extends Reactor<T> {

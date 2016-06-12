@@ -9,7 +9,7 @@ import java.util.function.Consumer;
 public class Events<T> {
   private io.reactors.Events<T> self;
 
-  private Events(io.reactors.Events<T> self) {
+  Events(io.reactors.Events<T> self) {
     this.self = self;
   }
 
