@@ -26,6 +26,26 @@ public class Proto<T> {
     return self;
   }
 
+  public Proto<T> withName(String name) {
+    return new Proto(self.withName(name));
+  }
+
+  public Proto<T> withScheduler(String name) {
+    return new Proto(self.withScheduler(name));
+  }
+
+  public Proto<T> withChannelName(String name) {
+    return new Proto(self.withChannelName(name));
+  }
+
+  public Proto<T> withTransport(String name) {
+    return new Proto(self.withTransport(name));
+  }
+
+  private Proto(io.reactors.Proto<io.reactors.Reactor<T>> self) {
+    this.self = self;
+  }
+
   private Proto(Class<?> cls, Object... as) {
     Object[] args = new Object[] {cls, as};
     this.self = io.reactors.Proto.apply(ProxyReactor.class, args);
