@@ -188,6 +188,7 @@ class ReactorsTopLevel extends FunSuite with Matchers {
     system.spawn(Proto[HelloReactor].withScheduler(
       ReactorSystem.Bundle.schedulers.newThread))
     /*!end-code!*/
+    /*!include-code Java:reactors-java-reactors-with-scheduler.html!*/
 
     /*!md
     The call to `withScheduler` returns a new prototype that runs on a predefined

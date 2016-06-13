@@ -85,5 +85,11 @@ public class reactors {
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
+
+    /*!begin-include!*/
+    /*!begin-code!*/
+    system.spawn(Proto.create(HelloReactor.class).withScheduler(Scheduler.NEW_THREAD));
+    /*!end-code!*/
+    /*!end-include(reactors-java-reactors-with-scheduler.html)!*/
   }
 }
