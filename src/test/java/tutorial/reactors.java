@@ -91,5 +91,10 @@ public class reactors {
     system.spawn(Proto.create(HelloReactor.class).withScheduler(Scheduler.NEW_THREAD));
     /*!end-code!*/
     /*!end-include(reactors-java-reactors-with-scheduler.html)!*/
+
+    /*!begin-include!*/
+    /*!begin-code!*/
+    /*!end-code!*/
+    /*!end-include(reactors-java-reactors-custom-scheduler.html)!*/
   }
 }
