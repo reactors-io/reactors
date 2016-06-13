@@ -221,6 +221,8 @@ object ReactorSystem {
       val default = "org.reactors.Scheduler.default"
       val newThread = "org.reactors.Scheduler.newThread"
       val piggyback = "org.reactors.Scheduler.piggyback"
+
+      def defaultScheduler = default
     }
 
     case class TransportInfo(url: SystemUrl, transportName: String)
