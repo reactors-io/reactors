@@ -244,7 +244,7 @@ object ReactorSystem {
 
   /** Default scheduler bundle.
    */
-  lazy val defaultBundle = Bundle.default(Scheduler.default)
+  def defaultBundle = Bundle.default(Scheduler.default)
 
   class ChannelBuilder(
     val channelName: String,
