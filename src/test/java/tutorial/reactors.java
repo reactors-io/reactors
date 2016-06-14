@@ -72,6 +72,8 @@ public class reactors {
 
   @Test
   public void runsHelloReactor() {
+    ReactorSystem system = ReactorSystem.create("test-system");
+
     /*!begin-include!*/
     /*!begin-code!*/
     Proto<String> proto = Proto.create(HelloReactor.class);
@@ -91,8 +93,6 @@ public class reactors {
     system.spawn(Proto.create(HelloReactor.class).withScheduler(Scheduler.NEW_THREAD));
     /*!end-code!*/
     /*!end-include(reactors-java-reactors-with-scheduler.html)!*/
-
-    java.lang.System.out.println("Runs hello reactor test.");
 
     /*!begin-include!*/
     /*!begin-code!*/
