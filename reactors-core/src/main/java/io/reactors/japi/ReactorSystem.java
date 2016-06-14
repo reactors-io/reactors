@@ -7,14 +7,6 @@ import scala.reflect.*;
 
 
 public class ReactorSystem {
-  public static ReactorSystem create(String name) {
-    return new ReactorSystem(name);
-  }
-
-  static ReactorSystem from(io.reactors.ReactorSystem self) {
-    return new ReactorSystem(self);
-  }
-
   private io.reactors.ReactorSystem self;
 
   private ReactorSystem(io.reactors.ReactorSystem self) {
@@ -31,5 +23,29 @@ public class ReactorSystem {
     io.reactors.Arrayable<T> a = io.reactors.Arrayable$.MODULE$.ref(tag);
     io.reactors.Channel<T> ch = self.spawn(proto.getOriginal(), a);
     return new Channel(ch);
+  }
+
+  public Bundle bundle() {
+    return new Bundle(self.bundle());
+  }
+
+  public static ReactorSystem create(String name) {
+    return new ReactorSystem(name);
+  }
+
+  static ReactorSystem from(io.reactors.ReactorSystem self) {
+    return new ReactorSystem(self);
+  }
+
+  public static class Bundle {
+    private io.reactors.ReactorSystem.Bundle self;
+
+    private Bundle(io.reactors.ReactorSystem.Bundle self) {
+      this.self = self;
+    }
+
+    public void registerScheduler(String name, Scheduler s) {
+      self.registerScheduler(name, s.getSelf());
+    }
   }
 }

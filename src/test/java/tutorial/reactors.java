@@ -94,7 +94,17 @@ public class reactors {
 
     /*!begin-include!*/
     /*!begin-code!*/
+    system.bundle().registerScheduler("customTimer", Scheduler.timer(1000));
+    Channel<String> periodic =
+      system.spawn(Proto.create(HelloReactor.class).withScheduler("customTimer"));
+    periodic.send("Ohayo");
     /*!end-code!*/
     /*!end-include(reactors-java-reactors-custom-scheduler.html)!*/
+
+    try {
+      Assert.assertEquals("Ohayo", System.out.queue.take());
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 }
