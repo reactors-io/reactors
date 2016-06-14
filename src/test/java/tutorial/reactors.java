@@ -4,6 +4,8 @@ package tutorial;
 
 import io.reactors.japi.*;
 import java.util.concurrent.*;
+import java.util.HashMap;
+import java.util.Map;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -111,4 +113,51 @@ public class reactors {
       throw new RuntimeException(e);
     }
   }
+
+  /*!begin-include!*/
+  /*!begin-code!*/
+  public static class Pair<K, V> {
+    public K k;
+    public V v;
+    public Pair(K k, V v) {
+      this.k = k;
+      this.v = v;
+    }
+  }
+
+  public static class PutOnlyReactor<K, V> extends Reactor<Pair<K, V>> {
+    Map<K, V> map = new HashMap<K, V>();
+
+    public PutOnlyReactor() {
+      main().events().onEvent(p -> map.put(p.k, p.v));
+    }
+  }
+  /*!end-code!*/
+  /*!end-include(reactors-java-reactors-put-only.html)!*/
+
+  /*!begin-include!*/
+  /*!begin-code!*/
+  public static interface Op<K, V> {
+  }
+
+  public static class Put<K, V> implements Op<K, V> {
+    public K k;
+    public V v;
+    public Put(K k, V v) {
+      this.k = k;
+      this.v = v;
+    }
+  }
+
+  public static class Get<K, V> implements Op<K, V> {
+    public K k;
+    public Channel<V> ch;
+    public Get(K k, Channel<V> ch) {
+      this.k = k;
+      this.ch = ch;
+    }
+  }
+  /*!end-code!*/
+  /*!end-include(reactors-java-reactors-map-ops.html)!*/
+
 }
