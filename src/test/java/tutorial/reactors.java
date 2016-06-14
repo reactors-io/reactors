@@ -92,6 +92,8 @@ public class reactors {
     /*!end-code!*/
     /*!end-include(reactors-java-reactors-with-scheduler.html)!*/
 
+    java.lang.System.out.println("Runs hello reactor test.");
+
     /*!begin-include!*/
     /*!begin-code!*/
     system.bundle().registerScheduler("customTimer", Scheduler.timer(1000));
