@@ -138,6 +138,7 @@ public class reactors {
   /*!begin-include!*/
   /*!begin-code!*/
   public static interface Op<K, V> {
+    public void apply(Map<K, V> map);
   }
 
   public static class Put<K, V> implements Op<K, V> {
@@ -146,6 +147,9 @@ public class reactors {
     public Put(K k, V v) {
       this.k = k;
       this.v = v;
+    }
+    public void apply(Map<K, V> map) {
+      map.put(k, v);
     }
   }
 
@@ -156,8 +160,23 @@ public class reactors {
       this.k = k;
       this.ch = ch;
     }
+    public void apply(Map<K, V> map) {
+      ch.send(map.get(k));
+    }
   }
   /*!end-code!*/
   /*!end-include(reactors-java-reactors-map-ops.html)!*/
+
+  /*!begin-include!*/
+  /*!begin-code!*/
+  public static class MapReactor<K, V> extends Reactor<Op<K, V>> {
+    Map<K, V> map = new HashMap<K, V>();
+
+    public MapReactor() {
+      main().events().onEvent(op -> op.apply(map));
+    }
+  }
+  /*!end-code!*/
+  /*!end-include(reactors-java-reactors-map-reactor.html)!*/
 
 }

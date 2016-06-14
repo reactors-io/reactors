@@ -251,6 +251,7 @@ class PutOnlyReactor[K, V] extends Reactor[(K, V)] {
   }
 }
 /*!end-code!*/
+/*!include-code Java:reactors-java-reactors-put-only.html!*/
 
 
 /*!md
@@ -269,6 +270,7 @@ case class Put[K, V](k: K, v: V) extends Op[K, V]
 
 case class Get[K, V](k: K, ch: Channel[V]) extends Op[K, V]
 /*!end-code!*/
+/*!include-code Java:reactors-java-reactors-map-ops.html!*/
 
 
 /*!md
@@ -284,6 +286,7 @@ class MapReactor[K, V] extends Reactor[Op[K, V]] {
   }
 }
 /*!end-code!*/
+/*!include-code Java:reactors-java-reactors-map-reactor.html!*/
 
 
 class ReactorChannels extends FunSuite with Matchers {
