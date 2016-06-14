@@ -315,6 +315,7 @@ class ReactorChannels extends FunSuite with Matchers {
     mapper ! Put("dns-main", "dns1" :: "lan" :: Nil)
     mapper ! Put("dns-backup", "dns2" :: "com" :: Nil)
     /*!end-code!*/
+    /*!include-code Java:reactors-java-reactors-send-mapper.html!*/
 
     Thread.sleep(1000)
 
