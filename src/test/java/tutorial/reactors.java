@@ -179,4 +179,27 @@ public class reactors {
   /*!end-code!*/
   /*!end-include(reactors-java-reactors-map-reactor.html)!*/
 
+  @Test
+  public void runsMapper() {
+    /*!begin-include!*/
+    /*!begin-code!*/
+    Channel<Op<String, String[]>> mapper =
+      system.spawn(Proto.create(MapReactor.class));
+    /*!end-code!*/
+    /*!end-include(reactors-java-reactors-spawn-mapper.html)!*/
+
+    /*!begin-include!*/
+    /*!begin-code!*/
+    mapper.send(new Put("dns-main", new String[] { "dns1", "lan" }));
+    mapper.send(new Put("dns-backup", new String[] { "dns2", "com" }));
+    /*!end-code!*/
+    /*!end-include(reactors-java-reactors-send-mapper.html)!*/
+
+    try {
+      Thread.sleep(1000);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
 }

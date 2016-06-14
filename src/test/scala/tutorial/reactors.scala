@@ -305,6 +305,7 @@ class ReactorChannels extends FunSuite with Matchers {
     /*!begin-code!*/
     val mapper = system.spawn(Proto[MapReactor[String, List[String]]])
     /*!end-code!*/
+    /*!include-code Java:reactors-java-reactors-spawn-mapper.html!*/
 
     /*!md
     We then send a couple of `Put` messages to store some alias values:
