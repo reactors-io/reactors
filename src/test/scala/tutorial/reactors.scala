@@ -357,7 +357,7 @@ class ReactorChannels extends FunSuite with Matchers {
     val ch = system.spawn(Reactor[String] { self =>
       self.main.events onMatch {
         case "start" =>
-          val reply = system.channels.daemon.open[List[String]]
+          val reply = self.system.channels.daemon.open[List[String]]
           mapper ! Get("dns-main", reply.channel)
           reply.events onEvent { url =>
             println(url)
