@@ -200,6 +200,20 @@ public class reactors {
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
+
+    /*!begin-include!*/
+    /*!begin-code!*/
+    Proto<String> proto = Reactor.apply(
+      self -> self.main().events().onEvent(x -> {
+        if (x.equals("start")) {
+          // TODO
+        } else if (x.equals("end")) {
+          self.main().seal();
+        }
+      })
+    );
+    /*!end-code!*/
+    /*!end-include(reactors-java-reactors-mapper-client.html)!*/
   }
 
 }
