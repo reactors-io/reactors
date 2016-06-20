@@ -276,7 +276,7 @@ object Services {
    *  To query channels in remote reactor systems, `Names` service should be used.
    */
   class Channels(val system: ReactorSystem)
-  extends ReactorSystem.ChannelBuilder(null, false, EventQueue.UnrolledRing.Factory)
+  extends ChannelBuilder(null, false, EventQueue.UnrolledRing.Factory)
   with Protocol.Service {
     def shutdown() {
     }

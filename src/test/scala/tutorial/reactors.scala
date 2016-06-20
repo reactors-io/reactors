@@ -367,6 +367,7 @@ class ReactorChannels extends FunSuite with Matchers {
       }
     })
     /*!end-code!*/
+    /*!include-code Java:reactors-java-reactors-mapper-client.html!*/
 
     /*!md
     Above, when the reactor receives the `"start"` event, it opens a new channel `reply`
@@ -388,6 +389,7 @@ class ReactorChannels extends FunSuite with Matchers {
     /*!begin-code!*/
     ch ! "start"
     /*!end-code!*/
+    /*!include-code Java:reactors-java-reactors-mapper-client-start.html!*/
 
     assert(Await.result(received.future, 5.seconds) == "dns1" :: "lan" :: Nil)
 
@@ -399,5 +401,6 @@ class ReactorChannels extends FunSuite with Matchers {
     /*!begin-code!*/
     ch ! "end"
     /*!end-code!*/
+    /*!include-code Java:reactors-java-reactors-mapper-client-end.html!*/
   }
 }

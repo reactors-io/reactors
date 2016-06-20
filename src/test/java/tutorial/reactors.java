@@ -203,17 +203,38 @@ public class reactors {
 
     /*!begin-include!*/
     /*!begin-code!*/
-    Proto<String> proto = Reactor.apply(
+    Proto<String> clientProto = Reactor.apply(
       self -> self.main().events().onEvent(x -> {
         if (x.equals("start")) {
-          // TODO
+          Connector<String[]> reply = self.system().channels().<String[]>open();
+          mapper.send(new Get("dns-main", reply.channel()));
+          reply.events().onEvent(url -> System.out.println(url[0] + "." + url[1]));
         } else if (x.equals("end")) {
           self.main().seal();
         }
       })
     );
+    Channel<String> ch = system.spawn(clientProto);
     /*!end-code!*/
     /*!end-include(reactors-java-reactors-mapper-client.html)!*/
+
+    /*!begin-include!*/
+    /*!begin-code!*/
+    ch.send("start");
+    /*!end-code!*/
+    /*!end-include(reactors-java-reactors-mapper-client-start.html)!*/
+
+    try {
+      Assert.assertEquals("dns1.lan", System.out.queue.take());
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+
+    /*!begin-include!*/
+    /*!begin-code!*/
+    ch.send("end");
+    /*!end-code!*/
+    /*!end-include(reactors-java-reactors-mapper-client-end.html)!*/
   }
 
 }

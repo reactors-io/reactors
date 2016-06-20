@@ -58,7 +58,7 @@ trait BalancerProtocols {
     }
   }
 
-  implicit class BalancerChannelBuilderOps(val builder: ReactorSystem.ChannelBuilder) {
+  implicit class BalancerChannelBuilderOps(val builder: ChannelBuilder) {
     /** Create a new balancer channel.
      *
      *  The balancer channel balances incoming events across a sequence of channels.

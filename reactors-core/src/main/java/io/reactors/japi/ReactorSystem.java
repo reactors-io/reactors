@@ -2,7 +2,6 @@ package io.reactors.japi;
 
 
 
-import scala.reflect.*;
 
 
 
@@ -19,14 +18,17 @@ public class ReactorSystem {
   }
 
   public <T> Channel<T> spawn(Proto<T> proto) {
-    ClassTag<T> tag = ClassTag$.MODULE$.apply(Object.class);
-    io.reactors.Arrayable<T> a = io.reactors.Arrayable$.MODULE$.ref(tag);
+    io.reactors.Arrayable<T> a = Util.arrayable();
     io.reactors.Channel<T> ch = self.spawn(proto.getOriginal(), a);
     return new Channel(ch);
   }
 
   public Bundle bundle() {
     return new Bundle(self.bundle());
+  }
+
+  public ChannelBuilder channels() {
+    return new ChannelBuilder(self.channels());
   }
 
   public static ReactorSystem create(String name) {
