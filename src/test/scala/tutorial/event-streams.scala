@@ -19,6 +19,35 @@ package tutorial
 /*!md
 ## Event streams
 
+Event streams are objects that may asynchronously publish events.
+An important thing to realize here is that asynchronous execution
+does not imply concurrency.
+In fact, if we look up the dictionary definition of *concurrent*, we find:
+
+> Happening at the same time, side-by-side.
+
+If we now look at the definition of *asynchronous*, we find:
+
+> Not occurring at the same time.
+
+Despite the fact that we, programmers, sometimes conflate these two terms,
+in english language they mean almost opposite things.
+But this is not just a matter of language purism,
+asynchronous and concurrent also have separate meanings in programming!
+When a computation is asynchronous,
+it means that it does necessarily happen right away --
+it might happen **later in the future**, possibly **on the same thread**.
+When a computation is concurrent,
+it means that the computation might happen **at the same time**,
+but **on a different thread**.
+
+Event streams created within the same concurrency unit
+always emit events in that concurrency unit.
+This concurrency unit may be the current thread,
+if we're using event streams without reactors (as we do in this section),
+or a reactor otherwise (we cover reactors in the next section).
+So, let's get started.
+
 The first step in any program using reactors is to import the contents of the
 `io.reactors` package. The following line will allow us to declare event streams,
 channels and reactors:
