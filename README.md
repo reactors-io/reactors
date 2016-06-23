@@ -6,6 +6,8 @@ Maven | [![Maven Artifact](https://img.shields.io/maven-central/v/com.storm-enro
 
 <img src='reactress-title-96.png'></img>
 
+[![Join the chat at https://gitter.im/reactors-io/reactors](https://badges.gitter.im/reactors-io/reactors.svg)](https://gitter.im/reactors-io/reactors?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 [Reactors](http://reactors.io) is a concurrent, distributed programming framework based
 on asynchronous event streams.
 
