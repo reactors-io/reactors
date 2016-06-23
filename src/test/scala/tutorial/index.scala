@@ -21,7 +21,7 @@ on Maven. If you are using SBT, add the following to your project definition:
     )
 
     libraryDependencies ++= Seq(
-      "com.storm-enroute" %% "reactors" % "0.6-SNAPSHOT")
+      "com.storm-enroute" %% "reactors" % "0.7-SNAPSHOT")
 
 The getting started guide has the following parts:
 
