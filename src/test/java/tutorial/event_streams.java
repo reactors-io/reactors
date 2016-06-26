@@ -2,15 +2,13 @@ package tutorial;
 
 
 
+/*!begin-include!*/
+/*!begin-code!*/
 import io.reactors.japi.*;
-import java.util.concurrent.*;
-import java.util.HashMap;
-import java.util.Map;
-import org.junit.Assert;
-import org.junit.Test;
+/*!end-code!*/
+/*!end-include(reactors-java-event-streams-import.html)!*/
 
 
 
 public class event_streams {
-
 }

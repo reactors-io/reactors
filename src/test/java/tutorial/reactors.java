@@ -2,7 +2,11 @@ package tutorial;
 
 
 
+/*!begin-include!*/
+/*!begin-code!*/
 import io.reactors.japi.*;
+/*!end-code!*/
+/*!end-include(reactors-java-reactors-import.html)!*/
 import java.util.concurrent.*;
 import java.util.HashMap;
 import java.util.Map;

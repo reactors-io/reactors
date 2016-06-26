@@ -55,6 +55,7 @@ channels and reactors:
 /*!begin-code!*/
 import io.reactors._
 /*!end-code!*/
+/*!include-code Java:reactors-java-event-streams-import.html!*/
 import org.scalatest._
 
 

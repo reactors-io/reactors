@@ -16,17 +16,8 @@ package tutorial
 
 
 
-import io.reactors._
-import org.scalatest._
-import scala.concurrent.Await
-import scala.concurrent.Promise
-import scala.concurrent.duration._
-
-
-
 /*!md
 ## Reactors 101
-
 As we learned previously, event streams always propagate events on a single thread.
 This is useful from the standpoint of program comprehension, but we still need a way
 to express concurrency in our programs. In this section, we will see how this is done
@@ -40,6 +31,20 @@ many different sources at any time. Despite this flexibility, one reactor will a
 process **at most one** event at any time. We say that events received by a reactor
 *serialize*, similar to how messages received by an actor are serialized.
 
+As before, we start by importing the `io.reactors` package:
+!*/
+/*!begin-code!*/
+import io.reactors._
+/*!end-code!*/
+/*!include-code Java:reactors-java-reactors-import.html!*/
+import org.scalatest._
+import scala.concurrent.Await
+import scala.concurrent.Promise
+import scala.concurrent.duration._
+
+
+
+/*!md
 To be able to create new reactors, we need a `ReactorSystem` object, which tracks
 reactors in a single machine.
 !*/
