@@ -42,5 +42,21 @@ public class event_streams {
   /*!end-code!*/
   /*!end-include(reactors-java-event-streams-trace.html)!*/
 
-  
+  @Test
+  public void emitterReact() {
+    /*!begin-include!*/
+    /*!begin-code!*/
+    Events.Emitter<Integer> emitter = Events.emitter();
+    /*!end-code!*/
+    /*!end-include(reactors-java-event-streams-create.html)!*/
+
+    /*!begin-include!*/
+    /*!begin-code!*/
+    final int[] luckyNumber = new int[] { 0 };
+    emitter.onEvent(x -> luckyNumber[0] = x);
+    emitter.react(7);
+    Assert.assertEquals(7, luckyNumber[0]);
+    /*!end-code!*/
+    /*!end-include(reactors-java-event-streams-on-event.html)!*/
+  }
 }
