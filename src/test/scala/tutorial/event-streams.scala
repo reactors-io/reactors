@@ -121,6 +121,7 @@ class Introduction extends FunSuite with Matchers {
     /*!begin-code!*/
     val emitter = new Events.Emitter[Int]
     /*!end-code!*/
+    /*!include-code Java:reactors-java-event-streams-emitter.html!*/
 
     /*!md
     An emitter is simultaneously an event stream and an *event source*. We can
@@ -134,6 +135,7 @@ class Introduction extends FunSuite with Matchers {
     emitter.react(7)
     assert(luckyNumber == 7)
     /*!end-code!*/
+    /*!include-code Java:reactors-java-event-streams-lucky-number.html!*/
 
     /*!md
     By running the above snippet, we convince ourselves that `react` really forces the
