@@ -86,6 +86,7 @@ class Introduction extends FunSuite with Matchers {
     /*!begin-code!*/
     myEvents.onEvent(x => println(x))
     /*!end-code!*/
+    /*!include-code Java:reactors-java-event-streams-on-event.html!*/
   }
 
   /*!md
@@ -102,6 +103,7 @@ class Introduction extends FunSuite with Matchers {
     events.onEvent(println)
   }
   /*!end-code!*/
+  /*!include-code Java:reactors-java-event-streams-trace.html!*/
 
   /*!md
   Before we continue, we note that event streams are entirely a single-threaded entity.

@@ -7,7 +7,6 @@ package tutorial;
 import io.reactors.japi.*;
 /*!end-code!*/
 /*!end-include(reactors-java-reactors-import.html)!*/
-import java.util.concurrent.*;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.Assert;
@@ -22,16 +21,6 @@ public class reactors {
   ReactorSystem system = ReactorSystem.create("test-system");
   /*!end-code!*/
   /*!end-include(reactors-java-reactors-system.html)!*/
-
-  static class FakeSystem {
-    public class Out {
-      public LinkedTransferQueue<Object> queue = new LinkedTransferQueue<>();
-      public void println(Object x) {
-        queue.add(x);
-      }
-    }
-    public Out out = new Out();
-  }
 
   static FakeSystem System = new FakeSystem();
 
