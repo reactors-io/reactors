@@ -74,6 +74,7 @@ class Introduction extends FunSuite with Matchers {
   /*!begin-code!*/
   val myEvents: Events[String] = createEventStream()
   /*!end-code!*/
+  /*!include-code Java:reactors-java-event-streams-create.html!*/
 
   /*!md
   To be useful, an event stream must allow the users to somehow manipulate the events it

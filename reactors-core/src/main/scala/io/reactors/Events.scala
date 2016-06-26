@@ -1207,7 +1207,7 @@ object Events {
   class Mutable[M >: Null <: AnyRef](private[reactors] val content: M)
   extends Push[M] with Events[M]
 
-  /** A base trait for event streams that never emit events.
+  /** A class for event streams that never emit events.
    *
    *  @tparam T         type of events never emitted by this event stream
    */
@@ -1218,6 +1218,10 @@ object Events {
       Subscription.empty
     }
   }
+
+  /** Returns an event stream that never emits.
+   */
+  def never[@spec(Int, Long, Double) T]: Events[T] = new Events.Never[T]
 
   private[reactors] class MutateObserver[
     @spec(Int, Long, Double) T, M >: Null <: AnyRef

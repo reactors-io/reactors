@@ -21,4 +21,8 @@ public class Events<T> {
       }
     });
   }
+
+  public static <T> Events<T> never() {
+    return new Events(io.reactors.Events$.MODULE$.never());
+  }
 }
