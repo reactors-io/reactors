@@ -1226,6 +1226,13 @@ object Events {
   def mux[@spec(Int, Long, Double) T](e: Events[Events[T]]): Events[T] =
     e.mux[T]
 
+  /** Factory method for creating `union` event streams.
+   *
+   *  See `union` on `Events` for more details.
+   */
+  def union[@spec(Int, Long, Double) T](e: Events[Events[T]]): Events[T] =
+    e.union[T]
+
   /** Returns an event stream that never emits.
    */
   def never[@spec(Int, Long, Double) T]: Events[T] = new Events.Never[T]

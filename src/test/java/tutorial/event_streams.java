@@ -193,7 +193,7 @@ public class event_streams {
     Events.Emitter<Events<Integer>> higherOrder = Events.emitter();
     Events.Emitter<Integer> evens = Events.emitter();
     Events.Emitter<Integer> odds = Events.emitter();
-    Events.mux(higherOrder).onEvent(x -> seen.add(x));
+    Events.toMux(higherOrder).onEvent(x -> seen.add(x));
 
     evens.react(2);
     odds.react(1);
@@ -208,6 +208,24 @@ public class event_streams {
     Assert.assertEquals(new ArrayList(Arrays.asList(4, 5)), seen);
     /*!end-code!*/
     /*!end-include(reactors-java-event-streams-mux.html)!*/
+
+    /*!begin-include!*/
+    /*!begin-code!*/
+    ArrayList<Integer> seen2 = new ArrayList();
+    Events.Emitter<Events<Integer>> higherOrder2 = Events.emitter();
+    Events.toUnion(higherOrder2).onEvent(x -> seen2.add(x));
+
+    higherOrder2.react(evens);
+    odds.react(3);
+    evens.react(4);
+    Assert.assertEquals(new ArrayList(Arrays.asList(4)), seen2);
+    higherOrder2.react(odds);
+    evens.react(6);
+    Assert.assertEquals(new ArrayList(Arrays.asList(4, 6)), seen2);
+    odds.react(5);
+    Assert.assertEquals(new ArrayList(Arrays.asList(4, 6, 5)), seen2);
+    /*!end-code!*/
+    /*!end-include(reactors-java-event-streams-union.html)!*/
   }
 
 }

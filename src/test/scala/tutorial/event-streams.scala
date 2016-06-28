@@ -416,6 +416,7 @@ class Introduction extends FunSuite with Matchers {
     odds react 5
     assert(seen2 == 5 :: 6 :: 4 :: Nil)
     /*!end-code!*/
+    /*!include-code Java:reactors-java-event-streams-union.html!*/
 
     /*!md
     For more examples of higher-order event stream combinators, please refer to the
