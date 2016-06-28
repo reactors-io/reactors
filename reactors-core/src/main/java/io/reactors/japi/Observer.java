@@ -7,7 +7,7 @@ import java.util.function.Consumer;
 
 
 public abstract class Observer<T> {
-  private io.reactors.Observer<T> self;
+  io.reactors.Observer<T> self;
 
   Observer(io.reactors.Observer<T> self) {
     this.self = self;
@@ -23,5 +23,12 @@ public abstract class Observer<T> {
 
   public void unreact() {
     self.unreact();
+  }
+
+  public static <T> Observer<T> create(
+    Consumer<T> onEvent, Consumer<Throwable> onExcept, Runnable onUnreact
+  ) {
+    // TODO
+    return null;
   }
 }

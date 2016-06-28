@@ -7,6 +7,7 @@ package tutorial;
 import io.reactors.japi.*;
 /*!end-code!*/
 /*!end-include(reactors-java-event-streams-import.html)!*/
+import java.util.ArrayList;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -58,5 +59,18 @@ public class event_streams {
     Assert.assertEquals(7, luckyNumber[0]);
     /*!end-code!*/
     /*!end-include(reactors-java-event-streams-lucky-number.html)!*/
+  }
+
+  @Test
+  public void emitterLifecycle() {
+    /*!begin-include!*/
+    /*!begin-code!*/
+    ArrayList<Integer> seen = new ArrayList<Integer>();
+    ArrayList<String> errors = new ArrayList<String>();
+    int[] done = new int[] { 0 };
+    Events.Emitter<Integer> e = Events.emitter();
+    //emitter.onReaction(...);
+    /*!end-code!*/
+    /*!end-include!*/
   }
 }

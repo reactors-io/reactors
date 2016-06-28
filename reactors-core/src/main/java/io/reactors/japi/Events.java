@@ -14,12 +14,11 @@ public class Events<T> {
   }
 
   public void onEvent(Consumer<T> c) {
-    self.onEvent(new scala.runtime.AbstractFunction1<T, scala.runtime.BoxedUnit>() {
-      public scala.runtime.BoxedUnit apply(T x) {
-        c.accept(x);
-        return scala.runtime.BoxedUnit.UNIT;
-      }
-    });
+    self.onEvent(Util.toScalaFunction(c));
+  }
+
+  public void onReaction(Observer<T> observer) {
+    self.onReaction(observer.self);
   }
 
   public static <T> Events<T> never() {
@@ -40,6 +39,14 @@ public class Events<T> {
 
     public void react(T x) {
       self.react(x);
+    }
+
+    public void except(Throwable t) {
+      self.except(t);
+    }
+
+    public void unreact() {
+      self.unreact();
     }
   }
 }
