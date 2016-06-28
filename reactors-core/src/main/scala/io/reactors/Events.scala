@@ -1219,6 +1219,13 @@ object Events {
     }
   }
 
+  /** Factory method for creating `mux` event streams.
+   *
+   *  See `mux` on `Events` for more details.
+   */
+  def mux[@spec(Int, Long, Double) T](e: Events[Events[T]]): Events[T] =
+    e.mux[T]
+
   /** Returns an event stream that never emits.
    */
   def never[@spec(Int, Long, Double) T]: Events[T] = new Events.Never[T]

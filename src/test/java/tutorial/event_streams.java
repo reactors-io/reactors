@@ -184,4 +184,30 @@ public class event_streams {
     Assert.assertEquals(seen,
       new ArrayList<Integer>(Arrays.asList(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)));
   }
+
+  @Test
+  public void muxAndUnion() {
+    /*!begin-include!*/
+    /*!begin-code!*/
+    ArrayList<Integer> seen = new ArrayList();
+    Events.Emitter<Events<Integer>> higherOrder = Events.emitter();
+    Events.Emitter<Integer> evens = Events.emitter();
+    Events.Emitter<Integer> odds = Events.emitter();
+    Events.mux(higherOrder).onEvent(x -> seen.add(x));
+
+    evens.react(2);
+    odds.react(1);
+    higherOrder.react(evens);
+    Assert.assertEquals(new ArrayList(Arrays.asList()), seen);
+    odds.react(3);
+    evens.react(4);
+    Assert.assertEquals(new ArrayList(Arrays.asList(4)), seen);
+    higherOrder.react(odds);
+    evens.react(6);
+    odds.react(5);
+    Assert.assertEquals(new ArrayList(Arrays.asList(4, 5)), seen);
+    /*!end-code!*/
+    /*!end-include(reactors-java-event-streams-mux.html)!*/
+  }
+
 }

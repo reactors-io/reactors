@@ -384,6 +384,7 @@ class Introduction extends FunSuite with Matchers {
     evens react 2
     odds react 1
     higherOrder react evens
+    assert(seen == Nil)
     odds react 3
     evens react 4
     assert(seen == 4 :: Nil)
@@ -392,6 +393,7 @@ class Introduction extends FunSuite with Matchers {
     odds react 5
     assert(seen == 5 :: 4 :: Nil)
     /*!end-code!*/
+    /*!include-code Java:reactors-java-event-streams-mux.html!*/
 
     /*!md
     In some cases we want to obtain all the events from all the even streams produced

@@ -52,6 +52,10 @@ public class Events<T> {
     return new Events(self.union(that.self));
   }
 
+  public static <T> Events<T> mux(Events<Events<T>> e) {
+    return new Events(io.reactors.Events$.MODULE$.mux(e.map(n -> n.self).self));
+  }
+
   public static <T> Events<T> never() {
     return new Events(io.reactors.Events$.MODULE$.never());
   }
