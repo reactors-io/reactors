@@ -99,4 +99,28 @@ public class event_streams {
     /*!end-code!*/
     /*!end-include(reactors-java-event-streams-observer-test.html)!*/
   }
+
+  @Test
+  public void onX() {
+    /*!begin-include!*/
+    /*!begin-code!*/
+    Events.Emitter<String> e = Events.emitter();
+    e.onEventOrDone(
+      x -> System.out.println(x),
+      () -> System.out.println("she's done, mate!"));
+    e.onDone(() -> System.out.println("done!"));
+    /*!end-code!*/
+    /*!end-include(reactors-java-event-streams-on-x.html)!*/
+
+    e.react("ok");
+    e.unreact();
+
+    try {
+      Assert.assertEquals("ok", System.out.queue.take());
+      Assert.assertEquals("she's done, mate!", System.out.queue.take());
+      Assert.assertEquals("done!", System.out.queue.take());
+    } catch (Exception t) {
+      throw new RuntimeException(t);
+    }
+  }
 }

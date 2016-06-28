@@ -3,6 +3,7 @@ package io.reactors.japi;
 
 
 import java.util.function.Consumer;
+import scala.*;
 import scala.reflect.*;
 import scala.runtime.*;
 
@@ -29,6 +30,20 @@ class Util {
       public BoxedUnit apply(T x) {
         c.accept(x);
         return BoxedUnit.UNIT;
+      }
+    };
+  }
+
+  public static <T> PartialFunction<T, BoxedUnit> toScalaPartialFunction(
+    Consumer<T> c
+  ) {
+    return new AbstractPartialFunction<T, BoxedUnit>() {
+      public BoxedUnit apply(T x) {
+        c.accept(x);
+        return BoxedUnit.UNIT;
+      }
+      public boolean isDefinedAt(T x) {
+        return true;
       }
     };
   }

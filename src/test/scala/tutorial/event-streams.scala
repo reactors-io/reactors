@@ -232,7 +232,7 @@ class Introduction extends FunSuite with Matchers {
   test("onX family") {
     /*!begin-code!*/
     val e = new Events.Emitter[String]
-    e.onEventOrDone(x => println(x))(() => println("done, she's unreacted!"))
+    e.onEventOrDone(x => println(x))(println("done, she's unreacted!"))
     e.onDone(println("event stream done!"))
     e onMatch {
       case "ok" => println("a-ok!")
@@ -241,6 +241,7 @@ class Introduction extends FunSuite with Matchers {
       println("some event, but I don't care which!")
     }
     /*!end-code!*/
+    /*!include-code Java:reactors-java-event-streams-on-x.html!*/
   }
 
   /*!md

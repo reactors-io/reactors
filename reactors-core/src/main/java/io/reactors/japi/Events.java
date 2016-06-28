@@ -21,6 +21,18 @@ public class Events<T> {
     self.onReaction(observer.self);
   }
 
+  public void onEventOrDone(Consumer<T> c, Runnable r) {
+    self.onEventOrDone(Util.toScalaFunction(c), Util.toScalaFunction(r));
+  }
+
+  public void onDone(Runnable r) {
+    self.onDone(Util.toScalaFunction(r), null);
+  }
+
+  public void onExcept(Consumer<Throwable> c) {
+    self.onExcept(Util.toScalaPartialFunction(c));
+  }
+
   public static <T> Events<T> never() {
     return new Events(io.reactors.Events$.MODULE$.never());
   }
