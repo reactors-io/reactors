@@ -2,7 +2,9 @@ package io.reactors.japi;
 
 
 
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 
 
@@ -31,6 +33,14 @@ public class Events<T> {
 
   public void onExcept(Consumer<Throwable> c) {
     self.onExcept(Util.toScalaPartialFunction(c));
+  }
+
+  public <S> Events<S> map(Function<T, S> f) {
+    return new Events(self.map(Util.toScalaFunction(f)));
+  }
+
+  public <S> Events<S> scanPast(S zero, BiFunction<S, T, S> f) {
+    return new Events(self.scanPast(zero, Util.toScalaFunction(f)));
   }
 
   public static <T> Events<T> never() {

@@ -261,6 +261,7 @@ class Introduction extends FunSuite with Matchers {
     e.onEvent(x => squareSum += x * x)
     for (i <- 0 until 5) e react i
     /*!end-code!*/
+    /*!include-code Java:reactors-java-event-streams-sum-var.html!*/
 
     assert(squareSum == 30)
 
@@ -279,6 +280,7 @@ class Introduction extends FunSuite with Matchers {
       ne react squareSum
     }
     /*!end-code!*/
+    /*!include-code Java:reactors-java-event-streams-sum-ugly.html!*/
   }
 
   /*!md
@@ -301,6 +303,7 @@ class Introduction extends FunSuite with Matchers {
     val sum = e.map(x => x * x).scanPast(0)(_ + _)
     for (i <- 0 until 5) e react i
     /*!end-code!*/
+    /*!include-code Java:reactors-java-event-streams-sum-fun.html!*/
 
     var seen = List[Int]()
     sum.onEvent(seen ::= _)

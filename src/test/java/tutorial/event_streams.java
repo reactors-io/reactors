@@ -123,4 +123,47 @@ public class event_streams {
       throw new RuntimeException(t);
     }
   }
+
+  @Test
+  public void onEventSquareSum() {
+    /*!begin-include!*/
+    /*!begin-code!*/
+    int[] squareSum = new int[] { 0 };
+    Events.Emitter<Integer> e = Events.emitter();
+    e.onEvent(x -> squareSum[0] += x * x);
+    for (int i = 0; i < 5; i++) e.react(i);
+    /*!end-code!*/
+    /*!end-include(reactors-java-event-streams-sum-var.html)!*/
+
+    Assert.assertEquals(30, squareSum[0]);
+
+    /*!begin-include!*/
+    /*!begin-code!*/
+    Events.Emitter<Integer> ne = Events.emitter();
+    ne.onEvent(x -> {
+      squareSum[0] += x * x;
+      ne.react(squareSum[0]);
+    });
+    /*!end-code!*/
+    /*!end-include(reactors-java-event-streams-sum-ugly.html)!*/
+  }
+
+  @Test
+  public void functionalSquareSum() {
+    /*!begin-include!*/
+    /*!begin-code!*/
+    Events.Emitter<Integer> e = Events.emitter();
+    Events<Integer> sum = e.map(x -> x * x).scanPast(0, (x, y) -> x + y);
+    for (int i = 0; i < 5; i++) e.react(i);
+    /*!end-code!*/
+    /*!end-include(reactors-java-event-streams-sum-fun.html)!*/
+
+    ArrayList<Integer> seen = new ArrayList();
+    sum.onEvent(x -> seen.add(x));
+    e.react(1);
+    e.react(2);
+    e.react(3);
+    e.react(4);
+    Assert.assertEquals(seen, new ArrayList<Integer>(Arrays.asList(1, 5, 14, 30)));
+  }
 }

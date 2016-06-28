@@ -2,7 +2,9 @@ package io.reactors.japi;
 
 
 
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import scala.*;
 import scala.reflect.*;
 import scala.runtime.*;
@@ -34,6 +36,14 @@ class Util {
     };
   }
 
+  public static <T, R> AbstractFunction1<T, R> toScalaFunction(Function<T, R> c) {
+    return new AbstractFunction1<T, R>() {
+      public R apply(T x) {
+        return c.apply(x);
+      }
+    };
+  }
+
   public static <T> PartialFunction<T, BoxedUnit> toScalaPartialFunction(
     Consumer<T> c
   ) {
@@ -44,6 +54,16 @@ class Util {
       }
       public boolean isDefinedAt(T x) {
         return true;
+      }
+    };
+  }
+
+  public static <T1, T2, R> AbstractFunction2<T1, T2, R> toScalaFunction(
+    BiFunction<T1, T2, R> c
+  ) {
+    return new AbstractFunction2<T1, T2, R>() {
+      public R apply(T1 x1, T2 x2) {
+        return c.apply(x1, x2);
       }
     };
   }
