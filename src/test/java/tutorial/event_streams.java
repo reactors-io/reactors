@@ -81,6 +81,21 @@ public class event_streams {
     /*!begin-code!*/
     e.react(1);
     Assert.assertEquals(seen, new ArrayList<Integer>(Arrays.asList(1)));
+    e.react(2);
+    Assert.assertEquals(seen, new ArrayList<Integer>(Arrays.asList(1, 2)));
+    Assert.assertEquals(done[0], 0);
+    e.except(new Exception("^_^"));
+    Assert.assertEquals(errors, new ArrayList<String>(Arrays.asList("^_^")));
+    e.react(3);
+    Assert.assertEquals(seen, new ArrayList<Integer>(Arrays.asList(1, 2, 3)));
+    Assert.assertEquals(done[0], 0);
+    e.unreact();
+    Assert.assertEquals(done[0], 1);
+    e.react(4);
+    e.except(new Exception("o_O"));
+    Assert.assertEquals(seen, new ArrayList<Integer>(Arrays.asList(1, 2, 3)));
+    Assert.assertEquals(errors, new ArrayList<String>(Arrays.asList("^_^")));
+    Assert.assertEquals(done[0], 1);
     /*!end-code!*/
     /*!end-include(reactors-java-event-streams-observer-test.html)!*/
   }
