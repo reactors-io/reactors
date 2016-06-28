@@ -71,6 +71,6 @@ public class event_streams {
     Events.Emitter<Integer> e = Events.emitter();
     //emitter.onReaction(...);
     /*!end-code!*/
-    /*!end-include!*/
+    /*!end-include(reactors-java-event-streams-observer.html)!*/
   }
 }
