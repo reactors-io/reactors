@@ -5,6 +5,7 @@ package io.reactors.japi;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import scala.*;
 import scala.reflect.*;
 import scala.runtime.*;
@@ -32,6 +33,16 @@ class Util {
       public BoxedUnit apply(T x) {
         c.accept(x);
         return BoxedUnit.UNIT;
+      }
+    };
+  }
+
+  public static <T> AbstractFunction1<T, Object> toScalaFunction(
+    Predicate<T> p
+  ) {
+    return new AbstractFunction1<T, Object>() {
+      public Object apply(T x) {
+        return p.test(x);
       }
     };
   }

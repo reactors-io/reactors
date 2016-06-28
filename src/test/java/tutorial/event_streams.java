@@ -166,4 +166,22 @@ public class event_streams {
     e.react(4);
     Assert.assertEquals(seen, new ArrayList<Integer>(Arrays.asList(1, 5, 14, 30)));
   }
+
+  @Test
+  public void filterAndUnion() {
+    /*!begin-include!*/
+    /*!begin-code!*/
+    Events.Emitter<Integer> numbers = Events.emitter();
+    Events<Integer> even = numbers.filter(x -> x % 2 == 0);
+    Events<Integer> odd = numbers.filter(x -> x % 2 == 1);
+    Events<Integer> numbersAgain = even.union(odd);
+    /*!end-code!*/
+    /*!end-include(reactors-java-event-streams-filter-union.html)!*/
+
+    ArrayList<Integer> seen = new ArrayList();
+    numbersAgain.onEvent(x -> seen.add(x));
+    for (int i = 0; i < 10; i++) numbers.react(i);
+    Assert.assertEquals(seen,
+      new ArrayList<Integer>(Arrays.asList(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)));
+  }
 }

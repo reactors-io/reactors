@@ -5,11 +5,12 @@ package io.reactors.japi;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 
 
 public class Events<T> {
-  private io.reactors.Events<T> self;
+  io.reactors.Events<T> self;
 
   Events(io.reactors.Events<T> self) {
     this.self = self;
@@ -41,6 +42,14 @@ public class Events<T> {
 
   public <S> Events<S> scanPast(S zero, BiFunction<S, T, S> f) {
     return new Events(self.scanPast(zero, Util.toScalaFunction(f)));
+  }
+
+  public Events<T> filter(Predicate<T> p) {
+    return new Events(self.filter(Util.toScalaFunction(p)));
+  }
+
+  public Events<T> union(Events<T> that) {
+    return new Events(self.union(that.self));
   }
 
   public static <T> Events<T> never() {

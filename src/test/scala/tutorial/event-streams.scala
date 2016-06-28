@@ -332,6 +332,7 @@ class Introduction extends FunSuite with Matchers {
     val odd = numbers.filter(_ % 2 == 1)
     val numbersAgain = even union odd
     /*!end-code!*/
+    /*!include-code Java:reactors-java-event-streams-filter-union.html!*/
 
     var seen = List[Int]()
     numbersAgain.onEvent(seen ::= _)
