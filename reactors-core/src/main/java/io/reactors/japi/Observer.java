@@ -28,7 +28,10 @@ public abstract class Observer<T> {
   public static <T> Observer<T> create(
     Consumer<T> onEvent, Consumer<Throwable> onExcept, Runnable onUnreact
   ) {
-    // TODO
-    return null;
+    io.reactors.Observer<T> self = io.reactors.Observer$.MODULE$.apply(
+      Util.toScalaFunction(onEvent),
+      Util.toScalaFunction(onExcept),
+      Util.toScalaFunction(onUnreact));
+    return new Observer(self) {};
   }
 }

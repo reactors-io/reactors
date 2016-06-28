@@ -8,6 +8,7 @@ import io.reactors.japi.*;
 /*!end-code!*/
 /*!end-include(reactors-java-event-streams-import.html)!*/
 import java.util.ArrayList;
+import java.util.Arrays;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -69,8 +70,18 @@ public class event_streams {
     ArrayList<String> errors = new ArrayList<String>();
     int[] done = new int[] { 0 };
     Events.Emitter<Integer> e = Events.emitter();
-    //emitter.onReaction(...);
+    e.onReaction(Observer.create(
+      x -> seen.add(x),
+      t -> errors.add(t.getMessage()),
+      () -> done[0]++));
     /*!end-code!*/
     /*!end-include(reactors-java-event-streams-observer.html)!*/
+
+    /*!begin-include!*/
+    /*!begin-code!*/
+    e.react(1);
+    Assert.assertEquals(seen, new ArrayList<Integer>(Arrays.asList(1)));
+    /*!end-code!*/
+    /*!end-include(reactors-java-event-streams-observer-test.html)!*/
   }
 }

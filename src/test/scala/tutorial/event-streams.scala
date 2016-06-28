@@ -172,6 +172,7 @@ class Introduction extends FunSuite with Matchers {
       def unreact() = done += 1
     })
     /*!end-code!*/
+    /*!include-code Java:reactors-java-event-streams-observer.html!*/
 
     /*!md
     The `Observer[T]` type has three methods:
@@ -209,6 +210,7 @@ class Introduction extends FunSuite with Matchers {
     assert(errors == "^_^" :: Nil)
     assert(done == 1)
     /*!end-code!*/
+    /*!include-code Java:reactors-java-event-streams-observer-test.html!*/
 
     /*!md
     As you can see above, after `unreact`, subsequent calls to `react` or `except` have

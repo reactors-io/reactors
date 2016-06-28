@@ -30,3 +30,18 @@ trait Observer[@spec(Int, Long, Double) T] {
   def unreact(): Unit
 
 }
+
+
+object Observer {
+  /** Creates an observer using the specified handlers.
+   */
+  def apply[@spec(Int, Long, Double) T](
+    eh: T => Unit, th: Throwable => Unit, uh: () => Unit
+  ): Observer[T] = {
+    new Observer[T] {
+      def react(value: T, hint: Any) = eh(value)
+      def except(t: Throwable) = th(t)
+      def unreact() = uh()
+    }
+  }
+}

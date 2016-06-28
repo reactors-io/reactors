@@ -15,6 +15,15 @@ class Util {
     return a;
   }
 
+  public static <T> AbstractFunction0<BoxedUnit> toScalaFunction(Runnable r) {
+    return new AbstractFunction0<BoxedUnit>() {
+      public BoxedUnit apply() {
+        r.run();
+        return BoxedUnit.UNIT;
+      }
+    };
+  }
+
   public static <T> AbstractFunction1<T, BoxedUnit> toScalaFunction(Consumer<T> c) {
     return new AbstractFunction1<T, BoxedUnit>() {
       public BoxedUnit apply(T x) {
