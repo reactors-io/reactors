@@ -52,6 +52,10 @@ public class Events<T> {
     return new Events(self.take(n));
   }
 
+  public Events<T> drop(int n) {
+    return new Events(self.drop(n));
+  }
+
   public Events<T> union(Events<T> that) {
     return new Events(self.union(that.self));
   }

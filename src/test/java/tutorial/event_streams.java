@@ -240,4 +240,17 @@ public class event_streams {
     Assert.assertEquals(new ArrayList(Arrays.asList(1)), seen);
   }
 
+  @Test
+  public void drop() {
+    ArrayList<Integer> seen = new ArrayList();
+    Events.Emitter<Integer> e = Events.emitter();
+    e.drop(3).onEvent(x -> seen.add(x));
+
+    e.react(1);
+    e.react(2);
+    e.react(3);
+    e.react(4);
+    e.react(5);
+    Assert.assertEquals(new ArrayList(Arrays.asList(4, 5)), seen);
+  }
 }
