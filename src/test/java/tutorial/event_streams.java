@@ -228,4 +228,16 @@ public class event_streams {
     /*!end-include(reactors-java-event-streams-union.html)!*/
   }
 
+  @Test
+  public void take() {
+    ArrayList<Integer> seen = new ArrayList();
+    Events.Emitter<Integer> e = Events.emitter();
+    e.take(1).onEvent(x -> seen.add(x));
+
+    e.react(1);
+    e.react(2);
+    e.react(3);
+    Assert.assertEquals(new ArrayList(Arrays.asList(1)), seen);
+  }
+
 }

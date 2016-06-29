@@ -682,6 +682,21 @@ class EventsSpec extends FunSuite {
     assert(buffer == Seq("three", "nil"))
   }
 
+  test("take") {
+    val buffer = mutable.Buffer[String]()
+    val emitter = new Events.Emitter[String]
+    var done = false
+    emitter.take(2).onEvent(buffer += _)
+    emitter.take(2).onDone(done = true)
+
+    emitter.react("one")
+    assert(!done)
+    emitter.react("two")
+    assert(done)
+    emitter.react("three")
+    assert(buffer == Seq("one", "two"))
+  }
+
   test("mux") {
     var sum = 0
     val emitter = new Events.Emitter[Events[Int]]

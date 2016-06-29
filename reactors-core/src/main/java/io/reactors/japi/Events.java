@@ -48,6 +48,10 @@ public class Events<T> {
     return new Events(self.filter(Util.toScalaFunction(p)));
   }
 
+  public Events<T> take(int n) {
+    return new Events(self.take(n));
+  }
+
   public Events<T> union(Events<T> that) {
     return new Events(self.union(that.self));
   }

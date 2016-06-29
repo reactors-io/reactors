@@ -533,6 +533,15 @@ trait Events[@spec(Int, Long, Double) T] {
    */
   def dropAfter(p: T => Boolean): Events[T] = new Events.DropAfter(this, p)
 
+  /** Takes `n` events from this event stream, and unreacts.
+   *
+   *  @param n          number of events to take
+   *  @return           event stream with the forwarded events
+   */
+  def take(n: Int): Events[T] =
+    if (n > 0) new Events.Take(this, n)
+    else new Events.Never[T]
+
   /** Drops `n` events from this event stream, and emits the rest.
    *
    *  @param n          number of events to drop
@@ -1948,6 +1957,35 @@ object Events {
     }
     def except(t: Throwable) = target.except(t)
     def unreact() = target.unreact()
+  }
+
+  private[reactors] class Take[@spec(Int, Long, Double) T](
+    val self: Events[T],
+    val n: Int
+  ) extends Events[T] {
+    def onReaction(observer: Observer[T]): Subscription =
+      self.onReaction(new TakeObserver(observer, n))
+  }
+
+  private[reactors] class TakeObserver[@spec(Int, Long, Double) T](
+    val target: Observer[T],
+    var n: Int
+  ) extends Observer[T] {
+    def react(value: T, hint: Any) = {
+      if (n > 0) {
+        n -= 1
+        target.react(value, hint)
+      }
+      if (n == 0) {
+        n = -1
+        target.unreact()
+      }
+    }
+    def except(t: Throwable) = if (n > 0) target.except(t)
+    def unreact() = if (n > 0) {
+      n = -1
+      target.unreact()
+    }
   }
 
   private[reactors] class Drop[@spec(Int, Long, Double) T](
