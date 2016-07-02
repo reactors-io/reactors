@@ -7,6 +7,6 @@ package io.reactors
 
 package object protocol
 extends ServerProtocols
-with BalancerProtocols
+with RouterProtocols
 with Patterns
 with Conversions

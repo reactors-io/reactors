@@ -15,13 +15,13 @@ import scala.concurrent.duration._
 
 
 
-class BalancerProtocolsSpec extends FunSuite {
-  val system = ReactorSystem.default("balancer-protocols")
+class RouterProtocolsSpec extends FunSuite {
+  val system = ReactorSystem.default("router-protocols")
 
-  test("default balancer with single channel") {
+  test("default router with single channel") {
     val done = Promise[Boolean]()
     system.spawn(Reactor[Int] { self =>
-      val bc = system.channels.daemon.balancer(Seq(self.main.channel))
+      val bc = system.channels.daemon.router(Router.roundRobin(Seq(self.main.channel)))
       bc.channel ! 17
       self.main.events onEvent { x =>
         if (x == 17) {
@@ -37,13 +37,13 @@ class BalancerProtocolsSpec extends FunSuite {
 }
 
 
-class BalancerProtocolsCheck
+class RouterProtocolsCheck
 extends Properties("ServerProtocols") with ExtendedProperties {
   val system = ReactorSystem.default("check-system")
 
   val sizes = detChoose(0, 256)
 
-  property("round-robin balancer") = forAllNoShrink(sizes) { sz =>
+  property("round-robin router") = forAllNoShrink(sizes) { sz =>
     stackTraced {
       val num = sz + 1
       val ps = for (i <- 0 until num) yield Promise[Int]()
@@ -55,7 +55,7 @@ extends Properties("ServerProtocols") with ExtendedProperties {
         }
       })
       system.spawn(Reactor[Int] { self =>
-        val bc = system.channels.daemon.balancer(chs, Balancer.Policy.RoundRobin)
+        val bc = system.channels.daemon.router(Router.roundRobin(chs))
         for (i <- 0 until num) bc.channel ! i
         self.main.seal()
         done.success(true)
@@ -66,7 +66,7 @@ extends Properties("ServerProtocols") with ExtendedProperties {
     }
   }
 
-  property("random balancer") = forAllNoShrink(sizes) { sz =>
+  property("random router") = forAllNoShrink(sizes) { sz =>
     stackTraced {
       val num = sz + 1
       val done = Promise[Int]()
@@ -80,7 +80,7 @@ extends Properties("ServerProtocols") with ExtendedProperties {
         }
       })
       system.spawn(Reactor[Int] { self =>
-        val bc = system.channels.daemon.balancer(chs, Balancer.Policy.Uniform)
+        val bc = system.channels.daemon.router(Router.uniform(chs))
         bc.channel ! 17
         self.main.seal()
       })
