@@ -21,8 +21,8 @@ class RouterProtocolsSpec extends FunSuite {
   test("default router with single channel") {
     val done = Promise[Boolean]()
     system.spawn(Reactor[Int] { self =>
-      val bc = system.channels.daemon.router(Router.roundRobin(Seq(self.main.channel)))
-      bc.channel ! 17
+      val rc = system.channels.daemon.router(Router.roundRobin(Seq(self.main.channel)))
+      rc.channel ! 17
       self.main.events onEvent { x =>
         if (x == 17) {
           done.success(true)
@@ -55,8 +55,8 @@ extends Properties("ServerProtocols") with ExtendedProperties {
         }
       })
       system.spawn(Reactor[Int] { self =>
-        val bc = system.channels.daemon.router(Router.roundRobin(chs))
-        for (i <- 0 until num) bc.channel ! i
+        val rc = system.channels.daemon.router(Router.roundRobin(chs))
+        for (i <- 0 until num) rc.channel ! i
         self.main.seal()
         done.success(true)
       })
@@ -80,12 +80,33 @@ extends Properties("ServerProtocols") with ExtendedProperties {
         }
       })
       system.spawn(Reactor[Int] { self =>
-        val bc = system.channels.daemon.router(Router.uniform(chs))
-        bc.channel ! 17
+        val rc = system.channels.daemon.router(Router.uniform(chs))
+        rc.channel ! 17
         self.main.seal()
       })
       val index = Await.result(done.future, 10.seconds)
       assert(index >= 0 && index < num, (index, num))
+      true
+    }
+  }
+
+  property("hash") = forAllNoShrink(sizes) { sz =>
+    stackTraced {
+      val num = sz + 1
+      val done = for (i <- 0 until num) yield Promise[Boolean]()
+      val chs = for (i <- 0 until num) yield system.spawn(Reactor[Int] { self =>
+        self.main.events onEvent { x =>
+          done(i).success(true)
+          self.main.seal()
+        }
+        self.system.clock.timeout(5.seconds).on(self.main.seal())
+      })
+      system.spawn(Reactor[Int] { self =>
+        val rc = system.channels.daemon.router(Router.hash(chs, (x: Int) => x))
+        for (i <- 0 until num) rc.channel ! i
+        self.main.seal()
+      })
+      for (i <- 0 until num) assert(Await.result(done(i).future, 4.seconds))
       true
     }
   }
