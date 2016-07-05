@@ -21,7 +21,7 @@ trait RouterProtocols {
      */
     def zeroSelector[T]: Selector[T] = (x: T) => new Channel.Zero[T]
 
-    /** Picks channels in a round-robin manner.
+    /** Picks channels in a Round Robin manner.
      */
     def roundRobin[T](targets: Seq[Channel[T]]): Selector[T] = {
       if (targets.isEmpty) zeroSelector
@@ -57,6 +57,52 @@ trait RouterProtocols {
       if (targets.isEmpty) zeroSelector
       else (x: T) => targets(hashing(x) % targets.length)
     }
+
+    /** Picks the next channel according to the Deficit Round Robin routing algorithm.
+     *
+     *  This routing policy attempts to send the message to the channel that has so far
+     *  received the least total cost, according to some cost function `cost`.
+     *  The cost of an event could be its size (if the network transmission is the main
+     *  concern), or the estimate on the processing time of that event (if computing
+     *  bandwidth is the main concern).
+     *
+     *  Each target channel has an associated deficit counter, which is increased by
+     *  an amount called a `quantum` each time a channel gets selected, and decreased
+     *  every time that an event is sent to it. When an event with a cost higher than
+     *  the deficit counter appears, the next channel is selected.
+     *
+     *  '''Note:''' quantum and cost should be relatively close in magnitude.
+     *
+     *  @tparam T       type of routed events
+     *  @param targets  sequence of target channels
+     *  @param quantum  the base cost quantum used to increase 
+     *  @param cost     function from an event to its cost
+     *  @return         a selector
+     */
+    def deficitRoundRobin[T](
+      targets: Seq[Channel[T]],
+      quantum: Int,
+      cost: T => Int
+    ): Selector[T] = {
+      if (targets.isEmpty) zeroSelector
+      else {
+        val deficits = new Array[Int](targets.length)
+        var i = targets.length - 1
+        (x: T) => {
+          val c = cost(x)
+          var found = false
+          while (!found) {
+            if (deficits(i) > c) found = true
+            else {
+              i = (i + 1) % targets.length
+              deficits(i) += quantum
+            }
+          }
+          deficits(i) -= c
+          targets(i)
+        }
+      }
+    }
   }
 
   implicit class RouterChannelBuilderOps(val builder: ChannelBuilder) {
@@ -67,6 +113,7 @@ trait RouterProtocols {
      *
      *  @tparam T        the type of the routed events
      *  @param selector  function that selects a channel for the given event
+     *  @return          a connector for the router channel
      */
     def router[@spec(Int, Long, Double) T: Arrayable](
       selector: T => Channel[T]
