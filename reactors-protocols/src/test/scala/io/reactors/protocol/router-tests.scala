@@ -4,6 +4,8 @@ package protocol
 
 
 import io.reactors.test._
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import org.scalacheck._
 import org.scalacheck.Prop.forAllNoShrink
 import org.scalacheck.Gen.choose
@@ -107,6 +109,30 @@ extends Properties("ServerProtocols") with ExtendedProperties {
         self.main.seal()
       })
       for (i <- 0 until num) assert(Await.result(done(i).future, 4.seconds))
+      true
+    }
+  }
+
+  property("DRR") = forAllNoShrink(sizes) { sz =>
+    stackTraced {
+      val num = sz + 1
+      val reps = 10
+      val maxcost = 4
+      var totalWork = new Array[Int](num)
+      val latch = new CountDownLatch(num * reps)
+      val chs = for (i <- 0 until num) yield system.spawn(Reactor[Int] { self =>
+        self.main.events onEvent { x =>
+          totalWork(i) += x
+          latch.countDown()
+        }
+      })
+      system.spawn(Reactor[Int] { self =>
+        val rc = system.channels.daemon.router(
+          Router.deficitRoundRobin(chs, 1, (x: Int) => x))
+        for (i <- 0 until num * reps) rc.channel ! (1 + i % maxcost)
+      })
+      latch.await(5, TimeUnit.SECONDS)
+      assert(totalWork.max - totalWork.min <= maxcost, (totalWork.max, totalWork.min))
       true
     }
   }
