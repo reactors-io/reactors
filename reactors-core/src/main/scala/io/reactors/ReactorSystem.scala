@@ -28,6 +28,12 @@ class ReactorSystem(
 
   def system = this
 
+  private[reactors] val debugApi: DebugApi = {
+    val debugcls = Class.forName(bundle.config.getString("debug-api.name"))
+    val debugctor = debugcls.getConstructor(classOf[ReactorSystem])
+    debugctor.newInstance(this).asInstanceOf[DebugApi]
+  }
+
   /** Protects the internal state of the reactor system.
    */
   private val monitor = new Monitor
@@ -142,6 +148,9 @@ object ReactorSystem {
           port = 17771
         }
       }
+      debug-api = {
+        name = "io.reactors.DebugApi$Zero"
+      }
       system = {
         net = {
           parallelism = 8
@@ -149,6 +158,10 @@ object ReactorSystem {
       }
     """)
   }
+
+  /** Convert the configuration string to a `Config` object.
+   */
+  def customConfig(txt: String): Config = ConfigFactory.parseString(txt)
 
   /** Contains various configuration values related to the reactor system,
    *  such as the set of registered schedulers and the system url.

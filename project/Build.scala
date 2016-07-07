@@ -192,6 +192,10 @@ object ReactorsBuild extends MechaRepoBuild {
 
   def protocolsDependencies(scalaVersion: String) = defaultDependencies(scalaVersion)
 
+  def reactorsDebuggerSettings = projectSettings("-debugger", debuggerDependencies)
+
+  def debuggerDependencies(scalaVersion: String) = defaultDependencies(scalaVersion)
+
   def reactorsExtraSettings = projectSettings("-extra", extraDependencies)
 
   def extraDependencies(scalaVersion: String) = {
@@ -211,6 +215,7 @@ object ReactorsBuild extends MechaRepoBuild {
     reactorsContainer,
     reactorsRemote,
     reactorsProtocols,
+    reactorsDebugger,
     reactorsExtra
   ) dependsOn(
     reactorsCommon % "compile->compile;test->test",
@@ -218,6 +223,7 @@ object ReactorsBuild extends MechaRepoBuild {
     reactorsContainer % "compile->compile;test->test",
     reactorsRemote % "compile->compile;test->test",
     reactorsProtocols % "compile->compile;test->test",
+    reactorsDebugger % "compile->compile;test->test",
     reactorsExtra % "compile->compile;test->test"
   ) dependsOnSuperRepo
 
@@ -230,13 +236,15 @@ object ReactorsBuild extends MechaRepoBuild {
     reactorsCore,
     reactorsContainer,
     reactorsRemote,
-    reactorsProtocols
+    reactorsProtocols,
+    reactorsDebugger
   ) dependsOn(
     reactorsCommon % "compile->compile;test->test",
     reactorsCore % "compile->compile;test->test",
     reactorsContainer % "compile->compile;test->test",
     reactorsRemote % "compile->compile;test->test",
-    reactorsProtocols % "compile->compile;test->test"
+    reactorsProtocols % "compile->compile;test->test",
+    reactorsDebugger % "compile->compile;test->test"
   ) dependsOnSuperRepo
 
   lazy val reactorsCommon = Project(
@@ -297,6 +305,18 @@ object ReactorsBuild extends MechaRepoBuild {
     reactorsCommon % "compile->compile;test->test",
     reactorsCore % "compile->compile;test->test",
     reactorsContainer % "compile->compile;test->test"
+  ) dependsOnSuperRepo
+
+  lazy val reactorsDebugger: Project = Project(
+    "reactors-debugger",
+    file("reactors-debugger"),
+    settings = reactorsDebuggerSettings
+  ) configs(
+    Benchmarks
+  ) settings(
+    inConfig(Benchmarks)(Defaults.testSettings): _*
+  ) dependsOn(
+    reactorsCore % "compile->compile;test->test"
   ) dependsOnSuperRepo
 
   lazy val reactorsExtra: Project = Project(

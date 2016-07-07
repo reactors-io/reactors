@@ -45,7 +45,7 @@ abstract class DebugApi {
 object DebugApi {
   /** A debugger API implementation that ignores all debugger actions.
    */
-  object Zero extends DebugApi {
+  class Zero(val system: ReactorSystem) extends DebugApi {
     def isEnabled = false
 
     def eventSent[@spec(Int, Long, Double) T](c: Channel[T], x: T) {
