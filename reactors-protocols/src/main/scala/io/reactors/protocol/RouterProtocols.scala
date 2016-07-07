@@ -49,6 +49,11 @@ trait RouterProtocols {
     }
 
     /** Consistently picks a channel using a hashing function on the event.
+     *
+     *  The hashing function is applied to the event, and the hash code is used to
+     *  select a channel. Given that the same hash code is always returned for the same
+     *  event, the same channel is always picked. This is useful when implementing, e.g.
+     *  distributed hash tables.
      */
     def hash[T](
       targets: Seq[Channel[T]],
