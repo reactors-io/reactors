@@ -32,6 +32,8 @@ abstract class Services {
 
   private val services = mutable.Map[ClassTag[_], AnyRef]()
 
+  private[reactors] val debugApi = new DebugApi(system)
+
   /** System configuration */
   def config = system.bundle.config
 
