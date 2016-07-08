@@ -60,8 +60,11 @@ object WebDebugger {
     // attributes
     s.port(system.bundle.config.getInt("debug-api.port"))
 
-    //routes
+    // ui routes
     s.get("/").html(debuggerPage)
+
+    // api routes
+    // TODO
 
     s.listen()
   }
