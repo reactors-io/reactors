@@ -150,6 +150,7 @@ object ReactorSystem {
       }
       debug-api = {
         name = "io.reactors.DebugApi$Zero"
+        port = 8888
       }
       system = {
         net = {

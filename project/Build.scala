@@ -44,6 +44,7 @@ object ReactorsBuild extends MechaRepoBuild {
       parallelExecution in ThisBuild := false,
       concurrentRestrictions in Global += Tags.limit(Tags.Test, 1),
       fork in Test := true,
+      fork in run := true,
       javaOptions in test += "-Xmx2G -XX:MaxPermSize=384m",
       scalacOptions ++= Seq(
         "-deprecation"
@@ -194,7 +195,13 @@ object ReactorsBuild extends MechaRepoBuild {
 
   def reactorsDebuggerSettings = projectSettings("-debugger", debuggerDependencies)
 
-  def debuggerDependencies(scalaVersion: String) = defaultDependencies(scalaVersion)
+  def debuggerDependencies(scalaVersion: String) = {
+    defaultDependencies(scalaVersion) ++ Seq(
+      "org.rapidoid" % "rapidoid-http-server" % "5.1.9",
+      "com.github.spullara.mustache.java" % "compiler" % "0.9.2",
+      "commons-io" % "commons-io" % "2.4"
+    )
+  }
 
   def reactorsExtraSettings = projectSettings("-extra", extraDependencies)
 
