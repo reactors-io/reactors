@@ -199,7 +199,8 @@ object ReactorsBuild extends MechaRepoBuild {
     defaultDependencies(scalaVersion) ++ Seq(
       "org.rapidoid" % "rapidoid-http-server" % "5.1.9",
       "com.github.spullara.mustache.java" % "compiler" % "0.9.2",
-      "commons-io" % "commons-io" % "2.4"
+      "commons-io" % "commons-io" % "2.4",
+      "org.json4s" %% "json4s-native" % "3.4.0"
     )
   }
 

@@ -10,6 +10,7 @@ import java.io.StringWriter
 import java.util.HashMap
 import java.util.regex._
 import org.apache.commons.io.IOUtils
+import org.rapidoid.http._
 import org.rapidoid.setup._
 import scala.collection._
 
@@ -157,7 +158,7 @@ object WebServer {
     s.get("/").html(debuggerPage)
 
     // api routes
-    // TODO
+    s.get("/api/state").json((req: Req) => webapi.state(0).asJson)
 
     s
   }

@@ -47,7 +47,7 @@ extends DebugApi with Protocol.Service with WebApi {
 
   /* external api */
 
-  def state(ts: Long): (Long, WebApi.State) = {
+  def state(ts: Long): WebApi.State = {
     ???
   }
 }
