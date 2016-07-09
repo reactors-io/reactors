@@ -148,7 +148,6 @@ object WebServer {
     }
 
     val debuggerPage = loadPage("io/reactors/debugger/index.html")
-
     val s = Setup.create(system.name)
 
     // attributes

@@ -10,6 +10,8 @@ class WebDebugger(val system: ReactorSystem)
 extends DebugApi with Protocol.Service with WebApi {
   private val server: WebServer = new WebServer(system, this)
 
+  /* internal api */
+
   def isEnabled = false
 
   def eventSent[@spec(Int, Long, Double) T](c: Channel[T], x: T) {
@@ -41,6 +43,12 @@ extends DebugApi with Protocol.Service with WebApi {
 
   def shutdown() {
     server.shutdown()
+  }
+
+  /* external api */
+
+  def state(ts: Long): (Long, WebApi.State) = {
+    ???
   }
 }
 
