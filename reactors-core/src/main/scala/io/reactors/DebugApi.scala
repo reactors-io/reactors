@@ -42,7 +42,7 @@ abstract class DebugApi {
 
   /** Called when a connector is created.
    */
-  def connectorCreated[T](c: Connector[T]): Unit
+  def connectorOpened[T](c: Connector[T]): Unit
 
   /** Called when a connector is sealed.
    */
@@ -77,7 +77,7 @@ object DebugApi {
     def reactorTerminated(r: Reactor[_]) {
     }
 
-    def connectorCreated[T](c: Connector[T]) {
+    def connectorOpened[T](c: Connector[T]) {
     }
 
     def connectorSealed[T](c: Connector[T]) {

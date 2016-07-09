@@ -28,15 +28,15 @@ class ReactorSystem(
 
   def system = this
 
+  /** Protects the internal state of the reactor system.
+   */
+  private[reactors] val monitor = new Monitor
+
   private[reactors] val debugApi: DebugApi = {
     val debugcls = Class.forName(bundle.config.getString("debug-api.name"))
     val debugctor = debugcls.getConstructor(classOf[ReactorSystem])
     debugctor.newInstance(this).asInstanceOf[DebugApi]
   }
-
-  /** Protects the internal state of the reactor system.
-   */
-  private val monitor = new Monitor
 
   /** Contains the frames for different reactors.
    */

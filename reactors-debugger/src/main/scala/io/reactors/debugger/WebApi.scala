@@ -12,28 +12,22 @@ import org.json4s.native.JsonMethods._
 trait WebApi {
   /** Either the full state or the sequence of updates since the specified timestamp.
    *
-   *  @return    The the state change since the last update
+   *  @param suid   unique identifier of the session
+   *  @param ts     timestamp of the last update
+   *  @return       the the state change since the last update
    */
-  def state(ts: Long): WebApi.State
+  def state(suid: String, ts: Long): WebApi.Update
 }
 
 
 object WebApi {
-  abstract class State {
-    def timestamp: Long
-    def asJson: String
-  }
-
-  object State {
-    class Complete(val timestamp: Long) extends State {
-      def asJson = compact(render(
-        ("timestamp" -> timestamp)
-      ))
-    }
-    class Delta(val timestamp: Long) extends State {
-      def asJson = compact(render(
-        ("timestamp" -> timestamp)
-      ))
-    }
+  class Update(
+    val timestamp: Long,
+    val deltas: Seq[DeltaDebugger.Delta]
+  ) {
+    def asJson = compact(render(
+      ("timestamp" -> timestamp) ~
+      ("deltas" -> deltas.map(_.asJson))
+    ))
   }
 }
