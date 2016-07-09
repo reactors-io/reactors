@@ -1,6 +1,7 @@
 #!/bin/sh
 
 set +x
+set -e
 
 TRAVIS_SCALA_VERSION_ARG=$1
 
