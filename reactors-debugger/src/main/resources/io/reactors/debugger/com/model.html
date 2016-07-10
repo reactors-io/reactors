@@ -1,0 +1,26 @@
+
+@@library(io/reactors/debugger/js/jquery/jquery-1.12.4.min.js)
+@@component(io/reactors/debugger/com/config.html)
+
+
+<template id="x-model">
+  <div class="x-model-root">
+    <!-- model -->
+  </div>
+</template>
+
+
+<script>
+  var Model = Vue.extend({
+    template: "#x-model",
+    attached: function() {
+      console.log("Attached model!");
+    }
+  });
+
+  Vue.component("x-model", Model);
+</script>
+
+
+<style type="text/css">
+</style>
