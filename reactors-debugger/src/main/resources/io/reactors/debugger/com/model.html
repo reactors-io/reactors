@@ -11,14 +11,37 @@
 
 
 <script>
+  "use strict";
+
   var Model = Vue.extend({
     template: "#x-model",
     props: ["config", "api"],
-    attached: function() {
-    },
     data: function() {
       return {
+        heartbeatRate: this.config.model.heartbeatRate,
+        timestamp: 0,
+        suid: "",
+        state: {}
       };
+    },
+    attached: function() {
+      var update = () => {
+        this.api.state(this.suid, this.timestamp).done((data) => {
+          if (data.suid) this.suid = data.suid;
+          console.log(this.suid);
+
+          // Reset heartbeat and repeat.
+          this.heartbeatRate = this.config.model.heartbeatRate;
+          setTimeout(update, this.heartbeatRate * 1000);
+        }).fail((err) => {
+          // Slow down heartbeat and repeat.
+          this.heartbeatRate = Math.min(
+            this.heartbeatRate * 3 / 2, this.config.model.maxHeartbeatRate);
+          setTimeout(update, this.heartbeatRate * 1000);
+        });
+      };
+
+      update();
     }
   });
 

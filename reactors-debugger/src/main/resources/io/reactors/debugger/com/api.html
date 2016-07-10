@@ -16,7 +16,6 @@
   class ApiAdapter {
     constructor(baseUrl) {
       this.baseUrl = baseUrl;
-      this.suid = "";
     }
 
     request(path, payload) {
@@ -25,7 +24,8 @@
       $.ajax({
         url: url,
         type: "POST",
-        data: payload,
+        contentType: "application/json",
+        data: JSON.stringify(payload),
         success: function(data) {
           deferred.resolve(data);
         },
@@ -37,9 +37,9 @@
       return deferred.promise();
     }
 
-    state(timestamp) {
+    state(suid, timestamp) {
       return this.request("state", {
-        suid: this.suid,
+        suid: suid,
         timestamp: timestamp
       });
     }
@@ -48,12 +48,12 @@
   var Api = Vue.extend({
     template: "#x-api",
     props: ["config"],
-    attached: function() {
-    },
     data: function() {
       return {
         adapter: new ApiAdapter(this.config.global.baseUrl)
       };
+    },
+    attached: function() {
     }
   });
 

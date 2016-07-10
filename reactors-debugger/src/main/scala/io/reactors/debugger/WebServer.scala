@@ -10,6 +10,8 @@ import java.io.StringWriter
 import java.util.HashMap
 import java.util.regex._
 import org.apache.commons.io.IOUtils
+import org.json4s._
+import org.json4s.jackson.JsonMethods._
 import org.rapidoid.http._
 import org.rapidoid.setup._
 import scala.collection._
@@ -158,7 +160,13 @@ object WebServer {
     s.get("/").html(debuggerPage)
 
     // api routes
-    s.post("/api/state").json((req: Req) => webapi.state("", 0))
+    s.post("/api/state").json((req: Req) => {
+      val suid = req.posted.get("suid").asInstanceOf[String]
+      val ts = req.posted.get("timestamp").asInstanceOf[Int]
+      println(suid)
+      println(ts)
+      asJsonNode(webapi.state(suid, ts))
+    })
 
     s
   }

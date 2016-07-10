@@ -4,9 +4,6 @@ package debugger
 
 
 import io.reactors.common.UnrolledRing
-import org.json4s._
-import org.json4s.JsonDSL._
-import org.json4s.native.JsonMethods._
 
 
 

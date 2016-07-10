@@ -9,21 +9,22 @@
 <script>
   var Config = Vue.extend({
     template: "#x-config",
-    attached: function() {
-    },
     data: function() {
       var configuration = {
         global: {
           baseUrl: location.origin + "/api/"
         },
         model: {
-          heartbeatRate: 2
+          heartbeatRate: 2,
+          maxHeartbeatRate: 48
         }
       };
 
       return {
         state: configuration
       };
+    },
+    attached: function() {
     }
   });
 
