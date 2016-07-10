@@ -1,6 +1,61 @@
 
-@@component(io/reactors/debugger/com/config.html)
+@@library(io/reactors/debugger/js/util.js)
+@@library(io/reactors/debugger/lib/jquery/jquery-1.12.4.min.js)
+
+
+<template id="x-api">
+  <div class="x-api-root">
+    <!-- config -->
+  </div>
+</template>
+
 
 <script>
-  
+  "use strict";
+
+  class ApiAdapter {
+    constructor(baseUrl) {
+      this.baseUrl = baseUrl;
+      this.suid = "";
+    }
+
+    request(path, payload) {
+      var url = this.baseUrl + path;
+      var deferred = $.Deferred();
+      $.ajax({
+        url: url,
+        type: "POST",
+        data: payload,
+        success: function(data) {
+          deferred.resolve(data);
+        },
+        error: function(r, status, error) {
+          deferred.reject(error);
+          log.error("Request to '" + url + "' failed.", error);
+        }
+      });
+      return deferred.promise();
+    }
+
+    state(timestamp) {
+      return this.request("state", {
+        suid: this.suid,
+        timestamp: timestamp
+      });
+    }
+  }
+
+  var Api = Vue.extend({
+    template: "#x-api",
+    props: ["config"],
+    attached: function() {
+    },
+    data: function() {
+      return {
+        adapter: new ApiAdapter(this.config.global.baseUrl)
+      };
+    }
+  });
+
+  Vue.component("x-api", Api);
 </script>

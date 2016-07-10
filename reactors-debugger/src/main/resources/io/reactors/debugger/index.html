@@ -2,11 +2,11 @@
 <html>
   <head>
     <title>Reactor System -- {{ url }}</title>
-    @@style(io/reactors/debugger/js/bootstrap/bootstrap.min.css)
-    @@library(io/reactors/debugger/js/jquery/jquery-1.12.4.min.js)
-    @@library(io/reactors/debugger/js/bootstrap/bootstrap.min.js)
-    @@library(io/reactors/debugger/js/vuejs/vue.min.js)
-    @@component(io/reactors/debugger/com/model.html)
+    @@style(io/reactors/debugger/lib/bootstrap/bootstrap.min.css)
+    @@library(io/reactors/debugger/lib/jquery/jquery-1.12.4.min.js)
+    @@library(io/reactors/debugger/lib/bootstrap/bootstrap.min.js)
+    @@library(io/reactors/debugger/lib/vuejs/vue.min.js)
+    @@component(io/reactors/debugger/com/debugger.html)
     {{{ imports }}}
     <script>
       var vm;
@@ -20,6 +20,6 @@
   </head>
 
   <body>
-    <x-model></x-model>
+    <x-debugger></x-debugger>
   </body>
 </html>

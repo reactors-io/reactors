@@ -1,0 +1,26 @@
+
+@@library(io/reactors/debugger/lib/jquery/jquery-1.12.4.min.js)
+
+
+<template id="x-log-window">
+  <div class="x-log-window-root">
+    <!-- log-window -->
+  </div>
+</template>
+
+
+<script>
+  var LogWindow = Vue.extend({
+    template: "#x-log-window",
+    props: ["config", "history"],
+    attached: function() {
+      console.log("Attached log-window!");
+    }
+  });
+
+  Vue.component("x-log-window", LogWindow);
+</script>
+
+
+<style type="text/css">
+</style>

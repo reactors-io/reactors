@@ -1,5 +1,5 @@
 
-@@library(io/reactors/debugger/js/jquery/jquery-1.12.4.min.js)
+@@library(io/reactors/debugger/lib/jquery/jquery-1.12.4.min.js)
 @@component(io/reactors/debugger/com/config.html)
 
 
@@ -13,8 +13,12 @@
 <script>
   var Model = Vue.extend({
     template: "#x-model",
+    props: ["config", "api"],
     attached: function() {
-      console.log("Attached model!");
+    },
+    data: function() {
+      return {
+      };
     }
   });
 

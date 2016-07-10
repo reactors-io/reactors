@@ -1,0 +1,36 @@
+
+@@library(io/reactors/debugger/lib/jquery/jquery-1.12.4.min.js)
+@@component(io/reactors/debugger/com/config.html)
+@@component(io/reactors/debugger/com/api.html)
+@@component(io/reactors/debugger/com/model.html)
+@@component(io/reactors/debugger/com/log-window.html)
+
+
+<template id="x-debugger">
+  <div class="x-debugger-root">
+    <!-- debugger -->
+    <x-config v-ref:config></x-config>
+    <x-api v-ref:api :config="$refs.config.state"></x-api>
+    <x-model :config="$refs.config.state" :api="$refs.api.adapter">
+    </x-model>
+  </div>
+</template>
+
+
+<script>
+  var Debugger = Vue.extend({
+    template: "#x-debugger",
+    attached: function() {
+    },
+    data: function() {
+      return {
+      };
+    }
+  });
+
+  Vue.component("x-debugger", Debugger);
+</script>
+
+
+<style type="text/css">
+</style>

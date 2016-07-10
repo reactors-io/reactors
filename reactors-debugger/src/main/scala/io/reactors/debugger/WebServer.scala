@@ -3,7 +3,7 @@ package debugger
 
 
 
-import com.github.mustachejava._
+import _root_.com.github.mustachejava._
 import java.io.BufferedReader
 import java.io.StringReader
 import java.io.StringWriter
@@ -158,7 +158,7 @@ object WebServer {
     s.get("/").html(debuggerPage)
 
     // api routes
-    s.get("/api/state").json((req: Req) => webapi.state("", 0))
+    s.post("/api/state").json((req: Req) => webapi.state("", 0))
 
     s
   }

@@ -1,8 +1,31 @@
 
+<template id="x-config">
+  <div class="x-config-root">
+    <!-- config -->
+  </div>
+</template>
+
+
 <script>
-  var config = {
-    model: {
-      hearbeatRate: 2
+  var Config = Vue.extend({
+    template: "#x-config",
+    attached: function() {
+    },
+    data: function() {
+      var configuration = {
+        global: {
+          baseUrl: location.origin + "/api/"
+        },
+        model: {
+          heartbeatRate: 2
+        }
+      };
+
+      return {
+        state: configuration
+      };
     }
-  };
+  });
+
+  Vue.component("x-config", Config);
 </script>
