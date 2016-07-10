@@ -158,7 +158,7 @@ object WebServer {
     s.get("/").html(debuggerPage)
 
     // api routes
-    s.get("/api/state").json((req: Req) => webapi.state("", 0).asJson)
+    s.get("/api/state").json((req: Req) => webapi.state("", 0))
 
     s
   }

@@ -3,20 +3,32 @@ package debugger
 
 
 
+import java.util.TimerTask
 import java.util.UUID
 import java.util.concurrent.atomic._
+import org.json4s._
 import scala.collection._
 
 
 
 class WebDebugger(val system: ReactorSystem)
 extends DebugApi with Protocol.Service with WebApi {
+  private val expirationSeconds = 240
+  private val expirationCheckSeconds = 150
   private val server: WebServer = new WebServer(system, this)
   private val monitor = system.monitor
   private val startTime = System.currentTimeMillis()
   private val uidCount = new AtomicInteger
+  private var lastActivityTime = System.currentTimeMillis()
   @volatile private var deltaDebugger: DeltaDebugger = null
   @volatile private var breakpointDebugger: BreakpointDebugger = null
+
+  {
+    // Check for expiration every once in a while.
+    system.globalTimer.schedule(new TimerTask {
+      def run() = checkExpired()
+    }, expirationCheckSeconds * 1000)
+  }
 
   /* internal api */
 
@@ -96,17 +108,33 @@ extends DebugApi with Protocol.Service with WebApi {
   /* external api */
 
   private def ensureLive() {
-    if (deltaDebugger == null) monitor.synchronized {
+    monitor.synchronized {
       if (deltaDebugger == null) {
         deltaDebugger = new DeltaDebugger(system, uniqueId())
         breakpointDebugger = new BreakpointDebugger(system)
       }
+      lastActivityTime = System.currentTimeMillis()
     }
   }
 
-  def state(suid: String, ts: Long): WebApi.Update = {
-    ensureLive()
-    ???
+  private def diff(x: Long, y: Long): Long = x - y
+
+  private def checkExpired() {
+    monitor.synchronized {
+      val now = System.currentTimeMillis()
+      if (diff(now, lastActivityTime) > expirationSeconds * 1000) {
+        deltaDebugger = null
+        breakpointDebugger = null
+        monitor.notifyAll()
+      }
+    }
+  }
+
+  def state(suid: String, ts: Long): JValue = {
+    monitor.synchronized {
+      ensureLive()
+      deltaDebugger.state(suid, ts).toJson
+    }
   }
 }
 
