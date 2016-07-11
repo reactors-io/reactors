@@ -69,7 +69,18 @@
         if (!cond) this.$dispatch("critical-error", msg);
       },
       apply: function(delta) {
-
+        switch (delta) {
+          case "start":
+            break;
+          case "die":
+            break;
+          case "term":
+            break;
+          case "open":
+            break;
+          case "seal":
+            break;
+        }
       }
     }
   });

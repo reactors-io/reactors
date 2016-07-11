@@ -28,13 +28,15 @@
     template: "#x-debugger",
     data: function() {
       return {
+        errors: []
       };
     },
     attached: function() {
     },
     methods: {
-      onCriticalError: function(e) {
+      onCriticalError: function(msg) {
         this.$refs.model.stop();
+        errors.push(msg);
       }
     }
   });
