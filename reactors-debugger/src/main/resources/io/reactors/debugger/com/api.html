@@ -31,7 +31,7 @@
         },
         error: function(r, status, error) {
           deferred.reject(error);
-          log.error("Request to '" + url + "' failed.", error);
+          Log.error("Request to '" + url + "' failed.", error);
         }
       });
       return deferred.promise();

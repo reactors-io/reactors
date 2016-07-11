@@ -163,8 +163,6 @@ object WebServer {
     s.post("/api/state").json((req: Req) => {
       val suid = req.posted.get("suid").asInstanceOf[String]
       val ts = req.posted.get("timestamp").asInstanceOf[Int]
-      println(suid)
-      println(ts)
       asJsonNode(webapi.state(suid, ts))
     })
 
