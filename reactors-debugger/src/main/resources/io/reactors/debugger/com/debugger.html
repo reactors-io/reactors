@@ -36,7 +36,7 @@
     methods: {
       onCriticalError: function(msg) {
         this.$refs.model.stop();
-        errors.push(msg);
+        this.errors.push(msg);
       }
     }
   });
