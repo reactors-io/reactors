@@ -16,9 +16,16 @@ extends DebugApi {
   private val windowSize = 128
   private val oldstate = new DeltaDebugger.State()
   private var oldtimestamp = 0L
-  private val curstate = oldstate.copy
+  private var curstate: DeltaDebugger.State = null
   private var curtimestamp = 0L
   private val deltas = new UnrolledRing[DeltaDebugger.Delta]
+
+  {
+    monitor.synchronized {
+      // TODO populate states
+    }
+    curstate = oldstate.copy()
+  }
 
   private def enqueue(delta: DeltaDebugger.Delta) {
     monitor.synchronized {
@@ -33,10 +40,10 @@ extends DebugApi {
     }
   }
 
-  def state(suid: String, reqts: Long): DeltaDebugger.Update = {
+  def state(suid: String, reqts: Long): JValue = {
     monitor.synchronized {
       if (suid != sessionuid || reqts < oldtimestamp) {
-        DeltaDebugger.Update(curtimestamp, sessionuid, Some(curstate.copy()), None)
+        DeltaDebugger.toJson(sessionuid, curtimestamp, Some(curstate.copy()), None)
       } else {
         val newdeltas = mutable.Buffer[DeltaDebugger.Delta]()
         var ts = oldtimestamp
@@ -44,7 +51,7 @@ extends DebugApi {
           if (ts > reqts) newdeltas += delta
           ts += 1
         }
-        DeltaDebugger.Update(curtimestamp, sessionuid, None, Some(newdeltas))
+        DeltaDebugger.toJson(sessionuid, curtimestamp, None, Some(newdeltas))
       }
     }
   }
@@ -72,22 +79,25 @@ extends DebugApi {
 
 
 object DeltaDebugger {
-  case class Update(
-    ts: Long, suid: String, state: Option[State], deltas: Option[Seq[Delta]]
-  ) {
-    def toJson = (
-      ("ts" -> ts) ~
-      ("suid" -> suid) ~
-      ("state" -> state.map(_.toJson)) ~
-      ("deltas" -> deltas.map(_.map(_.toJson)))
-    )
-  }
+  def toJson(
+    suid: String, ts: Long, state: Option[State], deltas: Option[Seq[Delta]]
+  ) = (
+    ("ts" -> ts) ~
+    ("suid" -> suid) ~
+    ("state" -> state.map(_.toJson)) ~
+    ("deltas" -> deltas.map(_.map(_.toJson)))
+  )
 
   class State() {
+    val reactors = mutable.Set[String]()
     def copy(): State = {
-      new State()
+      val s = new State()
+      for (name <- reactors) s.reactors += name
+      s
     }
-    def toJson: JValue = JObject()
+    def toJson: JValue = (
+      ("reactors" -> reactors.toSeq)
+    )
   }
 
   abstract class Delta {

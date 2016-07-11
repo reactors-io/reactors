@@ -24,6 +24,12 @@ final class UniqueStore[T >: Null <: Identifiable with AnyRef](
    */
   def reserveId(): Long = idCounter.getAndIncrement()
 
+  /** Atomically returns the values in this unique store.
+   */
+  def values: Iterable[(Long, String, T)] = monitor.synchronized {
+    for ((id, name) <- byId) yield (id, name, byName(name))
+  }
+
   /** Attempt to store the value `x` with the `proposedName`.
    *
    *  Returns the name under which `x` is stored. If the name is not available, returns

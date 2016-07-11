@@ -31,6 +31,7 @@
           // Update session uid.
           this.ensure(data.suid, "Session uid not found in state update.");
           this.suid = data.suid;
+          console.log(data);
 
           // Update timestamp.
           this.ensure(data.timestamp, "Timestamp not found in state update.");

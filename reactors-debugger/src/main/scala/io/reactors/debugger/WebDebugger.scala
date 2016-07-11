@@ -133,7 +133,7 @@ extends DebugApi with Protocol.Service with WebApi {
   def state(suid: String, ts: Long): JValue = {
     monitor.synchronized {
       ensureLive()
-      deltaDebugger.state(suid, ts).toJson
+      deltaDebugger.state(suid, ts)
     }
   }
 }
