@@ -21,7 +21,11 @@
         heartbeatRate: this.config.model.heartbeatRate,
         running: true,
         suid: "",
-        state: {},
+        state: {
+          reactors: {},
+          channels: {}
+        },
+        history: [],
         timestamp: 0
       };
     },
@@ -43,7 +47,12 @@
             this.ensure(data.deltas, "Neither state nor deltas found in state update.");
             for (var i = 0; i < data.deltas.length; i++) {
               var delta = data.deltas[i];
+              this.history.push(this.enrichDelta(delta));
               this.apply(delta);
+            }
+            if (this.history.length > this.config.model.historySize) {
+              var len = this.history.length - this.config.model.historySize;
+              this.history.splice(0, len);
             }
           }
 
@@ -71,18 +80,54 @@
       apply: function(delta) {
         switch (delta[0]) {
           case "start":
-            this.state[delta[1]] = delta[2];
+            this.state.reactors[delta[1]] = {
+              name: delta[2]
+            };
             break;
           case "die":
             break;
           case "term":
-            delete this.state[delta[1]];
+            delete this.state.reactors[delta[1]];
             break;
           case "open":
+            this.state.channels[delta[1]] = {
+              name: delta[2],
+              reactor: delta[3]
+            };
             break;
           case "seal":
+            delete this.state.channels[delta[1]];
             break;
         }
+      },
+      enrichDelta: function(delta) {
+        var enriched = {
+          tpe: delta[0],
+          event: delta,
+          time: Date.now()
+        }
+        switch (delta[0]) {
+          case "start":
+            enriched.reactorId = delta[1];
+            enriched.reactorName = delta[2];
+          case "die":
+            enriched.reactorId = delta[1];
+            enriched.reactorName = this.state.reactors[delta[1]].name;
+          case "term":
+            enriched.reactorId = delta[1];
+            enriched.reactorName = this.state.reactors[delta[1]].name;
+          case "open":
+            enriched.channelId = delta[1];
+            enriched.channelName = delta[2];
+            enriched.reactorId = delta[3];
+            enriched.reactorName = this.state.reactors[delta[3]].name;
+          case "seal":
+            enriched.channelId = delta[1];
+            enriched.channelName = this.state.channels[delta[1]].name;
+            enriched.reactorId = this.state.channels[delta[1]].reactor;
+            enriched.reactorName = this.state.reactors[enriched.reactorId].name;
+        }
+        return enriched;
       }
     }
   });

@@ -19,6 +19,10 @@
       :api="$refs.api.adapter"
       @critical-error="onCriticalError">
     </x-model>
+    <x-log-window v-ref:log-window
+      :config="$refs.config.state"
+      :model="$refs.model.history">
+    </x-log-window>
   </div>
 </template>
 

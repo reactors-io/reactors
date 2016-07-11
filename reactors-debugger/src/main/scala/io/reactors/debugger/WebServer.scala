@@ -158,6 +158,11 @@ object WebServer {
 
     // ui routes
     s.get("/").html(debuggerPage)
+    s.req((req: Req) => {
+      val stream = getClass.getResourceAsStream("/io/reactors/debugger/" + req.path)
+      if (stream == null) sys.error(s"Cannot find path: ${req.path}")
+      IOUtils.toByteArray(stream)
+    })
 
     // api routes
     s.post("/api/state").json((req: Req) => {
