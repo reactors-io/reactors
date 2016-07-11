@@ -40,64 +40,82 @@ extends DebugApi with Protocol.Service with WebApi {
 
   def eventSent[@spec(Int, Long, Double) T](c: Channel[T], x: T) {
     if (deltaDebugger != null) monitor.synchronized {
-      if (deltaDebugger != null) deltaDebugger.eventSent(c, x)
-      breakpointDebugger.eventSent(c, x)
+      if (deltaDebugger != null) {
+        deltaDebugger.eventSent(c, x)
+        breakpointDebugger.eventSent(c, x)
+      }
     }
   }
 
   def eventDelivered[@spec(Int, Long, Double) T](c: Channel[T], x: T) {
     if (deltaDebugger != null) monitor.synchronized {
-      if (deltaDebugger != null) deltaDebugger.eventDelivered(c, x)
-      breakpointDebugger.eventDelivered(c, x)
+      if (deltaDebugger != null) {
+        deltaDebugger.eventDelivered(c, x)
+        breakpointDebugger.eventDelivered(c, x)
+      }
     }
   }
 
   def reactorStarted(r: Reactor[_]) {
     if (deltaDebugger != null) monitor.synchronized {
-      if (deltaDebugger != null) deltaDebugger.reactorStarted(r)
-      breakpointDebugger.reactorStarted(r)
+      if (deltaDebugger != null) {
+        deltaDebugger.reactorStarted(r)
+        breakpointDebugger.reactorStarted(r)
+      }
     }
   }
 
   def reactorScheduled(r: Reactor[_]) {
     if (deltaDebugger != null) monitor.synchronized {
-      if (deltaDebugger != null) deltaDebugger.reactorScheduled(r)
-      breakpointDebugger.reactorScheduled(r)
+      if (deltaDebugger != null) {
+        deltaDebugger.reactorScheduled(r)
+        breakpointDebugger.reactorScheduled(r)
+      }
     }
   }
 
   def reactorPreempted(r: Reactor[_]) {
     if (deltaDebugger != null) monitor.synchronized {
-      if (deltaDebugger != null) deltaDebugger.reactorPreempted(r)
-      breakpointDebugger.reactorPreempted(r)
+      if (deltaDebugger != null) {
+        deltaDebugger.reactorPreempted(r)
+        breakpointDebugger.reactorPreempted(r)
+      }
     }
   }
 
   def reactorDied(r: Reactor[_]) {
     if (deltaDebugger != null) monitor.synchronized {
-      if (deltaDebugger != null) deltaDebugger.reactorDied(r)
-      breakpointDebugger.reactorDied(r)
+      if (deltaDebugger != null) {
+        deltaDebugger.reactorDied(r)
+        breakpointDebugger.reactorDied(r)
+      }
     }
   }
 
   def reactorTerminated(r: Reactor[_]) {
     if (deltaDebugger != null) monitor.synchronized {
-      if (deltaDebugger != null) deltaDebugger.reactorTerminated(r)
-      breakpointDebugger.reactorTerminated(r)
+      if (deltaDebugger != null) {
+        deltaDebugger.reactorTerminated(r)
+        breakpointDebugger.reactorTerminated(r)
+      }
     }
   }
 
   def connectorOpened[T](c: Connector[T]) {
     if (deltaDebugger != null) monitor.synchronized {
-      if (deltaDebugger != null) deltaDebugger.connectorOpened(c)
-      breakpointDebugger.connectorOpened(c)
+      if (deltaDebugger != null) {
+        deltaDebugger.connectorOpened(c)
+        breakpointDebugger.connectorOpened(c)
+      }
     }
   }
 
   def connectorSealed[T](c: Connector[T]) {
     if (deltaDebugger != null) monitor.synchronized {
-      if (deltaDebugger != null) deltaDebugger.connectorSealed(c)
-      breakpointDebugger.connectorSealed(c)
+      if (deltaDebugger != null) {
+        deltaDebugger.connectorSealed(c)
+        breakpointDebugger.connectorSealed(c)
+      }
     }
   }
 
@@ -111,7 +129,7 @@ extends DebugApi with Protocol.Service with WebApi {
     monitor.synchronized {
       if (deltaDebugger == null) {
         deltaDebugger = new DeltaDebugger(system, uniqueId())
-        breakpointDebugger = new BreakpointDebugger(system)
+        breakpointDebugger = new BreakpointDebugger(system, deltaDebugger)
       }
       lastActivityTime = System.currentTimeMillis()
     }

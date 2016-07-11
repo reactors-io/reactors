@@ -7,7 +7,7 @@ import io.reactors.common.UnrolledRing
 
 
 
-class BreakpointDebugger(val system: ReactorSystem)
+class BreakpointDebugger(val system: ReactorSystem, val deltaDebugger: DeltaDebugger)
 extends DebugApi {
   private val monitor = system.monitor
 

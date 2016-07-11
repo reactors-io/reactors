@@ -110,6 +110,7 @@ object DeltaDebugger {
   case class ReactorStarted(r: Reactor[_]) extends Delta {
     def toJson = JArray(List("start", r.uid, r.frame.name))
     def apply(s: State) {
+      s.reactors(r.uid) = r.frame.name
     }
   }
 
@@ -122,6 +123,7 @@ object DeltaDebugger {
   case class ReactorTerminated(r: Reactor[_]) extends Delta {
     def toJson = JArray(List("term", r.uid))
     def apply(s: State) {
+      s.reactors.remove(r.uid)
     }
   }
 
