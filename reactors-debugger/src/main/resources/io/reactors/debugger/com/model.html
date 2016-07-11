@@ -69,12 +69,14 @@
         if (typeof cond == "undefined") this.$dispatch("critical-error", msg);
       },
       apply: function(delta) {
-        switch (delta) {
+        switch (delta[0]) {
           case "start":
+            this.state[delta[1]] = delta[2];
             break;
           case "die":
             break;
           case "term":
+            delete this.state[delta[1]];
             break;
           case "open":
             break;
