@@ -22,7 +22,9 @@ extends DebugApi {
 
   {
     monitor.synchronized {
-      // TODO populate states
+      for ((id, name, _) <- system.frames.values) {
+        oldstate.reactors(id) = name
+      }
     }
     curstate = oldstate.copy()
   }
@@ -89,14 +91,14 @@ object DeltaDebugger {
   )
 
   class State() {
-    val reactors = mutable.Set[String]()
+    val reactors = mutable.Map[Long, String]()
     def copy(): State = {
       val s = new State()
-      for (name <- reactors) s.reactors += name
+      for ((id, name) <- reactors) s.reactors(id) = name
       s
     }
     def toJson: JValue = (
-      ("reactors" -> reactors.toSeq)
+      ("reactors" -> reactors.map({ case (id, name) => (id.toString, JString(name)) }))
     )
   }
 

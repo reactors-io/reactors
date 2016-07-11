@@ -31,11 +31,10 @@
           // Update session uid.
           this.ensure(data.suid, "Session uid not found in state update.");
           this.suid = data.suid;
-          console.log(data);
 
           // Update timestamp.
-          this.ensure(data.timestamp, "Timestamp not found in state update.");
-          this.timestamp = data.timestamp;
+          this.ensure(data.ts, "Timestamp not found in state update.");
+          this.timestamp = data.ts;
 
           // Update model state.
           if (data.state) {
@@ -67,7 +66,7 @@
         this.running = false;
       },
       ensure: function(cond, msg) {
-        if (!cond) this.$dispatch("critical-error", msg);
+        if (typeof cond == "undefined") this.$dispatch("critical-error", msg);
       },
       apply: function(delta) {
         switch (delta) {

@@ -148,5 +148,6 @@ object WebDebugger {
     """)
     val bundle = new ReactorSystem.Bundle(Scheduler.default, config)
     val system = new ReactorSystem("web-debugger", bundle)
+    system.names.resolve
   }
 }
