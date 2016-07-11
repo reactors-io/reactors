@@ -38,7 +38,9 @@
       };
     },
     attached: function() {
-      $("#x-log-window-table-" + this.uid).DataTable();
+      $("#x-log-window-table-" + this.uid).DataTable({
+        ordering: false
+      });
     },
     methods: {
       timeFor: function(delta) {
