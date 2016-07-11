@@ -14,6 +14,7 @@ import org.json4s._
 import org.json4s.jackson.JsonMethods._
 import org.rapidoid.http._
 import org.rapidoid.setup._
+import org.rapidoid.gui._
 import scala.collection._
 
 

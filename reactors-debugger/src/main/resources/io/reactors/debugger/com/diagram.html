@@ -1,0 +1,48 @@
+
+@@style(io/reactors/debugger/lib/bootstrap/css/bootstrap.min.css)
+@@library(io/reactors/debugger/js/util.js)
+@@library(io/reactors/debugger/lib/jquery/jquery-1.12.4.min.js)
+@@library(io/reactors/debugger/lib/bootstrap/js/bootstrap.min.js)
+@@library(io/reactors/debugger/lib/sigmajs/sigma.min.js)
+
+
+<template id="x-diagram">
+  <div :class="'x-diagram-root ' + canvasClass">
+    <div :id="'x-diagram-sigma-' + uid" class="x-diagram-sigma">
+    </div>
+  </div>
+</template>
+
+
+<script>
+  var Diagram = Vue.extend({
+    template: "#x-diagram",
+    props: ["config", "canvasClass"],
+    data: function() {
+      return {
+        uid: Uid.num(),
+        sigma: null
+      };
+    },
+    attached: function() {
+      this.sigma = new sigma({
+        container: "x-diagram-sigma-" + this.uid
+      });
+    },
+    methods: {
+    }
+  });
+
+  Vue.component("x-diagram", Diagram);
+</script>
+
+
+<style type="text/css">
+  .x-diagram-root {
+    height: 100%;
+  }
+
+  .x-diagram-sigma {
+    height: 100%;
+  }
+</style>
