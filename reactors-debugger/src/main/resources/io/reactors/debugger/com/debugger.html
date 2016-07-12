@@ -5,6 +5,8 @@
 @@component(io/reactors/debugger/com/model.html)
 @@component(io/reactors/debugger/com/diagram.html)
 @@component(io/reactors/debugger/com/log-window.html)
+@@component(io/reactors/debugger/com/horizontal-tabber.html)
+@@style(io/reactors/debugger/css/main.css)
 
 
 <template id="x-debugger">
@@ -24,10 +26,15 @@
       :config="$refs.config.state"
       :canvas-class="'x-debugger-diagram'">
     </x-diagram>
-    <x-log-window v-ref:log-window
-      :config="$refs.config.state"
-      :model="$refs.model.history">
-    </x-log-window>
+    <div class="x-debugger-bottom-panel">
+      <x-horizontal-tabber :panels="[0, 1]">
+        <x-log-window v-ref:log-window
+          slot="0"
+          :config="$refs.config.state"
+          :model="$refs.model.history">
+        </x-log-window>
+      </x-horizontal-tabber>
+    </div>
   </div>
 </template>
 
@@ -65,5 +72,11 @@
     width: 100%;
     height: 100%;
     z-index: -1;
+  }
+
+  .x-debugger-bottom-panel {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
   }
 </style>

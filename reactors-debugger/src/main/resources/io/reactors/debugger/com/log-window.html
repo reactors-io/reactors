@@ -1,6 +1,8 @@
 
 @@style(io/reactors/debugger/lib/bootstrap/css/bootstrap.min.css)
 @@style(io/reactors/debugger/lib/datatables/datatables.min.css)
+@@style(io/reactors/debugger/css/bootstrap-overrides.css)
+@@style(io/reactors/debugger/css/datatables-overrides.css)
 @@library(io/reactors/debugger/js/util.js)
 @@library(io/reactors/debugger/lib/jquery/jquery-1.12.4.min.js)
 @@library(io/reactors/debugger/lib/bootstrap/js/bootstrap.min.js)
@@ -9,7 +11,7 @@
 
 <template id="x-log-window">
   <div class="x-log-window-root">
-    <table :id="'x-log-window-table-' + uid">
+    <table :id="'x-log-window-table-' + uid" class="x-log-window-table">
       <thead>
         <tr>
           <td>Event</td>
@@ -80,4 +82,17 @@
 
 
 <style type="text/css">
+  .x-log-window-root {
+  }
+
+  .x-log-window-table {
+    width: 100%;
+    background-color: rgba(0, 0, 0, 0.4);
+    border: rgba(60, 60, 60, 0.3);
+    padding: 2px;
+  }
+
+  .x-log-window-table > thead > tr {
+    border-bottom: 1px solid rgba(60, 60, 60, 0.3);
+  }
 </style>

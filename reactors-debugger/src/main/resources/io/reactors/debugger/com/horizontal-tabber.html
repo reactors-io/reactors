@@ -1,0 +1,65 @@
+
+@@style(io/reactors/debugger/lib/bootstrap/css/bootstrap.min.css)
+@@style(io/reactors/debugger/css/bootstrap-overrides.css)
+@@library(io/reactors/debugger/js/util.js)
+@@library(io/reactors/debugger/lib/jquery/jquery-1.12.4.min.js)
+@@library(io/reactors/debugger/lib/bootstrap/js/bootstrap.min.js)
+@@library(io/reactors/debugger/lib/underscorejs/underscore-min.js)
+
+
+<template id="x-horizontal-tabber">
+  <div class="x-horizontal-tabber-root">
+    <div class="panel panel-default">
+      <div class="panel-body">
+        <slot name="0" v-show="selected == 0"></slot>
+        <slot name="1" v-show="selected == 1"></slot>
+        <slot name="2" v-show="selected == 2"></slot>
+        <slot name="3" v-show="selected == 3"></slot>
+        <slot name="4" v-show="selected == 4"></slot>
+        <slot name="5" v-show="selected == 5"></slot>
+        <slot name="6" v-show="selected == 6"></slot>
+        <slot name="7" v-show="selected == 7"></slot>
+      </div>
+      <div>
+        <ul class="x-horizontal-tabber-tabs">
+          <li v-for="(index, panel) in panels">
+            {{ index }}
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</template>
+
+
+<script>
+  var HorizontalTabPanel = Vue.extend({
+    template: "#x-horizontal-tabber",
+    props: ["panels"],
+    data: function() {
+      return {
+        uid: Uid.num()
+      };
+    },
+    attached: function() {
+    },
+    methods: {
+    }
+  });
+
+  Vue.component("x-horizontal-tabber", HorizontalTabPanel);
+</script>
+
+
+<style type="text/css">
+  .x-horizontal-tabber-root {
+  }
+
+  ul.x-horizontal-tabber-tabs {
+    list-style: none;
+  }
+
+  ul.x-horizontal-tabber-tabs > li {
+    display: inline-block;
+  }
+</style>

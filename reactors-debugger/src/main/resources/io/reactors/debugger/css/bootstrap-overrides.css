@@ -1,0 +1,35 @@
+
+.panel-default {
+  border: 0px solid transparent;
+  border-radius: 0px;
+}
+
+.panel {
+  background-color: rgba(0, 0, 0, 0.5);
+  margin-bottom: 0px;
+}
+
+.panel-body {
+  padding: 6px;
+}
+
+select.input-sm {
+  line-height: 24px;
+  height: 24px;
+}
+
+select.input-sm option {
+  background-color: rgba(0, 0, 0, 0.8);
+}
+
+.input-sm {
+  padding-top: 2px;
+  padding-bottom: 2px;
+  border-radius: 0px;
+  height: 24px;
+}
+
+.form-control {
+  background-color: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(60, 60, 60, 0.3);
+}
