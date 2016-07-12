@@ -16,7 +16,7 @@
             class="{{ active(index) }}"
             @click="onTabClick(index)">
             <span>
-              {{{ panel.icon }}} {{ panel.text }}
+              {{{ panel.icon }}}
             </span>
           </li>
         </ul>
@@ -95,19 +95,24 @@
 
   .x-vertical-tabber-panel-body {
     height: 100%;
+    display: inline-block;
+    vertical-align: top;
   }
 
   ul.x-vertical-tabber-tabs {
     list-style: none;
-    padding-left: 4px;
+    padding-top: 4px;
+    padding-left: 0px;
   }
 
   ul.x-vertical-tabber-tabs > li {
     background-color: rgba(0, 0, 0, 0.3);
     padding: 4px;
     border: 1px solid rgba(60, 60, 60, 0.3);
-    margin-right: 4px;
+    margin-bottom: 4px;
+    width: 24px;
     cursor: pointer;
+    text-align: center;
   }
 
   ul.x-vertical-tabber-tabs > li.x-vertical-tabber-selected {
@@ -125,9 +130,11 @@
   }
 
   .x-vertical-tabber-button-pane {
-    margin-top: -4px;
-    padding-bottom: 4px;
     height: 100%;
+    display: inline-block;
+    vertical-align: top;
+    padding-left: 4px;
+    margin-right: -6px;
   }
 
   .x-vertical-tabber-slot-transition {
