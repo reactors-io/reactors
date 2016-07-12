@@ -11,28 +11,28 @@
   <div class="x-horizontal-tabber-root">
     <div class="panel panel-default">
       <div class="panel-body">
-        <div v-show="selected == 0" transition="x-horizontal-tabber-slot">
+        <div v-if="selected == 0" class="x-horizontal-tabber-slot" transition>
           <slot name="0"></slot>
         </div>
-        <div v-show="selected == 1" transition="x-horizontal-tabber-slot">
+        <div v-if="selected == 1" class="x-horizontal-tabber-slot" transition>
           <slot name="1"></slot>
         </div>
-        <div v-show="selected == 2" transition="x-horizontal-tabber-slot">
+        <div v-if="selected == 2" class="x-horizontal-tabber-slot" transition>
           <slot name="2"></slot>
         </div>
-        <div v-show="selected == 3" transition="x-horizontal-tabber-slot">
+        <div v-if="selected == 3" class="x-horizontal-tabber-slot" transition>
           <slot name="3"></slot>
         </div>
-        <div v-show="selected == 4" transition="x-horizontal-tabber-slot">
+        <div v-if="selected == 4" class="x-horizontal-tabber-slot" transition>
           <slot name="4"></slot>
         </div>
-        <div v-show="selected == 5" transition="x-horizontal-tabber-slot">
+        <div v-if="selected == 5" class="x-horizontal-tabber-slot" transition>
           <slot name="5"></slot>
         </div>
-        <div v-show="selected == 6" transition="x-horizontal-tabber-slot">
+        <div v-if="selected == 6" class="x-horizontal-tabber-slot" transition>
           <slot name="6"></slot>
         </div>
-        <div v-show="selected == 7" transition="x-horizontal-tabber-slot">
+        <div v-if="selected == 7" class="x-horizontal-tabber-slot" transition>
           <slot name="7"></slot>
         </div>
       </div>
@@ -120,7 +120,39 @@
     padding-bottom: 4px;
   }
 
-  .x-horizontal-tabber-slot-transition {
+  .x-horizontal-tabber-slot {
+  }
+
+  .x-horizontal-tabber-slot.v-enter {
+    bottom: 0;
+    animation: fadein .2s;
+  }
+
+  .x-horizontal-tabber-slot.v-leave {
+    position: relative;
+    bottom: 0;
+    animation: fadeout .0s;
+  }
+
+  @keyframes fadein {
+    0% {
+        opacity: 0.0;
+    }
+    100% {
+        opacity: 1.0;
+    }
+  }
+
+  @keyframes fadeout {
+      0% {
+          opacity: 1.0;
+      }
+      100% {
+          opacity: 0.0;
+      }
+  }
+
+  /*.x-horizontal-tabber-slot-transition {
     transition: all .1s ease;
   }
 
@@ -129,6 +161,7 @@
   }
 
   .x-horizontal-tabber-slot-leave {
+    height: 0;
     opacity: -0.5;
-  }
+  }*/
 </style>
