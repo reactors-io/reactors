@@ -1,0 +1,70 @@
+
+@@style(io/reactors/debugger/lib/bootstrap/css/bootstrap.min.css)
+@@style(io/reactors/debugger/css/bootstrap-overrides.css)
+@@style(io/reactors/debugger/lib/jquery-terminal/jquery.terminal-0.10.12.min.css)
+@@library(io/reactors/debugger/js/util.js)
+@@library(io/reactors/debugger/lib/jquery/jquery-1.12.4.min.js)
+@@library(io/reactors/debugger/lib/bootstrap/js/bootstrap.min.js)
+@@library(io/reactors/debugger/lib/jquery-terminal/jquery.terminal-0.10.12.min.js)
+@@library(io/reactors/debugger/lib/jquery-terminal/unix_formatting.js)
+
+
+<template id="x-shell">
+  <div class="x-shell-root">
+    <div class="x-shell-main-window" :id="'x-shell-main-window-' + uid">
+    </div>
+  </div>
+</template>
+
+
+<script>
+  var Shell = Vue.extend({
+    template: "#x-shell",
+    props: ["config"],
+    data: function() {
+      return {
+        uid: Uid.num(),
+        shell: {
+          prompt: "scala> ",
+          name: "Scala"
+        }
+      };
+    },
+    attached: function() {
+      var v = "v" + this.config.global.version;
+      var y = new Date().getFullYear();
+
+      $("#x-shell-main-window-" + this.uid).terminal((command, term) => {
+        term.echo("Got a command.");
+      }, {
+        prompt: this.shell.prompt,
+        name: this.shell.name,
+        greetings: (
+          "    ____                  __                    ________ \n" +
+          "   / __ \\___  ____ ______/ /_____  __________  /  _/ __ \\\n" +
+          "  / /_/ / _ \\/ __ `/ ___/ __/ __ \\/ ___/ ___/  / // / / /\n" +
+          " / _, _/  __/ /_/ / /__/ /_/ /_/ / /  (__  ) _/ // /_/ / \n" +
+          "/_/ |_|\\___/\\__,_/\\___/\\__/\\____/_/  /____(_)___/\\____/ " + v +"\n" +
+          "                                                          \n" +
+          "                      Reactors.IO Interactive Scala Shell \n" +
+          "                                            (c) 2014-" + y + " \n"
+        )
+      });
+    },
+    methods: {
+    }
+  });
+
+  Vue.component("x-shell", Shell);
+</script>
+
+
+<style type="text/css">
+  .x-shell-root {
+    width: 100%;
+  }
+
+  .x-shell-main-window {
+    background-color: rgba(0, 0, 0, 0.3);
+  }
+</style>
