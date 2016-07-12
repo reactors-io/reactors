@@ -46,5 +46,5 @@ table.dataTable {
 }
 
 .dataTables_scrollHead {
-  border-bottom: 1px solid rgba(60, 60, 60, 0.2) !important;
+  border-bottom: 1px solid rgba(60, 60, 60, 0.1) !important;
 }

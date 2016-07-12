@@ -12,3 +12,71 @@ ul {
 label {
   margin-bottom: 0px;
 }
+
+::-webkit-scrollbar {
+  background-color: rgba(0, 0, 0, 0.3);
+}
+
+::-webkit-scrollbar:vertical {
+  width: 14px;
+}
+
+::-webkit-scrollbar-button {
+  background-color: rgba(255, 255, 255, 0.05);
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(0, 0, 0, 0);
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-button:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+::-webkit-scrollbar-button:vertical:decrement {
+  background-image: url(img/icon/arrow-down.png);
+}
+
+::-webkit-scrollbar-button:vertical:increment {
+  background-image: url(img/icon/arrow-up.png);
+}
+
+::-webkit-scrollbar-button:horizontal:decrement {
+  background-image: url(img/icon/arrow-left.png);
+}
+
+::-webkit-scrollbar-button:horizontal:increment {
+  background-image: url(img/icon/arrow-right.png);
+}
+
+::-webkit-scrollbar-track {
+}
+
+::-webkit-scrollbar-track-piece {
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.025);
+}
+
+::-webkit-scrollbar-thumb:vertical {
+  border-left: 2px solid rgba(0, 0, 0, 0);
+  border-right: 2px solid rgba(0, 0, 0, 0);
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:horizontal {
+  border-top: 2px solid rgba(0, 0, 0, 0);
+  border-bottom: 2px solid rgba(0, 0, 0, 0);
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+::-webkit-scrollbar-corner {
+}
+
+::-webkit-resizer {
+}
