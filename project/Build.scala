@@ -45,6 +45,7 @@ object ReactorsBuild extends MechaRepoBuild {
       concurrentRestrictions in Global += Tags.limit(Tags.Test, 1),
       fork in Test := true,
       fork in run := true,
+      cancelable in Global := true,
       javaOptions in test += "-Xmx2G -XX:MaxPermSize=384m",
       scalacOptions ++= Seq(
         "-deprecation"
