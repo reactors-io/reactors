@@ -7,37 +7,11 @@
 @@library(io/reactors/debugger/lib/underscorejs/underscore-min.js)
 
 
-<template id="x-horizontal-tabber">
-  <div class="x-horizontal-tabber-root">
-    <div class="panel panel-default">
-      <div class="panel-body">
-        <div v-show="selected == 0" transition="x-horizontal-tabber-slot">
-          <slot name="0"></slot>
-        </div>
-        <div v-show="selected == 1" transition="x-horizontal-tabber-slot">
-          <slot name="1"></slot>
-        </div>
-        <div v-show="selected == 2" transition="x-horizontal-tabber-slot">
-          <slot name="2"></slot>
-        </div>
-        <div v-show="selected == 3" transition="x-horizontal-tabber-slot">
-          <slot name="3"></slot>
-        </div>
-        <div v-show="selected == 4" transition="x-horizontal-tabber-slot">
-          <slot name="4"></slot>
-        </div>
-        <div v-show="selected == 5" transition="x-horizontal-tabber-slot">
-          <slot name="5"></slot>
-        </div>
-        <div v-show="selected == 6" transition="x-horizontal-tabber-slot">
-          <slot name="6"></slot>
-        </div>
-        <div v-show="selected == 7" transition="x-horizontal-tabber-slot">
-          <slot name="7"></slot>
-        </div>
-      </div>
-      <div class="x-horizontal-tabber-button-pane">
-        <ul class="x-horizontal-tabber-tabs">
+<template id="x-vertical-tabber">
+  <div class="x-vertical-tabber-root">
+    <div class="panel panel-default x-vertical-tabber-panel">
+      <div class="x-vertical-tabber-button-pane">
+        <ul class="x-vertical-tabber-tabs">
           <li v-for="(index, panel) in panels"
             class="{{ active(index) }}"
             @click="onTabClick(index)">
@@ -47,14 +21,40 @@
           </li>
         </ul>
       </div>
+      <div class="panel-body x-vertical-tabber-panel-body">
+        <div v-show="selected == 0" transition="x-vertical-tabber-slot">
+          <slot name="0"></slot>
+        </div>
+        <div v-show="selected == 1" transition="x-vertical-tabber-slot">
+          <slot name="1"></slot>
+        </div>
+        <div v-show="selected == 2" transition="x-vertical-tabber-slot">
+          <slot name="2"></slot>
+        </div>
+        <div v-show="selected == 3" transition="x-vertical-tabber-slot">
+          <slot name="3"></slot>
+        </div>
+        <div v-show="selected == 4" transition="x-vertical-tabber-slot">
+          <slot name="4"></slot>
+        </div>
+        <div v-show="selected == 5" transition="x-vertical-tabber-slot">
+          <slot name="5"></slot>
+        </div>
+        <div v-show="selected == 6" transition="x-vertical-tabber-slot">
+          <slot name="6"></slot>
+        </div>
+        <div v-show="selected == 7" transition="x-vertical-tabber-slot">
+          <slot name="7"></slot>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 
 <script>
-  var HorizontalTabPanel = Vue.extend({
-    template: "#x-horizontal-tabber",
+  var VerticalTabPanel = Vue.extend({
+    template: "#x-vertical-tabber",
     props: ["panels"],
     data: function() {
       return {
@@ -67,7 +67,7 @@
     methods: {
       active: function(i) {
         if (i == this.selected) {
-          return "x-horizontal-tabber-selected";
+          return "x-vertical-tabber-selected";
         } else {
           return "";
         }
@@ -79,21 +79,30 @@
     }
   });
 
-  Vue.component("x-horizontal-tabber", HorizontalTabPanel);
+  Vue.component("x-vertical-tabber", VerticalTabPanel);
 </script>
 
 
 <style type="text/css">
-  .x-horizontal-tabber-root {
+  .x-vertical-tabber-root {
+    display: inline-block;
+    height: 100%;
   }
 
-  ul.x-horizontal-tabber-tabs {
+  .x-vertical-tabber-panel {
+    height: 100%;
+  }
+
+  .x-vertical-tabber-panel-body {
+    height: 100%;
+  }
+
+  ul.x-vertical-tabber-tabs {
     list-style: none;
     padding-left: 4px;
   }
 
-  ul.x-horizontal-tabber-tabs > li {
-    display: inline-block;
+  ul.x-vertical-tabber-tabs > li {
     background-color: rgba(0, 0, 0, 0.3);
     padding: 4px;
     border: 1px solid rgba(60, 60, 60, 0.3);
@@ -101,12 +110,12 @@
     cursor: pointer;
   }
 
-  ul.x-horizontal-tabber-tabs > li.x-horizontal-tabber-selected {
+  ul.x-vertical-tabber-tabs > li.x-vertical-tabber-selected {
     background-color: rgba(60, 60, 60, 0.5);
     border: 1px solid rgba(80, 80, 80, 0.6);
   }
 
-  ul.x-horizontal-tabber-tabs > li > span {
+  ul.x-vertical-tabber-tabs > li > span {
     -webkit-touch-callout: none;
     -webkit-user-select: none;
     -khtml-user-select: none;
@@ -115,20 +124,21 @@
     user-select: none;
   }
 
-  .x-horizontal-tabber-button-pane {
+  .x-vertical-tabber-button-pane {
     margin-top: -4px;
     padding-bottom: 4px;
+    height: 100%;
   }
 
-  .x-horizontal-tabber-slot-transition {
+  .x-vertical-tabber-slot-transition {
     transition: all .1s ease;
   }
 
-  .x-horizontal-tabber-slot-enter {
+  .x-vertical-tabber-slot-enter {
     opacity: 0;
   }
 
-  .x-horizontal-tabber-slot-leave {
+  .x-vertical-tabber-slot-leave {
     opacity: -0.5;
   }
 </style>

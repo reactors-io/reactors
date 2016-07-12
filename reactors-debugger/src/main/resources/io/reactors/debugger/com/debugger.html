@@ -6,6 +6,7 @@
 @@component(io/reactors/debugger/com/diagram.html)
 @@component(io/reactors/debugger/com/log-window.html)
 @@component(io/reactors/debugger/com/horizontal-tabber.html)
+@@component(io/reactors/debugger/com/vertical-tabber.html)
 @@style(io/reactors/debugger/css/main.css)
 
 
@@ -26,14 +27,24 @@
       :config="$refs.config.state"
       :canvas-class="'x-debugger-diagram'">
     </x-diagram>
-    <div class="x-debugger-bottom-panel">
-      <x-horizontal-tabber :panels="panelInfo">
-        <x-log-window v-ref:log-window
-          slot="0"
-          :config="$refs.config.state"
-          :model="$refs.model.history">
-        </x-log-window>
-      </x-horizontal-tabber>
+    <div class="x-debugger-panel-container">
+      <div class="x-debugger-left-panel-container">
+        <div class="x-debugger-left-panel">
+          <x-vertical-tabber :panels="leftPanelInfo">
+          </x-vertical-tabber>
+        </div>
+      </div>
+      <div>
+        <div class="x-debugger-bottom-panel">
+          <x-horizontal-tabber :panels="bottomPanelInfo">
+            <x-log-window v-ref:log-window
+              slot="0"
+              :config="$refs.config.state"
+              :model="$refs.model.history">
+            </x-log-window>
+          </x-horizontal-tabber>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -45,7 +56,12 @@
     data: function() {
       return {
         errors: [],
-        panelInfo: [
+        leftPanelInfo: [
+          {
+            icon: "<span class='glyphicon glyphicon-pause'></span>",
+          }
+        ],
+        bottomPanelInfo: [
           {
             icon: "<span class='glyphicon glyphicon-list-alt'></span>",
             text: "Log"
@@ -89,5 +105,17 @@
     bottom: 0;
     width: 100%;
     padding: 6px;
+  }
+
+  .x-debugger-panel-container {
+    height: 100%;
+  }
+
+  .x-debugger-left-panel-container {
+    height: 100%;
+  }
+
+  .x-debugger-left-panel {
+    height: 100%;
   }
 </style>
