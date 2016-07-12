@@ -2,6 +2,7 @@
 @@style(io/reactors/debugger/lib/bootstrap/css/bootstrap.min.css)
 @@style(io/reactors/debugger/css/bootstrap-overrides.css)
 @@style(io/reactors/debugger/lib/jquery-terminal/jquery.terminal-0.10.12.min.css)
+@@style(io/reactors/debugger/css/jquery-terminal-overrides.css)
 @@library(io/reactors/debugger/js/util.js)
 @@library(io/reactors/debugger/lib/jquery/jquery-1.12.4.min.js)
 @@library(io/reactors/debugger/lib/bootstrap/js/bootstrap.min.js)
@@ -11,7 +12,11 @@
 
 <template id="x-shell">
   <div class="x-shell-root">
-    <div class="x-shell-main-window" :id="'x-shell-main-window-' + uid">
+    <div class="x-shell-container">
+      <div class="x-shell-scroll-pane">
+        <div class="x-shell-main-window" :id="'x-shell-main-window-' + uid">
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -64,7 +69,17 @@
     width: 100%;
   }
 
+  .x-shell-container {
+    margin-bottom: 4px;
+    height: 230px;
+  }
+
+  .x-shell-scroll-pane {
+    height: 100%;
+  }
+
   .x-shell-main-window {
     background-color: rgba(0, 0, 0, 0.3);
+    height: 100%;
   }
 </style>
