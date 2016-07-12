@@ -35,6 +35,8 @@
         </div>
       </div>
       <div class="x-debugger-bottom-panel-container">
+        <div>
+        </div>
         <div class="x-debugger-bottom-panel">
           <x-horizontal-tabber :panels="bottomPanelInfo">
             <x-log-window v-ref:log-window
@@ -103,27 +105,36 @@
   .x-debugger-panel-container {
     height: 100%;
     pointer-events: none;
+    display: flex;
   }
 
   .x-debugger-left-panel-container {
     height: 100%;
     float: left;
     margin-right: 0px;
+    pointer-events: auto;
   }
 
   .x-debugger-left-panel {
     height: 100%;
     padding: 6px;
-  }
-
-  .x-debugger-bottom-panel {
-    position: fixed;
-    bottom: 0;
-    width: 100%;
-    padding: 6px;
+    padding-right: 0px;
   }
 
   .x-debugger-bottom-panel-container {
+    width: 100%;
     overflow: hidden;
+    height: 100%;
+    position: relative;
+  }
+
+  .x-debugger-bottom-panel {
+    width: 100%;
+    padding: 6px;
+    pointer-events: auto;
+    position: absolute;
+    bottom: 0px;
+    right: 0px;
+    left: 0px;
   }
 </style>
