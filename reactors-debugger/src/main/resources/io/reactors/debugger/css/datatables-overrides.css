@@ -13,10 +13,15 @@
   border-color: rgba(60, 60, 60, 0.3);
 }
 
+ul.pagination {
+  margin-top: 0px;
+  margin-bottom: 0px;
+}
+
 .pagination > li > a,
 .pagination > li > span {
   outline: none;
-  padding: 4px;
+  padding: 2px;
 }
 
 .pagination > li:first-child > a,
@@ -38,4 +43,8 @@ div.dataTables_wrapper div.dataTables_info {
 table.dataTable {
   margin-top: 2px !important;
   margin-bottom: 2px !important;
+}
+
+.dataTables_scrollHead {
+  border-bottom: 1px solid rgba(60, 60, 60, 0.2) !important;
 }

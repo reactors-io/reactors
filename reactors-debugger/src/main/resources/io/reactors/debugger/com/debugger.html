@@ -27,7 +27,7 @@
       :canvas-class="'x-debugger-diagram'">
     </x-diagram>
     <div class="x-debugger-bottom-panel">
-      <x-horizontal-tabber :panels="[0, 1]">
+      <x-horizontal-tabber :panels="panelInfo">
         <x-log-window v-ref:log-window
           slot="0"
           :config="$refs.config.state"
@@ -44,7 +44,17 @@
     template: "#x-debugger",
     data: function() {
       return {
-        errors: []
+        errors: [],
+        panelInfo: [
+          {
+            icon: "<span class='glyphicon glyphicon-list-alt'></span>",
+            text: "Log"
+          },
+          {
+            icon: "<span class='glyphicon glyphicon-record'></span>",
+            text: "Breakpoints"
+          }
+        ]
       };
     },
     attached: function() {
