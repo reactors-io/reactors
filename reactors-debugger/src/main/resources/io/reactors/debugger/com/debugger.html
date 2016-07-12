@@ -5,6 +5,7 @@
 @@component(io/reactors/debugger/com/model.html)
 @@component(io/reactors/debugger/com/diagram.html)
 @@component(io/reactors/debugger/com/log-window.html)
+@@component(io/reactors/debugger/com/shell.html)
 @@component(io/reactors/debugger/com/horizontal-tabber.html)
 @@component(io/reactors/debugger/com/vertical-tabber.html)
 @@style(io/reactors/debugger/css/main.css)
@@ -44,6 +45,10 @@
               :config="$refs.config.state"
               :model="$refs.model.history">
             </x-log-window>
+            <x-shell v-ref:shell
+              slot="1"
+              :config="$refs.config.state">
+            </x-shell>
           </x-horizontal-tabber>
         </div>
       </div>
@@ -72,12 +77,12 @@
             text: "Log"
           },
           {
-            icon: "<span class='glyphicon glyphicon-record'></span>",
-            text: "Breakpoints"
-          },
-          {
             icon: "<span class='glyphicon glyphicon-console'></span>",
             text: "Shell"
+          },
+          {
+            icon: "<span class='glyphicon glyphicon-record'></span>",
+            text: "Breakpoints"
           }
         ]
       };

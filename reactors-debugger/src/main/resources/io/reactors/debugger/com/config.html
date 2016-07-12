@@ -1,4 +1,7 @@
 
+@@library(io/reactors/debugger/js/reactors-version.js)
+
+
 <template id="x-config">
   <div class="x-config-root">
     <!-- config -->
@@ -12,7 +15,8 @@
     data: function() {
       var configuration = {
         global: {
-          baseUrl: location.origin + "/api/"
+          baseUrl: location.origin + "/api/",
+          version: reactorsVersion
         },
         model: {
           heartbeatRate: 2,
