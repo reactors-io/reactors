@@ -34,19 +34,27 @@ label {
 }
 
 ::-webkit-scrollbar-button:vertical:decrement {
-  background-image: url(img/icon/arrow-down.png);
+  background-image: url(img/icon/arrow-up.png);
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 ::-webkit-scrollbar-button:vertical:increment {
-  background-image: url(img/icon/arrow-up.png);
+  background-image: url(img/icon/arrow-down.png);
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 ::-webkit-scrollbar-button:horizontal:decrement {
   background-image: url(img/icon/arrow-left.png);
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 ::-webkit-scrollbar-button:horizontal:increment {
   background-image: url(img/icon/arrow-right.png);
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 ::-webkit-scrollbar-track {
