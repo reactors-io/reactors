@@ -36,8 +36,18 @@
 <script>
   "use strict";
 
-  class ScalaShellAdapter {
+  class ShellAdapter {
+    constructor() {
+    }
+
+    eval(api, cmd) {
+      return api.replEval(cmd);
+    }
+  }
+
+  class ScalaShellAdapter extends ShellAdapter {
     constructor(v) {
+      super()
       var y = new Date().getFullYear();
 
       this.prompt = "scala> ";
@@ -48,14 +58,10 @@
         "  / /_/ / _ \\/ __ `/ ___/ __/ __ \\/ ___/ ___/  / // / / /\n" +
         " / _, _/  __/ /_/ / /__/ /_/ /_/ / /  (__  ) _/ // /_/ / \n" +
         "/_/ |_|\\___/\\__,_/\\___/\\__/\\____/_/  /____(_)___/\\____/ " + v +"\n" +
-        "                                                          \n" +
-        "                      Reactors.IO Interactive Scala Shell \n" +
-        "                                            (c) 2014-" + y + " \n"
+        "                                                            \n" +
+        "                        Reactors.IO Interactive Scala Shell \n" +
+        "                                              (c) 2014-" + y + " \n"
       );
-    }
-
-    eval(api, cmd) {
-      api.replEval(cmd)
     }
   }
 
