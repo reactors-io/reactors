@@ -16,7 +16,7 @@ import scala.tools.nsc.interpreter._
 
 
 
-class ScalaRepl extends Repl {
+class ScalaRepl(val system: ReactorSystem) extends Repl {
   private val lock = new AnyRef
   private val startedPromise = Promise[Boolean]()
   private val commandQueue = new LinkedTransferQueue[String]
@@ -26,6 +26,10 @@ class ScalaRepl extends Repl {
     override def readLine() = commandQueue.take()
   }
   private val repl = new ILoop(Some(queueReader), new PrintWriter(stringWriter)) {
+    override def createInterpreter() {
+      super.createInterpreter()
+      intp.bind("system", "io.reactors.ReactorSystem", system)
+    }
     override def processLine(line: String): Boolean = {
       val res = super.processLine(line)
       val output = stringWriter.getBuffer.toString

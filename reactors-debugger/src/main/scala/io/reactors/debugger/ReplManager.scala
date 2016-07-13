@@ -21,7 +21,7 @@ class ReplManager(val system: ReactorSystem) {
   val monitor = system.monitor
   val uidCount = new AtomicLong
   val repls = mutable.Map[String, ReplManager.Session]()
-  val replFactory = mutable.Map[String, () => Repl]()
+  val replFactory = mutable.Map[String, ReactorSystem => Repl]()
 
   {
     // Start expiration checker.
@@ -30,7 +30,7 @@ class ReplManager(val system: ReactorSystem) {
     }, expirationCheckSeconds * 1000)
 
     // Add known repls.
-    replFactory("Scala") = () => new ScalaRepl
+    replFactory("Scala") = system => new ScalaRepl(system)
   }
 
   private def checkExpired() {
@@ -56,7 +56,7 @@ class ReplManager(val system: ReactorSystem) {
         case _ =>
           replFactory.get(tpe) match {
             case Some(f) =>
-              val s = new ReplManager.Session(f())
+              val s = new ReplManager.Session(f(system))
               val nuid = Uid.string()
               repls(nuid) = s
               Some((nuid, s.repl))
