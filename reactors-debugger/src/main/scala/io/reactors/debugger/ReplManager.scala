@@ -48,6 +48,7 @@ class ReplManager(val system: ReactorSystem) {
   def repl(uid: String, tpe: String): Option[(String, Repl)] = monitor.synchronized {
     repls.get(uid) match {
       case Some(s) =>
+        s.ping()
         Some((uid, s.repl))
       case _ =>
         replFactory.get(tpe) match {
@@ -66,6 +67,10 @@ class ReplManager(val system: ReactorSystem) {
 
 object ReplManager {
   class Session(val repl: Repl) {
-    var lastActivityTime = System.currentTimeMillis()
+    private var rawLastActivityTime = System.currentTimeMillis()
+
+    def lastActivityTime: Long = rawLastActivityTime
+
+    def ping() = rawLastActivityTime = System.currentTimeMillis()
   }
 }

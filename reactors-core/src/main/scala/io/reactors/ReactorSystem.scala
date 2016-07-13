@@ -29,7 +29,7 @@ class ReactorSystem(
 
   def system = this
 
-  private[reactors] val globalTimer = new Timer(true)
+  private[reactors] val globalTimer = new Timer(s"reactors-io.$name.global-timer", true)
 
   /** Protects the internal state of the reactor system.
    */

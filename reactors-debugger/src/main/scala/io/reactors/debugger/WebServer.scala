@@ -13,7 +13,6 @@ import java.util.regex._
 import org.apache.commons.io.IOUtils
 import org.json4s._
 import org.json4s.jackson.JsonMethods._
-import org.rapidoid.job.Jobs
 import org.rapidoid.gui._
 import org.rapidoid.http._
 import org.rapidoid.setup._

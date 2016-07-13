@@ -14,7 +14,7 @@ abstract class Repl {
    */
   def tpe: String
 
-  /** Evaluates a command in the REPL and returns the result.
+  /** Asynchronously evaluates a command in the REPL and returns the result.
    */
   def eval(cmd: String): Future[Repl.Result]
 
