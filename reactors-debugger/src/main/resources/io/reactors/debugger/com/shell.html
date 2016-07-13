@@ -37,17 +37,18 @@
   "use strict";
 
   class ShellAdapter {
-    constructor() {
+    constructor(uid) {
+      this.uid = uid;
     }
 
     eval(api, cmd) {
-      return api.replEval(cmd);
+      return api.replEval(this.uid, cmd);
     }
   }
 
   class ScalaShellAdapter extends ShellAdapter {
-    constructor(v) {
-      super()
+    constructor(uid, v) {
+      super(uid);
       var y = new Date().getFullYear();
 
       this.prompt = "scala> ";
@@ -71,31 +72,37 @@
     data: function() {
       return {
         uid: Uid.num(),
-        shellType: this.config.shell.defaultAdapter
+        shellType: this.config.shell.defaultAdapter,
+        shell: null
       };
     },
-    computed: {
-      shell: function() {
-        var v = "v" + this.config.global.version;
-        switch (this.shellType) {
-          case "Scala":
-            var adapter = new ScalaShellAdapter(v);
-            return adapter;
-          default:
-            Log.error("Unknown shell type: " + this.shellType);
-        }
-      }
-    },
     attached: function() {
-      $("#x-shell-main-window-" + this.uid).terminal((command, term) => {
-        term.echo("Got a command.");
-      }, {
-        prompt: this.shell.prompt,
-        name: this.shell.name,
-        greetings: this.shell.greetings
+      this.api.replGet("", this.shellType).then((reply) => {
+        this.shell = this.createShell(reply.repluid, this.shellType);
+        $("#x-shell-main-window-" + this.uid).terminal((command, term) => {
+          term.pause();
+          this.shell.eval(this.api, command).then((reply) => {
+            term.echo(reply.output);
+            term.resume();
+          });
+        }, {
+          prompt: this.shell.prompt,
+          name: this.shell.name,
+          greetings: this.shell.greetings
+        });
       });
     },
     methods: {
+      createShell: function(uid, tpe) {
+        var v = "v" + this.config.global.version;
+        switch (tpe) {
+          case "Scala":
+            var adapter = new ScalaShellAdapter(uid, v);
+            return adapter;
+          default:
+            Log.error("Unknown shell type: " + tpe);
+        }
+      }
     }
   });
 
