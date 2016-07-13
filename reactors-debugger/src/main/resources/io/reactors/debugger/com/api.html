@@ -43,6 +43,22 @@
         timestamp: timestamp
       });
     }
+
+    replGet(suid, repluid, tpe) {
+      return this.request("repl/get", {
+        suid: suid,
+        repluid: repluid,
+        tpe: tpe
+      });
+    }
+
+    replEval(suid, repluid, cmd) {
+      return this.request("repl/eval", {
+        suid: suid,
+        repluid: repluid,
+        cmd: cmd
+      });
+    }
   }
 
   var Api = Vue.extend({

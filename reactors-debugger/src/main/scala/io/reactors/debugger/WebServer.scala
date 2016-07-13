@@ -168,8 +168,20 @@ object WebServer {
     // api routes
     s.post("/api/state").json((req: Req) => {
       val suid = req.posted.get("suid").asInstanceOf[String]
-      val ts = req.posted.get("timestamp").asInstanceOf[Int]
+      val ts = req.posted.get("timestamp").asInstanceOf[Number].longValue
       asJsonNode(webapi.state(suid, ts))
+    })
+    s.post("/api/repl/get").json((req: Req) => {
+      val suid = req.posted.get("suid").asInstanceOf[String]
+      val repluid = req.posted.get("repluid").asInstanceOf[Number].longValue
+      val tpe = req.posted.get("tpe").asInstanceOf[String]
+      asJsonNode(webapi.replGet(suid, repluid, tpe))
+    })
+    s.post("/api/repl/eval").json((req: Req) => {
+      val suid = req.posted.get("suid").asInstanceOf[String]
+      val repluid = req.posted.get("repluid").asInstanceOf[Number].longValue
+      val command = req.posted.get("cmd").asInstanceOf[String]
+      asJsonNode(webapi.replEval(suid, repluid, command))
     })
 
     s

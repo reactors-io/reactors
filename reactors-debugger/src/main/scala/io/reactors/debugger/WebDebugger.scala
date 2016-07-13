@@ -154,6 +154,14 @@ extends DebugApi with Protocol.Service with WebApi {
       deltaDebugger.state(suid, ts)
     }
   }
+
+  def replGet(suid: String, repluid: Long, tpe: String): JValue = {
+    ???
+  }
+
+  def replEval(suid: String, repluid: Long, cmd: String): JValue = {
+    ???
+  }
 }
 
 
