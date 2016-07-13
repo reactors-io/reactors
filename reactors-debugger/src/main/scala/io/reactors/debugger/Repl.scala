@@ -3,9 +3,6 @@ package debugger
 
 
 
-import java.util.concurrent.atomic.AtomicLong
-import scala.tools.nsc.Settings
-import scala.tools.nsc.interpreter._
 
 
 
