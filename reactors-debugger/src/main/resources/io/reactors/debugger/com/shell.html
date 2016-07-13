@@ -13,6 +13,14 @@
 <template id="x-shell">
   <div class="x-shell-root">
     <div class="x-shell-container">
+      <div class="x-shell-option-pane">
+        <ul>
+          <li>
+            <span>Shell</span>
+
+          </li>
+        </ul>
+      </div>
       <div class="x-shell-scroll-pane">
         <div class="x-shell-main-window" :id="'x-shell-main-window-' + uid">
         </div>
@@ -23,17 +31,33 @@
 
 
 <script>
+  "use strict";
+
+  class ScalaShellAdapter {
+    constructor() {
+      this.prompt = "scala> ";
+      this.name = "Scala";
+    }
+  }
+
   var Shell = Vue.extend({
     template: "#x-shell",
     props: ["config"],
     data: function() {
       return {
         uid: Uid.num(),
-        shell: {
-          prompt: "scala> ",
-          name: "Scala"
-        }
+        shellType: "Scala"
       };
+    },
+    computed: {
+      shell: function() {
+        switch(this.shellType) {
+          case "Scala":
+            return new ScalaShellAdapter();
+          default:
+            Log.error("Unknown shell type: " + this.shellType);
+        }
+      }
     },
     attached: function() {
       var v = "v" + this.config.global.version;
@@ -75,12 +99,26 @@
   }
 
   .x-shell-scroll-pane {
-    height: 100%;
+    height: calc(100% - 20px);
   }
 
   .x-shell-main-window {
     height: 100%;
     background-color: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(60, 60, 60, 0.1);
+    border: 1px solid rgba(60, 60, 60, 0.2);
+  }
+
+  .x-shell-option-pane {
+    margin-bottom: 2px;
+  }
+
+  .x-shell-option-pane > ul {
+    list-style: none;
+    margin-left: 4px;
+    padding-left: 0px;
+  }
+
+  .x-shell-option-pane > ul > li {
+    display: inline-block;
   }
 </style>
