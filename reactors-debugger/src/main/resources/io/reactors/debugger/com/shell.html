@@ -1,4 +1,5 @@
 
+@@style(io/reactors/debugger/css/vars.css)
 @@style(io/reactors/debugger/lib/bootstrap/css/bootstrap.min.css)
 @@style(io/reactors/debugger/css/bootstrap-overrides.css)
 @@style(io/reactors/debugger/lib/jquery-terminal/jquery.terminal-0.10.12.min.css)
@@ -36,9 +37,21 @@
   "use strict";
 
   class ScalaShellAdapter {
-    constructor() {
+    constructor(v) {
+      var y = new Date().getFullYear();
+
       this.prompt = "scala> ";
       this.name = "Scala";
+      this.greetings = (
+        "    ____                  __                    ________ \n" +
+        "   / __ \\___  ____ ______/ /_____  __________  /  _/ __ \\\n" +
+        "  / /_/ / _ \\/ __ `/ ___/ __/ __ \\/ ___/ ___/  / // / / /\n" +
+        " / _, _/  __/ /_/ / /__/ /_/ /_/ / /  (__  ) _/ // /_/ / \n" +
+        "/_/ |_|\\___/\\__,_/\\___/\\__/\\____/_/  /____(_)___/\\____/ " + v +"\n" +
+        "                                                          \n" +
+        "                      Reactors.IO Interactive Scala Shell \n" +
+        "                                            (c) 2014-" + y + " \n"
+      );
     }
   }
 
@@ -53,33 +66,23 @@
     },
     computed: {
       shell: function() {
-        switch(this.shellType) {
+        var v = "v" + this.config.global.version;
+        switch (this.shellType) {
           case "Scala":
-            return new ScalaShellAdapter();
+            var adapter = new ScalaShellAdapter(v);
+            return adapter;
           default:
             Log.error("Unknown shell type: " + this.shellType);
         }
       }
     },
     attached: function() {
-      var v = "v" + this.config.global.version;
-      var y = new Date().getFullYear();
-
       $("#x-shell-main-window-" + this.uid).terminal((command, term) => {
         term.echo("Got a command.");
       }, {
         prompt: this.shell.prompt,
         name: this.shell.name,
-        greetings: (
-          "    ____                  __                    ________ \n" +
-          "   / __ \\___  ____ ______/ /_____  __________  /  _/ __ \\\n" +
-          "  / /_/ / _ \\/ __ `/ ___/ __/ __ \\/ ___/ ___/  / // / / /\n" +
-          " / _, _/  __/ /_/ / /__/ /_/ /_/ / /  (__  ) _/ // /_/ / \n" +
-          "/_/ |_|\\___/\\__,_/\\___/\\__/\\____/_/  /____(_)___/\\____/ " + v +"\n" +
-          "                                                          \n" +
-          "                      Reactors.IO Interactive Scala Shell \n" +
-          "                                            (c) 2014-" + y + " \n"
-        )
+        greetings: this.shell.greetings
       });
     },
     methods: {
@@ -106,8 +109,8 @@
 
   .x-shell-main-window {
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(60, 60, 60, 0.2);
+    background-color: var(--widget-background-color);
+    border: var(--widget-border-dim);
   }
 
   .x-shell-option-pane {

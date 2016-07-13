@@ -1,4 +1,5 @@
 
+@@style(io/reactors/debugger/css/vars.css)
 @@style(io/reactors/debugger/lib/bootstrap/css/bootstrap.min.css)
 @@style(io/reactors/debugger/lib/datatables/datatables.min.css)
 @@style(io/reactors/debugger/css/bootstrap-overrides.css)
@@ -58,7 +59,7 @@
         return ""
       },
       messageFor: function(delta) {
-        switch(delta.tpe) {
+        switch (delta.tpe) {
           case "start":
             return "Reactor '" + delta.reactorName +
               "' (" + delta.reactorId + ") created.";
@@ -92,8 +93,8 @@
 
   .x-log-window-table {
     width: 100%;
-    background-color: rgba(0, 0, 0, 0.4);
-    border: rgba(60, 60, 60, 0.5);
+    background-color: var(--widget-background-color);
+    border: var(--widget-border);
     padding: 2px;
     height: 150px;
   }

@@ -1,4 +1,5 @@
 
+@@style(io/reactors/debugger/css/vars.css)
 @@style(io/reactors/debugger/lib/bootstrap/css/bootstrap.min.css)
 @@style(io/reactors/debugger/css/bootstrap-overrides.css)
 @@library(io/reactors/debugger/js/util.js)
@@ -94,16 +95,16 @@
 
   ul.x-horizontal-tabber-tabs > li {
     display: inline-block;
-    background-color: rgba(0, 0, 0, 0.3);
+    background-color: var(--widget-background-color);
     padding: 4px;
-    border: 1px solid rgba(60, 60, 60, 0.3);
+    border: var(--widget-border);
     margin-right: 4px;
     cursor: pointer;
   }
 
   ul.x-horizontal-tabber-tabs > li.x-horizontal-tabber-selected {
-    background-color: rgba(60, 60, 60, 0.5);
-    border: 1px solid rgba(80, 80, 80, 0.6);
+    background-color: var(--widget-background-color-selected);
+    border: var(--widget-border-bright);
   }
 
   ul.x-horizontal-tabber-tabs > li > span {
@@ -125,7 +126,7 @@
 
   .x-horizontal-tabber-slot.v-enter {
     bottom: 0;
-    animation: fadein .2s;
+    animation: fadein .25s;
   }
 
   .x-horizontal-tabber-slot.v-leave {
