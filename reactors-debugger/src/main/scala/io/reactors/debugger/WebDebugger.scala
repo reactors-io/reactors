@@ -136,12 +136,10 @@ extends DebugApi with Protocol.Service with WebApi {
     }
   }
 
-  private def diff(x: Long, y: Long): Long = x - y
-
   private def checkExpired() {
     monitor.synchronized {
       val now = System.currentTimeMillis()
-      if (diff(now, lastActivityTime) > expirationSeconds * 1000) {
+      if (algebra.time.diff(now, lastActivityTime) > expirationSeconds * 1000) {
         deltaDebugger = null
         breakpointDebugger = null
         monitor.notifyAll()

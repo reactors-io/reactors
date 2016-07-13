@@ -228,4 +228,8 @@ package object algebra {
     final def in_||(a: Double, b: Double): Boolean = v >= a && v <= b
   }
 
+  object time {
+    def diff(x: Long, y: Long): Long = x - y
+  }
+
 }
