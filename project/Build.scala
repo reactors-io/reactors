@@ -256,15 +256,13 @@ object ReactorsBuild extends MechaRepoBuild {
     reactorsCore,
     reactorsContainer,
     reactorsRemote,
-    reactorsProtocols,
-    reactorsDebugger
+    reactorsProtocols
   ) dependsOn(
     reactorsCommon % "compile->compile;test->test",
     reactorsCore % "compile->compile;test->test",
     reactorsContainer % "compile->compile;test->test",
     reactorsRemote % "compile->compile;test->test",
-    reactorsProtocols % "compile->compile;test->test",
-    reactorsDebugger % "compile->compile;test->test"
+    reactorsProtocols % "compile->compile;test->test"
   ) dependsOnSuperRepo
 
   lazy val reactorsCommon = Project(
