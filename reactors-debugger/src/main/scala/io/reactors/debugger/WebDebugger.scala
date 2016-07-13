@@ -20,6 +20,7 @@ extends DebugApi with Protocol.Service with WebApi {
   private val startTime = System.currentTimeMillis()
   private val uidCount = new AtomicInteger
   private var lastActivityTime = System.currentTimeMillis()
+  private val replManager = new ReplManager(system)
   @volatile private var deltaDebugger: DeltaDebugger = null
   @volatile private var breakpointDebugger: BreakpointDebugger = null
 
