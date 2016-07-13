@@ -1,4 +1,6 @@
 
+@@style(io/reactors/debugger/css/vars.css)
+
 .paginate_button {
   font-size: 12px;
 }
@@ -9,7 +11,7 @@
 .pagination > .disabled > span,
 .pagination > .disabled > span:hover,
 .pagination > .disabled > span:focus {
-  background-color: rgba(0, 0, 0, 0.4);
+  background-color: var(--);
   border-color: rgba(60, 60, 60, 0.3);
 }
 
@@ -46,5 +48,5 @@ table.dataTable {
 }
 
 .dataTables_scrollHead {
-  border-bottom: 1px solid rgba(60, 60, 60, 0.1) !important;
+  border-bottom: var(--widget-border-dimmer) !important;
 }

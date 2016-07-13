@@ -99,49 +99,57 @@ object WebServer {
           IOUtils.toString(stream, "UTF-8")
         }
 
+        def absorbImports(n: Node, raw: String): String = {
+          val reader = new BufferedReader(new StringReader(raw))
+          val sb = new StringBuffer
+
+          var line: String = null
+          while ({ line = reader.readLine(); line != null }) {
+            def path(p: Pattern, txt: String): String = {
+              val m = p.matcher(txt)
+              if (m.matches()) m.group("path") else null
+            }
+
+            val stylepath = path(stylePattern, line)
+            if (stylepath != null) {
+              n.deps(stylepath) = loadStyle(stylepath)
+            }
+
+            val libpath = path(libPattern, line)
+            if (libpath != null) {
+              n.deps(libpath) = loadLibrary(libpath)
+            }
+
+            val compath = path(componentPattern, line)
+            if (compath != null) {
+              n.deps(compath) = loadCom(compath)
+            }
+
+            if (libpath == null && stylepath == null && compath == null) {
+              sb.append(line).append("\n")
+            }
+          }
+
+          sb.toString
+        }
+
         def loadLibrary(path: String): Node =
           if (seen.contains(path)) seen(path)
           else add(new Node(path, Lib, loadString(path)))
 
         def loadStyle(path: String): Node =
-          if (seen.contains(path)) seen(path)
-          else add(new Node(path, Style, loadString(path)))
+          if (seen.contains(path)) seen(path) else {
+            val style = add(new Node(path, Style))
+            val raw = loadString(path)
+            style.content = absorbImports(style, raw)
+            style
+          }
 
         def loadCom(path: String, t: NodeType = Com): Node =
           if (seen.contains(path)) seen(path) else {
             val com = add(new Node(path, t))
             val raw = loadString(path)
-            val reader = new BufferedReader(new StringReader(raw))
-            val sb = new StringBuffer
-
-            var line: String = null
-            while ({ line = reader.readLine(); line != null }) {
-              def path(p: Pattern, txt: String): String = {
-                val m = p.matcher(txt)
-                if (m.matches()) m.group("path") else null
-              }
-
-              val stylepath = path(stylePattern, line)
-              if (stylepath != null) {
-                com.deps(stylepath) = loadStyle(stylepath)
-              }
-
-              val libpath = path(libPattern, line)
-              if (libpath != null) {
-                com.deps(libpath) = loadLibrary(libpath)
-              }
-
-              val compath = path(componentPattern, line)
-              if (compath != null) {
-                com.deps(compath) = loadCom(compath)
-              }
-
-              if (libpath == null && stylepath == null && compath == null) {
-                sb.append(line).append("\n")
-              }
-            }
-            com.content = sb.toString
-
+            com.content = absorbImports(com, raw)
             com
           }
 

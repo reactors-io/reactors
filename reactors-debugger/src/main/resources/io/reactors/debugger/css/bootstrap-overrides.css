@@ -1,11 +1,13 @@
 
+@@style(io/reactors/debugger/css/vars.css)
+
 .panel-default {
   border: 0px solid transparent;
   border-radius: 0px;
 }
 
 .panel {
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: var(--widget-background-color);
   margin-bottom: 0px;
 }
 
@@ -30,6 +32,6 @@ select.input-sm option {
 }
 
 .form-control {
-  background-color: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(60, 60, 60, 0.3);
+  background-color: var(--widget-background-color);
+  border: var(--widget-border);
 }
