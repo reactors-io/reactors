@@ -153,27 +153,27 @@ extends DebugApi with Protocol.Service with WebApi {
       deltaDebugger.state(suid, ts)
     }
 
-  def replGet(repluid: String, tpe: String): JValue =
+  def replGet(repluid: String, tpe: String): Future[JValue] =
     monitor.synchronized {
-      val uidRepl = replManager.repl(repluid, tpe)
-      val response = uidRepl match {
-        case Some((nrepluid, repl)) => (
-          ("repluid" -> JString(nrepluid))
-        )
-        case None =>
-          ("error" -> JString(s"REPL type '${tpe}' is unknown."))
-      }
-      response
+      replManager.repl(repluid, tpe).map({
+        case (nrepluid, repl) =>
+          ("repluid" -> nrepluid) ~
+          ("output" -> repl.flush())
+      }).recover({
+        case e: Exception =>
+          JObject("error" -> JString(s"REPL type '${tpe}' is unknown."))
+      })
     }
 
   def replEval(repluid: String, cmd: String): Future[JValue] =
     monitor.synchronized {
-      replManager.repl(repluid, "") match {
-        case None =>
-          Future.successful(JObject("error" -> JString("REPL session expired.")))
-        case Some((nrepluid, repl)) =>
+      replManager.repl(repluid, "").flatMap({
+        case (nrepluid, repl) =>
           repl.eval(cmd).map(_.asJson)
-      }
+      }).recover({
+        case t: Throwable =>
+          JObject("error" -> JString("REPL session expired."))
+      })
     }
 }
 

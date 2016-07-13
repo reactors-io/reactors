@@ -18,6 +18,14 @@ abstract class Repl {
    */
   def eval(cmd: String): Future[Repl.Result]
 
+  /** Future that is completed when the REPL starts.
+   */
+  def started: Future[Boolean]
+
+  /** Get any pending output.
+   */
+  def flush(): String
+
   /** Shuts down the REPL.
    */
   def shutdown(): Unit

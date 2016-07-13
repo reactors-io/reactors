@@ -18,6 +18,7 @@ import scala.tools.nsc.interpreter._
 
 class ScalaRepl extends Repl {
   private val lock = new AnyRef
+  private val startedPromise = Promise[Boolean]()
   private val commandQueue = new LinkedTransferQueue[String]
   private val outputQueue = new LinkedTransferQueue[String]
   private val stringWriter = new StringWriter
@@ -30,6 +31,7 @@ class ScalaRepl extends Repl {
       val output = stringWriter.getBuffer.toString
       stringWriter.getBuffer.setLength(0)
       outputQueue.add(output)
+      startedPromise.trySuccess(true)
       res
     }
   }
@@ -49,16 +51,30 @@ class ScalaRepl extends Repl {
   }
 
   {
+    // Add empty command to trigger output of splash message.
+    commandQueue.add("")
+    // Start REPL thread.
     replThread.start()
+    // Wait until REPL is initialized.
   }
 
   def tpe = "Scala"
+
+  def started = startedPromise.future
 
   def eval(cmd: String) = Future {
     lock.synchronized {
       commandQueue.add(cmd)
       val output = outputQueue.take()
       Repl.Result(0, output)
+    }
+  }
+
+  def flush(): String = {
+    lock.synchronized {
+      val sb = new StringBuilder
+      while (outputQueue.peek != null) sb.append(outputQueue.poll()).append("\n")
+      sb.toString
     }
   }
 

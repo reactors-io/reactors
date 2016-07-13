@@ -77,8 +77,8 @@
       };
     },
     attached: function() {
-      this.api.replGet("", this.shellType).then((reply) => {
-        this.shell = this.createShell(reply.repluid, this.shellType);
+      this.api.replGet("", this.shellType).then((initialReply) => {
+        this.shell = this.createShell(initialReply.repluid, this.shellType);
         $("#x-shell-main-window-" + this.uid).terminal((command, term) => {
           term.pause();
           this.shell.eval(this.api, command).then((reply) => {
@@ -88,7 +88,11 @@
         }, {
           prompt: this.shell.prompt,
           name: this.shell.name,
-          greetings: this.shell.greetings
+          greetings: this.shell.greetings,
+          onInit: (term) => {
+            console.log("init");
+            term.echo(initialReply.output)
+          }
         });
       });
     },

@@ -8,6 +8,8 @@ import io.reactors.debugger.repl.ScalaRepl
 import java.util.TimerTask
 import java.util.concurrent.atomic.AtomicLong
 import scala.collection._
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.tools.nsc.Settings
 import scala.tools.nsc.interpreter._
 
@@ -45,21 +47,29 @@ class ReplManager(val system: ReactorSystem) {
     }
   }
 
-  def repl(uid: String, tpe: String): Option[(String, Repl)] = monitor.synchronized {
-    repls.get(uid) match {
-      case Some(s) =>
-        s.ping()
-        Some((uid, s.repl))
-      case _ =>
-        replFactory.get(tpe) match {
-          case Some(f) =>
-            val s = new ReplManager.Session(f())
-            val nuid = Uid.string()
-            repls(nuid) = s
-            Some((nuid, s.repl))
-          case None =>
-            None
-        }
+  private def createRepl(uid: String, tpe: String): Option[(String, Repl)] =
+    monitor.synchronized {
+      repls.get(uid) match {
+        case Some(s) =>
+          s.ping()
+          Some((uid, s.repl))
+        case _ =>
+          replFactory.get(tpe) match {
+            case Some(f) =>
+              val s = new ReplManager.Session(f())
+              val nuid = Uid.string()
+              repls(nuid) = s
+              Some((nuid, s.repl))
+            case None =>
+              None
+          }
+      }
+    }
+
+  def repl(uid: String, tpe: String): Future[(String, Repl)] = {
+    createRepl(uid, tpe) match {
+      case Some((nuid, repl)) => repl.started.map(_ => (nuid, repl))
+      case None => Future.failed(new Exception("Could not start REPL."))
     }
   }
 }

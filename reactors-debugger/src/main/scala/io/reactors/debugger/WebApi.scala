@@ -27,7 +27,7 @@ trait WebApi {
    *  @param tpe      type of the requested REPL
    *  @return         the (actual) session UID, and REPL UID
    */
-  def replGet(repluid: String, tpe: String): JValue
+  def replGet(repluid: String, tpe: String): Future[JValue]
 
   /** Evaluates a command in the REPL.
    *
