@@ -197,8 +197,17 @@ object ReactorsBuild extends MechaRepoBuild {
   def reactorsDebuggerSettings = projectSettings("-debugger", debuggerDependencies)
 
   def debuggerDependencies(scalaVersion: String) = {
-    defaultDependencies(scalaVersion) ++ Seq(
-      "org.scala-lang" % "scala-compiler" % "2.11.7",
+    val scalaDeps = CrossVersion.partialVersion(scalaVersion) match {
+      case Some((2, major)) if major >= 11 => Seq(
+        "org.scala-lang" % "scala-compiler" % "2.11.7"
+      )
+      case Some((2, 10)) => Seq(
+        "org.scala-lang" % "scala-compiler" % "2.10.4"
+      )
+      case _ => Nil
+    }
+
+    defaultDependencies(scalaVersion) ++ scalaDeps ++ Seq(
       "org.rapidoid" % "rapidoid-http-server" % "5.1.9",
       "org.rapidoid" % "rapidoid-gui" % "5.1.9",
       "com.github.spullara.mustache.java" % "compiler" % "0.9.2",
