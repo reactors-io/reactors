@@ -26,7 +26,6 @@ class ScalaRepl extends Repl {
   }
   private val repl = new ILoop(Some(queueReader), new PrintWriter(stringWriter)) {
     override def processLine(line: String): Boolean = {
-      println("jo! " + line)
       val res = super.processLine(line)
       val output = stringWriter.getBuffer.toString
       stringWriter.getBuffer.setLength(0)
@@ -36,7 +35,6 @@ class ScalaRepl extends Repl {
   }
   private val replThread = new Thread {
     override def run() {
-      println("started")
       try {
         val settings = new Settings
         settings.Yreplsync.value = true
