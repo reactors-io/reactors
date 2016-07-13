@@ -3,6 +3,7 @@ package debugger
 
 
 
+import scala.concurrent.Future
 import org.json4s._
 
 
@@ -23,7 +24,7 @@ trait WebApi {
    *  matches the type of the existing REPL. Otherwise, starts a new REPL.
    *
    *  @param suid     unique identifier of the session
-   *  @param repluid  unique identifier of the REPL in this session
+   *  @param repluid  unique identifier of the REPL in this session (`-1` for new REPL)
    *  @param tpe      type of the requested REPL
    *  @return         the (actual) session UID, and REPL UID
    */
@@ -36,5 +37,5 @@ trait WebApi {
    *  @param command  string with the contents of the command to execute
    *  @return         the status and the output of the command
    */
-  def replEval(suid: String, repluid: Long, cmd: String): JValue
+  def replEval(suid: String, repluid: Long, cmd: String): Future[JValue]
 }

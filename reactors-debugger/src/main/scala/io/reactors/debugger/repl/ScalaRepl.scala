@@ -4,6 +4,7 @@ package repl
 
 
 
+import scala.concurrent._
 import scala.tools.nsc.Settings
 import scala.tools.nsc.interpreter._
 
@@ -15,7 +16,7 @@ class ScalaRepl extends Repl {
   def tpe = "Scala"
 
   def eval(cmd: String) = {
-    Repl.Result(0, "")
+    Promise.successful(Repl.Result(0, "")).future
   }
 
   def shutdown() {

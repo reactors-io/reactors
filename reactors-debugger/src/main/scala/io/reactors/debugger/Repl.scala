@@ -3,6 +3,9 @@ package debugger
 
 
 
+import org.json4s._
+import org.json4s.JsonDSL._
+import scala.concurrent.Future
 
 
 
@@ -13,7 +16,7 @@ abstract class Repl {
 
   /** Evaluates a command in the REPL and returns the result.
    */
-  def eval(cmd: String): Repl.Result
+  def eval(cmd: String): Future[Repl.Result]
 
   /** Shuts down the REPL.
    */
@@ -22,5 +25,10 @@ abstract class Repl {
 
 
 object Repl {
-  case class Result(status: Int, output: String)
+  case class Result(status: Int, output: String) {
+    def asJson: JValue = {
+      ("status" -> status) ~
+      ("output" -> output)
+    }
+  }
 }

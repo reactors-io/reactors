@@ -8,14 +8,17 @@ import java.io.BufferedReader
 import java.io.StringReader
 import java.io.StringWriter
 import java.util.HashMap
+import java.util.concurrent.TimeUnit
 import java.util.regex._
 import org.apache.commons.io.IOUtils
 import org.json4s._
 import org.json4s.jackson.JsonMethods._
+import org.rapidoid.job.Jobs
+import org.rapidoid.gui._
 import org.rapidoid.http._
 import org.rapidoid.setup._
-import org.rapidoid.gui._
 import scala.collection._
+import scala.concurrent.ExecutionContext.Implicits.global
 
 
 
@@ -189,7 +192,12 @@ object WebServer {
       val suid = req.posted.get("suid").asInstanceOf[String]
       val repluid = req.posted.get("repluid").asInstanceOf[Number].longValue
       val command = req.posted.get("cmd").asInstanceOf[String]
-      asJsonNode(webapi.replEval(suid, repluid, command))
+      req.async()
+      webapi.replEval(suid, repluid, command).onSuccess { case result =>
+        req.response().json(asJsonNode(result))
+        req.done()
+      }
+      req
     })
 
     s

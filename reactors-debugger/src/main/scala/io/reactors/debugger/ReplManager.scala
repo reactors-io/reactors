@@ -3,6 +3,8 @@ package debugger
 
 
 
+import io.reactors.debugger.repl.ScalaRepl
+import java.util.TimerTask
 import java.util.concurrent.atomic.AtomicLong
 import scala.collection._
 import scala.tools.nsc.Settings
@@ -16,11 +18,16 @@ class ReplManager(val system: ReactorSystem) {
   val monitor = system.monitor
   val uidCount = new AtomicLong
   val repls = mutable.Map[Long, ReplManager.Session]()
+  val replFactory = mutable.Map[String, () => Repl]()
 
   {
+    // Start expiration checker.
     system.globalTimer.schedule(new TimerTask {
       def run() = checkExpired()
     }, expirationCheckSeconds * 1000)
+
+    // Add known repls.
+    replFactory("Scala") = () => new ScalaRepl
   }
 
   private def checkExpired() {
@@ -29,7 +36,7 @@ class ReplManager(val system: ReactorSystem) {
       var dead = List[Long]()
       for ((id, s) <- repls) {
         if (algebra.time.diff(now, s.lastActivityTime) > expirationSeconds * 1000) {
-          s.shutdown()
+          s.repl.shutdown()
           dead ::= id
         }
       }
@@ -37,10 +44,20 @@ class ReplManager(val system: ReactorSystem) {
     }
   }
 
-  def get(uid: Long, tpe: String): Option[Repl] = monitor.synchronized {
+  def repl(uid: Long, tpe: String): Option[(Long, Repl)] = monitor.synchronized {
     repls.get(uid) match {
-      case Some(s) if s.repl.tpe == tpe => Some(s.repl)
-      case None => None
+      case Some(s) if s.repl.tpe == tpe =>
+        Some((uid, s.repl))
+      case _ =>
+        replFactory.get(tpe) match {
+          case Some(f) =>
+            val s = new ReplManager.Session(f())
+            val nuid = uidCount.getAndIncrement()
+            repls(nuid) = s
+            Some((nuid, s.repl))
+          case None =>
+            None
+        }
     }
   }
 }

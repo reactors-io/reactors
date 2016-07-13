@@ -7,7 +7,11 @@ import java.util.TimerTask
 import java.util.UUID
 import java.util.concurrent.atomic._
 import org.json4s._
+import org.json4s.JsonDSL._
 import scala.collection._
+import scala.concurrent.Future
+import scala.concurrent.Promise
+import scala.concurrent.ExecutionContext.Implicits.global
 
 
 
@@ -147,20 +151,42 @@ extends DebugApi with Protocol.Service with WebApi {
     }
   }
 
-  def state(suid: String, ts: Long): JValue = {
+  def state(suid: String, ts: Long): JValue =
     monitor.synchronized {
       ensureLive()
       deltaDebugger.state(suid, ts)
     }
+
+  private def validateRepl(suid: String, repluid: Long, tpe: String) = {
+    monitor.synchronized {
+      if (suid == deltaDebugger.sessionuid) replManager.repl(repluid, tpe)
+      else replManager.repl(-1, tpe)
+    }
   }
 
-  def replGet(suid: String, repluid: Long, tpe: String): JValue = {
-    ???
-  }
+  def replGet(suid: String, repluid: Long, tpe: String): JValue =
+    monitor.synchronized {
+      val uidRepl = validateRepl(suid, repluid, tpe)
+      val response = uidRepl match {
+        case Some((nrepluid, repl)) => (
+          ("suid" -> deltaDebugger.sessionuid) ~
+          ("repluid" -> nrepluid)
+        )
+        case None =>
+          ("error" -> s"REPL type '${tpe}' is unknown.") ~ ("" -> (null: String))
+      }
+      response
+    }
 
-  def replEval(suid: String, repluid: Long, cmd: String): JValue = {
-    ???
-  }
+  def replEval(suid: String, repluid: Long, cmd: String): Future[JValue] =
+    monitor.synchronized {
+      validateRepl(suid, repluid, "") match {
+        case None =>
+          Future.successful(JObject("error" -> JString("REPL session expired.")))
+        case Some((nrepluid, repl)) =>
+          repl.eval(cmd).map(_.asJson)
+      }
+    }
 }
 
 
