@@ -47,7 +47,8 @@
             </x-log-window>
             <x-shell v-ref:shell
               slot="1"
-              :config="$refs.config.state">
+              :config="$refs.config.state"
+              :api="$refs.api.adapter">
             </x-shell>
           </x-horizontal-tabber>
         </div>

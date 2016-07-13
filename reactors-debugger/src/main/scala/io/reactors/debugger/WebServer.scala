@@ -58,7 +58,9 @@ object WebServer {
 
       def interpolate(n: Node): String = {
         val scopes = new HashMap[String, Object]
-        scopes.put("url", s"${system.bundle.urlMap("reactor.udp").url.host}:$port")
+        scopes.put("reactor-system.url",
+          s"${system.bundle.urlMap("reactor.udp").url.host}:$port")
+        scopes.put("reactor-system.version", "0.7")
         val imports = {
           val sb = new StringBuffer
           def traverse(n: Node): Unit = if (seen.contains(n.path)) {
@@ -85,7 +87,7 @@ object WebServer {
           traverse(n)
           sb.toString
         }
-        scopes.put("imports", imports)
+        scopes.put("debugger-ui.imports", imports)
 
         val writer = new StringWriter
         val mf = new DefaultMustacheFactory()
@@ -183,17 +185,15 @@ object WebServer {
       asJsonNode(webapi.state(suid, ts))
     })
     s.post("/api/repl/get").json((req: Req) => {
-      val suid = req.posted.get("suid").asInstanceOf[String]
-      val repluid = req.posted.get("repluid").asInstanceOf[Number].longValue
+      val repluid = req.posted.get("repluid").asInstanceOf[String]
       val tpe = req.posted.get("tpe").asInstanceOf[String]
-      asJsonNode(webapi.replGet(suid, repluid, tpe))
+      asJsonNode(webapi.replGet(repluid, tpe))
     })
     s.post("/api/repl/eval").json((req: Req) => {
-      val suid = req.posted.get("suid").asInstanceOf[String]
-      val repluid = req.posted.get("repluid").asInstanceOf[Number].longValue
+      val repluid = req.posted.get("repluid").asInstanceOf[String]
       val command = req.posted.get("cmd").asInstanceOf[String]
       req.async()
-      webapi.replEval(suid, repluid, command).onSuccess { case result =>
+      webapi.replEval(repluid, command).onSuccess { case result =>
         req.response().json(asJsonNode(result))
         req.done()
       }

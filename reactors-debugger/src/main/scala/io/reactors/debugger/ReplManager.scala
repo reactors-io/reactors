@@ -3,6 +3,7 @@ package debugger
 
 
 
+import io.reactors.common.Uid
 import io.reactors.debugger.repl.ScalaRepl
 import java.util.TimerTask
 import java.util.concurrent.atomic.AtomicLong
@@ -17,7 +18,7 @@ class ReplManager(val system: ReactorSystem) {
   val expirationSeconds = system.bundle.config.getInt("debug-api.repl.expiration")
   val monitor = system.monitor
   val uidCount = new AtomicLong
-  val repls = mutable.Map[Long, ReplManager.Session]()
+  val repls = mutable.Map[String, ReplManager.Session]()
   val replFactory = mutable.Map[String, () => Repl]()
 
   {
@@ -33,7 +34,7 @@ class ReplManager(val system: ReactorSystem) {
   private def checkExpired() {
     monitor.synchronized {
       val now = System.currentTimeMillis()
-      var dead = List[Long]()
+      var dead = List[String]()
       for ((id, s) <- repls) {
         if (algebra.time.diff(now, s.lastActivityTime) > expirationSeconds * 1000) {
           s.repl.shutdown()
@@ -44,15 +45,15 @@ class ReplManager(val system: ReactorSystem) {
     }
   }
 
-  def repl(uid: Long, tpe: String): Option[(Long, Repl)] = monitor.synchronized {
+  def repl(uid: String, tpe: String): Option[(String, Repl)] = monitor.synchronized {
     repls.get(uid) match {
-      case Some(s) if s.repl.tpe == tpe =>
+      case Some(s) =>
         Some((uid, s.repl))
       case _ =>
         replFactory.get(tpe) match {
           case Some(f) =>
             val s = new ReplManager.Session(f())
-            val nuid = uidCount.getAndIncrement()
+            val nuid = Uid.string()
             repls(nuid) = s
             Some((nuid, s.repl))
           case None =>

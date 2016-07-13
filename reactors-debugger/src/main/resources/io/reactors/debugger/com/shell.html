@@ -53,11 +53,15 @@
         "                                            (c) 2014-" + y + " \n"
       );
     }
+
+    eval(api, cmd) {
+      api.replEval(cmd)
+    }
   }
 
   var Shell = Vue.extend({
     template: "#x-shell",
-    props: ["config"],
+    props: ["config", "api"],
     data: function() {
       return {
         uid: Uid.num(),

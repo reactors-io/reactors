@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Reactor System -- {{ url }}</title>
+    <title>Reactor System -- {{ reactor-system.url }}</title>
     @@style(io/reactors/debugger/lib/bootstrap/css/bootstrap.min.css)
     @@library(io/reactors/debugger/lib/jquery/jquery-1.12.4.min.js)
     @@library(io/reactors/debugger/lib/bootstrap/js/bootstrap.min.js)
     @@library(io/reactors/debugger/lib/vuejs/vue.min.js)
     @@component(io/reactors/debugger/com/debugger.html)
-    {{{ imports }}}
+    {{{ debugger-ui.imports }}}
     <script>
       var vm;
       $(document).ready(function() {

@@ -3,9 +3,8 @@ package debugger
 
 
 
+import io.reactors.common.Uid
 import java.util.TimerTask
-import java.util.UUID
-import java.util.concurrent.atomic._
 import org.json4s._
 import org.json4s.JsonDSL._
 import scala.collection._
@@ -22,7 +21,6 @@ extends DebugApi with Protocol.Service with WebApi {
   private val server: WebServer = new WebServer(system, this)
   private val monitor = system.monitor
   private val startTime = System.currentTimeMillis()
-  private val uidCount = new AtomicLong
   private var lastActivityTime = System.currentTimeMillis()
   private val replManager = new ReplManager(system)
   @volatile private var deltaDebugger: DeltaDebugger = null
@@ -37,9 +35,7 @@ extends DebugApi with Protocol.Service with WebApi {
 
   /* internal api */
 
-  private def uniqueId(): String = {
-    UUID.randomUUID().toString + ":" + uidCount.getAndIncrement() + ":" + startTime
-  }
+  private def uniqueId(): String = Uid.string(startTime)
 
   def isEnabled = deltaDebugger != null
 
@@ -157,30 +153,22 @@ extends DebugApi with Protocol.Service with WebApi {
       deltaDebugger.state(suid, ts)
     }
 
-  private def validateRepl(suid: String, repluid: Long, tpe: String) = {
+  def replGet(repluid: String, tpe: String): JValue =
     monitor.synchronized {
-      if (suid == deltaDebugger.sessionuid) replManager.repl(repluid, tpe)
-      else replManager.repl(-1, tpe)
-    }
-  }
-
-  def replGet(suid: String, repluid: Long, tpe: String): JValue =
-    monitor.synchronized {
-      val uidRepl = validateRepl(suid, repluid, tpe)
+      val uidRepl = replManager.repl(repluid, tpe)
       val response = uidRepl match {
         case Some((nrepluid, repl)) => (
-          ("suid" -> deltaDebugger.sessionuid) ~
-          ("repluid" -> nrepluid)
+          ("repluid" -> JString(nrepluid))
         )
         case None =>
-          ("error" -> s"REPL type '${tpe}' is unknown.") ~ ("" -> (null: String))
+          ("error" -> JString(s"REPL type '${tpe}' is unknown."))
       }
       response
     }
 
-  def replEval(suid: String, repluid: Long, cmd: String): Future[JValue] =
+  def replEval(repluid: String, cmd: String): Future[JValue] =
     monitor.synchronized {
-      validateRepl(suid, repluid, "") match {
+      replManager.repl(repluid, "") match {
         case None =>
           Future.successful(JObject("error" -> JString("REPL session expired.")))
         case Some((nrepluid, repl)) =>
