@@ -83,6 +83,8 @@
           term.pause();
           this.shell.eval(this.api, command).then((reply) => {
             term.echo(reply.output);
+            if (!reply["need-more"]) term.echo(" ");
+            term.set_prompt(reply.prompt);
             term.resume();
           });
         }, {
@@ -90,8 +92,8 @@
           name: this.shell.name,
           greetings: this.shell.greetings,
           onInit: (term) => {
-            console.log("init");
             term.echo(initialReply.output)
+            term.echo(" ")
           }
         });
       });

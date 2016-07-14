@@ -33,10 +33,12 @@ abstract class Repl {
 
 
 object Repl {
-  case class Result(status: Int, output: String) {
+  case class Result(status: Int, output: String, prompt: String, needMore: Boolean) {
     def asJson: JValue = {
       ("status" -> status) ~
-      ("output" -> output)
+      ("output" -> output) ~
+      ("prompt" -> prompt) ~
+      ("need-more" -> needMore)
     }
   }
 }
