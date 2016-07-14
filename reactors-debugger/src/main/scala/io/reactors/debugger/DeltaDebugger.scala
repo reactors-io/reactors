@@ -77,6 +77,8 @@ extends DebugApi {
   def connectorOpened[T](c: Connector[T]) = enqueue(DeltaDebugger.ConnectorOpened(c))
 
   def connectorSealed[T](c: Connector[T]) = enqueue(DeltaDebugger.ConnectorSealed(c))
+
+  def log(x: Any) {}
 }
 
 

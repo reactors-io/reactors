@@ -39,4 +39,7 @@ extends DebugApi {
 
   def connectorSealed[T](c: Connector[T]) {
   }
+
+  def log(x: Any) {
+  }
 }

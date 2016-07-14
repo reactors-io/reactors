@@ -47,6 +47,10 @@ abstract class DebugApi {
   /** Called when a connector is sealed.
    */
   def connectorSealed[T](c: Connector[T]): Unit
+
+  /** Print the specified message to the debugger.
+   */
+  def log(x: Any): Unit
 }
 
 
@@ -81,6 +85,9 @@ object DebugApi {
     }
 
     def connectorSealed[T](c: Connector[T]) {
+    }
+
+    def log(x: Any){
     }
   }
 }

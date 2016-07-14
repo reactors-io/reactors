@@ -120,6 +120,14 @@ extends DebugApi with Protocol.Service with WebApi {
     }
   }
 
+  def log(x: Any) {
+    if (deltaDebugger != null) monitor.synchronized {
+      if (deltaDebugger != null) {
+        replManager.log(x)
+      }
+    }
+  }
+
   def shutdown() {
     server.shutdown()
   }

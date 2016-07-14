@@ -4,10 +4,11 @@ package repl
 
 
 
-import java.io.PrintWriter
-import java.io.StringWriter
 import java.io.BufferedReader
+import java.io.PrintStream
+import java.io.PrintWriter
 import java.io.StringReader
+import java.io.StringWriter
 import java.util.concurrent.LinkedTransferQueue
 import scala.collection._
 import scala.concurrent._
@@ -20,25 +21,34 @@ import scala.tools.nsc.interpreter._
 class ScalaRepl(val system: ReactorSystem) extends Repl {
   private val lock = new AnyRef
   private val startedPromise = Promise[Boolean]()
+  private val pendingOutputQueue = new LinkedTransferQueue[String]
   private val commandQueue = new LinkedTransferQueue[String]
   private val outputQueue = new LinkedTransferQueue[Repl.Result]
   class ExtractableWriter {
-    val stringWriter = new StringWriter
-    val printWriter = new PrintWriter(stringWriter)
-    val outputStream = new OutputStream {
+    val localStringWriter = new StringWriter
+    val localPrintWriter = new PrintWriter(localStringWriter)
+    val globalOutputStream = new OutputStream {
       def write(b: Int) {
-        stringWriter.write(b)
+        System.out.write(b)
+        localStringWriter.write(b)
       }
     }
+    val globalPrintStream = new PrintStream(globalOutputStream)
+    def extractPending(): String = {
+      val sb = new StringBuilder
+      while (!pendingOutputQueue.isEmpty) sb.append(pendingOutputQueue.take())
+      sb.toString
+    }
     def extract(): String = {
-      var result = stringWriter.getBuffer.toString
-      stringWriter.getBuffer.setLength(0)
-      result = result.split("\n")
+      var output = localStringWriter.getBuffer.toString
+      localStringWriter.getBuffer.setLength(0)
+      output = output.split("\n")
         .map(_.replaceFirst("scala> ", ""))
         .filter(_ != "     | ")
         .filter(_.trim() != "")
         .mkString("\n")
-      result
+      val pendingOutput = extractPending()
+      pendingOutput + output
     }
   }
   private val extractableWriter = new ExtractableWriter
@@ -51,7 +61,7 @@ class ScalaRepl(val system: ReactorSystem) extends Repl {
     }
   }
   private val queueReader = new QueueReader
-  private val repl = new ILoop(Some(queueReader), extractableWriter.printWriter) {
+  private val repl = new ILoop(Some(queueReader), extractableWriter.localPrintWriter) {
     override def createInterpreter() {
       super.createInterpreter()
       intp.beQuietDuring {
@@ -74,8 +84,8 @@ class ScalaRepl(val system: ReactorSystem) extends Repl {
   private val replThread = new Thread(s"reactors-io.${system.name}.repl-thread") {
     override def run() {
       try {
-        Console.withOut(extractableWriter.outputStream) {
-          Console.withErr(extractableWriter.outputStream) {
+        Console.withOut(extractableWriter.globalPrintStream) {
+          Console.withErr(extractableWriter.globalPrintStream) {
             val settings = new Settings
             settings.Yreplsync.value = true
             settings.usejavacp.value = true
@@ -107,6 +117,10 @@ class ScalaRepl(val system: ReactorSystem) extends Repl {
       val result = outputQueue.take()
       result
     }
+  }
+
+  def log(x: Any) = {
+    pendingOutputQueue.add(x.toString)
   }
 
   def flush(): String = {

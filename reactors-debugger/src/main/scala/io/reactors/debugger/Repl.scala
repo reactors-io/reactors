@@ -22,6 +22,13 @@ abstract class Repl {
    */
   def started: Future[Boolean]
 
+  /** Log something to the terminal.
+   *
+   *  Normally, REPL does the logging. This is called when an external entity needs to
+   *  log something.
+   */
+  def log(x: Any): Unit
+
   /** Get any pending output.
    */
   def flush(): String

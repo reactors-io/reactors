@@ -38,6 +38,9 @@ abstract class Services {
   /** Clock services. */
   val clock = service[Services.Clock]
 
+  /** Debugger services. */
+  val debugger = service[Services.Debugger]
+
   /** I/O services. */
   val io = service[Services.Io]
 
@@ -83,6 +86,16 @@ abstract class Services {
  */
 object Services {
 
+  /** Contains services needed to communicate with the debugger.
+   */
+  class Debugger(val system: ReactorSystem) extends Protocol.Service {
+    object terminal {
+      val log = (x: Any) => system.debugApi.log(x)
+    }
+
+    def shutdown() {}
+  }
+
   /** Contains I/O-related services.
    */
   class Io(val system: ReactorSystem) extends Protocol.Service {
@@ -94,9 +107,7 @@ object Services {
   /** Contains various logging-related services.
    */
   class Log(val system: ReactorSystem) extends Protocol.Service {
-    def apply(x: Any) {
-      System.out.println(x.toString)
-    }
+    val apply = (x: Any) => System.out.println(x.toString)
 
     def shutdown() {}
   }

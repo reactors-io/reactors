@@ -72,6 +72,12 @@ class ReplManager(val system: ReactorSystem) {
       case None => Future.failed(new Exception("Could not start REPL."))
     }
   }
+
+  def log(x: Any) {
+    monitor.synchronized {
+      for ((_, s) <- repls) s.repl.log(x)
+    }
+  }
 }
 
 
