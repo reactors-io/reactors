@@ -74,11 +74,10 @@
           // Update pending output.
           var pendingOutput = data["pending-output"];
           if (pendingOutput) {
-            for (var repluid in pendingOutput) {
-              if (pendingOutput.hasOwnProperty(repluid)) {
-                var buffer = this.state.shellPendingOutput[repluid];
-                buffer.push(pendingOutput[repluid]);
-              }
+            for (var ruid in pendingOutput) if (pendingOutput.hasOwnProperty(ruid)) {
+              var buffer = this.state.shellPendingOutput[ruid];
+              var output = pendingOutput[ruid];
+              if (buffer && output ) buffer.push(output);
             }
           }
 

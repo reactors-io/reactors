@@ -159,16 +159,15 @@ extends DebugApi with Protocol.Service with WebApi {
     monitor.synchronized {
       ensureLive()
       val replouts = replManager.pendingOutputs(ruids).toMap.mapValues(JString).toList
-      println(replouts)
-      JObject(replouts ::: deltaDebugger.state(suid, ts).obj)
+      JObject(
+        ("pending-output" -> JObject(replouts)) :: deltaDebugger.state(suid, ts).obj)
     }
 
   def replGet(repluid: String, tpe: String): Future[JValue] =
     monitor.synchronized {
       replManager.repl(repluid, tpe).map({
         case (nrepluid, repl) =>
-          ("repluid" -> nrepluid) ~
-          ("output" -> repl.flush())
+          JObject("repluid" -> JString(nrepluid))
       }).recover({
         case e: Exception =>
           JObject("error" -> JString(s"REPL type '${tpe}' is unknown."))

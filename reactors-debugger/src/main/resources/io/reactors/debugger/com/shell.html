@@ -78,7 +78,7 @@
     },
     attached: function() {
       this.api.replGet("", this.shellType).then((initialReply) => {
-        this.model.shellPendingOutput[initialReply.repluid] = [];
+        Vue.set(this.model.shellPendingOutput, initialReply.repluid, []);
         this.shell = this.createShell(initialReply.repluid, this.shellType);
         this.term = $("#x-shell-main-window-" + this.uid).terminal((command, term) => {
           term.pause();
@@ -93,8 +93,6 @@
           name: this.shell.name,
           greetings: this.shell.greetings,
           onInit: (term) => {
-            term.echo(initialReply.output)
-            term.echo(" ")
           }
         });
       });
@@ -109,18 +107,29 @@
           default:
             Log.error("Unknown shell type: " + tpe);
         }
+      },
+      terminalPrint: function(line) {
+        if (this.term) {
+          this.term.pause();
+          this.term.echo(line);
+          this.term.resume();
+        }
       }
     },
     watch: {
-      "model.pendingOutput": function(nv) {
-        var output = "";
-        var po = this.model.pendingOutput;
-        for (var i = 0; i < po.length; i++) {
-          var line = nv[i];
-          output = output + line;
-        }
-        po.splice(0, po.length);
-        output;
+      "model.shellPendingOutput[shell.uid]": {
+        handler: function(nv) {
+          if (nv.length > 0) {
+            var output = "";
+            for (var i = 0; i < nv.length; i++) {
+              var line = nv[i];
+              output = output + line;
+              this.terminalPrint(output);
+            }
+            nv.splice(0, nv.length);
+          }
+        },
+        deep: true
       }
     }
   });

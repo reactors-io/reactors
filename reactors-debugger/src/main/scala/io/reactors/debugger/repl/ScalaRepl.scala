@@ -4,12 +4,13 @@ package repl
 
 
 
+import io.reactors.common.TransferQueue
 import java.io.BufferedReader
 import java.io.PrintStream
 import java.io.PrintWriter
 import java.io.StringReader
 import java.io.StringWriter
-import java.util.concurrent.LinkedTransferQueue
+import java.util.concurrent.locks.ReentrantLock
 import scala.collection._
 import scala.concurrent._
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -19,11 +20,12 @@ import scala.tools.nsc.interpreter._
 
 
 class ScalaRepl(val system: ReactorSystem) extends Repl {
-  private val lock = new AnyRef
+  private val monitor = system.monitor
+  private val lock = new ReentrantLock
   private val startedPromise = Promise[Boolean]()
-  private val pendingOutputQueue = new LinkedTransferQueue[String]
-  private val commandQueue = new LinkedTransferQueue[String]
-  private val outputQueue = new LinkedTransferQueue[Repl.Result]
+  private val pendingOutputQueue = new TransferQueue[String](monitor)
+  private val commandQueue = new TransferQueue[String](monitor)
+  private val outputQueue = new TransferQueue[Repl.Result](monitor)
   class ExtractableWriter {
     val localStringWriter = new StringWriter
     val localPrintWriter = new PrintWriter(localStringWriter)
@@ -36,7 +38,8 @@ class ScalaRepl(val system: ReactorSystem) extends Repl {
     val globalPrintStream = new PrintStream(globalOutputStream)
     def extractPending(): String = {
       val sb = new StringBuilder
-      while (!pendingOutputQueue.isEmpty) sb.append(pendingOutputQueue.take())
+      while (!pendingOutputQueue.isEmpty)
+        sb.append(pendingOutputQueue.waitUntilDequeue())
       sb.toString
     }
     def extract(): String = {
@@ -55,9 +58,9 @@ class ScalaRepl(val system: ReactorSystem) extends Repl {
   class QueueReader extends BufferedReader(new StringReader("")) {
     var continueMode = false
     override def readLine() = {
-      if (continueMode)
-        outputQueue.add(Repl.Result(0, extractableWriter.extract(), "     | ", true))
-      commandQueue.take()
+      if (continueMode) outputQueue.enqueue(
+        Repl.Result(0, extractableWriter.extract(), "     | ", true))
+      commandQueue.waitUntilDequeue()
     }
   }
   private val queueReader = new QueueReader
@@ -78,8 +81,12 @@ class ScalaRepl(val system: ReactorSystem) extends Repl {
         queueReader.continueMode = false
       }
       val output = extractableWriter.extract()
-      outputQueue.add(Repl.Result(0, output, "scala> ", false))
-      startedPromise.trySuccess(true)
+      if (!startedPromise.isCompleted) {
+        pendingOutputQueue.enqueue(output)
+        startedPromise.trySuccess(true)
+      } else {
+        outputQueue.enqueue(Repl.Result(0, output, "scala> ", false))
+      }
       res
     }
   }
@@ -100,7 +107,7 @@ class ScalaRepl(val system: ReactorSystem) extends Repl {
 
   {
     // Add import command, which also triggers output of splash message.
-    commandQueue.add("import io.reactors._")
+    commandQueue.enqueue("import io.reactors._")
     // Start REPL thread.
     replThread.start()
   }
@@ -110,25 +117,27 @@ class ScalaRepl(val system: ReactorSystem) extends Repl {
   def started = startedPromise.future
 
   def eval(cmd: String) = Future {
-    lock.synchronized {
-      commandQueue.add(cmd)
-      val result = outputQueue.take()
-      result
+    lock.lock()
+    try {
+      monitor.synchronized {
+        commandQueue.enqueue(cmd)
+        val result = outputQueue.waitUntilDequeue()
+        result
+      }
+    } finally {
+      lock.unlock()
     }
   }
 
   def log(x: Any) = {
-    pendingOutputQueue.add(x.toString)
+    pendingOutputQueue.enqueue(x.toString)
   }
 
   def flush(): String = {
-    lock.synchronized {
+    monitor.synchronized {
       val lines = mutable.Buffer[String]()
-      while (!outputQueue.isEmpty) {
-        lines += outputQueue.poll().output
-      }
       while (!pendingOutputQueue.isEmpty)  {
-        lines += pendingOutputQueue.poll()
+        lines += pendingOutputQueue.waitUntilDequeue()
       }
       lines.mkString("\n")
     }
