@@ -66,6 +66,8 @@ class ScalaRepl(val system: ReactorSystem) extends Repl {
       super.createInterpreter()
       intp.beQuietDuring {
         intp.bind("system", "io.reactors.ReactorSystem", system)
+        intp.bind("println", "Any => Unit",
+          (x: Any) => extractableWriter.globalPrintStream.println(x))
       }
     }
     override def processLine(line: String): Boolean = {
@@ -84,14 +86,10 @@ class ScalaRepl(val system: ReactorSystem) extends Repl {
   private val replThread = new Thread(s"reactors-io.${system.name}.repl-thread") {
     override def run() {
       try {
-        Console.withOut(extractableWriter.globalPrintStream) {
-          Console.withErr(extractableWriter.globalPrintStream) {
-            val settings = new Settings
-            settings.Yreplsync.value = true
-            settings.usejavacp.value = true
-            repl.process(settings)
-          }
-        }
+        val settings = new Settings
+        settings.Yreplsync.value = true
+        settings.usejavacp.value = true
+        repl.process(settings)
       } catch {
         case t: Throwable =>
           t.printStackTrace()
