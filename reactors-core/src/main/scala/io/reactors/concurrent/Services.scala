@@ -67,7 +67,7 @@ abstract class Services {
   }
 
   /** Shut down all services. */
-  def shutdownServices() {
+  protected def shutdownServices() {
     for ((_, service) <- services) {
       service.asInstanceOf[Protocol.Service].shutdown()
     }
