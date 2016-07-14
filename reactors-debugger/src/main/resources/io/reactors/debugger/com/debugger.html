@@ -48,7 +48,8 @@
             <x-shell v-ref:shell
               slot="1"
               :config="$refs.config.state"
-              :api="$refs.api.adapter">
+              :api="$refs.api.adapter"
+              :model="$refs.model.state">
             </x-shell>
           </x-horizontal-tabber>
         </div>

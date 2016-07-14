@@ -42,7 +42,7 @@ extends DebugApi {
     }
   }
 
-  def state(suid: String, reqts: Long): JValue = {
+  def state(suid: String, reqts: Long): JObject = {
     monitor.synchronized {
       if (suid != sessionuid || reqts < oldtimestamp) {
         DeltaDebugger.toJson(sessionuid, curtimestamp, Some(curstate.copy()), None)
@@ -85,7 +85,7 @@ extends DebugApi {
 object DeltaDebugger {
   def toJson(
     suid: String, ts: Long, state: Option[State], deltas: Option[Seq[Delta]]
-  ) = (
+  ): JObject = (
     ("ts" -> ts) ~
     ("suid" -> suid) ~
     ("state" -> state.map(_.toJson)) ~

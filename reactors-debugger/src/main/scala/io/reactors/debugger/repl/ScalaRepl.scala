@@ -124,8 +124,11 @@ class ScalaRepl(val system: ReactorSystem) extends Repl {
   def flush(): String = {
     lock.synchronized {
       val lines = mutable.Buffer[String]()
-      while (outputQueue.peek != null) {
+      while (!outputQueue.isEmpty) {
         lines += outputQueue.poll().output
+      }
+      while (!pendingOutputQueue.isEmpty)  {
+        lines += pendingOutputQueue.poll()
       }
       lines.mkString("\n")
     }

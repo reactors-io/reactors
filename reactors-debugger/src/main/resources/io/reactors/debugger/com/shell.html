@@ -68,7 +68,7 @@
 
   var Shell = Vue.extend({
     template: "#x-shell",
-    props: ["config", "api"],
+    props: ["config", "api", "model"],
     data: function() {
       return {
         uid: Uid.num(),
@@ -78,8 +78,9 @@
     },
     attached: function() {
       this.api.replGet("", this.shellType).then((initialReply) => {
+        this.model.shellPendingOutput[initialReply.repluid] = [];
         this.shell = this.createShell(initialReply.repluid, this.shellType);
-        $("#x-shell-main-window-" + this.uid).terminal((command, term) => {
+        this.term = $("#x-shell-main-window-" + this.uid).terminal((command, term) => {
           term.pause();
           this.shell.eval(this.api, command).then((reply) => {
             term.echo(reply.output);
@@ -108,6 +109,18 @@
           default:
             Log.error("Unknown shell type: " + tpe);
         }
+      }
+    },
+    watch: {
+      "model.pendingOutput": function(nv) {
+        var output = "";
+        var po = this.model.pendingOutput;
+        for (var i = 0; i < po.length; i++) {
+          var line = nv[i];
+          output = output + line;
+        }
+        po.splice(0, po.length);
+        output;
       }
     }
   });

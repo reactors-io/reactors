@@ -86,11 +86,16 @@ abstract class Services {
  */
 object Services {
 
+  private def loggingTag(): String = {
+    val time = System.currentTimeMillis()
+    s"[$time ${Reactor.self[Nothing].frame.name}] "
+  }
+
   /** Contains services needed to communicate with the debugger.
    */
   class Debugger(val system: ReactorSystem) extends Protocol.Service {
     object terminal {
-      val log = (x: Any) => system.debugApi.log(x)
+      val log = (x: Any) => system.debugApi.log(loggingTag() + x)
     }
 
     def shutdown() {}
@@ -107,7 +112,7 @@ object Services {
   /** Contains various logging-related services.
    */
   class Log(val system: ReactorSystem) extends Protocol.Service {
-    val apply = (x: Any) => System.out.println(x.toString)
+    val apply = (x: Any) => System.out.println(loggingTag() + x.toString)
 
     def shutdown() {}
   }

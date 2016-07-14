@@ -11,11 +11,12 @@ import org.json4s._
 trait WebApi {
   /** Either the full state or the sequence of updates since the specified timestamp.
    *
-   *  @param suid   unique identifier of the session
-   *  @param ts     timestamp of the last update
-   *  @return       the the state change since the last update
+   *  @param suid      unique identifier of the session
+   *  @param ts        timestamp of the last update
+   *  @param repluids  a list of REPL UIDs whose output needs to be collected
+   *  @return          the the state change since the last update
    */
-  def state(suid: String, ts: Long): JValue
+  def state(suid: String, ts: Long, repluids: List[String]): JObject
 
   /** Gets an existing, or starts a new REPL.
    *

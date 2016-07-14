@@ -155,10 +155,12 @@ extends DebugApi with Protocol.Service with WebApi {
     }
   }
 
-  def state(suid: String, ts: Long): JValue =
+  def state(suid: String, ts: Long, ruids: List[String]): JObject =
     monitor.synchronized {
       ensureLive()
-      deltaDebugger.state(suid, ts)
+      val replouts = replManager.pendingOutputs(ruids).toMap.mapValues(JString).toList
+      println(replouts)
+      JObject(replouts ::: deltaDebugger.state(suid, ts).obj)
     }
 
   def replGet(repluid: String, tpe: String): Future[JValue] =
@@ -176,11 +178,9 @@ extends DebugApi with Protocol.Service with WebApi {
   def replEval(repluid: String, cmd: String): Future[JValue] =
     monitor.synchronized {
       replManager.repl(repluid, "").flatMap({
-        case (nrepluid, repl) =>
-          repl.eval(cmd).map(_.asJson)
+        case (nrepluid, repl) => repl.eval(cmd).map(_.asJson)
       }).recover({
-        case t: Throwable =>
-          JObject("error" -> JString("REPL session expired."))
+        case t: Throwable => JObject("error" -> JString("REPL session expired."))
       })
     }
 }

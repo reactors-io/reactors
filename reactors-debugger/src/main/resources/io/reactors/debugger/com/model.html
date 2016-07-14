@@ -23,7 +23,8 @@
         suid: "",
         state: {
           reactors: {},
-          channels: {}
+          channels: {},
+          shellPendingOutput: {}
         },
         history: [],
         timestamp: 0
@@ -31,7 +32,9 @@
     },
     attached: function() {
       var update = () => {
-        if (this.running) this.api.state(this.suid, this.timestamp).done((data) => {
+        if (!this.running) return;
+
+        this.api.state(this.suid, this.timestamp, this.repluids()).done((data) => {
           // Update session uid.
           this.ensure(data.suid, "Session uid not found in state update.");
           this.suid = data.suid;
@@ -42,7 +45,19 @@
 
           // Update model state.
           if (data.state) {
-            this.state = data.state;
+            // Update reactor list.
+            for (var name in data.state.reactors) {
+              if (data.state.reactors.hasOwnProperty(name)) {
+                this.state.reactors[name] = data.state.reactors[name];
+              }
+            }
+
+            // Update channel list.
+            for (var name in data.state.channels) {
+              if (data.state.channels.hasOwnProperty(name)) {
+                this.state.channels[name] = data.state.channels[name];
+              }
+            }
           } else {
             this.ensure(data.deltas, "Neither state nor deltas found in state update.");
             for (var i = 0; i < data.deltas.length; i++) {
@@ -53,6 +68,17 @@
             if (this.history.length > this.config.model.historySize) {
               var len = this.history.length - this.config.model.historySize;
               this.history.splice(0, len);
+            }
+          }
+
+          // Update pending output.
+          var pendingOutput = data["pending-output"];
+          if (pendingOutput) {
+            for (var repluid in pendingOutput) {
+              if (pendingOutput.hasOwnProperty(repluid)) {
+                var buffer = this.state.shellPendingOutput[repluid];
+                buffer.push(pendingOutput[repluid]);
+              }
             }
           }
 
@@ -128,6 +154,9 @@
             enriched.reactorName = this.state.reactors[enriched.reactorId].name;
         }
         return enriched;
+      },
+      repluids: function() {
+        return Object.keys(this.state.shellPendingOutput);
       }
     }
   });

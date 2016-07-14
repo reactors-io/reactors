@@ -7,6 +7,7 @@ import _root_.com.github.mustachejava._
 import java.io.BufferedReader
 import java.io.StringReader
 import java.io.StringWriter
+import java.util.ArrayList
 import java.util.HashMap
 import java.util.concurrent.TimeUnit
 import java.util.regex._
@@ -17,6 +18,7 @@ import org.rapidoid.gui._
 import org.rapidoid.http._
 import org.rapidoid.setup._
 import scala.collection._
+import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext.Implicits.global
 
 
@@ -181,7 +183,8 @@ object WebServer {
     s.post("/api/state").json((req: Req) => {
       val suid = req.posted.get("suid").asInstanceOf[String]
       val ts = req.posted.get("timestamp").asInstanceOf[Number].longValue
-      asJsonNode(webapi.state(suid, ts))
+      val repluids = req.posted.get("repluids").asInstanceOf[ArrayList[String]].asScala
+      asJsonNode(webapi.state(suid, ts, repluids.toList))
     })
     s.post("/api/repl/get").json((req: Req) => {
       val repluid = req.posted.get("repluid").asInstanceOf[String]

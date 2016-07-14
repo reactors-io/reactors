@@ -73,6 +73,12 @@ class ReplManager(val system: ReactorSystem) {
     }
   }
 
+  def pendingOutputs(repluids: List[String]): List[(String, String)] = {
+    monitor.synchronized {
+      for (ruid <- repluids; s <- repls.get(ruid)) yield (ruid, s.repl.flush())
+    }
+  }
+
   def log(x: Any) {
     monitor.synchronized {
       for ((_, s) <- repls) s.repl.log(x)

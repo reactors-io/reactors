@@ -37,10 +37,11 @@
       return deferred.promise();
     }
 
-    state(suid, timestamp) {
+    state(suid, timestamp, repluids) {
       return this.request("state", {
         suid: suid,
-        timestamp: timestamp
+        timestamp: timestamp,
+        repluids: repluids
       });
     }
 
