@@ -41,6 +41,9 @@ abstract class Services {
   /** I/O services. */
   val io = service[Services.Io]
 
+  /** Logging services. */
+  val log = service[Services.Log]
+
   /** Naming services. */
   val names = service[Services.Names]
 
@@ -84,6 +87,16 @@ object Services {
    */
   class Io(val system: ReactorSystem) extends Protocol.Service {
     val defaultCharset = Charset.defaultCharset.name
+
+    def shutdown() {}
+  }
+
+  /** Contains various logging-related services.
+   */
+  class Log(val system: ReactorSystem) extends Protocol.Service {
+    def apply(x: Any) {
+      System.out.println(x.toString)
+    }
 
     def shutdown() {}
   }
