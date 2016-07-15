@@ -32,7 +32,7 @@ class ScalaRepl(val system: ReactorSystem) extends Repl {
     def extractPending(): String = {
       val sb = new StringBuilder
       while (!pendingOutputQueue.isEmpty)
-        sb.append(pendingOutputQueue.waitUntilDequeue())
+        sb.append(pendingOutputQueue.waitUntilDequeue()).append("\n")
       sb.toString
     }
     def extract(): String = {
