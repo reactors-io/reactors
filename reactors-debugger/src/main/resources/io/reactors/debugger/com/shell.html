@@ -78,13 +78,19 @@
         Vue.set(this.model.shellPendingOutput, initialReply.repluid, []);
         this.shell = this.createShell(initialReply.repluid, this.shellType);
 
-        var executeCommand = (command, term) => {
+        var executeCommand = (command, term, forceNewline) => {
           term.pause();
           this.$refs.statusBadge.set("loading");
+          console.log("executing: " + command);
           this.shell.eval(this.api, command).then((reply) => {
+            console.log(reply);
             this.$refs.statusBadge.set("done");
             term.echo(reply.output);
-            if (!reply["need-more"]) term.echo(" ");
+            if (!reply["need-more"]) {
+              term.echo(" ");
+            } else if (forceNewline) {
+              term.echo(reply.prompt + command);
+            }
             term.set_prompt(reply.prompt);
             term.resume();
           });
@@ -99,7 +105,7 @@
             if (event.key == "d" && event.ctrlKey) {
               var cmd = term.get_command();
               term.set_command("");
-              executeCommand(cmd + "\u0004", term);
+              executeCommand(cmd + "\u0004", term, true);
               return false;
             }
           },
