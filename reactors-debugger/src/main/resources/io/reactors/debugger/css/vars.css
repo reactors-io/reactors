@@ -9,8 +9,8 @@
   --terminal-cursor-color: rgba(255, 255, 255, 0.5);
   --terminal-cursor-background-color: rgba(15, 15, 15, 0.1);
   --status-badge-background-color: rgba(15, 15, 15, 0.4);
-  --status-badge-ok-color: rgba(0, 200, 0, 0.9);
-  --status-badge-loading-color: rgba(0, 100, 200, 0.9);
-  --status-badge-error-color: rgba(200, 0, 0, 0.9);
-  --status-badge-default-color: rgba(120, 120, 120, 0.9);
+  --status-badge-ok-color: rgba(0, 200, 0, 0.7);
+  --status-badge-loading-color: rgba(0, 100, 200, 0.7);
+  --status-badge-error-color: rgba(200, 0, 0, 0.7);
+  --status-badge-default-color: rgba(120, 120, 120, 0.7);
 }
