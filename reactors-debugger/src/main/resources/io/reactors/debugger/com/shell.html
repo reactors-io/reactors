@@ -103,6 +103,14 @@
               executeCommand(cmd + "\u0004", term);
               return false;
             }
+          },
+          completion: (term, command, callback) => {
+            term.pause();
+            this.shell.eval(this.api, command + "\t").then((reply) => {
+              var suggestions = reply.output.split(/\s+/);
+              callback(suggestions);
+              term.resume();
+            });
           }
         });
       });

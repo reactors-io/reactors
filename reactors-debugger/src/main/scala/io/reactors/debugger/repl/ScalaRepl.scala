@@ -55,7 +55,7 @@ class ScalaRepl(val system: ReactorSystem) extends Repl {
         Repl.Result(0, extractableWriter.extract(), "     | ", true))
       val line = commandQueue.waitUntilDequeue()
       if (line == "\u0004") null
-      else line.filter(_ != "\u0004")
+      else line.filter(_ != '\u0004')
     }
   }
   private val queueReader = new QueueReader
