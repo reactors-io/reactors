@@ -80,7 +80,8 @@
       this.api.replGet("", this.shellType).then((initialReply) => {
         Vue.set(this.model.shellPendingOutput, initialReply.repluid, []);
         this.shell = this.createShell(initialReply.repluid, this.shellType);
-        this.term = $("#x-shell-main-window-" + this.uid).terminal((command, term) => {
+
+        var executeCommand = (command, term) => {
           term.pause();
           this.shell.eval(this.api, command).then((reply) => {
             term.echo(reply.output);
@@ -88,11 +89,20 @@
             term.set_prompt(reply.prompt);
             term.resume();
           });
-        }, {
+        };
+        this.term = $("#x-shell-main-window-" + this.uid).terminal(executeCommand, {
           prompt: this.shell.prompt,
           name: this.shell.name,
           greetings: this.shell.greetings,
           onInit: (term) => {
+          },
+          keydown: (event, term) => {
+            if (event.key == "d" && event.ctrlKey) {
+              var cmd = term.get_command();
+              term.set_command("");
+              executeCommand(cmd + "\u0004", term);
+              return false;
+            }
           }
         });
       });
