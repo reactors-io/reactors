@@ -40,11 +40,13 @@
     props: ["config", "history"],
     data: function() {
       return {
-        uid: Uid.num()
+        uid: Uid.num(),
+        table: null
       };
     },
     attached: function() {
-      $("#x-log-window-table-" + this.uid).DataTable({
+      this.table = $("#x-log-window-table-" + this.uid).DataTable({
+        autoWidth: true,
         ordering: false,
         scrollX: true,
         scrollY: true
@@ -78,6 +80,11 @@
           default:
             return "Unknown event " + delta.tpe + ".";
         }
+      },
+      onSelected: function() {
+        $(".dataTables_scrollHead").width("100%");
+        $(".dataTables_scrollHeadInner").width("100%");
+        $(".dataTable").width("100%");
       }
     }
   });

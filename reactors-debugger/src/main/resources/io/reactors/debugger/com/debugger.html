@@ -76,15 +76,18 @@
         bottomPanelInfo: [
           {
             icon: "<span class='glyphicon glyphicon-list-alt'></span>",
-            text: "Log"
+            text: "Log",
+            onSelected: () => { this.$refs.logWindow.onSelected() }
           },
           {
             icon: "<span class='glyphicon glyphicon-console'></span>",
-            text: "Shell"
+            text: "Shell",
+            onSelected: () => {}
           },
           {
             icon: "<span class='glyphicon glyphicon-record'></span>",
-            text: "Breakpoints"
+            text: "Breakpoints",
+            onSelected: () => {}
           }
         ]
       };

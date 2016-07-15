@@ -50,3 +50,7 @@ table.dataTable {
 .dataTables_scrollHead {
   border-bottom: var(--widget-border-dimmer) !important;
 }
+
+.dataTables_scrollHeadInner {
+  width: 100%;
+}
