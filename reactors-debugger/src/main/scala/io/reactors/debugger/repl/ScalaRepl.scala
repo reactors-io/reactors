@@ -29,13 +29,6 @@ class ScalaRepl(val system: ReactorSystem) extends Repl {
   class ExtractableWriter {
     val localStringWriter = new StringWriter
     val localPrintWriter = new PrintWriter(localStringWriter)
-    val globalOutputStream = new OutputStream {
-      def write(b: Int) {
-        System.out.write(b)
-        localStringWriter.write(b)
-      }
-    }
-    val globalPrintStream = new PrintStream(globalOutputStream)
     def extractPending(): String = {
       val sb = new StringBuilder
       while (!pendingOutputQueue.isEmpty)
@@ -65,12 +58,15 @@ class ScalaRepl(val system: ReactorSystem) extends Repl {
   }
   private val queueReader = new QueueReader
   private val repl = new ILoop(Some(queueReader), extractableWriter.localPrintWriter) {
+    private def pendingPrintln(x: Any) {
+      System.out.println(x)
+      pendingOutputQueue.enqueue(x.toString)
+    }
     override def createInterpreter() {
       super.createInterpreter()
       intp.beQuietDuring {
         intp.bind("system", "io.reactors.ReactorSystem", system)
-        intp.bind("println", "Any => Unit",
-          (x: Any) => extractableWriter.globalPrintStream.println(x))
+        intp.bind("println", "Any => Unit", (x: Any) => pendingPrintln(x))
       }
     }
     override def processLine(line: String): Boolean = {
