@@ -9,22 +9,17 @@
 @@library(io/reactors/debugger/lib/bootstrap/js/bootstrap.min.js)
 @@library(io/reactors/debugger/lib/jquery-terminal/jquery.terminal-0.10.12.min.js)
 @@library(io/reactors/debugger/lib/jquery-terminal/unix_formatting.js)
+@@component(io/reactors/debugger/com/status-badge.html)
 
 
 <template id="x-shell">
   <div class="x-shell-root">
     <div class="x-shell-container">
-      <div class="x-shell-option-pane">
-        <ul>
-          <li>
-            <span>Shell</span>
-          </li>
-          <li>
-            <span>Status</span>
-          </li>
-        </ul>
-      </div>
       <div class="x-shell-scroll-pane">
+        <div class="x-shell-status-container">
+          <x-status-badge v-ref:status-badge>
+          </x-status-badge>
+        </div>
         <div class="x-shell-main-window" :id="'x-shell-main-window-' + uid">
         </div>
       </div>
@@ -77,13 +72,17 @@
       };
     },
     attached: function() {
+      this.$refs.statusBadge.set("loading");
       this.api.replGet("", this.shellType).then((initialReply) => {
+        this.$refs.statusBadge.set("done");
         Vue.set(this.model.shellPendingOutput, initialReply.repluid, []);
         this.shell = this.createShell(initialReply.repluid, this.shellType);
 
         var executeCommand = (command, term) => {
           term.pause();
+          this.$refs.statusBadge.set("loading");
           this.shell.eval(this.api, command).then((reply) => {
+            this.$refs.statusBadge.set("done");
             term.echo(reply.output);
             if (!reply["need-more"]) term.echo(" ");
             term.set_prompt(reply.prompt);
@@ -106,7 +105,9 @@
           },
           completion: (term, command, callback) => {
             term.pause();
+            this.$refs.statusBadge.set("loading");
             this.shell.eval(this.api, command + "\t").then((reply) => {
+              this.$refs.statusBadge.set("done");
               var suggestions = reply.output.split(/\s+/);
               callback(suggestions);
               term.resume();
@@ -168,6 +169,7 @@
 
   .x-shell-scroll-pane {
     height: calc(100% - 20px);
+    position: relative;
   }
 
   .x-shell-main-window {
@@ -176,21 +178,10 @@
     border: var(--widget-border);
   }
 
-  .x-shell-option-pane {
-    margin-bottom: 2px;
-  }
-
-  .x-shell-option-pane > ul {
-    list-style: none;
-    margin-left: 4px;
-    padding-left: 0px;
-  }
-
-  .x-shell-option-pane > ul > li {
-    display: inline-block;
-  }
-
-  .x-shell-option-pane > ul > li:last-child {
-    float: right;
+  .x-shell-status-container {
+    position: absolute;
+    top: 12px;
+    right: 24px;
+    z-index: 1;
   }
 </style>
