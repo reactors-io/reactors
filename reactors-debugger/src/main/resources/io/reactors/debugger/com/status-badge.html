@@ -88,6 +88,8 @@
     color: var(--status-badge-ok-color);
     box-shadow: 0 0 6px var(--status-badge-ok-color),
       inset 0 0 8px var(--status-badge-ok-color);
+    animation: slow-glowing 4s infinite steps(1, start);
+    animation-timing-function: ease;
   }
 
   .x-status-badge-loading {
@@ -116,6 +118,15 @@
     }
     50% {
       opacity: 0.4;
+    }
+  }
+
+  @keyframes slow-glowing {
+    0%, 100% {
+      opacity: 1.0;
+    }
+    50% {
+      opacity: 0.7;
     }
   }
 </style>
