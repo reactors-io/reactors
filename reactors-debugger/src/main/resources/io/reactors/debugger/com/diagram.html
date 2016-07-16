@@ -27,6 +27,15 @@
       this.sigma = new sigma({
         container: "x-diagram-sigma-" + this.uid
       });
+
+      this.sigma.graph.addNode({
+        id: "n",
+        label: "Hello",
+        x: 0,
+        y: 0,
+        size: 1,
+        color: "#f00"
+      });
     },
     methods: {
     }
