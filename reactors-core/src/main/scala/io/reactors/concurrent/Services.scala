@@ -6,6 +6,8 @@ package concurrent
 import java.io._
 import java.net.URL
 import java.nio.charset.Charset
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Timer
 import java.util.TimerTask
 import java.util.concurrent.ForkJoinPool
@@ -86,9 +88,12 @@ abstract class Services {
  */
 object Services {
 
+  private val timestampFormat = new SimpleDateFormat("dd/MM/yy hh:mm:ss")
+
   private def loggingTag(): String = {
     val time = System.currentTimeMillis()
-    s"[$time ${Reactor.self[Nothing].frame.name}] "
+    val formattedTime = timestampFormat.format(new Date(time))
+    s"[$formattedTime ${Reactor.self[Nothing].frame.name}] "
   }
 
   /** Contains services needed to communicate with the debugger.
