@@ -43,7 +43,7 @@ select.input-sm option {
   background-image: none;
   border: var(--widget-border);
   border-radius: 0px;
-  font-size: 12px;
+  font-size: 10px;
   color: var(--widget-font-color);
   outline: none;
   padding: 4px;
@@ -55,7 +55,7 @@ select.input-sm option {
   background-image: none;
   border: var(--widget-border);
   border-radius: 0px;
-  font-size: 12px;
+  font-size: 10px;
   color: var(--widget-font-color);
   outline: none;
 }

@@ -26,7 +26,6 @@
               <button class="btn btn-primary dropdown-toggle" type="button"
                 data-toggle="dropdown">
                 <i class="fa fa-plus-square" aria-hidden="true"></i>
-                New
               </button>
               <ul class="dropdown-menu">
                 <li v-for="(index, factory) in tabFactories" @click="addTab(factory)">
@@ -110,9 +109,16 @@
     border: var(--widget-border);
     margin-right: 4px;
     cursor: pointer;
-    min-height: 27px;
+    min-height: 24px;
     padding-right: 4px;
     vertical-align: bottom;
+    transition: 0.3s;
+    font-size: 10px;
+  }
+
+  ul.x-tabbar-tabs > li:hover {
+    background-color: var(--widget-background-color-hovered);
+    border: var(--widget-border-bright);
   }
 
   ul.x-tabbar-tabs > li > span {
