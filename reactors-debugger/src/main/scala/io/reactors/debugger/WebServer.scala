@@ -189,10 +189,9 @@ object WebServer {
       asJsonNode(webapi.state(suid, ts, repluids.toList))
     })
     s.post("/api/repl/get").json((req: Req) => {
-      val repluid = req.posted.get("repluid").asInstanceOf[String]
       val tpe = req.posted.get("tpe").asInstanceOf[String]
       req.async()
-      webapi.replGet(repluid, tpe).onSuccess { case result =>
+      webapi.replGet(tpe).onSuccess { case result =>
         req.response.json(asJsonNode(result))
         req.done()
       }
@@ -203,6 +202,15 @@ object WebServer {
       val command = req.posted.get("cmd").asInstanceOf[String]
       req.async()
       webapi.replEval(repluid, command).onSuccess { case result =>
+        req.response.json(asJsonNode(result))
+        req.done()
+      }
+      req
+    })
+    s.post("/api/repl/close").json((req: Req) => {
+      val repluid = req.posted.get("repluid").asInstanceOf[String]
+      req.async()
+      webapi.replClose(repluid).onSuccess { case result =>
         req.response.json(asJsonNode(result))
         req.done()
       }

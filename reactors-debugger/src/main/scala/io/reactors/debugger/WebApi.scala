@@ -18,17 +18,12 @@ trait WebApi {
    */
   def state(suid: String, ts: Long, repluids: List[String]): JObject
 
-  /** Gets an existing, or starts a new REPL.
+  /** Starts a new REPL.
    *
-   *  Returns an existing REPL only if the request specifies the UID of the current
-   *  session, and the REPL with the specified UID exists, and the requested type
-   *  matches the type of the existing REPL. Otherwise, starts a new REPL.
-   *
-   *  @param repluid  unique identifier of the REPL in this session (`-1` for new REPL)
    *  @param tpe      type of the requested REPL
    *  @return         the (actual) session UID, and REPL UID
    */
-  def replGet(repluid: String, tpe: String): Future[JValue]
+  def replGet(tpe: String): Future[JValue]
 
   /** Evaluates a command in the REPL.
    *
@@ -37,4 +32,11 @@ trait WebApi {
    *  @return         the status and the output of the command
    */
   def replEval(repluid: String, cmd: String): Future[JValue]
+
+  /** Closes the REPL.
+   *
+   *  @param repluid  REPL UID
+   *  @return         the status and the output of the command
+   */
+  def replClose(repluid: String): Future[JValue]
 }

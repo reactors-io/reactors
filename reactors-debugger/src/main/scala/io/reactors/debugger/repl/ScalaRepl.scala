@@ -57,7 +57,9 @@ class ScalaRepl(val system: ReactorSystem) extends Repl {
       if (continueMode) outputQueue.enqueue(
         Repl.Result(0, extractableWriter.extract(), "     | ", true))
       val line = commandQueue.waitUntilDequeue()
-      if (line == "\u0004") {
+      if (line == null) {
+        line
+      } else if (line == "\u0004") {
         if (continueMode) null
         else {
           pendingOutputQueue.enqueue("scala> ")
@@ -154,5 +156,9 @@ class ScalaRepl(val system: ReactorSystem) extends Repl {
   }
 
   def shutdown() {
+    lock.lock()
+    monitor.synchronized {
+      commandQueue.enqueue(null)
+    }
   }
 }

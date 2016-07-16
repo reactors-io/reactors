@@ -94,8 +94,6 @@
         curr.onFocus(curr.content);
       },
       onTabClose: function(index) {
-        console.log(this.selectedComponents);
-        console.log(index);
         var prev = this.selectedComponents[index];
         if (prev) prev.onClose(prev.content);
         this.selectedComponents.splice(index, 1);

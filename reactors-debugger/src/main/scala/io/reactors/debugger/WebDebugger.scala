@@ -163,11 +163,11 @@ extends DebugApi with Protocol.Service with WebApi {
         ("pending-output" -> JObject(replouts)) :: deltaDebugger.state(suid, ts).obj)
     }
 
-  def replGet(repluid: String, tpe: String): Future[JValue] =
+  def replGet(tpe: String): Future[JValue] =
     monitor.synchronized {
-      replManager.repl(repluid, tpe).map({
-        case (nrepluid, repl) =>
-          JObject("repluid" -> JString(nrepluid))
+      replManager.createRepl(tpe).map({
+        case (repluid, repl) =>
+          JObject("repluid" -> JString(repluid))
       }).recover({
         case e: Exception =>
           JObject("error" -> JString(s"REPL type '${tpe}' is unknown."))
@@ -176,8 +176,17 @@ extends DebugApi with Protocol.Service with WebApi {
 
   def replEval(repluid: String, cmd: String): Future[JValue] =
     monitor.synchronized {
-      replManager.repl(repluid, "").flatMap({
-        case (nrepluid, repl) => repl.eval(cmd).map(_.asJson)
+      replManager.getRepl(repluid).flatMap({
+        case (uid, repl) => repl.eval(cmd).map(_.asJson)
+      }).recover({
+        case t: Throwable => JObject("error" -> JString("REPL session expired."))
+      })
+    }
+
+  def replClose(repluid: String): Future[JValue] =
+    monitor.synchronized {
+      replManager.getRepl(repluid).flatMap({
+        case (uid, repl) => Future(repl.shutdown()).map(_ => JObject())
       }).recover({
         case t: Throwable => JObject("error" -> JString("REPL session expired."))
       })
