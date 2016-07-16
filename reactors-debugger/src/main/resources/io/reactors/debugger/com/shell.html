@@ -54,7 +54,6 @@
     template: "#x-shell",
     props: ["config", "api", "model"],
     data: function() {
-      console.log("new shell!");
       return {
         uid: Uid.num(),
         shellType: null,
@@ -133,14 +132,16 @@
     watch: {
       "model.shellPendingOutput[shell.uid]": {
         handler: function(nv) {
-          if (nv.length > 0) {
-            var output = "";
-            for (var i = 0; i < nv.length; i++) {
-              var line = nv[i];
-              output = output + line;
-              this.terminalPrint(output);
+          if (this.shell != null) {
+            if (nv.length > 0) {
+              var output = "";
+              for (var i = 0; i < nv.length; i++) {
+                var line = nv[i];
+                output = output + line;
+                this.terminalPrint(output);
+              }
+              nv.splice(0, nv.length);
             }
-            nv.splice(0, nv.length);
           }
         },
         deep: true

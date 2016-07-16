@@ -65,7 +65,6 @@
     },
     attached: function() {
       this.addTab(this.initialSelection);
-      this.addTab(this.initialSelection);
     },
     methods: {
       active: function(i) {
@@ -76,9 +75,7 @@
         }
       },
       addTab: function(factory) {
-        this.selectedFactories.push(factory);
-        console.log(this.selectedFactories);
-        console.log(this.selected);
+        this.selectedFactories.push($.extend({}, factory));
       },
       onTabClick: function(index) {
         this.selected = index;
@@ -107,7 +104,7 @@
     margin-right: 4px;
     cursor: pointer;
     min-height: 27px;
-    padding-right: 2px;
+    padding-right: 4px;
     vertical-align: bottom;
   }
 
