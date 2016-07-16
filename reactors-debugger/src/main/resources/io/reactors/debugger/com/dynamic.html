@@ -1,0 +1,33 @@
+@@library(io/reactors/debugger/js/util.js)
+@@library(io/reactors/debugger/lib/jquery/jquery-1.12.4.min.js)
+
+
+<template id="x-dynamic">
+  <div class="x-dynamic-root">
+    <div :id="'x-dynamic-' + uid">
+    </div>
+  </div>
+</template>
+
+
+<script>
+  var Dynamic = Vue.extend({
+    template: "#x-dynamic",
+    props: ["factory"],
+    data: function() {
+      return {
+        uid: Uid.num()
+      };
+    },
+    attached: function() {
+      var com = this.factory.create();
+      com.$mount("#x-dynamic-" + this.uid);
+    }
+  });
+
+  Vue.component("x-dynamic", Dynamic);
+</script>
+
+
+<style type="text/css">
+</style>

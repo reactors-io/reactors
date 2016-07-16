@@ -1,4 +1,3 @@
-
 @@style(io/reactors/debugger/css/vars.css)
 @@style(io/reactors/debugger/lib/bootstrap/css/bootstrap.min.css)
 @@style(io/reactors/debugger/css/bootstrap-overrides.css)
@@ -31,16 +30,6 @@
 <script>
   "use strict";
 
-  class ShellAdapter {
-    constructor(uid) {
-      this.uid = uid;
-    }
-
-    eval(api, cmd) {
-      return api.replEval(this.uid, cmd);
-    }
-  }
-
   class ScalaShellAdapter extends ShellAdapter {
     constructor(uid, v) {
       super(uid);
@@ -65,13 +54,15 @@
     template: "#x-shell",
     props: ["config", "api", "model"],
     data: function() {
+      console.log("new shell!");
       return {
         uid: Uid.num(),
-        shellType: this.config.shell.defaultAdapter,
+        shellType: null,
         shell: null
       };
     },
     attached: function() {
+      this.shellType = this.config.shell.defaultAdapter;
       this.$refs.statusBadge.set("loading");
       this.api.replGet("", this.shellType).then((initialReply) => {
         this.$refs.statusBadge.set("done");
@@ -81,9 +72,7 @@
         var executeCommand = (command, term, forceNewline) => {
           term.pause();
           this.$refs.statusBadge.set("loading");
-          console.log("executing: " + command);
           this.shell.eval(this.api, command).then((reply) => {
-            console.log(reply);
             this.$refs.statusBadge.set("done");
             term.echo(reply.output);
             if (!reply["need-more"]) {
@@ -170,11 +159,11 @@
 
   .x-shell-container {
     margin-bottom: 4px;
-    height: 270px;
+    height: 250px;
   }
 
   .x-shell-scroll-pane {
-    height: calc(100% - 20px);
+    height: 100%;
     position: relative;
   }
 

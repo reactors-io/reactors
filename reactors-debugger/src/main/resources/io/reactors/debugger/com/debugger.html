@@ -1,4 +1,3 @@
-
 @@library(io/reactors/debugger/lib/jquery/jquery-1.12.4.min.js)
 @@component(io/reactors/debugger/com/config.html)
 @@component(io/reactors/debugger/com/api.html)
@@ -8,6 +7,7 @@
 @@component(io/reactors/debugger/com/shell.html)
 @@component(io/reactors/debugger/com/horizontal-tabber.html)
 @@component(io/reactors/debugger/com/vertical-tabber.html)
+@@component(io/reactors/debugger/com/tabbar.html)
 @@style(io/reactors/debugger/css/main.css)
 
 
@@ -36,8 +36,6 @@
         </div>
       </div>
       <div class="x-debugger-bottom-panel-container">
-        <div>
-        </div>
         <div class="x-debugger-bottom-panel">
           <x-horizontal-tabber :panels="bottomPanelInfo">
             <x-log-window v-ref:log-window
@@ -45,12 +43,10 @@
               :config="$refs.config.state"
               :model="$refs.model.history">
             </x-log-window>
-            <x-shell v-ref:shell
-              slot="1"
-              :config="$refs.config.state"
-              :api="$refs.api.adapter"
-              :model="$refs.model.state">
-            </x-shell>
+            <x-tabbar slot="1"
+              :tab-factories="shellFactories"
+              :initial-selection="shellFactories[0]">
+            </x-tabbar>
           </x-horizontal-tabber>
         </div>
       </div>
@@ -88,6 +84,24 @@
             icon: "<span class='glyphicon glyphicon-record'></span>",
             text: "Breakpoints",
             onSelected: () => {}
+          }
+        ],
+        shellFactories: [
+          {
+            name: "Scala",
+            icon: "<img height='18px' src='img/icon/scala.png'/>",
+            create: () => {
+              var config = this.$refs.config.state;
+              var api = this.$refs.api.adapter;
+              var model = this.$refs.model.state;
+              return new Shell({
+                data: {
+                  config: config,
+                  api: api,
+                  model: model
+                }
+              });
+            }
           }
         ]
       };
@@ -153,5 +167,9 @@
     bottom: 0px;
     right: 0px;
     left: 0px;
+  }
+
+  .x-debugger-min-height-panel {
+    min-height: 150px;
   }
 </style>

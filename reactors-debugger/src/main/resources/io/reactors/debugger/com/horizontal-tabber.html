@@ -1,4 +1,3 @@
-
 @@style(io/reactors/debugger/css/vars.css)
 @@style(io/reactors/debugger/lib/bootstrap/css/bootstrap.min.css)
 @@style(io/reactors/debugger/css/bootstrap-overrides.css)
@@ -40,8 +39,7 @@
       <div class="x-horizontal-tabber-button-pane">
         <ul class="x-horizontal-tabber-tabs">
           <li v-for="(index, panel) in panels"
-            class="{{ active(index) }}"
-            @click="onTabClick(index)">
+            class="{{ active(index) }}" @click="onTabClick(index)">
             <span>
               {{{ panel.icon }}} {{ panel.text }}
             </span>
@@ -140,19 +138,19 @@
 
   @keyframes fadein {
     0% {
-        opacity: 0.0;
+      opacity: 0.0;
     }
     100% {
-        opacity: 1.0;
+      opacity: 1.0;
     }
   }
 
   @keyframes fadeout {
-      0% {
-          opacity: 1.0;
-      }
-      100% {
-          opacity: 0.0;
-      }
+    0% {
+      opacity: 1.0;
+    }
+    100% {
+      opacity: 0.0;
+    }
   }
 </style>

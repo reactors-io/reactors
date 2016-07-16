@@ -62,6 +62,8 @@ object WebServer {
         scopes.put("reactor-system.url",
           s"${system.bundle.urlMap("reactor.udp").url.host}:$port")
         scopes.put("reactor-system.version", "0.7")
+        scopes.put("debugger-ui.configuration", "{}")
+        scopes.put("debugger-ui.plugins", "<!-- No plugins -->")
         val imports = {
           val sb = new StringBuffer
           def traverse(n: Node): Unit = if (seen.contains(n.path)) {
