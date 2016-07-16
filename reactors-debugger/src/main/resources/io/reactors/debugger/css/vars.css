@@ -5,6 +5,7 @@
   --widget-background-color-hovered: rgba(60, 60, 60, 0.5);
   --widget-background-color-active: rgba(100, 100, 100, 0.5);
   --widget-font-color: rgba(150, 150, 150, 0.8);
+  --widget-font-color-bright: rgba(225, 225, 225, 0.8);
   --widget-border: 1px solid rgba(60, 60, 60, 0.3);
   --widget-border-bright: 1px solid rgba(80, 80, 80, 0.6);
   --widget-border-dim: 1px solid rgba(80, 80, 80, 0.2);

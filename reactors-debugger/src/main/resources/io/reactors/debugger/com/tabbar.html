@@ -13,12 +13,19 @@
       <div class="x-tabbar-button-pane">
         <ul class="x-tabbar-tabs">
           <li v-for="(index, component) in selectedComponents"
-            class="{{ active(index) }}" @click="onTabClick(index)">
-            <span class="x-tabbar-icon">
-              {{{ component.icon }}}
-            </span>
-            <span>
-              {{ component.name }}
+            class="{{ active(index) }}">
+            <div @click="onTabClick(index)">
+              <span class="x-tabbar-icon">
+                {{{ component.icon }}}
+              </span>
+              <span>
+                {{ component.name }}
+              </span>
+            </div>
+            <span class="x-tabbar-close-tab">
+              <i class="fa fa-times-circle" aria-hidden="true"
+                @click="onTabClose(index)">
+              </i>
             </span>
           </li>
           <li class="x-tabbar-add-panel">
@@ -85,6 +92,14 @@
         this.selected = index;
         var curr = this.selectedComponents[index];
         curr.onFocus(curr.content);
+      },
+      onTabClose: function(index) {
+        console.log(this.selectedComponents);
+        console.log(index);
+        var prev = this.selectedComponents[index];
+        if (prev) prev.onClose(prev.content);
+        this.selectedComponents.splice(index, 1);
+        this.selected = Math.min(this.selected, this.selectedComponents.length - 1);
       }
     }
   });
@@ -121,7 +136,19 @@
     border: var(--widget-border-bright);
   }
 
+  ul.x-tabbar-tabs > li > div {
+    display: inline-block;
+  }
+
   ul.x-tabbar-tabs > li > span {
+    vertical-align: sub;
+  }
+
+  ul.x-tabbar-tabs > li > span > i {
+    vertical-align: middle;
+  }
+
+  ul.x-tabbar-tabs > li > div > span {
     vertical-align: sub;
   }
 
@@ -156,6 +183,16 @@
   }
 
   .x-tabbar-slot {
+  }
+
+  .x-tabbar-close-tab {
+    transition: 0.3s;
+    margin-left: 4px;
+    font-size: 12px;
+  }
+
+  .x-tabbar-close-tab:hover {
+    color: var(--widget-font-color-bright);
   }
 
   .x-tabbar-slot.v-enter {

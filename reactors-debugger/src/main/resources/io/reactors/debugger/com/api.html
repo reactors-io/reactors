@@ -57,6 +57,12 @@
         cmd: cmd
       });
     }
+
+    replClose(repluid) {
+      return this.request("repl/close", {
+        repluid: repluid
+      })
+    }
   }
 
   var Api = Vue.extend({

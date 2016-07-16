@@ -58,7 +58,8 @@
         uid: Uid.num(),
         shellType: null,
         shell: null,
-        focusedHint: true
+        focusedHint: true,
+        terminatedHint: false
       };
     },
     attached: function() {
@@ -68,6 +69,11 @@
         this.$refs.statusBadge.set("done");
         Vue.set(this.model.shellPendingOutput, initialReply.repluid, []);
         this.shell = this.createShell(initialReply.repluid, this.shellType);
+
+        if (this.terminatedHint) {
+          this.shell.close(this.api);
+          return;
+        }
 
         var executeCommand = (command, term, forceNewline) => {
           term.pause();
@@ -137,14 +143,18 @@
         }
       },
       onFocus: function() {
-        console.log("focused");
         this.focusedHint = true;
         if (this.term) this.term.enable();
       },
       onBlur: function() {
-        console.log("blurred");
         this.focusedHint = false;
         if (this.term) this.term.disable();
+      },
+      onClose: function() {
+        this.focusedHint = false;
+        if (this.term) this.term.disable();
+        this.terminatedHint = true;
+        if (this.shell) this.shell.close(this.api);
       }
     },
     watch: {
