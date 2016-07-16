@@ -47,6 +47,7 @@ select.input-sm option {
   color: var(--widget-font-color);
   outline: none;
   padding: 4px;
+  transition: 0.3s;
 }
 
 .btn:hover,
@@ -89,4 +90,21 @@ select.input-sm option {
   color: var(--widget-font-color);
   border: var(--widget-border-bright);
   outline: none;
+}
+
+.dropdown-menu {
+  background-color: var(--widget-background-color-dim);
+  border-radius: 0px;
+  border: var(--widget-border);
+  padding: 2px;
+  font-size: 12px;
+}
+
+.dropdown-menu > li {
+  padding: 2px;
+  transition: 0.3s;
+}
+
+.dropdown-menu > li:hover {
+  background-color: var(--widget-background-color-hovered);
 }

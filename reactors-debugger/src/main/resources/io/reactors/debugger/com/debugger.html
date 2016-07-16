@@ -1,3 +1,4 @@
+@@library(io/reactors/debugger/js/util.js)
 @@library(io/reactors/debugger/lib/jquery/jquery-1.12.4.min.js)
 @@component(io/reactors/debugger/com/config.html)
 @@component(io/reactors/debugger/com/api.html)
@@ -94,7 +95,7 @@
               var api = this.$refs.api.adapter;
               var model = this.$refs.model.state;
               return {
-                name: "Scala",
+                name: "[" + Uid.labelNum("shell") + "] Scala",
                 icon: "<img height='16px' src='img/icon/scala.png'/>",
                 content: new Shell({
                   data: {

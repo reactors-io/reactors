@@ -12,12 +12,18 @@ class Log {
 class UidGenerator {
   constructor() {
     this.count = 0;
+    this.labelCounts = {};
   }
 
   num() {
-    var uid = this.count;
-    this.count += 1;
-    return uid;
+    return this.count++;
+  }
+
+  labelNum(label) {
+    if (!(label in this.labelCounts)) {
+      this.labelCounts[label] = 0;
+    }
+    return this.labelCounts[label]++;
   }
 }
 
