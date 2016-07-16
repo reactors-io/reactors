@@ -13,15 +13,14 @@
 <script>
   var Dynamic = Vue.extend({
     template: "#x-dynamic",
-    props: ["factory"],
+    props: ["content"],
     data: function() {
       return {
         uid: Uid.num()
       };
     },
     attached: function() {
-      var com = this.factory.create();
-      com.$mount("#x-dynamic-" + this.uid);
+      this.content.$mount("#x-dynamic-" + this.uid);
     }
   });
 

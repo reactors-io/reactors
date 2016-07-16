@@ -89,18 +89,23 @@
         shellFactories: [
           {
             name: "Scala",
-            icon: "<img height='18px' src='img/icon/scala.png'/>",
             create: () => {
               var config = this.$refs.config.state;
               var api = this.$refs.api.adapter;
               var model = this.$refs.model.state;
-              return new Shell({
-                data: {
-                  config: config,
-                  api: api,
-                  model: model
-                }
-              });
+              return {
+                name: "Scala",
+                icon: "<img height='18px' src='img/icon/scala.png'/>",
+                content: new Shell({
+                  data: {
+                    config: config,
+                    api: api,
+                    model: model
+                  }
+                }),
+                onBlur: (shell) => shell.onBlur(),
+                onFocus: (shell) => shell.onFocus()
+              };
             }
           }
         ]

@@ -12,13 +12,13 @@
     <div class="">
       <div class="x-tabbar-button-pane">
         <ul class="x-tabbar-tabs">
-          <li v-for="(index, factory) in selectedFactories"
+          <li v-for="(index, component) in selectedComponents"
             class="{{ active(index) }}" @click="onTabClick(index)">
             <span class="x-tabbar-icon">
-              {{{ factory.icon }}}
+              {{{ component.icon }}}
             </span>
             <span>
-              {{ factory.name }}
+              {{ component.name }}
             </span>
           </li>
           <li class="x-tabbar-add-panel">
@@ -40,9 +40,9 @@
         </ul>
       </div>
       <div>
-        <div v-for="(index, factory) in selectedFactories">
+        <div v-for="(index, com) in selectedComponents">
           <div v-show="selected == index" class="x-tabbar-slot">
-            <x-dynamic :factory="factory">
+            <x-dynamic :content="com.content">
             </x-dynamic>
           </div>
         </div>
@@ -60,7 +60,7 @@
       return {
         uid: Uid.num(),
         selected: 0,
-        selectedFactories: []
+        selectedComponents: []
       };
     },
     attached: function() {
@@ -75,10 +75,17 @@
         }
       },
       addTab: function(factory) {
-        this.selectedFactories.push($.extend({}, factory));
+        var prev = this.selectedComponents[this.selected];
+        if (prev) prev.onBlur(prev.content);
+        this.selectedComponents.push(factory.create());
+        this.selected = this.selectedComponents.length - 1;
       },
       onTabClick: function(index) {
+        var prev = this.selectedComponents[this.selected];
+        if (prev) prev.onBlur(prev.content);
         this.selected = index;
+        var curr = this.selectedComponents[index];
+        curr.onFocus(curr.content);
       }
     }
   });

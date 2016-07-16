@@ -57,7 +57,8 @@
       return {
         uid: Uid.num(),
         shellType: null,
-        shell: null
+        shell: null,
+        focusedHint: true
       };
     },
     attached: function() {
@@ -87,7 +88,13 @@
           prompt: this.shell.prompt,
           name: this.shell.name,
           greetings: this.shell.greetings,
+          enabled: this.focusedHint,
           onInit: (term) => {
+          },
+          onFocus: (term) => {
+          },
+          onBlur: (term) => {
+            return false;
           },
           keydown: (event, term) => {
             if (event.key == "d" && event.ctrlKey) {
@@ -123,10 +130,21 @@
       },
       terminalPrint: function(line) {
         if (this.term) {
-          this.term.pause();
+          var enabled = this.term.enabled();
+          if (enabled) this.term.pause();
           this.term.echo(line);
-          this.term.resume();
+          if (enabled) this.term.resume();
         }
+      },
+      onFocus: function() {
+        console.log("focused");
+        this.focusedHint = true;
+        if (this.term) this.term.enable();
+      },
+      onBlur: function() {
+        console.log("blurred");
+        this.focusedHint = false;
+        if (this.term) this.term.disable();
       }
     },
     watch: {
