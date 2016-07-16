@@ -101,6 +101,7 @@ select.input-sm option {
 }
 
 .dropdown-menu > li {
+  cursor: pointer;
   padding: 2px;
   transition: 0.3s;
 }

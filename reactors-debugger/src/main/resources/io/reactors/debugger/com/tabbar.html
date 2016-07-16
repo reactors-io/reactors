@@ -14,7 +14,7 @@
         <ul class="x-tabbar-tabs">
           <li v-for="(index, component) in selectedComponents"
             class="{{ active(index) }}">
-            <div @click="onTabClick(index)">
+            <div class="x-tabbar-tab-container" @click="onTabClick(index)">
               <span class="x-tabbar-icon">
                 {{{ component.icon }}}
               </span>
@@ -117,40 +117,38 @@
   }
 
   ul.x-tabbar-tabs > li {
+    position: relative;
     display: inline-block;
-    background-color: var(--widget-background-color);
-    border: var(--widget-border);
-    margin-right: 4px;
-    cursor: pointer;
-    min-height: 24px;
-    padding-right: 4px;
     vertical-align: bottom;
-    transition: 0.3s;
+    background-color: var(--widget-background-color);
+    border: none;
     font-size: 10px;
+    margin-right: 4px;
   }
 
-  ul.x-tabbar-tabs > li:hover {
+  ul.x-tabbar-tabs > li > div.x-tabbar-tab-container {
+    cursor: pointer;
+    padding-right: 26px;
+    transition: 0.3s;
+    min-height: 24px;
+    background-color: transparent;
+    border: var(--widget-border);
+  }
+
+  ul.x-tabbar-tabs > li > div.x-tabbar-tab-container:hover {
     background-color: var(--widget-background-color-hovered);
     border: var(--widget-border-bright);
   }
 
-  ul.x-tabbar-tabs > li > div {
+  ul.x-tabbar-tabs > li > div.x-tabbar-tab-container {
     display: inline-block;
   }
 
-  ul.x-tabbar-tabs > li > span {
+  ul.x-tabbar-tabs > li > div.x-tabbar-tab-container > span {
     vertical-align: sub;
   }
 
-  ul.x-tabbar-tabs > li > span > i {
-    vertical-align: middle;
-  }
-
-  ul.x-tabbar-tabs > li > div > span {
-    vertical-align: sub;
-  }
-
-  ul.x-tabbar-tabs > li.x-tabbar-selected {
+  ul.x-tabbar-tabs > li.x-tabbar-selected > div.x-tabbar-tab-container {
     background-color: var(--widget-background-color-selected);
     border: var(--widget-border);
   }
@@ -184,13 +182,23 @@
   }
 
   .x-tabbar-close-tab {
+    cursor: pointer;
+    position: absolute;
+    right: 0px;
+    bottom: 5px;
+    padding-right: 4px;
     transition: 0.3s;
     margin-left: 4px;
     font-size: 12px;
+    vertical-align: sub;
   }
 
   .x-tabbar-close-tab:hover {
     color: var(--widget-font-color-bright);
+  }
+
+  .x-tabbar-close-tab > i {
+    vertical-align: middle;
   }
 
   .x-tabbar-slot.v-enter {
