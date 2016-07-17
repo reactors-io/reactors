@@ -1,3 +1,6 @@
+@@style(io/reactors/debugger/lib/ionicons/css/ionicons.min.css)
+@@style(io/reactors/debugger/css/main.css)
+@@style(io/reactors/debugger/css/reactor-icons.css)
 @@library(io/reactors/debugger/js/util.js)
 @@library(io/reactors/debugger/lib/jquery/jquery-1.12.4.min.js)
 @@component(io/reactors/debugger/com/config.html)
@@ -9,8 +12,6 @@
 @@component(io/reactors/debugger/com/horizontal-tabber.html)
 @@component(io/reactors/debugger/com/vertical-tabber.html)
 @@component(io/reactors/debugger/com/tabbar.html)
-@@style(io/reactors/debugger/css/main.css)
-@@style(io/reactors/debugger/css/reactor-icons.css)
 
 
 <template id="x-debugger">
@@ -70,6 +71,9 @@
             icon: "<span class='glyphicon glyphicon-sort-by-alphabet'></span>"
           },
           {
+            icon: "<i class='fa fa-cogs' aria-hidden='true'></i>"
+          },
+          {
             icon: "<span class='glyphicon glyphicon-cloud'></span>"
           }
         ],
@@ -96,7 +100,12 @@
           },
           {
             icon: "<i class='fa fa-line-chart' aria-hidden='true'></i>",
-            text: "Analytics",
+            text: "Metrics",
+            onSelected: () => {}
+          },
+          {
+            icon: "<i class='icon ion-settings'></i>",
+            text: "Tools",
             onSelected: () => {}
           }
         ],
