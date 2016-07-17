@@ -1,5 +1,5 @@
 :root {
-  --widget-background-color-dim: rgba(10, 10, 10, 0.8);
+  --widget-background-color-dim: rgba(10, 10, 10, 0.9);
   --widget-background-color: rgba(15, 15, 15, 0.6);
   --widget-background-color-selected: rgba(50, 50, 50, 0.4);
   --widget-background-color-hovered: rgba(60, 60, 60, 0.5);
