@@ -3,19 +3,20 @@
 @@library(io/reactors/debugger/lib/jquery/jquery-1.12.4.min.js)
 @@library(io/reactors/debugger/lib/bootstrap/js/bootstrap.min.js)
 @@library(io/reactors/debugger/lib/sigmajs/sigma.min.js)
+@@library(io/reactors/debugger/lib/sigmajs/plugins/sigma.plugins.dragNodes.min.js)
 
 
-<template id="x-diagram">
-  <div :class="'x-diagram-root ' + canvasClass">
-    <div :id="'x-diagram-sigma-' + uid" class="x-diagram-sigma">
+<template id="x-graph">
+  <div :class="'x-graph-root ' + canvasClass">
+    <div :id="'x-graph-sigma-' + uid" class="x-graph-sigma">
     </div>
   </div>
 </template>
 
 
 <script>
-  var Diagram = Vue.extend({
-    template: "#x-diagram",
+  var Graph = Vue.extend({
+    template: "#x-graph",
     props: ["config", "model", "eventBus", "canvasClass"],
     data: function() {
       return {
@@ -25,8 +26,13 @@
       };
     },
     attached: function() {
+      var style = window.getComputedStyle(document.body);
+
       this.sigma = new sigma({
-        container: "x-diagram-sigma-" + this.uid
+        container: "x-graph-sigma-" + this.uid,
+        settings: {
+          defaultLabelColor: style.getPropertyValue("--graph-label-color")
+        }
       });
 
       this.subscriptions.push(this.eventBus.observe("state-reset-start", () => {
@@ -70,19 +76,20 @@
     }
   });
 
-  Vue.component("x-diagram", Diagram);
+  Vue.component("x-graph", Graph);
 </script>
 
 
 <style type="text/css">
-  .x-diagram-root {
+  .x-graph-root {
     height: 100%;
     background: #000;
   }
 
-  .x-diagram-sigma {
+  .x-graph-sigma {
     height: 100%;
     background: url(img/nebula.png);
     opacity: 0.6;
+    z-index: -1;
   }
 </style>
