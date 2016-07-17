@@ -27,6 +27,8 @@
     </x-model>
     <x-diagram v-ref:diagram
       :config="$refs.config.state"
+      :model="$refs.model.state"
+      :event-bus="$refs.model.eventBus"
       :canvas-class="'x-debugger-diagram'">
     </x-diagram>
     <div class="x-debugger-panel-container">

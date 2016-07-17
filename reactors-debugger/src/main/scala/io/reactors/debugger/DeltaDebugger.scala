@@ -99,9 +99,13 @@ object DeltaDebugger {
       for ((id, name) <- reactors) s.reactors(id) = name
       s
     }
-    def toJson: JValue = (
-      ("reactors" -> reactors.map({ case (id, name) => (id.toString, JString(name)) }))
-    )
+    def toJson: JValue = {
+      val rs = for ((uid, r) <- reactors) yield
+        JField(uid.toString, JObject("name" -> JString(r)))
+      (
+        ("reactors" -> JObject(rs.toList))
+      )
+    }
   }
 
   abstract class Delta {

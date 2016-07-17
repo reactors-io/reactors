@@ -24,15 +24,14 @@
         state: {
           reactors: {},
           channels: {},
-          shellPendingOutput: {}
+          shellPendingOutput: {},
         },
+        eventBus: new EventBus(),
         history: [],
         timestamp: 0
       };
     },
     attached: function() {
-      this.eventBus = new EventBus();
-
       var update = () => {
         if (!this.running) return;
 
@@ -47,19 +46,24 @@
 
           // Update model state.
           if (data.state) {
+            this.eventBus.post("state-reset-start");
+
             // Update reactor list.
-            for (var name in data.state.reactors) {
-              if (data.state.reactors.hasOwnProperty(name)) {
-                this.state.reactors[name] = data.state.reactors[name];
+            for (var uid in data.state.reactors) {
+              if (data.state.reactors.hasOwnProperty(uid)) {
+                this.state.reactors[uid] = data.state.reactors[uid];
+                this.eventBus.post("reactor-seen", uid);
               }
             }
 
             // Update channel list.
-            for (var name in data.state.channels) {
-              if (data.state.channels.hasOwnProperty(name)) {
-                this.state.channels[name] = data.state.channels[name];
+            for (var uid in data.state.channels) {
+              if (data.state.channels.hasOwnProperty(uid)) {
+                this.state.channels[uid] = data.state.channels[uid];
               }
             }
+
+            this.eventBus.post("state-reset-done");
           } else {
             this.ensure(data.deltas, "Neither state nor deltas found in state update.");
             for (var i = 0; i < data.deltas.length; i++) {

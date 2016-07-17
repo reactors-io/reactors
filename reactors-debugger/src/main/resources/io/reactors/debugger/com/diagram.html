@@ -16,11 +16,12 @@
 <script>
   var Diagram = Vue.extend({
     template: "#x-diagram",
-    props: ["config", "canvasClass"],
+    props: ["config", "model", "eventBus", "canvasClass"],
     data: function() {
       return {
         uid: Uid.num(),
-        sigma: null
+        sigma: null,
+        subscriptions: []
       };
     },
     attached: function() {
@@ -28,16 +29,44 @@
         container: "x-diagram-sigma-" + this.uid
       });
 
-      this.sigma.graph.addNode({
-        id: "n",
-        label: "Hello",
-        x: 0,
-        y: 0,
-        size: 1,
-        color: "#f00"
-      });
+      this.subscriptions.push(this.eventBus.observe("state-reset-start", () => {
+        this.resetState();
+      }));
+
+      this.subscriptions.push(this.eventBus.observe("reactor-seen", (uid) => {
+        this.addReactor(uid);
+      }));
+
+      this.subscriptions.push(this.eventBus.observe("reactor-started", (uid) => {
+        this.addReactor(uid);
+      }));
+
+      this.subscriptions.push(this.eventBus.observe("state-reset-done", () => {
+        this.endResetState();
+      }));
     },
     methods: {
+      resetState: function() {
+        this.sigma.graph.clear();
+      },
+      addReactor: function(uid) {
+        this.sigma.graph.addNode({
+          id: uid,
+          label: this.model.reactors[uid].name,
+          x: 0,
+          y: 0,
+          size: 1,
+          color: "#f00"
+        });
+      },
+      endResetState: function() {
+        this.sigma.refresh();
+      }
+    },
+    destroyed: function() {
+      for (var i = 0; i < this.subscriptions.length; i++) {
+        this.subscriptions[i]();
+      }
     }
   });
 

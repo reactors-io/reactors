@@ -8,7 +8,7 @@ class EventBus {
   }
 
   observe(key, f) {
-    if (!(key in observers)) {
+    if (!(key in this.observers)) {
       this.observers[key] = {};
     }
 
@@ -24,7 +24,7 @@ class EventBus {
   post(key, event) {
     if (key in this.observers) {
       var obs = this.observers[key];
-      for (uid in obs) {
+      for (var uid in obs) {
         var f = obs[uid];
         f(event);
       }
