@@ -178,7 +178,8 @@ object WebServer {
     s.req((req: Req) => {
       val stream = getClass.getResourceAsStream("/io/reactors/debugger/" + req.path)
       if (stream == null) sys.error(s"Cannot find path: ${req.path}")
-      IOUtils.toByteArray(stream)
+      if (req.path.endsWith(".svg")) IOUtils.toString(stream)
+      else IOUtils.toByteArray(stream)
     })
 
     // api routes

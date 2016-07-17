@@ -10,6 +10,7 @@
 @@component(io/reactors/debugger/com/vertical-tabber.html)
 @@component(io/reactors/debugger/com/tabbar.html)
 @@style(io/reactors/debugger/css/main.css)
+@@style(io/reactors/debugger/css/reactor-icons.css)
 
 
 <template id="x-debugger">
@@ -87,6 +88,11 @@
             icon: "<span class='glyphicon glyphicon-record'></span>",
             text: "Breakpoints",
             onSelected: () => {}
+          },
+          {
+            icon: "<i class='reactor-icons reactor-icons-timeline'></i>",
+            text: "Timeline",
+            onSelected: () => {}
           }
         ],
         shellFactories: [
@@ -143,6 +149,9 @@
 
   .x-debugger-panel-container {
     position: absolute;
+    top: 0px;
+    left: 0px;
+    width: 100%;
     height: 100%;
     pointer-events: none;
     display: flex;
