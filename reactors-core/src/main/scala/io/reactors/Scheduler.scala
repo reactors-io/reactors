@@ -97,12 +97,6 @@ object Scheduler {
      *  @return         `true` if scheduler can consume more events, `false` otherwise
      */
     def onBatchEvent(frame: Frame): Boolean
-
-    /** Called when scheduling stops.
-     *  
-     *  @param frame    the reactor frame
-     */
-    def onBatchStop(frame: Frame): Unit = {
     }
   }
 
@@ -119,9 +113,6 @@ object Scheduler {
       def onBatchEvent(frame: Frame): Boolean = {
         allowedBudget -= 1
         allowedBudget > 0
-      }
-
-      override def onBatchStop(frame: Frame): Unit = {
       }
     }
   }

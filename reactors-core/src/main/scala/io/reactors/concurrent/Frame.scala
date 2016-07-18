@@ -204,8 +204,6 @@ final class Frame(
         nc = null
       }
     }
-
-    schedulerState.onBatchStop(this)
   }
 
   private def checkTerminated(forcedTermination: Boolean) {
