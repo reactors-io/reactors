@@ -35,7 +35,7 @@
       });
 
       // Install event bus observers.
-      this.subscriptions.push(this.eventBus.observe("state-reset-start", () => {
+      this.subscriptions.push(this.eventBus.observe("state-reset", () => {
         this.resetState();
       }));
 
@@ -47,7 +47,7 @@
         this.addReactor(uid);
       }));
 
-      this.subscriptions.push(this.eventBus.observe("state-reset-done", () => {
+      this.subscriptions.push(this.eventBus.observe("state-update-done", () => {
         this.endResetState();
       }));
 

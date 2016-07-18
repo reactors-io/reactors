@@ -46,7 +46,7 @@
 
           // Update model state.
           if (data.state) {
-            this.eventBus.post("state-reset-start");
+            this.eventBus.post("state-reset");
 
             // Update reactor list.
             for (var uid in data.state.reactors) {
@@ -62,8 +62,6 @@
                 this.state.channels[uid] = data.state.channels[uid];
               }
             }
-
-            this.eventBus.post("state-reset-done");
           } else {
             this.ensure(data.deltas, "Neither state nor deltas found in state update.");
             for (var i = 0; i < data.deltas.length; i++) {
@@ -86,6 +84,8 @@
               if (buffer && output ) buffer.push(output);
             }
           }
+
+          this.eventBus.post("state-update-done");
 
           // Reset heartbeat and repeat.
           this.heartbeatRate = Math.max(
@@ -114,6 +114,7 @@
             this.state.reactors[delta[1]] = {
               name: delta[2]
             };
+            this.eventBus.post("reactor-started", delta[1]);
             break;
           case "die":
             break;
@@ -141,22 +142,27 @@
           case "start":
             enriched.reactorId = delta[1];
             enriched.reactorName = delta[2];
+            break;
           case "die":
             enriched.reactorId = delta[1];
             enriched.reactorName = this.state.reactors[delta[1]].name;
+            break;
           case "term":
             enriched.reactorId = delta[1];
             enriched.reactorName = this.state.reactors[delta[1]].name;
+            break;
           case "open":
             enriched.channelId = delta[1];
             enriched.channelName = delta[2];
             enriched.reactorId = delta[3];
             enriched.reactorName = this.state.reactors[delta[3]].name;
+            break;
           case "seal":
             enriched.channelId = delta[1];
             enriched.channelName = this.state.channels[delta[1]].name;
             enriched.reactorId = this.state.channels[delta[1]].reactor;
             enriched.reactorName = this.state.reactors[enriched.reactorId].name;
+            break;
         }
         return enriched;
       },
