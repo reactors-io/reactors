@@ -173,7 +173,6 @@ final class Frame(
       if (schedulerState.onBatchEvent(this)) {
         // Need to consume some more.
         if (remaining > 0 && !c.sharedChannel.asLocal.isSealed) {
-          assert(remaining > 0)
           drain(c)
         } else {
           val nc = popNextPending()
