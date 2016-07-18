@@ -22,7 +22,7 @@ final class Frame(
   private[reactors] val monitor = new Monitor
   private[reactors] val connectors = new UniqueStore[Connector[_]]("channel", monitor)
   private[reactors] var nonDaemonCount = 0
-  private[reactors] var executing = false
+  private[reactors] var active = false
   private[reactors] var lifecycleState: Frame.LifecycleState = Frame.Fresh
   private[reactors] val pendingQueues = new UnrolledRing[Connector[_]]
   private[reactors] val sysEmitter = new Events.Emitter[SysEvent]
@@ -64,8 +64,8 @@ final class Frame(
   def scheduleForExecution() {
     var mustSchedule = false
     monitor.synchronized {
-      if (!executing) {
-        executing = true
+      if (!active) {
+        active = true
         mustSchedule = true
       }
     }
@@ -83,8 +83,8 @@ final class Frame(
       pendingQueues.enqueue(conn)
 
       // 4. Schedule the frame for later execution.
-      if (!executing) {
-        executing = true
+      if (!active) {
+        active = true
         mustSchedule = true
       }
     }
@@ -93,8 +93,8 @@ final class Frame(
 
   def executeBatch() {
     // 1. Check the state.
-    // This method can only be called if the frame is in the "executing" state.
-    assert(executing)
+    // This method can only be called if the frame is in the "active" state.
+    assert(active)
 
     // This method cannot be executed inside another reactor.
     if (Reactor.selfReactor.get != null) {
@@ -111,7 +111,7 @@ final class Frame(
         if (pendingQueues.nonEmpty && !hasTerminated) {
           mustSchedule = true
         } else {
-          executing = false
+          active = false
         }
       }
       if (mustSchedule) scheduler.schedule(this)

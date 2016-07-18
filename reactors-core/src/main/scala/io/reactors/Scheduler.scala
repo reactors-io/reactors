@@ -360,7 +360,7 @@ object Scheduler {
             } else {
               frame.executeBatch()
 
-              // we put into the "executing" state to be consistent,
+              // we put into the "active" state to be consistent,
               // although this is not strictly necessary
               frame.scheduleForExecution()
             }
