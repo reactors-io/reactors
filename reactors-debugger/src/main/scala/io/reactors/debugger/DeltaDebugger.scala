@@ -47,12 +47,15 @@ extends DebugApi {
       if (suid != sessionuid || reqts < oldtimestamp) {
         DeltaDebugger.toJson(sessionuid, curtimestamp, Some(curstate.copy()), None)
       } else {
+        println(reqts)
+        println(oldtimestamp)
         val newdeltas = mutable.Buffer[DeltaDebugger.Delta]()
         var ts = oldtimestamp
         for (delta <- deltas) {
-          if (ts > reqts) newdeltas += delta
           ts += 1
+          if (ts > reqts) newdeltas += delta
         }
+        println(newdeltas)
         DeltaDebugger.toJson(sessionuid, curtimestamp, None, Some(newdeltas))
       }
     }

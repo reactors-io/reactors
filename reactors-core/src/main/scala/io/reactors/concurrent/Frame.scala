@@ -149,6 +149,7 @@ final class Frame(
     }
     if (runCtor) {
       reactor = proto.create()
+      reactorSystem.debugApi.reactorStarted(reactor)
       sysEmitter.react(ReactorStarted)
     }
   }
