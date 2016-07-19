@@ -34,9 +34,13 @@
           defaultHoverLabelBGColor:
             style.getPropertyValue("--graph-label-hover-background-color"),
           defaultLabelHoverColor:
-            style.getPropertyValue("--graph-label-hover-color")
+            style.getPropertyValue("--graph-label-hover-color"),
+          autoRescale: false,
+          zoomMin: 0.01,
+          zoomMax: 0.125
         }
       });
+      this.sigma.camera.goTo({ ratio: 0.02 });
 
       // Install event bus observers.
       this.subscriptions.push(this.eventBus.observe("state-reset", () => {
@@ -58,7 +62,7 @@
       // Install coordinate listeners.
       var updateBackground = () => {
         $(".x-graph-sigma").css("background-position",
-          (-this.sigma.camera.x / 10) + "px " + (-this.sigma.camera.y / 10) + "px");
+          (-this.sigma.camera.x * 3.0) + "px " + (-this.sigma.camera.y * 3.0) + "px");
       }
       updateBackground();
       this.sigma.camera.bind("coordinatesUpdated", () => {
@@ -73,9 +77,9 @@
         this.sigma.graph.addNode({
           id: uid,
           label: this.model.reactors[uid].name,
-          x: Math.random(),
-          y: Math.random(),
-          size: 1,
+          x: 6.0 * Math.random(),
+          y: 6.0 * Math.random(),
+          size: 1.0,
           color: "#f00"
         });
       },
