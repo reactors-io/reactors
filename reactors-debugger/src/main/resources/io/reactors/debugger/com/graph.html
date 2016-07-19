@@ -4,6 +4,7 @@
 @@library(io/reactors/debugger/lib/bootstrap/js/bootstrap.min.js)
 @@library(io/reactors/debugger/lib/sigmajs/sigma.min.js)
 @@library(io/reactors/debugger/lib/sigmajs/plugins/sigma.plugins.dragNodes.min.js)
+@@library(io/reactors/debugger/lib/sigmajs/plugins/sigma.layout.forceAtlas2.min.js)
 
 
 <template id="x-graph">
@@ -32,6 +33,12 @@
         settings: {
           defaultLabelColor: style.getPropertyValue("--graph-label-color")
         }
+      });
+
+      // Install graph.
+      this.sigma.startForceAtlas2({
+        worker: true,
+        barnesHutOptimize: false
       });
 
       // Install event bus observers.

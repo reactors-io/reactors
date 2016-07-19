@@ -97,7 +97,6 @@ object Scheduler {
      *  @return         `true` if scheduler can consume more events, `false` otherwise
      */
     def onBatchEvent(frame: Frame): Boolean
-    }
   }
 
   object State {
