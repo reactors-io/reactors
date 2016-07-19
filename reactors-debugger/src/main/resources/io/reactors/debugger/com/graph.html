@@ -65,12 +65,6 @@
       this.sigma.camera.bind("coordinatesUpdated", () => {
         updateBackground();
       });
-
-      // Enable automatic node layout updates.
-      this.sigma.startForceAtlas2({
-        worker: true,
-        barnesHutOptimize: true
-      });
     },
     methods: {
       resetState: function() {
