@@ -17,5 +17,6 @@
   --status-badge-loading-color: rgba(0, 100, 200, 0.7);
   --status-badge-error-color: rgba(200, 0, 0, 0.7);
   --status-badge-default-color: rgba(120, 120, 120, 0.7);
+  --graph-node-color: rgba(220, 0, 0, 0.8);
   --graph-label-color: rgba(255, 255, 255, 0.8);
 }
