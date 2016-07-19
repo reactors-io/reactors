@@ -352,7 +352,7 @@ object Scheduler {
 
               // we put into the "active" state to be consistent,
               // although this is not strictly necessary
-              frame.scheduleForExecution()
+              frame.activate()
             }
           } catch handler
         }

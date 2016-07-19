@@ -104,7 +104,7 @@ class ReactorSystem(
 
       // 4. schedule for the first execution
       scheduler.initSchedule(frame)
-      frame.scheduleForExecution()
+      frame.activate()
     } catch {
       case t: Throwable =>
         // 5. if not successful, release the name and rethrow

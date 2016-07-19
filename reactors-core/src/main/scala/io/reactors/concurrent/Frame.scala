@@ -61,7 +61,7 @@ final class Frame(
 
   /** Atomically schedules the frame for execution, unless already scheduled.
    */
-  def scheduleForExecution() {
+  def activate() {
     var mustSchedule = false
     monitor.synchronized {
       if (!active) {
