@@ -34,12 +34,6 @@
         }
       });
 
-      // Install graph.
-      this.sigma.startForceAtlas2({
-        worker: true,
-        barnesHutOptimize: false
-      });
-
       // Install event bus observers.
       this.subscriptions.push(this.eventBus.observe("state-reset", () => {
         this.resetState();
@@ -66,6 +60,12 @@
       this.sigma.camera.bind("coordinatesUpdated", () => {
         updateBackground();
       });
+
+      // Enable automatic node layout updates.
+      this.sigma.startForceAtlas2({
+        worker: true,
+        barnesHutOptimize: true
+      });
     },
     methods: {
       resetState: function() {
@@ -75,8 +75,8 @@
         this.sigma.graph.addNode({
           id: uid,
           label: this.model.reactors[uid].name,
-          x: 0,
-          y: 0,
+          x: Math.random(),
+          y: Math.random(),
           size: 1,
           color: "#f00"
         });
