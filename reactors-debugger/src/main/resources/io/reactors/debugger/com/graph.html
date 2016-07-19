@@ -31,7 +31,11 @@
         container: "x-graph-sigma-" + this.uid,
         settings: {
           defaultNodeColor: style.getPropertyValue("--graph-node-color"),
-          defaultLabelColor: style.getPropertyValue("--graph-label-color")
+          defaultLabelColor: style.getPropertyValue("--graph-label-color"),
+          defaultHoverLabelBGColor:
+            style.getPropertyValue("--graph-label-hover-background-color"),
+          defaultLabelHoverColor:
+            style.getPropertyValue("--graph-label-hover-color")
         }
       });
 

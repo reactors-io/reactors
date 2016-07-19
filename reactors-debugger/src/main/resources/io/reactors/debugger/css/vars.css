@@ -19,4 +19,6 @@
   --status-badge-default-color: rgba(120, 120, 120, 0.7);
   --graph-node-color: rgba(220, 0, 0, 0.8);
   --graph-label-color: rgba(255, 255, 255, 0.8);
+  --graph-label-hover-color: rgba(255, 255, 255, 0.8);
+  --graph-label-hover-background-color: rgba(15, 15, 15, 0.5);
 }
