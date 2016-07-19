@@ -1,11 +1,11 @@
 @font-face {
-  font-family: 'ReactorIcons';
-  src: url('font/reactor-icons.eot');
-  src: url('font/reactor-icons.eot') format('embedded-opentype'),
-    url('font/reactor-icons.woff2') format('woff2'),
-    url('font/reactor-icons.woff') format('woff'),
-    url('font/reactor-icons.ttf') format('truetype'),
-    url('font/reactor-icons.svg#Purchased') format('svg');
+  font-family: "ReactorIcons";
+  src: url("font/reactor-icons.eot");
+  src: url("font/reactor-icons.eot") format("embedded-opentype"),
+    url("font/reactor-icons.woff2") format("woff2"),
+    url("font/reactor-icons.woff") format("woff"),
+    url("font/reactor-icons.ttf") format("truetype"),
+    url("font/reactor-icons.svg#Purchased") format("svg");
   font-weight: normal;
   font-style: normal;
 }

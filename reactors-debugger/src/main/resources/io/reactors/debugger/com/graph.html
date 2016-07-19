@@ -30,6 +30,7 @@
       this.sigma = new sigma({
         container: "x-graph-sigma-" + this.uid,
         settings: {
+          defaultNodeColor: style.getPropertyValue("--graph-node-color"),
           defaultLabelColor: style.getPropertyValue("--graph-label-color")
         }
       });
