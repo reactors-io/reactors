@@ -18,7 +18,7 @@ import io.reactors.concurrent._
  *  A reactor that is assigned a specific scheduler will always be executed on that
  *  same scheduler.
  *
- *  After creating a reactor, every reactor system will first call the `startSchedule`
+ *  After creating a reactor, every reactor system will first call the `initSchedule`
  *  method on the reactor frame.
  *  Then, the reactor system will call the `schedule` method every time there are events
  *  ready for the reactor.
@@ -49,7 +49,7 @@ trait Scheduler {
    *
    *  @param frame      the reactor frame to start scheduling
    */
-  def startSchedule(frame: Frame): Unit = {
+  def initSchedule(frame: Frame): Unit = {
     frame.schedulerState = newState(frame)
   }
 
@@ -282,8 +282,8 @@ object Scheduler {
         w
       }
 
-      override def startSchedule(frame: Frame) {
-        super.startSchedule(frame)
+      override def initSchedule(frame: Frame) {
+        super.initSchedule(frame)
         if (Reactor.selfAsOrNull != null)
           throw new IllegalStateException(
             "Cannot use piggyback scheduler from within a reactor.")
@@ -336,8 +336,8 @@ object Scheduler {
 
     def schedule(frame: Frame) {}
 
-    override def startSchedule(frame: Frame) {
-      super.startSchedule(frame)
+    override def initSchedule(frame: Frame) {
+      super.initSchedule(frame)
       addFrame(frame)
 
       val task = new java.util.TimerTask {

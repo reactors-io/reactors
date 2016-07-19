@@ -103,7 +103,7 @@ class ReactorSystem(
       }
 
       // 4. schedule for the first execution
-      scheduler.startSchedule(frame)
+      scheduler.initSchedule(frame)
       frame.scheduleForExecution()
     } catch {
       case t: Throwable =>
