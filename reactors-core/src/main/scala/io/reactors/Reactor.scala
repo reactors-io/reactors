@@ -64,7 +64,7 @@ import io.reactors.concurrent._
  *  }
  *  }}}
  *
- *  Reactors also receive special `SysEvent` events on the `internal.events` stream.
+ *  Reactors also receive special `SysEvent` events on the `sysEvents` stream.
  *  
  *  @tparam T        the type of events, which `this` reactor produces
  */
