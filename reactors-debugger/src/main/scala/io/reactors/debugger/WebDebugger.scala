@@ -163,6 +163,12 @@ extends DebugApi with Protocol.Service with WebApi {
         ("pending-output" -> JObject(replouts)) :: deltaDebugger.state(suid, ts).obj)
     }
 
+  def breakpointAdd(suid: String, pattern: String, tpe: String): JObject = ???
+
+  def breakpointList(suid: String): JObject = ???
+
+  def breakpointRemove(suid: String, bid: Long): JObject = ???
+
   def replGet(tpe: String): Future[JValue] =
     monitor.synchronized {
       replManager.createRepl(tpe).map({

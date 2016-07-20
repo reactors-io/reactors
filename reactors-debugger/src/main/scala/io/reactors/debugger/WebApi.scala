@@ -14,9 +14,33 @@ trait WebApi {
    *  @param suid      unique identifier of the session
    *  @param ts        timestamp of the last update
    *  @param repluids  a list of REPL UIDs whose output needs to be collected
-   *  @return          the the state change since the last update
+   *  @return          the state change since the last update
    */
   def state(suid: String, ts: Long, repluids: List[String]): JObject
+
+  /** Adds a breakpoint to the debugger.
+   *
+   *  @param suid      unique identifier of the session
+   *  @param pattern   pattern denoting whether an event matches the breakpoint
+   *  @param tpe       type of the breakpoint (`reactor-started`, `reactor-died`, etc.)
+   *  @return          an object indicating the breakpoint ID, or an error
+   */
+  def breakpointAdd(suid: String, pattern: String, tpe: String): JObject
+
+  /** Returns the list of all the existing breakpoints.
+   *
+   *  @param suid      session identifier
+   *  @return          an object with the list of breakpoints, or an error
+   */
+  def breakpointList(suid: String): JObject
+
+  /** Removes the specified breakpoint.
+   *
+   *  @param suid      session identifier
+   *  @param bid       breakpoint unique identifier
+   *  @return          an object indicating the success, or an error
+   */
+  def breakpointRemove(suid: String, bid: Long): JObject
 
   /** Starts a new REPL.
    *
