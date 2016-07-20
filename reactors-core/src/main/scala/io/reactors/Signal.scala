@@ -62,7 +62,7 @@ trait Signal[@spec(Int, Long, Double) T] extends Events[T] with Subscription {
 
   /** Zips values of `this` and `that` signal using the specified function `f`.
    *
-   *  Whenever either of the two signals change the resulting signal also
+   *  Whenever either of the two signals changes, the resulting signal also
    *  changes.
    *  When `this` emits an event, the current value of `that` is used to produce
    *  a signal on `that`, and vice versa.
@@ -73,6 +73,9 @@ trait Signal[@spec(Int, Long, Double) T] extends Events[T] with Subscription {
    *  that --a----------------b---------c--->
    *  zip  --1,a--2,a---4,a---4,b--8,b--8,c->
    *  }}}
+   *
+   *  When either of the input signals unreacts, the resulting signal also
+   *  unreacts.
    *
    *  The resulting tuple of events from `this` and `that` is mapped using the
    *  user-specified mapping function `f`.
@@ -169,6 +172,7 @@ object Signal {
    *  steps to update the value of the aggregate signal.
    *
    *  Example:
+   *
    *  {{{
    *  val emitters = for (0 until 10) yield new Events.Emitter[Int]
    *  val ag = Signal.aggregate(emitters)(_ + _)
