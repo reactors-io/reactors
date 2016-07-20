@@ -189,6 +189,21 @@ object WebServer {
       val repluids = req.posted.get("repluids").asInstanceOf[ArrayList[String]].asScala
       asJsonNode(webapi.state(suid, ts, repluids.toList))
     })
+    s.post("/api/breakpoint-add").json((req: Req) => {
+      val suid = req.posted.get("suid").asInstanceOf[String]
+      val pattern = req.posted.get("pattern").asInstanceOf[String]
+      val tpe = req.posted.get("tpe").asInstanceOf[String]
+      ???
+    })
+    s.post("/api/breakpoint-list").json((req: Req) => {
+      val suid = req.posted.get("suid").asInstanceOf[String]
+      ???
+    })
+    s.post("/api/breakpoint-remove").json((req: Req) => {
+      val suid = req.posted.get("suid").asInstanceOf[String]
+      val bid = req.posted.get("bid").asInstanceOf[Number].longValue
+      ???
+    })
     s.post("/api/repl/get").json((req: Req) => {
       val tpe = req.posted.get("tpe").asInstanceOf[String]
       req.async()
