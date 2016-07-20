@@ -13,7 +13,7 @@ import scala.collection._
 class DeltaDebugger(val system: ReactorSystem, val sessionuid: String)
 extends DebugApi {
   private val monitor = system.monitor
-  private val windowSize = 128
+  private val windowSize = 512
   private val oldstate = new DeltaDebugger.State()
   private var oldtimestamp = 0L
   private var curstate: DeltaDebugger.State = null
