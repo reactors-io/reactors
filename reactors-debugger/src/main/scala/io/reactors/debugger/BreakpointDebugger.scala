@@ -4,12 +4,18 @@ package debugger
 
 
 import io.reactors.common.UnrolledRing
+import java.util.concurrent.atomic.AtomicLong
+import scala.collection._
 
 
 
 class BreakpointDebugger(val system: ReactorSystem, val deltaDebugger: DeltaDebugger)
 extends DebugApi {
+  import BreakpointDebugger.Breakpoint
+
   private val monitor = system.monitor
+  private val bidCounter = new AtomicLong
+  private val breakpoints = mutable.Map[Long, Breakpoint]()
 
   def isEnabled = true
 
@@ -42,4 +48,25 @@ extends DebugApi {
 
   def log(x: Any) {
   }
+
+  def breakpointAdd(pattern: String, tpe: String): Long =
+    monitor.synchronized {
+      val bid = bidCounter.getAndIncrement()
+      val b = new Breakpoint(bid, pattern, tpe)
+      breakpoints(bid) = b
+      bid
+    }
+
+  def breakpointList(): List[Breakpoint] = monitor.synchronized {
+    breakpoints.values.toList
+  }
+
+  def breakpointRemove(bid: Long): Option[Breakpoint] = monitor.synchronized {
+    breakpoints.remove(bid)
+  }
+}
+
+
+object BreakpointDebugger {
+  class Breakpoint(val bid: Long, val pattern: String, val tpes: String)
 }
