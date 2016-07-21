@@ -36,11 +36,11 @@
           defaultLabelHoverColor:
             style.getPropertyValue("--graph-label-hover-color"),
           autoRescale: false,
-          zoomMin: 0.01,
+          zoomMin: 0.007,
           zoomMax: 0.125
         }
       });
-      this.sigma.camera.goTo({ ratio: 0.02 });
+      this.sigma.camera.goTo({ x: 3, y: 3, ratio: 0.015 });
 
       // Install event bus observers.
       this.subscriptions.push(this.eventBus.observe("state-reset", () => {
