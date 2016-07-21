@@ -52,7 +52,7 @@ extends DebugApi {
   def breakpointAdd(pattern: String, tpe: String): Long =
     monitor.synchronized {
       val bid = bidCounter.getAndIncrement()
-      val b = new Breakpoint(bid)
+      val b = new Breakpoint(bid, pattern, tpe)
       breakpoints(bid) = b
       bid
     }
