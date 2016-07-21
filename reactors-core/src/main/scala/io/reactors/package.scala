@@ -63,56 +63,56 @@ package object reactors {
   /* system events */
 
   /** System events are a special kind of internal events that can be observed
-   *  by isolates.
+   *  by reactors.
    */
   sealed trait SysEvent
 
-  /** Denotes start of an isolate.
+  /** Denotes start of a reactor.
    *
    *  Produced before any other event.
    */
   case object ReactorStarted extends SysEvent
 
-  /** Denotes the termination of an isolate.
+  /** Denotes the termination of a reactor.
    *
    *  Called after all other events.
    */
   case object ReactorTerminated extends SysEvent
 
-  /** Denotes that the isolate was scheduled for execution by the scheduler.
+  /** Denotes that the reactor was scheduled for execution by the scheduler.
    *
    *  Always sent after `ReactorStarted` and before `ReactorTerminated`.
    *
-   *  This event usually occurs when isolate is woken up to process incoming events,
+   *  This event usually occurs when reactor is woken up to process incoming events,
    *  but may be invoked even if there are no pending events.
    *  This event is typically used in conjunction with a scheduler that periodically
-   *  wakes up the isolate.
+   *  wakes up the reactor.
    */
   case object ReactorScheduled extends SysEvent
 
-  /** Denotes that the isolate was preempted by the scheduler.
+  /** Denotes that the reactor was preempted by the scheduler.
    *
    *  Always sent after `ReactorStarted` and before `ReactorTerminated`.
    *
-   *  When the isolate is preempted, it loses control of the execution thread, until the
+   *  When the reactor is preempted, it loses control of the execution thread, until the
    *  scheduler schedules it again on some (possibly the same) thread.
-   *  This event is typically used to send another message back to the isolate,
+   *  This event is typically used to send another message back to the reactor,
    *  indicating that he should be scheduled again later.
    */
   case object ReactorPreempted extends SysEvent
 
-  /** Denotes that the isolate died due to an exception.
+  /** Denotes that the reactor died due to an exception.
    *
    *  This event is sent after `ReactorStarted`.
    *  This event is sent before `ReactorTerminated`, *unless* the exception is thrown
    *  while `ReactorTerminated` is being processed, in which case the `ReactorDied` is
    *  not sent.
    *
-   *  Note that, if the exception is thrown during the isolate constructor invocation
+   *  Note that, if the exception is thrown during the reactor constructor invocation
    *  and before the appropriate event handler is created, this event cannot be sent
    *  to that event handler.
    *
-   *  @param t              the exception that the isolate threw
+   *  @param t              the exception that the reactor threw
    */
   case class ReactorDied(t: Throwable) extends SysEvent
 
