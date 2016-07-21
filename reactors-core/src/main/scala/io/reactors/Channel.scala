@@ -7,11 +7,11 @@ import io.reactors.concurrent.Frame
 
 
 
-/** `Channel` is a shareable reference to a writing endpoint of an isolate.
+/** `Channel` is a shareable reference to a writing endpoint of a reactor.
  *
  *  By calling the channel's `!` method, an event is sent to the channel. The event is
  *  eventually emitted on the channel's corresponding event stream, which is readable
- *  only by the isolate that owns that channel.
+ *  only by the reactor that owns that channel.
  *
  *  @tparam T       type of the events propagated by this channel
  */
