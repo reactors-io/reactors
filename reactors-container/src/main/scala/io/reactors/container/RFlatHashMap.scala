@@ -7,6 +7,15 @@ import scala.reflect.ClassTag
 
 
 
+/** A reactive hash map based on open addressing.
+ *
+ *  Both type parameters are specialized. It is best to use this
+ *  class when either both keys and values are primitives, or
+ *  are both references.
+ *
+ *  @tparam K     type of the keys
+ *  @tparam V     type of the values
+ */
 class RFlatHashMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
   implicit val emptyKey: Arrayable[K],
   implicit val emptyVal: Arrayable[V]

@@ -9,6 +9,14 @@ import io.reactors.common.BinaryHeap
 
 
 
+/** Reactive binary heap.
+ *
+ *  Exposes a signal `head`, used to probe or subscribe to changes to
+ *  the first element in the heap.
+ *
+ *  @tparam T            type of the elements in the heap
+ *  @param initialSize   initial size of the internal array
+ */
 class RBinaryHeap[@spec(Int, Long, Double) T](val initialSize: Int = 16)(
   implicit val arrayable: Arrayable[T],
   val order: Order[T]
