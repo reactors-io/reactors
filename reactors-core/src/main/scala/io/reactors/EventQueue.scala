@@ -59,6 +59,8 @@ trait EventQueue[@spec(Int, Long, Double) T] {
  */
 object EventQueue {
 
+  /** Creates a new instance of a particular event queue implementation.
+   */
   abstract class Factory extends Serializable {
     def newInstance[@spec(Int, Long, Double) T: Arrayable]: EventQueue[T]
   }
@@ -74,6 +76,8 @@ object EventQueue {
     val events = new Events.Never[T]
   }
 
+  /** Checks if the given event queue is the `Zero` event queue.
+   */
   def isZero(q: EventQueue[_]): Boolean = q.isInstanceOf[Zero[_]]
 
   /** Event queue backed by a synchronized, expandable unrolled ring.
