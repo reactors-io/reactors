@@ -44,9 +44,9 @@ trait ServerProtocols {
   }
 
   implicit class ServerSystemOps(val system: ReactorSystem) {
-    /** Creates a server isolate.
+    /** Creates a server reactor.
      *
-     *  This isolate always responds by mapping the request of type `T` into a response
+     *  This reactor always responds by mapping the request of type `T` into a response
      *  of type `S`, with the specified function `f`.
      *
      *  If `opts` parameter has a non-`None` terminator and the server receives that
@@ -67,9 +67,9 @@ trait ServerProtocols {
       })
     }
 
-    /** Creates a server isolate that optionally responds to requests.
+    /** Creates a server reactor that optionally responds to requests.
      *
-     *  This isolate uses the function `f` to create a response of type `S` from the
+     *  This reactor uses the function `f` to create a response of type `S` from the
      *  request type `T`. If the value obtained this way is not `nil`, the server
      *  responds.
      *
