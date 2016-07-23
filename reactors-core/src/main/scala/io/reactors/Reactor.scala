@@ -105,7 +105,7 @@ trait Reactor[@spec(Int, Long, Double) T] {
     frame.defaultConnector.asInstanceOf[Connector[T]]
   }
 
-  /** The system event stream of this isolate.
+  /** The system event stream of this reactor.
    */
   final def sysEvents: Events[SysEvent] = frame.sysEmitter
 
