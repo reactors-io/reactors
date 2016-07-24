@@ -93,7 +93,8 @@ object Services {
   private def loggingTag(): String = {
     val time = System.currentTimeMillis()
     val formattedTime = timestampFormat.format(new Date(time))
-    s"[$formattedTime ${Reactor.self[Nothing].frame.name}] "
+    val frame = Reactor.self[Nothing].frame
+    s"[$formattedTime | ${frame.name} (${frame.uid})] "
   }
 
   /** Contains services needed to communicate with the debugger.
