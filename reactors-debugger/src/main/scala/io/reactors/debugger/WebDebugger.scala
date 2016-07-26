@@ -23,6 +23,7 @@ extends DebugApi with Protocol.Service with WebApi {
   private val startTime = System.currentTimeMillis()
   private var lastActivityTime = System.currentTimeMillis()
   private val replManager = new ReplManager(system)
+  @volatile private var sessionUid: String = null
   @volatile private var deltaDebugger: DeltaDebugger = null
   @volatile private var breakpointDebugger: BreakpointDebugger = null
 
@@ -37,7 +38,7 @@ extends DebugApi with Protocol.Service with WebApi {
 
   private def uniqueId(): String = Uid.string(startTime)
 
-  def isEnabled = deltaDebugger != null
+  def isEnabled = sessionUid != null
 
   def eventSent[@spec(Int, Long, Double) T](c: Channel[T], x: T) {
     if (deltaDebugger != null) monitor.synchronized {
@@ -136,8 +137,9 @@ extends DebugApi with Protocol.Service with WebApi {
 
   private def ensureLive() {
     monitor.synchronized {
-      if (deltaDebugger == null) {
-        deltaDebugger = new DeltaDebugger(system, uniqueId())
+      if (sessionUid == null) {
+        sessionUid = uniqueId()
+        deltaDebugger = new DeltaDebugger(system, sessionUid)
         breakpointDebugger = new BreakpointDebugger(system, deltaDebugger)
       }
       lastActivityTime = System.currentTimeMillis()
@@ -148,6 +150,7 @@ extends DebugApi with Protocol.Service with WebApi {
     monitor.synchronized {
       val now = System.currentTimeMillis()
       if (algebra.time.diff(now, lastActivityTime) > expirationSeconds * 1000) {
+        sessionUid = null
         deltaDebugger = null
         breakpointDebugger = null
         monitor.notifyAll()
@@ -163,7 +166,17 @@ extends DebugApi with Protocol.Service with WebApi {
         ("pending-output" -> JObject(replouts)) :: deltaDebugger.state(suid, ts).obj)
     }
 
-  def breakpointAdd(suid: String, pattern: String, tpe: String): JObject = ???
+  def breakpointAdd(suid: String, pattern: String, tpe: String): JObject = {
+    monitor.synchronized {
+      ensureLive()
+      if (sessionUid != suid) {
+        ("error" -> "Invalid session UID.") ~ ("suid" -> sessionUid)
+      } else {
+        val bid = breakpointDebugger.breakpointAdd(pattern, tpe)
+        ("bid" -> bid)
+      }
+    }
+  }
 
   def breakpointList(suid: String): JObject = ???
 
