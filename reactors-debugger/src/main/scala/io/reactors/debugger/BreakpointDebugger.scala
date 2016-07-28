@@ -68,5 +68,5 @@ extends DebugApi {
 
 
 object BreakpointDebugger {
-  class Breakpoint(val bid: Long, val pattern: String, val tpes: String)
+  class Breakpoint(val bid: Long, val pattern: String, val tpe: String)
 }

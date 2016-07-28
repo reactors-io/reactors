@@ -178,7 +178,19 @@ extends DebugApi with Protocol.Service with WebApi {
     }
   }
 
-  def breakpointList(suid: String): JObject = ???
+  def breakpointList(suid: String): JObject = {
+    monitor.synchronized {
+      ensureLive()
+      if (sessionUid != suid) {
+        ("error" -> "Invalid sesion UID") ~ ("suid" -> sessionUid)
+      } else {
+        val breakpoints = for (b <- breakpointDebugger.breakpointList()) yield {
+          ("bid" -> b.bid) ~ ("pattern" -> b.pattern) ~ ("tpe" -> b.tpe)
+        }
+        ("breakpoints" -> breakpoints)
+      }
+    }
+  }
 
   def breakpointRemove(suid: String, bid: Long): JObject = ???
 
