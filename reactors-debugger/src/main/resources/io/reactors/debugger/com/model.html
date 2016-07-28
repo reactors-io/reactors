@@ -63,7 +63,7 @@
             for (var uid in data.state.reactors) {
               if (data.state.reactors.hasOwnProperty(uid)) {
                 this.state.reactors[uid] = data.state.reactors[uid];
-                this.eventBus.post("reactor-seen", this.state.reactors[uid]);
+                this.eventBus.reactorSeen.post(this.state.reactors[uid]);
               }
             }
 
@@ -96,7 +96,7 @@
             }
           }
 
-          this.eventBus.post("state-update-done");
+          this.eventBus.stateUpdateDone.post();
 
           // Reset heartbeat and repeat.
           this.heartbeatRate = Math.max(
@@ -127,14 +127,14 @@
               name: delta[2]
             };
             this.state.reactors[delta[1]] = reactor
-            this.eventBus.post("reactor-started", reactor);
+            this.eventBus.reactorStarted.post(reactor);
             break;
           case "die":
             break;
           case "term":
             var reactor = this.state.reactors[delta[1]];
             delete this.state.reactors[delta[1]];
-            this.eventBus.post("reactor-terminated", reactor);
+            this.eventBus.reactorTerminated.post(reactor);
             break;
           case "open":
             this.state.channels[delta[1]] = {
