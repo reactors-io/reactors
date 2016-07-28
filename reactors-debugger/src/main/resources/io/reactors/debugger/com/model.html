@@ -13,6 +13,17 @@
 <script>
   "use strict";
 
+  class EventBus {
+    constructor() {
+      this.reactorStarted = new EventStream();
+      this.reactorSeen = new EventStream();
+      this.reactorDied = new EventStream();
+      this.reactorTerminated = new EventStream();
+      this.stateReset = new EventStream();
+      this.stateUpdateDone = new EventStream();
+    }
+  }
+
   var Model = Vue.extend({
     template: "#x-model",
     props: ["config", "api"],
@@ -46,7 +57,7 @@
 
           // Update model state.
           if (data.state) {
-            this.eventBus.post("state-reset");
+            this.eventBus.stateReset.post();
 
             // Update reactor list.
             for (var uid in data.state.reactors) {
