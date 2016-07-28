@@ -101,10 +101,8 @@ object DeltaDebugger {
     }
     def toJson: JValue = {
       val rs = for ((uid, r) <- reactors) yield
-        JField(uid.toString, JObject("name" -> JString(r)))
-      (
-        ("reactors" -> JObject(rs.toList))
-      )
+        JField(uid.toString, JObject("uid" -> uid, "name" -> JString(r)))
+      ("reactors" -> JObject(rs.toList))
     }
   }
 
