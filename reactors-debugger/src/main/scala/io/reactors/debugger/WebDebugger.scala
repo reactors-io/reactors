@@ -166,12 +166,16 @@ extends DebugApi with Protocol.Service with WebApi {
         ("pending-output" -> JObject(replouts)) :: deltaDebugger.state(suid, ts).obj)
     }
 
+  private def validateSessionUid(suid: String): Option[JObject] = {
+    if (sessionUid != suid)
+      Some(("error" -> "Invalid session UID.") ~ ("suid" -> sessionUid))
+    else None
+  }
+
   def breakpointAdd(suid: String, pattern: String, tpe: String): JObject = {
     monitor.synchronized {
       ensureLive()
-      if (sessionUid != suid) {
-        ("error" -> "Invalid session UID.") ~ ("suid" -> sessionUid)
-      } else {
+      validateSessionUid(suid).getOrElse {
         val bid = breakpointDebugger.breakpointAdd(pattern, tpe)
         ("bid" -> bid)
       }
@@ -181,9 +185,7 @@ extends DebugApi with Protocol.Service with WebApi {
   def breakpointList(suid: String): JObject = {
     monitor.synchronized {
       ensureLive()
-      if (sessionUid != suid) {
-        ("error" -> "Invalid sesion UID") ~ ("suid" -> sessionUid)
-      } else {
+      validateSessionUid(suid).getOrElse {
         val breakpoints = for (b <- breakpointDebugger.breakpointList()) yield {
           ("bid" -> b.bid) ~ ("pattern" -> b.pattern) ~ ("tpe" -> b.tpe)
         }
@@ -192,7 +194,19 @@ extends DebugApi with Protocol.Service with WebApi {
     }
   }
 
-  def breakpointRemove(suid: String, bid: Long): JObject = ???
+  def breakpointRemove(suid: String, bid: Long): JObject = {
+    monitor.synchronized {
+      ensureLive()
+      validateSessionUid(suid).getOrElse {
+        breakpointDebugger.breakpointRemove(bid) match {
+          case Some(b) =>
+            ("bid" -> b.bid) ~ ("pattern" -> b.pattern) ~ ("tpe" -> b.tpe)
+          case None =>
+            ("bid" -> bid) ~ ("error" -> "Cannot remove non-existing breakpoint.")
+        }
+      }
+    }
+  }
 
   def replGet(tpe: String): Future[JValue] =
     monitor.synchronized {
