@@ -218,6 +218,7 @@ final class Frame(
     }
     if (emitTerminated) {
       try {
+        reactorSystem.debugApi.reactorTerminated(reactor)
         if (reactor != null) sysEmitter.react(ReactorTerminated)
       } finally {
         reactorSystem.frames.tryRelease(name)
