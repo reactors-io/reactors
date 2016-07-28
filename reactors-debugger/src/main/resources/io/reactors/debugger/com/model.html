@@ -1,5 +1,5 @@
 @@library(io/reactors/debugger/lib/jquery/jquery-1.12.4.min.js)
-@@library(io/reactors/debugger/js/event-bus.js)
+@@library(io/reactors/debugger/js/event-stream.js)
 @@component(io/reactors/debugger/com/config.html)
 
 
@@ -123,7 +123,7 @@
         switch (delta[0]) {
           case "start":
             var reactor = {
-              uid: delta[1]
+              uid: delta[1],
               name: delta[2]
             };
             this.state.reactors[delta[1]] = reactor

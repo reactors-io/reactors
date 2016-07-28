@@ -42,12 +42,13 @@
       });
       this.sigma.camera.goTo({ x: 3, y: 3, ratio: 0.015 });
 
-      // Install event bus observers.
+      // Install event stream observers.
       this.subscriptions.push(this.eventBus.stateReset.observe(() => {
         this.resetState();
       }));
 
       this.subscriptions.push(this.eventBus.reactorSeen.observe((r) => {
+        console.log(r);
         this.addReactor(r.uid);
       }));
 
