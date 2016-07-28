@@ -48,7 +48,6 @@
       }));
 
       this.subscriptions.push(this.eventBus.reactorSeen.observe((r) => {
-        console.log(r);
         this.addReactor(r.uid);
       }));
 
