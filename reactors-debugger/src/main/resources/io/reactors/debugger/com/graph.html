@@ -3,6 +3,7 @@
 @@library(io/reactors/debugger/lib/jquery/jquery-1.12.4.min.js)
 @@library(io/reactors/debugger/lib/bootstrap/js/bootstrap.min.js)
 @@library(io/reactors/debugger/lib/sigmajs/sigma.min.js)
+@@library(io/reactors/debugger/lib/sigmajs/plugins/sigma.plugins.animate.min.js)
 
 
 <template id="x-graph">
@@ -77,18 +78,40 @@
       resetState: function() {
         this.sigma.graph.clear();
       },
-      addReactor: function(uid) {
-        this.sigma.graph.addNode({
-          id: uid,
-          label: this.model.reactors[uid].name,
-          x: 6.0 * Math.random(),
-          y: 6.0 * Math.random(),
-          size: 1.0,
-          color: "#f00"
+      setNodeSize: function(uid, sz) {
+        this.sigma.graph.nodes(uid).size = sz;
+        this.sigma.refresh({
+          skipIndexation: true
         });
       },
+      addReactor: function(uid) {
+        var label = this.model.reactors[uid].name;
+        var x = 6.0 * Math.random();
+        var y = 6.0 * Math.random();
+        startBudgetAnimation(14, 0.01, 1.0,
+          () => {
+            this.sigma.graph.addNode({
+              id: uid,
+              label: label,
+              x: x,
+              y: y,
+              size: 1.0,
+              color: "#f00"
+            });
+          },
+          (v) => this.setNodeSize(uid, v),
+          () => this.numAnimations -= 1
+        );
+      },
       removeReactor: function(uid) {
-        this.sigma.graph.dropNode(uid);
+        startBudgetAnimation(14, 1.0, 0.01,
+          () => {},
+          (v) => this.setNodeSize(uid, v),
+          () => {
+            this.sigma.graph.dropNode(uid);
+            this.numAnimations -= 1;
+          }
+        );
       },
       endResetState: function() {
         this.sigma.refresh();
