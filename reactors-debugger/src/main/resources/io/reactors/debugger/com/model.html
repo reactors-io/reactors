@@ -52,7 +52,7 @@
             for (var uid in data.state.reactors) {
               if (data.state.reactors.hasOwnProperty(uid)) {
                 this.state.reactors[uid] = data.state.reactors[uid];
-                this.eventBus.post("reactor-seen", uid);
+                this.eventBus.post("reactor-seen", this.state.reactors[uid]);
               }
             }
 
@@ -111,18 +111,23 @@
       apply: function(delta) {
         switch (delta[0]) {
           case "start":
-            this.state.reactors[delta[1]] = {
+            var reactor = {
+              uid: delta[1]
               name: delta[2]
             };
-            this.eventBus.post("reactor-started", delta[1]);
+            this.state.reactors[delta[1]] = reactor
+            this.eventBus.post("reactor-started", reactor);
             break;
           case "die":
             break;
           case "term":
+            var reactor = this.state.reactors[delta[1]];
             delete this.state.reactors[delta[1]];
+            this.eventBus.post("reactor-terminated", reactor);
             break;
           case "open":
             this.state.channels[delta[1]] = {
+              uid: delta[1],
               name: delta[2],
               reactor: delta[3]
             };
