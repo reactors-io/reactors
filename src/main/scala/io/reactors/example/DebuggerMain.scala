@@ -7,7 +7,7 @@ import io.reactors.debugger._
 
 
 
-object DebuggerExample {
+object DebuggerMain {
   def main(args: Array[String]) {
     val config = ReactorSystem.customConfig("""
       debug-api = {
