@@ -279,7 +279,7 @@ final class Frame(
 
 
 object Frame {
-  private[reactors] val SPINDOWN_COUNT = 10
+  private[reactors] val SPINDOWN_COUNT = 120
 
   sealed trait LifecycleState
 

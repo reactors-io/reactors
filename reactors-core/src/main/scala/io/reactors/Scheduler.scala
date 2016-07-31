@@ -232,15 +232,15 @@ object Scheduler {
                 while (loopsLeft > 0) {
                   var executedSomething = false
                   val task = fj.poll()
-                  if (task != null) {
-                    executedSomething = true
-                    task.invoke()
-                  }
                   if (t.pendingFastFrame != null) {
                     executedSomething = true
                     val f = t.pendingFastFrame
                     t.pendingFastFrame = null
                     f.executeBatch()
+                  }
+                  if (task != null) {
+                    executedSomething = true
+                    task.invoke()
                   }
                   if (executedSomething) {
                     loopsLeft -= 1
@@ -267,7 +267,7 @@ object Scheduler {
   }
 
   object Executed {
-    val UNSCHEDULE_COUNT = 20
+    private[reactors] val UNSCHEDULE_COUNT = 20
   }
 
   /** An abstract scheduler that always dedicates a thread to a reactor.
