@@ -123,12 +123,12 @@ object Reactor {
 
   private[reactors] def currentFrame: Frame = Thread.currentThread match {
     case rt: ReactorLocalThread => rt.currentFrame
-    case _ => sys.error("!"); currentFrameThreadLocal.get
+    case _ => currentFrameThreadLocal.get
   }
 
   private[reactors] def currentFrame_=(f: Frame): Unit = Thread.currentThread match {
     case rt: ReactorLocalThread => rt.currentFrame = f
-    case _ => sys.error("!"); currentFrameThreadLocal.set(f)
+    case _ => currentFrameThreadLocal.set(f)
   }
 
   private[reactors] def currentReactor: Reactor[_] = {
