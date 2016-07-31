@@ -53,7 +53,7 @@ trait Scheduler {
     frame.schedulerState = newState(frame)
   }
 
-  /** Optionally unschedules and runs a frame that was previously submitted.
+  /** Optionally unschedules and runs some number of frames previously scheduled.
    *
    *  This method by default does nothing, but may be overridden for performance
    *  purposes.
@@ -144,6 +144,9 @@ object Scheduler {
 
   private[reactors] class ForkJoinReactorWorkerThread(pool: ForkJoinPool)
   extends ForkJoinWorkerThread(pool) with Reactor.ReactorLocalThread {
+    var unschedulingMode = false
+    var forceSchedule = false
+    var pendingFastFrame: Frame = null
     setName(s"reactors-io-scheduler-${getName}")
   }
 
@@ -195,7 +198,20 @@ object Scheduler {
   ) extends Scheduler {
 
     def schedule(frame: Frame): Unit = {
-      executor.execute(frame.schedulerState.asInstanceOf[Runnable])
+      Thread.currentThread match {
+        case t: ForkJoinReactorWorkerThread =>
+          if (t.forceSchedule) {
+            executor.execute(frame.schedulerState.asInstanceOf[Runnable])
+          } else {
+            if (t.pendingFastFrame != null) {
+              val runnable = t.pendingFastFrame.schedulerState.asInstanceOf[Runnable]
+              executor.execute(runnable)
+            }
+            t.pendingFastFrame = frame
+          }
+        case _ =>
+          executor.execute(frame.schedulerState.asInstanceOf[Runnable])
+      }
     }
 
     override def newState(frame: Frame): Scheduler.State = {
@@ -205,15 +221,53 @@ object Scheduler {
     }
 
     override def unscheduleAndRun() {
-      executor match {
-        case fj: ForkJoinPool with ForkJoinTaskPolling =>
-          val t = fj.poll()
-          if (t != null) {
-            t.invoke()
+      Thread.currentThread match {
+        case t: ForkJoinReactorWorkerThread =>
+          if (t.unschedulingMode) return
+          t.unschedulingMode = true
+          try {
+            executor match {
+              case fj: ForkJoinPool with ForkJoinTaskPolling =>
+                var loopsLeft = Scheduler.Executed.UNSCHEDULE_COUNT
+                while (loopsLeft > 0) {
+                  var executedSomething = false
+                  val task = fj.poll()
+                  if (task != null) {
+                    executedSomething = true
+                    task.invoke()
+                  }
+                  if (t.pendingFastFrame != null) {
+                    executedSomething = true
+                    val f = t.pendingFastFrame
+                    t.pendingFastFrame = null
+                    f.executeBatch()
+                  }
+                  if (executedSomething) {
+                    loopsLeft -= 1
+                  } else {
+                    loopsLeft = 0
+                  }
+                }
+              case _ =>
+            }
+          } finally {
+            t.unschedulingMode = false
+            if (t.pendingFastFrame != null) {
+              val f = t.pendingFastFrame
+              t.pendingFastFrame = null
+              t.forceSchedule = true
+              try this.schedule(f)
+              finally t.forceSchedule = false
+            }
           }
         case _ =>
+          return
       }
     }
+  }
+
+  object Executed {
+    val UNSCHEDULE_COUNT = 20
   }
 
   /** An abstract scheduler that always dedicates a thread to a reactor.

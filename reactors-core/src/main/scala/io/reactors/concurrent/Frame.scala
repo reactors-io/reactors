@@ -88,9 +88,7 @@ final class Frame(
         mustSchedule = true
       }
     }
-    if (mustSchedule) {
-      scheduler.schedule(this)
-    }
+    if (mustSchedule) scheduler.schedule(this)
   }
 
   def executeBatch() {
@@ -104,6 +102,7 @@ final class Frame(
         s"Cannot execute reactor inside another reactor: ${Reactor.currentReactor}.")
     }
 
+    // Process a batch of events.
     try {
       isolateAndProcessBatch()
     } finally {
@@ -119,6 +118,7 @@ final class Frame(
       if (mustSchedule) scheduler.schedule(this)
     }
 
+    // Piggyback the worker thread to do some useful work.
     scheduler.unscheduleAndRun()
   }
 
@@ -194,7 +194,7 @@ final class Frame(
       if (drain(nc)) {
         // Wait a bit for additional events, since preemption is expensive.
         nc = null
-        slow = 120
+        slow = Frame.SPINDOWN_COUNT
         while (slow > 0) {
           slow -= 1
           if (slow % 10 == 0) {
@@ -279,6 +279,8 @@ final class Frame(
 
 
 object Frame {
+  private[reactors] val SPINDOWN_COUNT = 10
+
   sealed trait LifecycleState
 
   case object Fresh extends LifecycleState
