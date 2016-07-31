@@ -48,8 +48,8 @@ var totalAnimations = 0;
 var maxAnimations = 32;
 function startBudgetAnimation(totalFrames, from, end, onStart, setter, onComplete) {
   if (totalAnimations < maxAnimations) {
-    onStart();
     totalAnimations += 1;
+    onStart();
     startAnimation(totalFrames, from, end, setter, () => {
       totalAnimations -= 1;
       onComplete();
