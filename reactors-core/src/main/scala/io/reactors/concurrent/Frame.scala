@@ -88,7 +88,9 @@ final class Frame(
         mustSchedule = true
       }
     }
-    if (mustSchedule) scheduler.schedule(this)
+    if (mustSchedule) {
+      scheduler.schedule(this)
+    }
   }
 
   def executeBatch() {
@@ -116,6 +118,8 @@ final class Frame(
       }
       if (mustSchedule) scheduler.schedule(this)
     }
+
+    scheduler.unscheduleAndRun()
   }
 
   private def isolateAndProcessBatch() {

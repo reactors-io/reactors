@@ -53,6 +53,13 @@ trait Scheduler {
     frame.schedulerState = newState(frame)
   }
 
+  /** Optionally unschedules and runs a frame that was previously submitted.
+   *
+   *  This method by default does nothing, but may be overridden for performance
+   *  purposes.
+   */
+  def unscheduleAndRun(): Unit = {}
+
   /** The handler for the fatal errors that are not sent to
    *  the `failures` stream of the reactor.
    *
@@ -140,6 +147,10 @@ object Scheduler {
     setName(s"reactors-io-scheduler-${getName}")
   }
 
+  trait ForkJoinTaskPolling {
+    def poll(): ForkJoinTask[_]
+  }
+
   /** Default fork/join pool instance used by the default scheduler.
    */
   lazy val defaultForkJoinPool = new ForkJoinPool(
@@ -148,8 +159,10 @@ object Scheduler {
       def newThread(pool: ForkJoinPool) = new ForkJoinReactorWorkerThread(pool)
     },
     null,
-    true
-  )
+    false
+  ) with ForkJoinTaskPolling {
+    def poll() = pollSubmission()
+  }
 
   /** Default reactor scheduler.
    */
@@ -191,6 +204,16 @@ object Scheduler {
       }
     }
 
+    override def unscheduleAndRun() {
+      executor match {
+        case fj: ForkJoinPool with ForkJoinTaskPolling =>
+          val t = fj.poll()
+          if (t != null) {
+            t.invoke()
+          }
+        case _ =>
+      }
+    }
   }
 
   /** An abstract scheduler that always dedicates a thread to a reactor.
