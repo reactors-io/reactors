@@ -22,7 +22,7 @@ class ThreadRingBench extends JBench.OfflineReport {
     exec.minWarmupRuns -> 80,
     exec.maxWarmupRuns -> 120,
     exec.benchRuns -> 360,
-    exec.independentSamples -> 1,
+    exec.independentSamples -> 4,
     verbose -> true
   )
 
@@ -68,21 +68,21 @@ class ThreadRingBench extends JBench.OfflineReport {
     actorSystem.shutdown()
   }
 
-  // @gen("sizes")
-  // @benchmark("io.reactors.thread-ring")
-  // @curve("akka")
-  // @setupBeforeAll("akkaThreadRingSetup")
-  // @teardownAfterAll("akkaThreadRingTeardown")
-  // def akkaThreadRing(sz: Int) = {
-  //   val done = Promise[Boolean]()
-  //   val ring = new Array[ActorRef](ThreadRingBench.RING_SIZE)
-  //   for (i <- 0 until ring.length) {
-  //     ring(i) = actorSystem.actorOf(
-  //       Props.create(classOf[RingActor], new Integer(sz), new Integer(i), ring, done)) 
-  //   }
-  //   ring(0) ! 7
-  //   assert(Await.result(done.future, 10.seconds))
-  // }
+  @gen("sizes")
+  @benchmark("io.reactors.thread-ring")
+  @curve("akka")
+  @setupBeforeAll("akkaThreadRingSetup")
+  @teardownAfterAll("akkaThreadRingTeardown")
+  def akkaThreadRing(sz: Int) = {
+    val done = Promise[Boolean]()
+    val ring = new Array[ActorRef](ThreadRingBench.RING_SIZE)
+    for (i <- 0 until ring.length) {
+      ring(i) = actorSystem.actorOf(
+        Props.create(classOf[RingActor], new Integer(sz), new Integer(i), ring, done)) 
+    }
+    ring(0) ! 7
+    assert(Await.result(done.future, 10.seconds))
+  }
 }
 
 
