@@ -136,14 +136,6 @@ object Reactor {
     if (f == null) null else f.reactor
   }
 
-  // private[reactors] val selfReactor = new ThreadLocal[Reactor[_]] {
-  //   override def initialValue = null
-  // }
-
-  // private[reactors] val selfFrame = new ThreadLocal[Frame] {
-  //   override def initialValue = null
-  // }
-
   /** Returns the current reactor.
    *
    *  If the caller is not executing in a reactor, throws an `IllegalStateException`.

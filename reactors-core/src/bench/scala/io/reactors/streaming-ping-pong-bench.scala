@@ -19,10 +19,10 @@ import scala.util.Failure
 
 class StreamingPingPongBench extends JBench.OfflineReport {
   override def defaultConfig = Context(
-    exec.minWarmupRuns -> 80,
-    exec.maxWarmupRuns -> 120,
-    exec.benchRuns -> 360,
-    exec.independentSamples -> 1,
+    exec.minWarmupRuns -> 120,
+    exec.maxWarmupRuns -> 240,
+    exec.benchRuns -> 96,
+    exec.independentSamples -> 4,
     verbose -> true
   )
 
