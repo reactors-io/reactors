@@ -21,7 +21,7 @@ class ThreadRingBench extends JBench.OfflineReport {
   override def defaultConfig = Context(
     exec.minWarmupRuns -> 80,
     exec.maxWarmupRuns -> 120,
-    exec.benchRuns -> 360,
+    exec.benchRuns -> 72,
     exec.independentSamples -> 4,
     verbose -> true
   )
