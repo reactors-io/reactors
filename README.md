@@ -5,15 +5,13 @@ Maven | [![Maven Artifact](https://img.shields.io/maven-central/v/com.storm-enro
 
 <img src='reactress-title-96.png'></img>
 
-[Reactors](http://reactors.io) is a concurrent, distributed programming framework based
+[Reactors.IO](http://reactors.io) is a concurrent, distributed programming framework based
 on asynchronous event streams.
 
 - [documentation](http://reactors.io/learn/)
 - [download page](http://reactors.io/download/)
 
 # Contributing
-
-## Compiling the code
 
 You will need to install [SBT](www.scala-sbt.org) build tool on your system.
 Once you do that, run:
