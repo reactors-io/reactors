@@ -77,12 +77,11 @@ trait Reactor[@spec(Int, Long, Double) T] {
   /* start workaround for a handful of specialization bugs */
 
   private def init(dummy: Reactor[T]) {
-    frame = Reactor.selfFrame.get match {
+    frame = Reactor.currentFrame match {
       case null => illegal()
       case f => f.asInstanceOf[Frame]
     }
     frame.reactor = this
-    Reactor.selfReactor.set(this)
   }
 
   init(this)
@@ -114,13 +113,36 @@ trait Reactor[@spec(Int, Long, Double) T] {
 
 object Reactor {
 
-  private[reactors] val selfReactor = new ThreadLocal[Reactor[_]] {
+  trait ReactorLocalThread {
+    var currentFrame: Frame = null
+  }
+
+  private[reactors] val currentFrameThreadLocal = new ThreadLocal[Frame] {
     override def initialValue = null
   }
 
-  private[reactors] val selfFrame = new ThreadLocal[Frame] {
-    override def initialValue = null
+  private[reactors] def currentFrame: Frame = Thread.currentThread match {
+    case rt: ReactorLocalThread => rt.currentFrame
+    case _ => sys.error("!"); currentFrameThreadLocal.get
   }
+
+  private[reactors] def currentFrame_=(f: Frame): Unit = Thread.currentThread match {
+    case rt: ReactorLocalThread => rt.currentFrame = f
+    case _ => sys.error("!"); currentFrameThreadLocal.set(f)
+  }
+
+  private[reactors] def currentReactor: Reactor[_] = {
+    val f = currentFrame
+    if (f == null) null else f.reactor
+  }
+
+  // private[reactors] val selfReactor = new ThreadLocal[Reactor[_]] {
+  //   override def initialValue = null
+  // }
+
+  // private[reactors] val selfFrame = new ThreadLocal[Frame] {
+  //   override def initialValue = null
+  // }
 
   /** Returns the current reactor.
    *
@@ -133,7 +155,7 @@ object Reactor {
    *  @return        the current reactor
    */
   def selfAs[I <: Reactor[_]]: I = {
-    val i = selfReactor.get
+    val i = currentReactor
     if (i == null)
       throw new IllegalStateException(
         s"${Thread.currentThread.getName} not executing in a reactor.")
@@ -148,7 +170,7 @@ object Reactor {
    *  @tparam I      the type of the current reactor
    *  @return        the current reactor, or `null`
    */
-  def selfAsOrNull[I <: Reactor[_]]: I = selfReactor.get.asInstanceOf[I]
+  def selfAsOrNull[I <: Reactor[_]]: I = currentReactor.asInstanceOf[I]
 
   /** Returns the current reactor that produces events of type `T`.
    */

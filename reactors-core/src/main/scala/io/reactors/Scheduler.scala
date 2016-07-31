@@ -135,12 +135,17 @@ object Scheduler {
   lazy val globalExecutionContext: Scheduler =
     new Executed(ExecutionContext.Implicits.global)
 
+  private[reactors] class ForkJoinReactorWorkerThread(pool: ForkJoinPool)
+  extends ForkJoinWorkerThread(pool) with Reactor.ReactorLocalThread {
+    setName(s"reactors-io-scheduler-${getName}")
+  }
+
+  /** Default fork/join pool instance used by the default scheduler.
+   */
   lazy val defaultForkJoinPool = new ForkJoinPool(
     Runtime.getRuntime.availableProcessors,
     new ForkJoinPool.ForkJoinWorkerThreadFactory {
-      def newThread(pool: ForkJoinPool) = new ForkJoinWorkerThread(pool) {
-        setName(s"Scheduler-${getName}")
-      }
+      def newThread(pool: ForkJoinPool) = new ForkJoinReactorWorkerThread(pool)
     },
     null,
     true

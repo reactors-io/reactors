@@ -12,7 +12,7 @@ public abstract class Reactor<T> {
   private Connector<T> defaultConnector;
 
   public Reactor() {
-    frame = io.reactors.Reactor$.MODULE$.selfFrame().get();
+    frame = io.reactors.Reactor$.MODULE$.currentFrame();
     system = ReactorSystem.from(frame.reactorSystem());
     defaultConnector = new Connector(frame.defaultConnector());
   }

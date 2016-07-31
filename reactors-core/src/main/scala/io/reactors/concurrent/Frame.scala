@@ -97,9 +97,9 @@ final class Frame(
     assert(active)
 
     // This method cannot be executed inside another reactor.
-    if (Reactor.selfReactor.get != null) {
+    if (Reactor.currentReactor != null) {
       throw new IllegalStateException(
-        s"Cannot execute reactor inside another reactor: ${Reactor.selfReactor.get}.")
+        s"Cannot execute reactor inside another reactor: ${Reactor.currentReactor}.")
     }
 
     try {
@@ -120,8 +120,7 @@ final class Frame(
 
   private def isolateAndProcessBatch() {
     try {
-      Reactor.selfReactor.set(reactor)
-      Reactor.selfFrame.set(this)
+      Reactor.currentFrame = this
       processBatch()
     } catch {
       case t: Throwable =>
@@ -134,8 +133,7 @@ final class Frame(
         }
         throw t
     } finally {
-      Reactor.selfReactor.set(null)
-      Reactor.selfFrame.set(null)
+      Reactor.currentFrame = null
     }
   }
 
@@ -192,7 +190,7 @@ final class Frame(
       if (drain(nc)) {
         // Wait a bit for additional events, since preemption is expensive.
         nc = null
-        slow = 60
+        slow = 120
         while (slow > 0) {
           slow -= 1
           if (slow % 10 == 0) {
