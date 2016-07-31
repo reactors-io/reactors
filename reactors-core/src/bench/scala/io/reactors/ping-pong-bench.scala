@@ -21,8 +21,8 @@ class PingPongBench extends JBench.OfflineReport {
   override def defaultConfig = Context(
     exec.minWarmupRuns -> 80,
     exec.maxWarmupRuns -> 120,
-    exec.benchRuns -> 360,
-    exec.independentSamples -> 1,
+    exec.benchRuns -> 36,
+    exec.independentSamples -> 4,
     verbose -> true
   )
 
@@ -74,20 +74,20 @@ class PingPongBench extends JBench.OfflineReport {
     actorSystem.shutdown()
   }
 
-  // @gen("sizes")
-  // @benchmark("io.reactors.ping-pong")
-  // @curve("akka")
-  // @setupBeforeAll("akkaPingPongSetup")
-  // @teardownAfterAll("akkaPingPongTeardown")
-  // def akkaPingPong(sz: Int) = {
-  //   val done = Promise[Boolean]()
-  //   val pong = actorSystem.actorOf(
-  //     Props.create(classOf[PingPongBench.Pong], new Integer(sz)))
-  //   val ping = actorSystem.actorOf(
-  //     Props.create(classOf[PingPongBench.Ping], pong, new Integer(sz), done))
+  @gen("sizes")
+  @benchmark("io.reactors.ping-pong")
+  @curve("akka")
+  @setupBeforeAll("akkaPingPongSetup")
+  @teardownAfterAll("akkaPingPongTeardown")
+  def akkaPingPong(sz: Int) = {
+    val done = Promise[Boolean]()
+    val pong = actorSystem.actorOf(
+      Props.create(classOf[PingPongBench.Pong], new Integer(sz)))
+    val ping = actorSystem.actorOf(
+      Props.create(classOf[PingPongBench.Ping], pong, new Integer(sz), done))
 
-  //   assert(Await.result(done.future, 10.seconds))
-  // }
+    assert(Await.result(done.future, 10.seconds))
+  }
 }
 
 

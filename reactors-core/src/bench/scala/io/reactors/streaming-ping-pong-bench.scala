@@ -47,7 +47,7 @@ class StreamingPingPongBench extends JBench.OfflineReport {
           }
         })
         var left = sz
-        pong ! "ping"
+        for (i <- 0 until StreamingPingPongBench.WINDOW_SIZE) pong ! "ping"
         self.main.events onEvent { x =>
           left -= 1
           if (left > 0) {
@@ -74,24 +74,26 @@ class StreamingPingPongBench extends JBench.OfflineReport {
     actorSystem.shutdown()
   }
 
-  // @gen("sizes")
-  // @benchmark("io.reactors.ping-pong")
-  // @curve("akka")
-  // @setupBeforeAll("akkaPingPongSetup")
-  // @teardownAfterAll("akkaPingPongTeardown")
-  // def akkaPingPong(sz: Int) = {
-  //   val done = Promise[Boolean]()
-  //   val pong = actorSystem.actorOf(
-  //     Props.create(classOf[StreamingPingPongBench.Pong], new Integer(sz)))
-  //   val ping = actorSystem.actorOf(
-  //     Props.create(classOf[StreamingPingPongBench.Ping], pong, new Integer(sz), done))
+  @gen("sizes")
+  @benchmark("io.reactors.ping-pong")
+  @curve("akka")
+  @setupBeforeAll("akkaPingPongSetup")
+  @teardownAfterAll("akkaPingPongTeardown")
+  def akkaPingPong(sz: Int) = {
+    val done = Promise[Boolean]()
+    val pong = actorSystem.actorOf(
+      Props.create(classOf[StreamingPingPongBench.Pong], new Integer(sz)))
+    val ping = actorSystem.actorOf(
+      Props.create(classOf[StreamingPingPongBench.Ping], pong, new Integer(sz), done))
 
-  //   assert(Await.result(done.future, 10.seconds))
-  // }
+    assert(Await.result(done.future, 10.seconds))
+  }
 }
 
 
 object StreamingPingPongBench {
+  val WINDOW_SIZE = 128
+
   class Pong(val sz: Integer) extends Actor {
     var left = sz.intValue
     def receive = {
@@ -105,7 +107,7 @@ object StreamingPingPongBench {
   class Ping(val pong: ActorRef, val sz: Integer, val done: Promise[Boolean])
   extends Actor {
     var left = sz.intValue
-    pong ! "ping"
+    for (i <- 0 until WINDOW_SIZE) pong ! "ping"
     def receive = {
       case _ =>
         left -= 1
