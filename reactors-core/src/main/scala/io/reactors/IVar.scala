@@ -107,13 +107,19 @@ class IVar[@spec(Int, Long, Double) T] extends Signal[T] {
 
   def react(x: T) = this := x
 
+  /** Attempts to complete the `IVar` if not already completed.
+   */
   def tryReact(x: T): Boolean = if (state == 0) {
     react(x)
     true
   } else false
 
+  /** Fails the `IVar` unless already completed, in which case it throws.
+   */
   def except(t: Throwable) = if (!tryExcept(t)) sys.error("IVar is already completed.")
 
+  /** Attempts to fail the `IVar` unless already completed.
+   */
   def tryExcept(t: Throwable): Boolean = if (state == 0) {
     state = -1
     exception = t
@@ -138,12 +144,16 @@ class IVar[@spec(Int, Long, Double) T] extends Signal[T] {
 
 
 object IVar {
+  /** Creates an `IVar` that is already completed.
+   */
   def apply[@spec(Int, Long, Double) T](x: T): IVar[T] = {
     val iv = new IVar[T]
     iv := x
     iv
   }
 
+  /** Creates an `IVar` that is completed with a `NoSuchElementException`.
+   */
   def empty[@spec(Int, Long, Double) T]: IVar[T] = {
     val iv = new IVar[T]
     iv.unreact()
