@@ -686,7 +686,7 @@ class ReactorSystemTest extends FunSuite with Matchers {
     try {
       val proto = Reactor[Unit] { self => }
       system.spawn(proto)
-      assert(system.frames.forName("reactor-0") != null)
+      assert(system.frames.forName("reactor-1") != null)
     } finally system.shutdown()
   }
 
