@@ -231,13 +231,13 @@ object Scheduler {
                 var loopsLeft = Scheduler.Executed.UNSCHEDULE_COUNT
                 while (loopsLeft > 0) {
                   var executedSomething = false
-                  val task = fj.poll()
                   if (t.pendingFastFrame != null) {
                     executedSomething = true
                     val f = t.pendingFastFrame
                     t.pendingFastFrame = null
                     f.executeBatch()
                   }
+                  val task = fj.poll()
                   if (task != null) {
                     executedSomething = true
                     task.invoke()

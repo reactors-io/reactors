@@ -289,7 +289,7 @@ final class Frame(
 
 
 object Frame {
-  private[reactors] val INITIAL_SPINDOWN = 60
+  private[reactors] val INITIAL_SPINDOWN = 30
   private[reactors] val MIN_SPINDOWN = 10
   private[reactors] val MAX_SPINDOWN = 540
 

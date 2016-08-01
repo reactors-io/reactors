@@ -88,7 +88,7 @@ class ForkJoinThroughputBench extends JBench.OfflineReport {
 
     val workers = (for (i <- 0 until ForkJoinThroughputBench.K) yield {
       actorSystem.actorOf(
-        Props.create(classOf[WorkerActor], new Integer(sz), done(i)))
+        Props.create(classOf[ForkJoinThroughputActor], new Integer(sz), done(i)))
     }).toArray
 
     var j = 0
@@ -113,7 +113,7 @@ object ForkJoinThroughputBench {
 }
 
 
-class WorkerActor(sz: Int, done: Promise[Boolean]) extends Actor {
+class ForkJoinThroughputActor(sz: Int, done: Promise[Boolean]) extends Actor {
   var count = 0
   def receive = {
     case s: String =>
