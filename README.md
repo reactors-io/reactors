@@ -14,7 +14,7 @@ on asynchronous event streams.
 # Contributing
 
 You will need to install [SBT](www.scala-sbt.org) build tool on your system.
-Once you do that, run:
+Once you do that, go to your project folder, and run:
 
 ```
 $ sbt
