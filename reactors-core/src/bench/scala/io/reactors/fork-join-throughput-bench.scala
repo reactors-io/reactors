@@ -22,7 +22,7 @@ class ForkJoinThroughputBench extends JBench.OfflineReport {
     exec.minWarmupRuns -> 80,
     exec.maxWarmupRuns -> 120,
     exec.benchRuns -> 72,
-    exec.independentSamples -> 1,
+    exec.independentSamples -> 4,
     verbose -> true
   )
 
@@ -77,18 +77,50 @@ class ForkJoinThroughputBench extends JBench.OfflineReport {
     actorSystem.shutdown()
   }
 
-  // @gen("sizes")
-  // @benchmark("io.reactors.fork-join-throughput")
-  // @curve("akka")
-  // @setupBeforeAll("akkaCountingActorSetup")
-  // @teardownAfterAll("akkaCountingActorTeardown")
-  // def akka(sz: Int) = {
-  //   val done = Promise[Int]()
-  //   assert(Await.result(done.future, 10.seconds) == sz)
-  // }
+  @gen("sizes")
+  @benchmark("io.reactors.fork-join-throughput")
+  @curve("akka")
+  @setupBeforeAll("akkaCountingActorSetup")
+  @teardownAfterAll("akkaCountingActorTeardown")
+  def akka(sz: Int) = {
+    val done = new Array[Promise[Boolean]](ForkJoinThroughputBench.K)
+    for (i <- 0 until ForkJoinThroughputBench.K) done(i) = Promise[Boolean]()
+
+    val workers = (for (i <- 0 until ForkJoinThroughputBench.K) yield {
+      actorSystem.actorOf(
+        Props.create(classOf[WorkerActor], new Integer(sz), done(i)))
+    }).toArray
+
+    var j = 0
+    while (j < sz) {
+      var i = 0
+      while (i < ForkJoinThroughputBench.K) {
+        workers(i) ! "event"
+        i += 1
+      }
+      j += 1
+    }
+
+    for (i <- 0 until ForkJoinThroughputBench.K) {
+      Await.result(done(i).future, 10.seconds)
+    }
+  }
 }
 
 
 object ForkJoinThroughputBench {
   val K = 32
+}
+
+
+class WorkerActor(sz: Int, done: Promise[Boolean]) extends Actor {
+  var count = 0
+  def receive = {
+    case s: String =>
+      count += 1
+      if (count == sz) {
+        done.success(true)
+        context.stop(self)
+      }
+  }
 }
