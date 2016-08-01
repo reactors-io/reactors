@@ -50,15 +50,17 @@ class ForkJoinThroughputBench extends JBench.OfflineReport {
       })
     }).toArray
 
-    var j = 0
-    while (j < sz) {
-      var i = 0
-      while (i < ForkJoinThroughputBench.K) {
-        workers(i) ! "event"
-        i += 1
+    val producer = system.spawn(Reactor[String] { self =>
+      var j = 0
+      while (j < sz) {
+        var i = 0
+        while (i < ForkJoinThroughputBench.K) {
+          workers(i) ! "event"
+          i += 1
+        }
+        j += 1
       }
-      j += 1
-    }
+    })
 
     for (i <- 0 until ForkJoinThroughputBench.K) {
       Await.result(done(i).future, 10.seconds)
@@ -75,15 +77,15 @@ class ForkJoinThroughputBench extends JBench.OfflineReport {
     actorSystem.shutdown()
   }
 
-  @gen("sizes")
-  @benchmark("io.reactors.fork-join-throughput")
-  @curve("akka")
-  @setupBeforeAll("akkaCountingActorSetup")
-  @teardownAfterAll("akkaCountingActorTeardown")
-  def akka(sz: Int) = {
-    val done = Promise[Int]()
-    assert(Await.result(done.future, 10.seconds) == sz)
-  }
+  // @gen("sizes")
+  // @benchmark("io.reactors.fork-join-throughput")
+  // @curve("akka")
+  // @setupBeforeAll("akkaCountingActorSetup")
+  // @teardownAfterAll("akkaCountingActorTeardown")
+  // def akka(sz: Int) = {
+  //   val done = Promise[Int]()
+  //   assert(Await.result(done.future, 10.seconds) == sz)
+  // }
 }
 
 

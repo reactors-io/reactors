@@ -6,6 +6,7 @@ package concurrent
 import java.util.concurrent.atomic._
 import scala.annotation.tailrec
 import scala.collection._
+import scala.util.Random
 import io.reactors.common.UnrolledRing
 import io.reactors.common.Monitor
 
@@ -26,6 +27,8 @@ final class Frame(
   private[reactors] var lifecycleState: Frame.LifecycleState = Frame.Fresh
   private[reactors] val pendingQueues = new UnrolledRing[Connector[_]]
   private[reactors] val sysEmitter = new Events.Emitter[SysEvent]
+  private[reactors] var spindown = Frame.INITIAL_SPINDOWN
+  private[reactors] var random = new Random
 
   @volatile var reactor: Reactor[_] = _
   @volatile var name: String = _
@@ -33,6 +36,7 @@ final class Frame(
   @volatile var defaultConnector: Connector[_] = _
   @volatile var internalConnector: Connector[_] = _
   @volatile var schedulerState: Scheduler.State = _
+  @volatile private var spinsLeft = 0
 
   def openConnector[@spec(Int, Long, Double) Q: Arrayable](
     name: String,
@@ -161,8 +165,6 @@ final class Frame(
     else null
   }
 
-  @volatile private var slow = 0
-
   private def processEvents() {
     schedulerState.onBatchStart(this)
 
@@ -189,23 +191,31 @@ final class Frame(
         false
       }
     }
+
     var nc = popNextPending()
+    var spindownScore = 0
     while (nc != null) {
       if (drain(nc)) {
         // Wait a bit for additional events, since preemption is expensive.
         nc = null
-        slow = Frame.SPINDOWN_COUNT
-        while (slow > 0) {
-          slow -= 1
-          if (slow % 10 == 0) {
+        spinsLeft = spindown
+        while (spinsLeft > 0) {
+          spinsLeft -= 1
+          if (spinsLeft % 10 == 0) {
             nc = popNextPending()
-            if (nc != null) slow = 0
+            if (nc != null) spinsLeft = 0
           }
         }
+        if (nc != null) spindownScore += 1
       } else {
         nc = null
       }
     }
+    if (random.nextDouble() < 0.005) spindown = Frame.MAX_SPINDOWN
+    if (spindownScore >= 1) spindown = Frame.MAX_SPINDOWN
+    spindown -= (spindown / 10 + 1)
+    spindown = math.max(Frame.MIN_SPINDOWN, spindown)
+    //if (random.nextDouble() < 0.0001) println(spindown, spindownScore)
   }
 
   private def checkTerminated(forcedTermination: Boolean) {
@@ -279,7 +289,9 @@ final class Frame(
 
 
 object Frame {
-  private[reactors] val SPINDOWN_COUNT = 120
+  private[reactors] val INITIAL_SPINDOWN = 60
+  private[reactors] val MIN_SPINDOWN = 10
+  private[reactors] val MAX_SPINDOWN = 540
 
   sealed trait LifecycleState
 

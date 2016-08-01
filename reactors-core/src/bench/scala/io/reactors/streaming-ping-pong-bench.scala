@@ -31,7 +31,7 @@ class StreamingPingPongBench extends JBench.OfflineReport {
   @transient lazy val system = new ReactorSystem("reactor-bench")
 
   @gen("sizes")
-  @benchmark("io.reactors.ping-pong")
+  @benchmark("io.reactors.streaming-ping-pong")
   @curve("onEvent")
   def reactorOnEventPingPong(sz: Int) = {
     val done = Promise[Boolean]()
@@ -75,7 +75,7 @@ class StreamingPingPongBench extends JBench.OfflineReport {
   }
 
   @gen("sizes")
-  @benchmark("io.reactors.ping-pong")
+  @benchmark("io.reactors.streaming-ping-pong")
   @curve("akka")
   @setupBeforeAll("akkaPingPongSetup")
   @teardownAfterAll("akkaPingPongTeardown")
