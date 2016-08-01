@@ -59,19 +59,19 @@ class ForkJoinCreationBench extends JBench.OfflineReport {
 
   var actorSystem: ActorSystem = _
 
-  def akkaCountingActorSetup() {
+  def akkaSetup() {
     actorSystem = ActorSystem("actor-bench")
   }
 
-  def akkaCountingActorTeardown() {
+  def akkaTeardown() {
     actorSystem.shutdown()
   }
 
   @gen("sizes")
   @benchmark("io.reactors.fork-join-creation")
   @curve("akka")
-  @setupBeforeAll("akkaCountingActorSetup")
-  @teardownAfterAll("akkaCountingActorTeardown")
+  @setupBeforeAll("akkaSetup")
+  @teardownAfterAll("akkaTeardown")
   def akka(sz: Int) = {
     val done = new Array[Promise[Boolean]](sz)
     for (i <- 0 until sz) done(i) = Promise[Boolean]()

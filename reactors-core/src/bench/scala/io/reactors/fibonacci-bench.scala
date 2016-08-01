@@ -70,19 +70,19 @@ class FibonacciBench extends JBench.OfflineReport {
 
   var actorSystem: ActorSystem = _
 
-  def akkaCountingActorSetup() {
+  def akkaSetup() {
     actorSystem = ActorSystem("actor-bench")
   }
 
-  def akkaCountingActorTeardown() {
+  def akkaTeardown() {
     actorSystem.shutdown()
   }
 
   @gen("sizes")
   @benchmark("io.reactors.fibonacci")
   @curve("akka")
-  @setupBeforeAll("akkaCountingActorSetup")
-  @teardownAfterAll("akkaCountingActorTeardown")
+  @setupBeforeAll("akkaSetup")
+  @teardownAfterAll("akkaTeardown")
   def akka(sz: Int) = {
     val done = Promise[Int]()
 

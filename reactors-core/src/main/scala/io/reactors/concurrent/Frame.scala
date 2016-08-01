@@ -213,7 +213,7 @@ final class Frame(
     }
     if (random.nextDouble() < 0.005) spindown = Frame.MAX_SPINDOWN
     if (spindownScore >= 1) spindown = Frame.MAX_SPINDOWN
-    spindown -= (spindown / 10 + 1)
+    spindown -= (spindown / 7 + 1)
     spindown = math.max(Frame.MIN_SPINDOWN, spindown)
     //if (random.nextDouble() < 0.0001) println(spindown, spindownScore)
   }
