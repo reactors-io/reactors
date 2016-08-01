@@ -78,19 +78,19 @@ class FibonacciBench extends JBench.OfflineReport {
     actorSystem.shutdown()
   }
 
-  // @gen("sizes")
-  // @benchmark("io.reactors.fibonacci")
-  // @curve("akka")
-  // @setupBeforeAll("akkaCountingActorSetup")
-  // @teardownAfterAll("akkaCountingActorTeardown")
-  // def akka(sz: Int) = {
-  //   val done = Promise[Int]()
+  @gen("sizes")
+  @benchmark("io.reactors.fibonacci")
+  @curve("akka")
+  @setupBeforeAll("akkaCountingActorSetup")
+  @teardownAfterAll("akkaCountingActorTeardown")
+  def akka(sz: Int) = {
+    val done = Promise[Int]()
 
-  //   actorSystem.actorOf(
-  //     Props.create(classOf[FibonacciRootActor], done, new Integer(sz)))
+    actorSystem.actorOf(
+      Props.create(classOf[FibonacciRootActor], done, new Integer(sz)))
 
-  //   Await.ready(done.future, 10.seconds)
-  // }
+    Await.ready(done.future, 10.seconds)
+  }
 }
 
 

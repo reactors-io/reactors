@@ -43,7 +43,7 @@ class ReactorSystem(
 
   /** Contains the frames for different reactors.
    */
-  private[reactors] val frames = new UniqueStore[Frame]("reactor", monitor)
+  private[reactors] val frames = new ScalableUniqueStore[Frame]("reactor", 512)
 
   /** Shuts down services. */
   def shutdown() {

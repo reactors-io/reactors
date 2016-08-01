@@ -3,6 +3,7 @@ package concurrent
 
 
 
+import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic._
 import io.reactors.common.Monitor
 import scala.annotation.tailrec
@@ -48,7 +49,8 @@ final class UniqueStore[T >: Null <: Identifiable with AnyRef](
       if (byName.contains(possibleName)) uniqueName(count + 1)
       else possibleName
     }
-    val uname = if (proposedName != null) proposedName else uniqueName(0)
+    val uname =
+      if (proposedName != null) proposedName else uniqueName(0)
     if (byName.contains(uname)) {
       throw new IllegalArgumentException(s"Name $proposedName unavailable.")
     } else {
@@ -66,9 +68,9 @@ final class UniqueStore[T >: Null <: Identifiable with AnyRef](
   def tryRelease(name: String): Boolean = monitor.synchronized {
     if (!byName.contains(name)) false
     else {
-      val frame = byName(name)
+      val x = byName(name)
       byName.remove(name)
-      byId.remove(frame.uid)
+      byId.remove(x.uid)
       true
     }
   }
