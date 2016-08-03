@@ -217,16 +217,16 @@ final class Frame(
     totalSpindownScore += spindownScore
     if (random.nextDouble() < 0.15 || spindownScore >= 1) {
       var spindownCoefficient = 1.0 * totalSpindownScore / totalBatches
-      if (totalBatches > 4) {
-        spindownCoefficient += math.max(0.0, 1.0 - (totalBatches - 4) / 3)
+      if (totalBatches >= 32) {
+        spindownCoefficient += math.max(0.0, 1.0 - (totalBatches - 32) / 3)
       }
       spindownCoefficient = math.min(1.0, spindownCoefficient)
       spindown = (Frame.MAX_SPINDOWN * spindownCoefficient).toInt
     }
     spindown -= (spindown / 8 + 1)
     spindown = math.max(Frame.MIN_SPINDOWN, spindown)
-    //if (random.nextDouble() < 0.0001)
-    //  println(spindown, 1.0 * totalSpindownScore / totalBatches)
+    // if (random.nextDouble() < 0.0001)
+    //   println(spindown, 1.0 * totalSpindownScore / totalBatches)
   }
 
   private def checkTerminated(forcedTermination: Boolean) {
@@ -300,7 +300,7 @@ final class Frame(
 
 
 object Frame {
-  private[reactors] val INITIAL_SPINDOWN = 30
+  private[reactors] val INITIAL_SPINDOWN = 10
   private[reactors] val MIN_SPINDOWN = 10
   private[reactors] val MAX_SPINDOWN = 1600
 

@@ -109,7 +109,7 @@ class ForkJoinThroughputBench extends JBench.OfflineReport {
 
 
 object ForkJoinThroughputBench {
-  val K = 32
+  val K = 128
 }
 
 
