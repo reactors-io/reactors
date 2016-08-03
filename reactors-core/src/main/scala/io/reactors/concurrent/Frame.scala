@@ -28,6 +28,8 @@ final class Frame(
   private[reactors] val pendingQueues = new UnrolledRing[Connector[_]]
   private[reactors] val sysEmitter = new Events.Emitter[SysEvent]
   private[reactors] var spindown = Frame.INITIAL_SPINDOWN
+  private[reactors] var totalBatches = 0L
+  private[reactors] var totalSpindownScore = 0L
   private[reactors] var random = new Random
 
   @volatile var reactor: Reactor[_] = _
@@ -211,11 +213,20 @@ final class Frame(
         nc = null
       }
     }
-    if (random.nextDouble() < 0.005) spindown = Frame.MAX_SPINDOWN
-    if (spindownScore >= 1) spindown = Frame.MAX_SPINDOWN
-    spindown -= (spindown / 7 + 1)
+    totalBatches += 1
+    totalSpindownScore += spindownScore
+    if (random.nextDouble() < 0.15 || spindownScore >= 1) {
+      var spindownCoefficient = 1.0 * totalSpindownScore / totalBatches
+      if (totalBatches > 4) {
+        spindownCoefficient += math.max(0.0, 1.0 - (totalBatches - 4) / 3)
+      }
+      spindownCoefficient = math.min(1.0, spindownCoefficient)
+      spindown = (Frame.MAX_SPINDOWN * spindownCoefficient).toInt
+    }
+    spindown -= (spindown / 8 + 1)
     spindown = math.max(Frame.MIN_SPINDOWN, spindown)
-    //if (random.nextDouble() < 0.0001) println(spindown, spindownScore)
+    //if (random.nextDouble() < 0.0001)
+    //  println(spindown, 1.0 * totalSpindownScore / totalBatches)
   }
 
   private def checkTerminated(forcedTermination: Boolean) {
@@ -291,7 +302,7 @@ final class Frame(
 object Frame {
   private[reactors] val INITIAL_SPINDOWN = 30
   private[reactors] val MIN_SPINDOWN = 10
-  private[reactors] val MAX_SPINDOWN = 540
+  private[reactors] val MAX_SPINDOWN = 1600
 
   sealed trait LifecycleState
 
