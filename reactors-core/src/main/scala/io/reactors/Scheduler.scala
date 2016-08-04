@@ -58,7 +58,7 @@ trait Scheduler {
    *  This method by default does nothing, but may be overridden for performance
    *  purposes.
    */
-  def unscheduleAndRun(): Unit = {}
+  def unscheduleAndRun(system: ReactorSystem): Unit = {}
 
   /** The handler for the fatal errors that are not sent to
    *  the `failures` stream of the reactor.
@@ -113,7 +113,7 @@ object Scheduler {
       @volatile var allowedBudget: Long = _
 
       override def onBatchStart(frame: Frame): Unit = {
-        allowedBudget = 50
+        allowedBudget = frame.reactorSystem.bundle.schedulerConfig.defaultBudget
       }
 
       def onBatchEvent(frame: Frame): Boolean = {
@@ -220,7 +220,7 @@ object Scheduler {
       }
     }
 
-    override def unscheduleAndRun() {
+    override def unscheduleAndRun(system: ReactorSystem) {
       Thread.currentThread match {
         case t: ForkJoinReactorWorkerThread =>
           if (t.unschedulingMode) return
@@ -228,7 +228,7 @@ object Scheduler {
           try {
             executor match {
               case fj: ForkJoinPool with ForkJoinTaskPolling =>
-                var loopsLeft = Scheduler.Executed.UNSCHEDULE_COUNT
+                var loopsLeft = system.bundle.schedulerConfig.unscheduleCount
                 while (loopsLeft > 0) {
                   var executedSomething = false
                   if (t.pendingFastFrame != null) {
@@ -267,7 +267,6 @@ object Scheduler {
   }
 
   object Executed {
-    private[reactors] val UNSCHEDULE_COUNT = 20
   }
 
   /** An abstract scheduler that always dedicates a thread to a reactor.

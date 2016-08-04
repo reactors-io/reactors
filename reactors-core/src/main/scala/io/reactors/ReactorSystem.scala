@@ -164,7 +164,7 @@ object ReactorSystem {
           min = 10
           max = 1600
           cooldown-rate = 8
-          mutation-probability = 0.15
+          mutation-rate = 0.15
           test-threshold = 32
           test-iterations = 3
         }
@@ -199,6 +199,20 @@ object ReactorSystem {
     /** The set of configuration variables for the reactor system.
      */
     val config = customConfig.withFallback(defaultConfig)
+
+    /** Scheduler configuration options.
+     */
+    object schedulerConfig {
+      val defaultBudget = config.getInt("scheduler.default.budget")
+      val unscheduleCount = config.getInt("scheduler.default.unschedule-count")
+      val spindownInitial = config.getInt("scheduler.spindown.initial")
+      val spindownMax = config.getInt("scheduler.spindown.max")
+      val spindownMin = config.getInt("scheduler.spindown.min")
+      val spindownCooldownRate = config.getInt("scheduler.spindown.cooldown-rate")
+      val spindownMutationRate = config.getDouble("scheduler.spindown.mutation-rate")
+      val spindownTestThreshold = config.getInt("scheduler.spindown.test-threshold")
+      val spindownTestIterations = config.getInt("scheduler.spindown.test-iterations")
+    }
 
     val urlMap = config.getConfig("remote").root.values.asScala.collect {
       case c: ConfigObject => c.toConfig

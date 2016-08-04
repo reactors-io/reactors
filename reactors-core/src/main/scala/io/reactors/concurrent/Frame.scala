@@ -27,7 +27,8 @@ final class Frame(
   private[reactors] var lifecycleState: Frame.LifecycleState = Frame.Fresh
   private[reactors] val pendingQueues = new UnrolledRing[Connector[_]]
   private[reactors] val sysEmitter = new Events.Emitter[SysEvent]
-  private[reactors] var spindown = Frame.INITIAL_SPINDOWN
+  private[reactors] var spindown = reactorSystem.bundle.schedulerConfig.spindownInitial
+  private[reactors] val schedulerConfig = reactorSystem.bundle.schedulerConfig
   private[reactors] var totalBatches = 0L
   private[reactors] var totalSpindownScore = 0L
   private[reactors] var random = new Random
@@ -125,7 +126,7 @@ final class Frame(
     }
 
     // Piggyback the worker thread to do some useful work.
-    scheduler.unscheduleAndRun()
+    scheduler.unscheduleAndRun(reactorSystem)
   }
 
   private def isolateAndProcessBatch() {
@@ -215,16 +216,19 @@ final class Frame(
     }
     totalBatches += 1
     totalSpindownScore += spindownScore
-    if (random.nextDouble() < 0.15 || spindownScore >= 1) {
+    val spindownMutationRate = schedulerConfig.spindownMutationRate
+    if (random.nextDouble() < spindownMutationRate || spindownScore >= 1) {
       var spindownCoefficient = 1.0 * totalSpindownScore / totalBatches
-      if (totalBatches >= 32) {
-        spindownCoefficient += math.max(0.0, 1.0 - (totalBatches - 32) / 3)
+      val threshold = schedulerConfig.spindownTestThreshold
+      val iters = schedulerConfig.spindownTestIterations
+      if (totalBatches >= threshold) {
+        spindownCoefficient += math.max(0.0, 1.0 - (totalBatches - threshold) / iters)
       }
       spindownCoefficient = math.min(1.0, spindownCoefficient)
-      spindown = (Frame.MAX_SPINDOWN * spindownCoefficient).toInt
+      spindown = (schedulerConfig.spindownMax * spindownCoefficient).toInt
     }
-    spindown -= (spindown / 8 + 1)
-    spindown = math.max(Frame.MIN_SPINDOWN, spindown)
+    spindown -= (spindown / schedulerConfig.spindownCooldownRate + 1)
+    spindown = math.max(schedulerConfig.spindownMin, spindown)
     // if (random.nextDouble() < 0.0001)
     //   println(spindown, 1.0 * totalSpindownScore / totalBatches)
   }
@@ -300,10 +304,6 @@ final class Frame(
 
 
 object Frame {
-  private[reactors] val INITIAL_SPINDOWN = 10
-  private[reactors] val MIN_SPINDOWN = 10
-  private[reactors] val MAX_SPINDOWN = 1600
-
   sealed trait LifecycleState
 
   case object Fresh extends LifecycleState
