@@ -158,6 +158,21 @@ object ReactorSystem {
           expiration = 120
         }
       }
+      scheduler = {
+        spindown = {
+          initial = 10
+          min = 10
+          max = 1600
+          cooldown-rate = 8
+          mutation-probability = 0.15
+          test-threshold = 32
+          test-iterations = 3
+        }
+        default = {
+          budget = 50
+          unschedule-count = 20
+        }
+      }
       system = {
         net = {
           parallelism = 8
