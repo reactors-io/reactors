@@ -39,6 +39,7 @@
       <div class="x-horizontal-tabber-button-pane">
         <ul class="x-horizontal-tabber-tabs">
           <li v-for="(index, panel) in panels"
+            :id="panel.id"
             class="{{ active(index) }}" @click="onTabClick(index)">
             <span>
               {{{ panel.icon }}} {{ panel.text }}

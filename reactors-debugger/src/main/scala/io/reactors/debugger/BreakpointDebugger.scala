@@ -9,8 +9,7 @@ import scala.collection._
 
 
 
-class BreakpointDebugger(val system: ReactorSystem, val deltaDebugger: DeltaDebugger)
-extends DebugApi {
+class BreakpointDebugger(val system: ReactorSystem, val deltaDebugger: DeltaDebugger) {
   import BreakpointDebugger.Breakpoint
 
   private val monitor = system.monitor

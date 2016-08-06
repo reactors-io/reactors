@@ -51,6 +51,10 @@ abstract class DebugApi {
   /** Print the specified message to the debugger.
    */
   def log(x: Any): Unit
+
+  /** Shuts down the debugger.
+   */
+  def shutdown(): Unit
 }
 
 
@@ -88,6 +92,9 @@ object DebugApi {
     }
 
     def log(x: Any){
+    }
+
+    def shutdown() {
     }
   }
 }

@@ -10,8 +10,7 @@ import scala.collection._
 
 
 
-class DeltaDebugger(val system: ReactorSystem, val sessionuid: String)
-extends DebugApi {
+class DeltaDebugger(val system: ReactorSystem, val sessionuid: String) {
   private val monitor = system.monitor
   private val windowSize = 512
   private val oldstate = new DeltaDebugger.State()

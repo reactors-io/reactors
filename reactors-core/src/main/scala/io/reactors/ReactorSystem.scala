@@ -47,6 +47,7 @@ class ReactorSystem(
 
   /** Shuts down services. */
   def shutdown() {
+    debugApi.shutdown()
     shutdownServices()
   }
 
