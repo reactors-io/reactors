@@ -156,6 +156,11 @@ object ReactorSystem {
         port = 8888
         repl = {
           expiration = 120
+          expiration-check-period = 60
+        }
+        session = {
+          expiration = 240
+          expiration-check-period = 150
         }
       }
       scheduler = {
