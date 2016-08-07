@@ -48,7 +48,8 @@
               :config="$refs.config.state"
               :history="$refs.model.history">
             </x-log-window>
-            <x-tabbar slot="1"
+            <x-tabbar v-ref:shell-tabbar
+              slot="1"
               :tab-factories="shellFactories"
               :initial-selection="shellFactories[0]">
             </x-tabbar>
@@ -82,37 +83,43 @@
             icon: "<span class='glyphicon glyphicon-list-alt'></span>",
             text: "Log",
             id: "x-debugger-button-log",
-            onSelected: () => { this.$refs.logWindow.onSelected() }
+            onSelected: () => this.$refs.logWindow.onSelected(),
+            onDeselected: () => {}
           },
           {
             icon: "<span class='glyphicon glyphicon-console'></span>",
             text: "Shell",
             id: "x-debugger-button-shell",
-            onSelected: () => {}
+            onSelected: () => this.$refs.shellTabbar.onSelected(),
+            onDeselected: () => this.$refs.shellTabbar.onDeselected()
           },
           {
             icon: "<span class='glyphicon glyphicon-record'></span>",
             text: "Breakpoints",
             id: "x-debugger-button-breakpoints",
-            onSelected: () => {}
+            onSelected: () => {},
+            onDeselected: () => {}
           },
           {
             icon: "<i class='reactor-icons reactor-icons-timeline'></i>",
             text: "Timeline",
             id: "x-debugger-button-timeline",
-            onSelected: () => {}
+            onSelected: () => {},
+            onDeselected: () => {}
           },
           {
             icon: "<i class='fa fa-line-chart' aria-hidden='true'></i>",
             text: "Metrics",
             id: "x-debugger-button-metrics",
-            onSelected: () => {}
+            onSelected: () => {},
+            onDeselected: () => {}
           },
           {
             icon: "<i class='icon ion-settings'></i>",
             text: "Tools",
             id: "x-debugger-button-tools",
-            onSelected: () => {}
+            onSelected: () => {},
+            onDeselected: () => {}
           }
         ],
         shellFactories: [

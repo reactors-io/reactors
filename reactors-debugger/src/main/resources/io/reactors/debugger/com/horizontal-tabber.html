@@ -73,10 +73,13 @@
         }
       },
       onTabClick: function(i) {
+        if (this.selected && this.panels[this.selected]) {
+          this.panels[this.selected].onDeselected();
+        }
         if (this.selected == i) this.selected = -1;
         else {
           this.selected = i;
-          this.panels[i].onSelected()
+          this.panels[i].onSelected();
         }
       }
     }

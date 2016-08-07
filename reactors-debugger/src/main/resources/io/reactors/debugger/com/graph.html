@@ -2,7 +2,7 @@
 @@library(io/reactors/debugger/js/util.js)
 @@library(io/reactors/debugger/lib/jquery/jquery-1.12.4.min.js)
 @@library(io/reactors/debugger/lib/bootstrap/js/bootstrap.min.js)
-@@library(io/reactors/debugger/lib/sigmajs/sigma.min.js)
+@@library(io/reactors/debugger/lib/sigmajs/sigma.js)
 @@library(io/reactors/debugger/lib/sigmajs/plugins/sigma.plugins.animate.min.js)
 
 
@@ -38,7 +38,8 @@
             style.getPropertyValue("--graph-label-hover-color"),
           autoRescale: false,
           zoomMin: 0.007,
-          zoomMax: 0.125
+          zoomMax: 0.125,
+          font: "Helvetica"
         }
       });
       this.sigma.camera.goTo({ x: 3, y: 3, ratio: 0.015 });
