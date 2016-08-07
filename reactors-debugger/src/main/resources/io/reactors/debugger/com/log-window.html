@@ -3,53 +3,57 @@
 @@style(io/reactors/debugger/lib/datatables/datatables.min.css)
 @@style(io/reactors/debugger/css/bootstrap-overrides.css)
 @@style(io/reactors/debugger/css/datatables-overrides.css)
+@@style(io/reactors/debugger/css/vue-tables-overrides.css)
 @@library(io/reactors/debugger/js/util.js)
 @@library(io/reactors/debugger/lib/jquery/jquery-1.12.4.min.js)
 @@library(io/reactors/debugger/lib/bootstrap/js/bootstrap.min.js)
-@@library(io/reactors/debugger/lib/datatables/datatables.min.js)
+@@library(io/reactors/debugger/lib/vue-tables/vue-tables.min.js)
 
 
 <template id="x-log-window">
   <div class="x-log-window-root">
-    <table :id="'x-log-window-table-' + uid"
-      class="x-log-window-table cell-border"
-      style="width: 100%;">
-      <thead>
-        <tr>
-          <td>Event</td>
-          <td>Time</td>
-          <td>Message</td>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="delta in history" track-by="$index">
-          <td>{{{ linkFor(delta) }}}</td>
-          <td>{{ timeFor(delta) }}</td>
-          <td>{{ messageFor(delta) }}</td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="x-log-window-table-container">
+      <v-client-table :data="tableData" :columns="tableColumns" :options="tableOptions"
+        class="x-log-window-table cell-border">
+      </v-client-table>
+    </div>
   </div>
 </template>
 
 
 <script>
+  Vue.use(VueTables.client, {});
+
   var LogWindow = Vue.extend({
     template: "#x-log-window",
     props: ["config", "history"],
     data: function() {
       return {
         uid: Uid.num(),
-        table: null
+        tableColumns: ["Event", "Time", "Message"],
+        tableOptions: {
+          
+        }
       };
     },
+    computed: {
+      tableData: function() {
+        var data = [];
+        for (var i = 0; i < this.history.length; i++) {
+          var delta = this.history[i];
+          var link = this.linkFor(delta);
+          var time = this.timeFor(delta);
+          var msg = this.messageFor(delta);
+          data.push({
+            "Event": link,
+            "Time": time,
+            "Message": msg
+          });
+        }
+        return data;
+      }
+    },
     attached: function() {
-      this.table = $("#x-log-window-table-" + this.uid).DataTable({
-        autoWidth: true,
-        ordering: false,
-        scrollX: true,
-        scrollY: true
-      });
     },
     methods: {
       timeFor: function(delta) {
@@ -101,7 +105,7 @@
     width: 100%;
     background-color: var(--widget-background-color);
     border: var(--widget-border);
-    padding: 2px;
-    height: 150px;
+    padding: 4px;
+    height: 250px;
   }
 </style>

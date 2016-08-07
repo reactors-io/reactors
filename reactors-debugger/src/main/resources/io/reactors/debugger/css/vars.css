@@ -9,7 +9,6 @@
   --widget-border: 1px solid rgba(60, 60, 60, 0.3);
   --widget-border-bright: 1px solid rgba(80, 80, 80, 0.6);
   --widget-border-dim: 1px solid rgba(80, 80, 80, 0.2);
-  --widget-border-dim: 1px solid rgba(80, 80, 80, 0.1);
   --terminal-cursor-color: rgba(255, 255, 255, 0.5);
   --terminal-cursor-background-color: rgba(15, 15, 15, 0.0);
   --status-badge-background-color: rgba(15, 15, 15, 0.4);
