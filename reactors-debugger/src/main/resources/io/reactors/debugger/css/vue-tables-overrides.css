@@ -47,7 +47,7 @@
 
 .VueTables__table-wrapper {
   overflow-y: scroll;
-  height: calc(100% - 85px);
+  height: calc(100% - 80px);
 }
 
 .form-group {

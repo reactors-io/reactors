@@ -7,6 +7,7 @@ import org.openqa.selenium._
 import org.openqa.selenium.chrome._
 import org.openqa.selenium.interactions._
 import org.openqa.selenium.support.ui._
+import scala.collection.JavaConverters._
 
 
 
@@ -54,28 +55,52 @@ object DebuggerTest {
   }
 
   def runShellTests(driver: WebDriver, system: ReactorSystem) {
-    val shellButton = driver.findElement(By.id("x-debugger-button-shell"))
-    shellButton.click()
+    val logButton = driver.findElement(By.id("x-debugger-button-log"))
 
-    // TODO: Replace with waiting for the shell to become ready.
-    Thread.sleep(5000)
+    def runShellScenario(commands: String*) {
+      val shellButton = driver.findElement(By.id("x-debugger-button-shell"))
+      shellButton.click()
 
-    // Create temporary reactor.
-    val shellContainer = driver.findElement(By.className("x-shell-container"))
-    shellContainer.click()
+      // Wait until the shell is ready.
+      (new WebDriverWait(driver, 10)).until(new ExpectedCondition[Boolean] {
+        def apply(d: WebDriver) = {
+          val icon = d.findElement(By.className("x-status-badge-glow"))
+          icon.getAttribute("class").split(" ").contains("x-status-badge-ok")
+        }
+      })
 
-    def shellCommand(text: String) {
-      val cmdline = driver.findElement(By.className("cmd"))
-      val actions = new Actions(driver)
-      actions.moveToElement(cmdline)
-      actions.click()
-      actions.sendKeys(text)
-      actions.sendKeys(Keys.RETURN)
-      actions.build().perform()
+      // Create temporary reactor.
+      val shellContainer = driver.findElement(By.className("x-shell-container"))
+      shellContainer.click()
+
+      def shellCommand(text: String) {
+        val cmdline = driver.findElement(By.className("cmd"))
+        val actions = new Actions(driver)
+        actions.moveToElement(cmdline)
+        actions.click()
+        actions.sendKeys(text)
+        actions.sendKeys(Keys.RETURN)
+        actions.build().perform()
+      }
+
+      for (c <- commands) shellCommand(c)
+
+      Thread.sleep(1000)
     }
 
-    shellCommand("import scala.concurrent.duration._")
-    shellCommand("val ch = system.spawn(Reactor[String] { self => })")
+    {
+      runShellScenario(
+        "import scala.concurrent.duration._",
+        "val ch = system.spawn(Reactor[String] { self => })"
+      )
+      logButton.click()
+      (new WebDriverWait(driver, 10)).until(new ExpectedCondition[Boolean] {
+        def apply(d: WebDriver) = {
+          val tdElements = driver.findElements(By.tagName("td")).asScala
+          tdElements.exists(_.getText.contains("created"))
+        }
+      })
+    }
 
     // Wait for easier debugging.
     Thread.sleep(1000)

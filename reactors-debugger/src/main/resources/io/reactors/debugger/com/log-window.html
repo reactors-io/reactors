@@ -70,19 +70,19 @@
         switch (delta.tpe) {
           case "start":
             return "Reactor '" + delta.reactorName +
-              "' (" + delta.reactorId + ") created.";
+              "' (UID: " + delta.reactorId + ") created.";
           case "die":
             return "Reactor " + delta.reactorName +
-              "' (" + delta.reactorId + ") died due to an error.";
+              "' (UID: " + delta.reactorId + ") died due to an error.";
           case "term":
             return "Reactor " + delta.reactorName +
-              "' (" + delta.reactorId + ") terminated.";
+              "' (UID: " + delta.reactorId + ") terminated.";
           case "open":
             return "Channel '" + delta.channelName +
-              "' (" + delta.channelId + ") opened.";
+              "' (UID: " + delta.channelId + ") opened.";
           case "seal":
             return "Channel '" + delta.channelName +
-              "' (" + delta.channelId + ") sealed.";
+              "' (UID: " + delta.channelId + ") sealed.";
           default:
             return "Unknown event " + delta.tpe + ".";
         }
@@ -106,6 +106,6 @@
     background-color: var(--widget-background-color);
     border: var(--widget-border);
     padding: 4px;
-    height: 300px;
+    height: 340px;
   }
 </style>
