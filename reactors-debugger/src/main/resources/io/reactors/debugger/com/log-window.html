@@ -64,7 +64,18 @@
         return new Date(unixts);
       },
       linkFor: function(delta) {
-        return "";
+        switch (delta.tpe) {
+          case "start":
+            return "<span class='x-log-window-event-created'>" +
+              "<i class='icon ion-plus'></i> STARTED" +
+              "</span>";
+          case "term":
+            return "<span class='x-log-window-event-terminated'>" +
+              "<i class='icon ion-minus'></i> TERMINATED" +
+              "</span>";
+          default:
+            return "";
+        }
       },
       messageFor: function(delta) {
         switch (delta.tpe) {
@@ -107,5 +118,13 @@
     border: var(--widget-border);
     padding: 4px;
     height: 340px;
+  }
+
+  .x-log-window-event-created {
+    color: var(--log-event-created);
+  }
+
+  .x-log-window-event-terminated {
+    color: var(--log-event-terminated);
   }
 </style>

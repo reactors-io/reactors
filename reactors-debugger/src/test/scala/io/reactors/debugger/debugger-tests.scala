@@ -88,6 +88,7 @@ object DebuggerTest {
       Thread.sleep(1000)
     }
 
+    // Test that reactor creation is correctly logged.
     {
       runShellScenario(
         "import scala.concurrent.duration._",
