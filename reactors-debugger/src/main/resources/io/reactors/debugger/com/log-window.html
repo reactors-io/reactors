@@ -32,7 +32,10 @@
         uid: Uid.num(),
         tableColumns: ["Event", "Time", "Message"],
         tableOptions: {
-          
+          orderBy: {
+            ascending: false,
+            column: "Time"
+          }
         }
       };
     },
@@ -106,6 +109,6 @@
     background-color: var(--widget-background-color);
     border: var(--widget-border);
     padding: 4px;
-    height: 250px;
+    height: 300px;
   }
 </style>
