@@ -98,7 +98,7 @@ object DebuggerTest {
       (new WebDriverWait(driver, 10)).until(new ExpectedCondition[Boolean] {
         def apply(d: WebDriver) = {
           val tdElements = driver.findElements(By.tagName("td")).asScala
-          tdElements.exists(_.getText.contains("created"))
+          tdElements.exists(_.getText.matches("Reactor '.*' \\(UID: .*\\) created."))
         }
       })
     }
