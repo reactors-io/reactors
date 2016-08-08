@@ -113,6 +113,10 @@
           }
         );
       },
+      getReactorCoordinates: function(uid) {
+        var r = this.sigma.graph.nodes(uid);
+        return { x: r.x, y: r.y };
+      },
       endResetState: function() {
         this.sigma.refresh();
       }

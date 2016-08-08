@@ -46,7 +46,9 @@
             <x-log-window v-ref:log-window
               slot="0"
               :config="$refs.config.state"
-              :history="$refs.model.history">
+              :history="$refs.model.history"
+              :model="$refs.model.state"
+              :graph="$refs.graph">
             </x-log-window>
             <x-tabbar v-ref:shell-tabbar
               slot="1"
