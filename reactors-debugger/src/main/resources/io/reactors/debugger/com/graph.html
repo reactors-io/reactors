@@ -1,5 +1,6 @@
 @@style(io/reactors/debugger/lib/bootstrap/css/bootstrap.min.css)
 @@library(io/reactors/debugger/js/util.js)
+@@library(io/reactors/debugger/js/event-bus.js)
 @@library(io/reactors/debugger/lib/jquery/jquery-1.12.4.min.js)
 @@library(io/reactors/debugger/lib/bootstrap/js/bootstrap.min.js)
 @@library(io/reactors/debugger/lib/sigmajs/sigma.js)
@@ -17,7 +18,7 @@
 <script>
   var Graph = Vue.extend({
     template: "#x-graph",
-    props: ["config", "model", "eventBus", "canvasClass"],
+    props: ["ctx", "config", "model", "events", "canvasClass"],
     data: function() {
       return {
         uid: Uid.num(),
@@ -25,6 +26,8 @@
       };
     },
     attached: function() {
+      this.ctx.graph = this;
+
       var style = window.getComputedStyle(document.body);
 
       this.sigma = new sigma({
@@ -45,24 +48,33 @@
       this.sigma.camera.goTo({ x: 3, y: 3, ratio: 0.015 });
 
       // Install event stream observers.
-      this.subscriptions.push(this.eventBus.stateReset.observe(() => {
+      this.subscriptions.push(this.events.stateReset.observe(() => {
         this.resetState();
       }));
 
-      this.subscriptions.push(this.eventBus.reactorSeen.observe((r) => {
+      this.subscriptions.push(this.events.reactorSeen.observe((r) => {
         this.addReactor(r.uid);
       }));
 
-      this.subscriptions.push(this.eventBus.reactorStarted.observe((r) => {
+      this.subscriptions.push(this.events.reactorStarted.observe((r) => {
         this.addReactor(r.uid);
       }));
 
-      this.subscriptions.push(this.eventBus.reactorTerminated.observe((r) => {
+      this.subscriptions.push(this.events.reactorTerminated.observe((r) => {
         this.removeReactor(r.uid);
       }));
 
-      this.subscriptions.push(this.eventBus.stateUpdateDone.observe(() => {
+      this.subscriptions.push(this.events.stateUpdateDone.observe(() => {
         this.endResetState();
+      }));
+
+      // Install event bus observers.
+      this.subscriptions.push(eventBus.observe("moveToReactor", (id) => {
+        var xy = this.getReactorCoordinates(id);
+        if (xy) this.sigma.camera.goTo(xy);
+      }));
+      this.subscriptions.push(eventBus.observe("moveTo", (x, y) => {
+        this.sigma.camera.goTo({ x: x, y: y });
       }));
 
       // Install coordinate listeners.
@@ -115,7 +127,8 @@
       },
       getReactorCoordinates: function(uid) {
         var r = this.sigma.graph.nodes(uid);
-        return { x: r.x, y: r.y };
+        if (r) return { x: r.x, y: r.y };
+        else return undefined;
       },
       endResetState: function() {
         this.sigma.refresh();

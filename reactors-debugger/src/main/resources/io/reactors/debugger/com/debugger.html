@@ -2,6 +2,7 @@
 @@style(io/reactors/debugger/css/main.css)
 @@style(io/reactors/debugger/css/reactor-icons.css)
 @@library(io/reactors/debugger/js/util.js)
+@@library(io/reactors/debugger/js/ctx.js)
 @@library(io/reactors/debugger/lib/jquery/jquery-1.12.4.min.js)
 @@component(io/reactors/debugger/com/config.html)
 @@component(io/reactors/debugger/com/api.html)
@@ -23,14 +24,16 @@
       :config="$refs.config.state">
     </x-api>
     <x-model v-ref:model
+      :ctx="ctx"
       :config="$refs.config.state"
       :api="$refs.api.adapter"
       @critical-error="onCriticalError">
     </x-model>
     <x-graph v-ref:graph
+      :ctx="ctx"
       :config="$refs.config.state"
       :model="$refs.model.state"
-      :event-bus="$refs.model.eventBus"
+      :events="$refs.model.events"
       :canvas-class="'x-debugger-graph'">
     </x-graph>
     <div class="x-debugger-panel-container">
@@ -68,6 +71,7 @@
     template: "#x-debugger",
     data: function() {
       return {
+        ctx: new Ctx(),
         errors: [],
         leftPanelInfo: [
           {
