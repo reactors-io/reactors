@@ -67,11 +67,11 @@
         switch (delta.tpe) {
           case "start":
             return "<span class='x-log-window-event-created'>" +
-              "<i class='icon ion-plus'></i> STARTED" +
+              "<i class='icon ion-nuclear'></i> STARTED" +
               "</span>";
           case "term":
             return "<span class='x-log-window-event-terminated'>" +
-              "<i class='icon ion-minus'></i> TERMINATED" +
+              "<i class='icon ion-nuclear'></i> TERMINATED" +
               "</span>";
           default:
             return "";
@@ -117,7 +117,7 @@
     background-color: var(--widget-background-color);
     border: var(--widget-border);
     padding: 4px;
-    height: 340px;
+    height: 360px;
   }
 
   .x-log-window-event-created {
