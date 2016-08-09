@@ -46,7 +46,7 @@
           font: "Helvetica"
         }
       });
-      this.sigma.camera.goTo({ x: 3, y: 3, ratio: 0.015 });
+      this.sigma.camera.goTo({ x: 3, y: 3, ratio: 0.01 });
 
       // Install event stream observers.
       this.subscriptions.push(this.events.stateReset.observe(() => {
@@ -120,7 +120,7 @@
       moveAnimatedTo: function(xy) {
         var startx = this.sigma.camera.x;
         var starty = this.sigma.camera.y;
-        var interpolator = new LinearInterpolator(24, 0.0, 1.0).map(v => {
+        var interpolator = new SmoothStepInterpolator(16, 0.0, 1.0).map(v => {
           var x = startx + (xy.x - startx) * v;
           var y = starty + (xy.y - starty) * v;
           return { x: x, y: y };

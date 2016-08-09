@@ -16,12 +16,13 @@ class Interpolator {
 }
 
 
-class LinearInterpolator extends Interpolator {
-  constructor(totalFrames, from, end) {
+class RangeInterpolator extends Interpolator {
+  constructor(totalFrames, from, end, func) {
     super();
     this.totalFrames = totalFrames;
     this.from = from;
     this.end = end;
+    this.func = func;
     this.frame = 0;
   }
 
@@ -30,13 +31,33 @@ class LinearInterpolator extends Interpolator {
   }
 
   next() {
-    var v = this.from + (this.end - this.from) * (this.frame / this.totalFrames);
+    var v = this.func(this.from, this.end, this.frame, this.totalFrames);
     this.frame += 1;
     return v;
   }
 
   stop() {
     this.frame = this.totalFrames;
+  }
+}
+
+
+class LinearInterpolator extends RangeInterpolator {
+  constructor(totalFrames, from, end) {
+    super(totalFrames, from, end, (from, end, frame, totalFrames) => {
+      return from + 1.0 * (end - from) * (frame / totalFrames);
+    });
+  }
+}
+
+
+class SmoothStepInterpolator extends RangeInterpolator {
+  constructor(totalFrames, from, end) {
+    super(totalFrames, from, end, (from, end, frame, totalFrames) => {
+      var x = 1.0 * frame / totalFrames;
+      var factor = x * x * x * (x * (x * 6 - 15) + 10);
+      return (end - from) * factor;
+    });
   }
 }
 
