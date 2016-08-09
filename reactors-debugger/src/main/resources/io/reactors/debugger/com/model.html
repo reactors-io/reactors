@@ -202,7 +202,7 @@
               "</span>";
           case "term":
             var id = delta.reactorId;
-            var c = this.ctx.graph.getReactorCoordinates(id);
+            var c = this.ctx.getReactorCoordinates(id);
             return "<span class='x-log-window-event-terminated x-log-window-event' " +
               "  onClick='eventBus.emit(\"moveTo\", " + c.x + ", " + c.y + ")'>" +
               "<i class='icon ion-nuclear'></i> TERMINATED" +

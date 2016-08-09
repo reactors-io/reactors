@@ -26,7 +26,7 @@
       };
     },
     attached: function() {
-      this.ctx.graph = this;
+      this.ctx._graph = this;
 
       var style = window.getComputedStyle(document.body);
 
@@ -101,7 +101,7 @@
         var label = this.model.reactors[uid].name;
         var x = 6.0 * Math.random();
         var y = 6.0 * Math.random();
-        startBudgetAnimation(14, 0.01, 1.0,
+        this.ctx.animator.startBudgetAnimation(14, 0.01, 1.0,
           () => {
             this.sigma.graph.addNode({
               id: uid,
@@ -116,7 +116,7 @@
         );
       },
       removeReactor: function(uid) {
-        startBudgetAnimation(14, 1.0, 0.01,
+        this.ctx.animator.startBudgetAnimation(14, 1.0, 0.01,
           () => {},
           (v) => this.setNodeSize(uid, v),
           () => {

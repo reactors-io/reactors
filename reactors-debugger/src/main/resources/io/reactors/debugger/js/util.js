@@ -26,36 +26,43 @@ class UidGenerator {
     return this.labelCounts[label]++;
   }
 }
-var Uid = new UidGenerator();
 
 
-function startAnimation(totalFrames, from, end, setter, onComplete) {
-  var frame = 0;
-  var nextFrame = () => {
-    if (frame <= totalFrames) {
-      setter(from + (end - from) * (frame / totalFrames));
-      frame += 1;
-      setTimeout(nextFrame, 30);
+class Animator {
+  constructor() {
+    this.totalAnimations = 0;
+    this.maxAnimations = 32;
+    this.namedAnimations = {};
+  }
+
+  startAnimation(totalFrames, from, end, setter, onComplete) {
+    var frame = 0;
+    var nextFrame = () => {
+      if (frame <= totalFrames) {
+        setter(from + (end - from) * (frame / totalFrames));
+        frame += 1;
+        setTimeout(nextFrame, 30);
+      } else {
+        onComplete();
+      }
+    };
+    nextFrame();
+  }
+
+  startBudgetAnimation(totalFrames, from, end, onStart, setter, onComplete) {
+    if (this.totalAnimations < this.maxAnimations) {
+      this.totalAnimations += 1;
+      onStart();
+      this.startAnimation(totalFrames, from, end, setter, () => {
+        this.totalAnimations -= 1;
+        onComplete();
+      });
     } else {
+      onStart();
       onComplete();
     }
-  };
-  nextFrame();
-};
-
-
-var totalAnimations = 0;
-var maxAnimations = 32;
-function startBudgetAnimation(totalFrames, from, end, onStart, setter, onComplete) {
-  if (totalAnimations < maxAnimations) {
-    totalAnimations += 1;
-    onStart();
-    startAnimation(totalFrames, from, end, setter, () => {
-      totalAnimations -= 1;
-      onComplete();
-    });
-  } else {
-    onStart();
-    onComplete();
   }
 }
+
+
+var Uid = new UidGenerator();
