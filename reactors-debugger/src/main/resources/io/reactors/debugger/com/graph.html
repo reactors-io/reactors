@@ -1,5 +1,6 @@
 @@style(io/reactors/debugger/lib/bootstrap/css/bootstrap.min.css)
 @@library(io/reactors/debugger/js/util.js)
+@@library(io/reactors/debugger/js/animation.js)
 @@library(io/reactors/debugger/js/event-bus.js)
 @@library(io/reactors/debugger/lib/jquery/jquery-1.12.4.min.js)
 @@library(io/reactors/debugger/lib/bootstrap/js/bootstrap.min.js)
@@ -101,7 +102,7 @@
         var label = this.model.reactors[uid].name;
         var x = 6.0 * Math.random();
         var y = 6.0 * Math.random();
-        this.ctx.animator.startBudgetAnimation(14, 0.01, 1.0,
+        var ani = animation.linear(14, 0.01, 1.0,
           () => {
             this.sigma.graph.addNode({
               id: uid,
@@ -112,18 +113,17 @@
             });
           },
           (v) => this.setNodeSize(uid, v),
-          () => this.numAnimations -= 1
+          () => {}
         );
+        this.ctx.animator.startBudgeted(ani);
       },
       removeReactor: function(uid) {
-        this.ctx.animator.startBudgetAnimation(14, 1.0, 0.01,
+        var ani = animation.linear(14, 1.0, 0.01,
           () => {},
           (v) => this.setNodeSize(uid, v),
-          () => {
-            this.sigma.graph.dropNode(uid);
-            this.numAnimations -= 1;
-          }
+          () => this.sigma.graph.dropNode(uid)
         );
+        this.ctx.animator.startBudgeted(ani);
       },
       getReactorCoordinates: function(uid) {
         var r = this.sigma.graph.nodes(uid);
