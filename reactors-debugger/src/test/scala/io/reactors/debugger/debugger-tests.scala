@@ -92,13 +92,15 @@ object DebuggerTest {
     {
       runShellScenario(
         "import scala.concurrent.duration._",
-        "val ch = system.spawn(Reactor[String] { self => })"
+        "val proto = Reactor[String] { self => }",
+        "val ch = system.spawn(proto.withName(\"shell-test-reactor\"))"
       )
       logButton.click()
       (new WebDriverWait(driver, 10)).until(new ExpectedCondition[Boolean] {
         def apply(d: WebDriver) = {
           val tdElements = driver.findElements(By.tagName("td")).asScala
-          tdElements.exists(_.getText.matches("Reactor '.*' \\(UID: .*\\) created."))
+          tdElements.exists(
+            _.getText.matches("Reactor 'shell-test-reactor' \\(UID: .*\\) created."))
         }
       })
     }
