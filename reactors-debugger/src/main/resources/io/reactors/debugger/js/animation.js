@@ -9,7 +9,8 @@ class Interpolator {
       },
       next: () => {
         return f(this.next());
-      }
+      },
+      stop: () => this.stop()
     }
   }
 }
@@ -41,10 +42,10 @@ class LinearInterpolator extends Interpolator {
 
 
 class Animation {
-  constructor(interpolator, onStart, setter, onComplete) {
+  constructor(interpolator, setter, onStart, onComplete) {
     this.interpolator = interpolator;
-    this.onStart = onStart;
     this.setter = setter;
+    this.onStart = onStart;
     this.onComplete = onComplete;
   }
 
@@ -64,6 +65,7 @@ class Animation {
   }
 
   stop() {
+    this.interpolator.stop();
     if (this.onComplete) {
       this.onComplete();
       this.onComplete = null;
@@ -96,7 +98,7 @@ class Animator {
       var originalOnComplete = ani.onComplete;
       ani.onComplete = () => {
         this.totalAnimations -= 1;
-        originalOnComplete();
+        if (originalOnComplete) originalOnComplete();
       };
       this.start(ani);
     } else {
@@ -106,26 +108,26 @@ class Animator {
   }
 
   startLabeled(label, ani) {
-    var originalOnComplete = ani.onComplete();
+    var originalOnComplete = ani.onComplete;
     ani.onComplete = () => {
       var currAni = this.labeledAnimations[label];
       if (currAni === ani) {
         delete this.labeledAnimations[label];
-        originalOnComplete();
+        if (originalOnComplete) originalOnComplete();
       }
     }
     if (this.labeledAnimations[label]) {
       this.labeledAnimations[label].stop();
     }
     this.labeledAnimations[label] = ani;
-    start(ani);
+    this.start(ani);
   }
 }
 
 
 var animation = {
-  linear: (total, from, end, onStart, setter, onComplete) => {
+  linear: (total, from, end, setter, onStart, onComplete) => {
     var i = new LinearInterpolator(total, from, end);
-    return new Animation(i, onStart, setter, onComplete);
+    return new Animation(i, setter, onStart, onComplete);
   }
 };

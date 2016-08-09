@@ -72,10 +72,10 @@
       // Install event bus observers.
       this.subscriptions.push(eventBus.observe("moveToReactor", (id) => {
         var xy = this.getReactorCoordinates(id);
-        if (xy) this.sigma.camera.goTo(xy);
+        if (xy) this.moveAnimatedTo(xy);
       }));
       this.subscriptions.push(eventBus.observe("moveTo", (x, y) => {
-        this.sigma.camera.goTo({ x: x, y: y });
+        this.moveAnimatedTo({ x: x, y: y });
       }));
 
       // Install coordinate listeners.
@@ -103,6 +103,7 @@
         var x = 6.0 * Math.random();
         var y = 6.0 * Math.random();
         var ani = animation.linear(14, 0.01, 1.0,
+          (v) => this.setNodeSize(uid, v),
           () => {
             this.sigma.graph.addNode({
               id: uid,
@@ -112,15 +113,25 @@
               size: 1.0
             });
           },
-          (v) => this.setNodeSize(uid, v),
           () => {}
         );
         this.ctx.animator.startBudgeted(ani);
       },
+      moveAnimatedTo: function(xy) {
+        var startx = this.sigma.camera.x;
+        var starty = this.sigma.camera.y;
+        var interpolator = new LinearInterpolator(24, 0.0, 1.0).map(v => {
+          var x = startx + (xy.x - startx) * v;
+          var y = starty + (xy.y - starty) * v;
+          return { x: x, y: y };
+        });
+        var ani = new Animation(interpolator, (xy) => this.sigma.camera.goTo(xy));
+        this.ctx.animator.startLabeled("move", ani);
+      },
       removeReactor: function(uid) {
         var ani = animation.linear(14, 1.0, 0.01,
-          () => {},
           (v) => this.setNodeSize(uid, v),
+          () => {},
           () => this.sigma.graph.dropNode(uid)
         );
         this.ctx.animator.startBudgeted(ani);
