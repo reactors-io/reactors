@@ -56,7 +56,7 @@ class SmoothStepInterpolator extends RangeInterpolator {
     super(totalFrames, from, end, (from, end, frame, totalFrames) => {
       var x = 1.0 * frame / totalFrames;
       var factor = x * x * x * (x * (x * 6 - 15) + 10);
-      return (end - from) * factor;
+      return from + (end - from) * factor;
     });
   }
 }
@@ -149,6 +149,10 @@ class Animator {
 var animation = {
   linear: (total, from, end, setter, onStart, onComplete) => {
     var i = new LinearInterpolator(total, from, end);
+    return new Animation(i, setter, onStart, onComplete);
+  },
+  smoothstep: (total, from, end, setter, onStart, onComplete) => {
+    var i = new SmoothStepInterpolator(total, from, end);
     return new Animation(i, setter, onStart, onComplete);
   }
 };

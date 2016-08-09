@@ -102,7 +102,7 @@
         var label = this.model.reactors[uid].name;
         var x = 6.0 * Math.random();
         var y = 6.0 * Math.random();
-        var ani = animation.linear(14, 0.01, 1.0,
+        var ani = animation.smoothstep(14, 0.01, 1.0,
           (v) => this.setNodeSize(uid, v),
           () => {
             this.sigma.graph.addNode({
@@ -129,7 +129,7 @@
         this.ctx.animator.startLabeled("move", ani);
       },
       removeReactor: function(uid) {
-        var ani = animation.linear(14, 1.0, 0.01,
+        var ani = animation.smoothstep(14, 1.0, 0.01,
           (v) => this.setNodeSize(uid, v),
           () => {},
           () => this.sigma.graph.dropNode(uid)
