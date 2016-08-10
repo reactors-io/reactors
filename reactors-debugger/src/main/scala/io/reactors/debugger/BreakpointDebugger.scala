@@ -4,6 +4,7 @@ package debugger
 
 
 import io.reactors.common.UnrolledRing
+import io.reactors.concurrent.Frame
 import java.util.concurrent.atomic.AtomicLong
 import scala.collection._
 
@@ -24,7 +25,7 @@ class BreakpointDebugger(val system: ReactorSystem, val deltaDebugger: DeltaDebu
   def eventDelivered[@spec(Int, Long, Double) T](c: Channel[T], x: T) {
   }
 
-  def reactorStarted(r: Reactor[_]) {
+  def reactorStarted(f: Frame) {
   }
 
   def reactorScheduled(r: Reactor[_]) {

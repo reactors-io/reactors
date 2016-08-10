@@ -65,6 +65,10 @@
         this.removeReactor(r.uid);
       }));
 
+      this.subscriptions.push(this.events.sends.observe((sends) => {
+        // TODO
+      }));
+
       this.subscriptions.push(this.events.stateUpdateDone.observe(() => {
         this.endResetState();
       }));

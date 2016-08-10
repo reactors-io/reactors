@@ -2,6 +2,7 @@ package io.reactors
 
 
 
+import io.reactors.concurrent.Frame
 
 
 
@@ -22,7 +23,7 @@ abstract class DebugApi {
 
   /** Called when a reactor starts.
    */
-  def reactorStarted(r: Reactor[_]): Unit
+  def reactorStarted(f: Frame): Unit
 
   /** Called when a reactor is scheduled, i.e. gets execution time on some CPU.
    */
@@ -70,7 +71,7 @@ object DebugApi {
     def eventDelivered[@spec(Int, Long, Double) T](c: Channel[T], x: T) {
     }
 
-    def reactorStarted(r: Reactor[_]) {
+    def reactorStarted(f: Frame) {
     }
 
     def reactorScheduled(r: Reactor[_]) {

@@ -4,6 +4,7 @@ package debugger
 
 
 import io.reactors.common.Uid
+import io.reactors.concurrent.Frame
 import java.util.TimerTask
 import org.json4s._
 import org.json4s.JsonDSL._
@@ -60,11 +61,11 @@ extends DebugApi with Protocol.Service with WebApi {
     }
   }
 
-  def reactorStarted(r: Reactor[_]) {
+  def reactorStarted(f: Frame) {
     if (deltaDebugger != null) monitor.synchronized {
       if (deltaDebugger != null) {
-        deltaDebugger.reactorStarted(r)
-        breakpointDebugger.reactorStarted(r)
+        deltaDebugger.reactorStarted(f)
+        breakpointDebugger.reactorStarted(f)
       }
     }
   }
