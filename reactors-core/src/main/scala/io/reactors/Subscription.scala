@@ -53,6 +53,10 @@ object Subscription {
     def unsubscribe() = {}
   }
 
+  /** Subscription composed of several subscriptions.
+   *
+   *  When unsubscribed, all the component subscriptions get unsubscribed.
+   */
   class Composite(ss: Subscription*) extends Subscription {
     def unsubscribe() {
       for (s <- ss) s.unsubscribe()
