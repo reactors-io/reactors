@@ -20,7 +20,8 @@ class DebuggerTest extends FunSuite {
     val cmd = Seq(
       "xvfb-run", "java", "-cp", classpath, "io.reactors.debugger.DebuggerTest")
     val cwd = new File("../")
-    assert(Process(cmd, cwd).! == 0) 
+    if (sys.env.contains("TRAVIS")) assert(Process(cmd, cwd).! == 0)
+    else println("Skipping UI test in Travis!")
   }
 }
 
