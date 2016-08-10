@@ -3,12 +3,26 @@ package debugger
 
 
 
+import java.io.File
 import org.openqa.selenium._
 import org.openqa.selenium.chrome._
 import org.openqa.selenium.interactions._
 import org.openqa.selenium.support.ui._
+import org.scalatest._
 import scala.collection.JavaConverters._
+import scala.sys.process._
 
+
+
+class DebuggerTest extends FunSuite {
+  test("test basic debugger scenarios") {
+    val classpath = System.getProperty("java.class.path")
+    val cmd = Seq(
+      "xvfb-run", "java", "-cp", classpath, "io.reactors.debugger.DebuggerTest")
+    val cwd = new File("../")
+    assert(Process(cmd, cwd).! == 0) 
+  }
+}
 
 
 object DebuggerTest {

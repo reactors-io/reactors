@@ -120,7 +120,7 @@
       moveAnimatedTo: function(xy) {
         var startx = this.sigma.camera.x;
         var starty = this.sigma.camera.y;
-        var interpolator = new SmoothStepInterpolator(16, 0.0, 1.0).map(v => {
+        var interpolator = new SmoothStepInterpolator(18, 0.0, 1.0).map(v => {
           var x = startx + (xy.x - startx) * v;
           var y = starty + (xy.y - starty) * v;
           return { x: x, y: y };
