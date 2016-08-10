@@ -37,6 +37,7 @@
           reactors: {},
           channels: {},
           shellPendingOutput: {},
+          sends: {}
         },
         events: new Events(),
         history: [],
@@ -147,6 +148,10 @@
           case "seal":
             delete this.state.channels[delta[1]];
             break;
+          case "sent":
+            var sends = delta[1];
+            // TODO: Update state and post event.
+            break;
         }
       },
       enrichDelta: function(delta) {
@@ -179,6 +184,9 @@
             enriched.channelName = this.state.channels[delta[1]].name;
             enriched.reactorId = this.state.channels[delta[1]].reactor;
             enriched.reactorName = this.state.reactors[enriched.reactorId].name;
+            break;
+          case "sent":
+            enriched.sends = delta[1];
             break;
         }
         var link = this.linkFor(enriched);
