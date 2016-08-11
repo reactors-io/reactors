@@ -102,10 +102,13 @@
         this.sigma.graph.clear();
       },
       setNodeSize: function(uid, sz) {
-        this.sigma.graph.nodes(uid).size = sz;
-        this.sigma.refresh({
-          skipIndexation: true
-        });
+        var node = this.sigma.graph.nodes(uid)
+        if (node) {
+          node.size = sz;
+          this.sigma.refresh({
+            skipIndexation: true
+          });
+        }
       },
       addReactor: function(uid) {
         var label = this.model.reactors[uid].name;

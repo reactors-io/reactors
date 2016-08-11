@@ -13,13 +13,14 @@ import scala.collection._
 
 class DeltaDebugger(val system: ReactorSystem, val sessionuid: String) {
   private val monitor = system.monitor
-  private val windowSize = 512
   private val oldstate = new DeltaDebugger.State()
   private var oldtimestamp = 0L
   private var curstate: DeltaDebugger.State = null
   private var curtimestamp = 0L
   private val deltas = new UnrolledRing[DeltaDebugger.Delta]
   private var pendingSends = mutable.Map[(Long, Long), Long]()
+  private val windowSize =
+    system.bundle.config.getInt("debug-api.delta-debugger.window-size")
 
   {
     monitor.synchronized {

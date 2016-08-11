@@ -163,6 +163,9 @@ object ReactorSystem {
           expiration = 240
           expiration-check-period = 150
         }
+        delta-debugger = {
+          window-size = 1024
+        }
       }
       scheduler = {
         spindown = {
