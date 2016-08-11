@@ -128,7 +128,7 @@ class Animator {
     }
   }
 
-  startLabeled(label, ani) {
+  startLabeled(ani, label, budgeted) {
     var originalOnComplete = ani.onComplete;
     ani.onComplete = () => {
       var currAni = this.labeledAnimations[label];
@@ -141,7 +141,11 @@ class Animator {
       this.labeledAnimations[label].stop();
     }
     this.labeledAnimations[label] = ani;
-    this.start(ani);
+    if (budgeted) {
+      this.startBudgeted(ani);
+    } else {
+      this.start(ani);
+    }
   }
 }
 

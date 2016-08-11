@@ -124,7 +124,7 @@
           },
           () => {}
         );
-        this.ctx.animator.startBudgeted(ani);
+        this.ctx.animator.startLabeled(ani, "reactor-" + uid, true);
       },
       moveAnimatedTo: function(xy) {
         var startx = this.sigma.camera.x;
@@ -135,7 +135,7 @@
           return { x: x, y: y };
         });
         var ani = new Animation(interpolator, (xy) => this.sigma.camera.goTo(xy));
-        this.ctx.animator.startLabeled("move", ani);
+        this.ctx.animator.startLabeled(ani, "move");
       },
       removeReactor: function(uid) {
         var ani = animation.smoothstep(14, 1.0, 0.01,
@@ -143,7 +143,7 @@
           () => {},
           () => this.sigma.graph.dropNode(uid)
         );
-        this.ctx.animator.startBudgeted(ani);
+        this.ctx.animator.startLabeled(ani, "reactor-" + uid, true);
       },
       getReactorCoordinates: function(uid) {
         var r = this.sigma.graph.nodes(uid);
@@ -165,8 +165,9 @@
               id: key,
               source: send[0],
               target: send[1],
-              size: 0.22,
-              color: style.getPropertyValue("--graph-edge-color")
+              size: 0.2,
+              color: style.getPropertyValue("--graph-edge-color"),
+              type: "arrow"
             });
           }
         }
