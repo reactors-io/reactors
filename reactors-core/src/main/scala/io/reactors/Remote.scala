@@ -6,6 +6,12 @@ import scala.collection._
 
 
 
+/** Service that tracks different transports for remote communication.
+ *
+ *  The most important method is `resolve`, which creates a channel from a
+ *  channel URL. This allows communication with reactors in non-local
+ *  reactor systems, e.g. in another process, or on another machine.
+ */
 class Remote(val system: ReactorSystem) extends Protocol.Service {
   private val transports = mutable.Map[String, Remote.Transport]()
 
