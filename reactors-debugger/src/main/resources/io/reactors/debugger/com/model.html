@@ -254,7 +254,12 @@
             return "Channel '" + delta.channelName +
               "' (UID: " + delta.channelId + ") sealed.";
           case "sent":
-            return "Events sent.";
+            var count = 0;
+            for (var i = 0; i < delta.sends.length; i++) {
+              var send = delta.sends[i];
+              count += send[2];
+            }
+            return "Total of " + count + " event(s) sent.";
           default:
             return "Unknown event " + delta.tpe + ".";
         }
