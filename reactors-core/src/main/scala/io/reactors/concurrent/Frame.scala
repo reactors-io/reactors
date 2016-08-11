@@ -62,7 +62,10 @@ final class Frame(
       u
     }
 
-    // 3. Return connector.
+    // 3. Put connector to global store.
+    reactorSystem.channels.set(this.name + "#" + uname, chan)
+
+    // 4. Return connector.
     conn
   }
 
@@ -248,6 +251,8 @@ final class Frame(
         reactorSystem.debugApi.reactorTerminated(reactor)
         if (reactor != null) sysEmitter.react(ReactorTerminated)
       } finally {
+        for ((uid, name, conn) <- connectors.values)
+          reactorSystem.channels.remove(this.name + "#" + name)
         reactorSystem.frames.tryRelease(name)
       }
     }
@@ -263,6 +268,9 @@ final class Frame(
       checkTerminated(false)
     }
   }
+
+  private def connectorName(conn: Connector[_]): String =
+    this.name + "#" + conn.sharedChannel.url.anchor
 
   def hasTerminated: Boolean = monitor.synchronized {
     lifecycleState == Frame.Terminated
@@ -286,6 +294,7 @@ final class Frame(
         conn.sharedChannel.asLocal.isOpen = false
         decrementConnectorCount(conn)
         assert(connectors.tryReleaseById(uid))
+        reactorSystem.channels.remove(connectorName(conn))
         conn
       }
     }

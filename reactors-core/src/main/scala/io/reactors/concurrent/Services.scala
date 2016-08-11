@@ -10,10 +10,12 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Timer
 import java.util.TimerTask
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.atomic._
 import org.apache.commons.io._
 import scala.annotation.tailrec
+import scala.annotation.unchecked
 import scala.collection._
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
@@ -130,14 +132,30 @@ object Services {
     }
   }
 
+  private[reactors] class NameAwaiterReactor
+  extends Reactor[(String, Channel[Channel[_]])] {
+    main.events onMatch {
+      case (name, answer) =>
+    }
+  }
+
   /** Contains name resolution reactors.
    */
   class Names(val system: ReactorSystem) extends Protocol.Service {
-    /** Replies to channel lookup requests.
+    /** Immediately replies to channel lookup requests.
      */
-    lazy val resolve = {
+    lazy val resolve: Channel[(String, Channel[Option[Channel[_]]])] = {
       val p = Proto[NameResolverReactor]
         .withName("~names/resolve")
+        .withChannelName("channel")
+      system.spawn(p)
+    }
+
+    /** Eventually replies to a channel lookup request, when the channel appears.
+     */
+    lazy val await: Channel[(String, Channel[Channel[_]])] = {
+      val p = Proto[NameAwaiterReactor]
+        .withName("~names/await")
         .withChannelName("channel")
       system.spawn(p)
     }
@@ -313,7 +331,35 @@ object Services {
   class Channels(val system: ReactorSystem)
   extends ChannelBuilder(null, false, EventQueue.UnrolledRing.Factory)
   with Protocol.Service {
+    private val store = new ConcurrentHashMap[String, AnyRef]
+
     def shutdown() {
+    }
+
+    /** Binds the specified name to the specific channel.
+     *
+     *  Invoked whenever a channel is created.
+     */
+    @tailrec private[reactors] final def set[T](name: String, ch: Channel[T]): Unit = {
+      (store.get(name): @unchecked) match {
+        case null =>
+          if (store.putIfAbsent(name, ch) != null) set(name, ch)
+        case lst: List[Channel[T] => Unit] @unchecked =>
+          if (!store.replace(name, lst, ch)) set(name, ch)
+          else for (f <- lst) f(ch)
+        case och: Channel[T] =>
+          if (!store.replace(name, och, ch)) set(name, ch)
+      }
+    }
+
+    /** Removes the channel under the specified name.
+     */
+    @tailrec private[reactors] final def remove(name: String): Unit = {
+      (store.get(name): @unchecked) match {
+        case och: Channel[_] =>
+          if (!store.remove(name, och)) remove(name)
+        case _ =>
+      }
     }
 
     /** Optionally returns the channel with the given name, if it exists.
@@ -321,8 +367,11 @@ object Services {
      *  @param name      names of the reactor and the channel, separated with a `#`
      */
     def get[T](name: String): Option[Channel[T]] = {
-      val parts = name.split("#")
-      get[T](parts(0), parts(1))
+      (store.get(name): @unchecked) match {
+        case null => None
+        case lst: List[() => Unit] @unchecked => None
+        case ch: Channel[T] => Some(ch)
+      }
     }
 
     /** Optionally returns the channel with the given name, if it exists.
@@ -331,12 +380,26 @@ object Services {
      *  @param channelName  name of the channel
      */
     def get[T](reactorName: String, channelName: String): Option[Channel[T]] = {
-      val frame = system.frames.forName(reactorName)
-      if (frame == null) None
-      else {
-        val conn = frame.connectors.forName(channelName)
-        if (conn == null) None
-        else Some(conn.channel.asInstanceOf[Channel[T]])
+      get(reactorName + "#" + channelName)
+    }
+
+    /** Await for the channel with the specified name.
+     *
+     *  When the channel with the specified name becomes available, invokes the
+     *  specified callback function.
+     *
+     *  @param name      names of the reactor and the channel, separated with `#`
+     */
+    @tailrec private[reactors] final def await[T](
+      name: String, callback: Channel[T] => Unit
+    ): Unit = {
+      (store.get(name): @unchecked) match {
+        case null =>
+          if (store.putIfAbsent(name, callback :: Nil) != null) await(name, callback)
+        case lst: List[Channel[_] => Unit] @unchecked =>
+          if (!store.replace(name, lst, callback :: lst)) await(name, callback)
+        case ch: Channel[T] =>
+          callback(ch)
       }
     }
   }
