@@ -172,6 +172,9 @@
               color: style.getPropertyValue("--graph-edge-color"),
               type: "arrow"
             });
+            this.sigma.refresh({
+              skipIndexation: true
+            });
           }
         }
       }

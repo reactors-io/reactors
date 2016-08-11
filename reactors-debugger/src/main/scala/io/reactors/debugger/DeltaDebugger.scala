@@ -31,15 +31,19 @@ class DeltaDebugger(val system: ReactorSystem, val sessionuid: String) {
     curstate = oldstate.copy()
   }
 
+  private def commitPendingSends() = monitor.synchronized {
+    if (pendingSends.nonEmpty) {
+      val delta = DeltaDebugger.EventsSent(pendingSends.toList.toMap)
+      deltas.enqueue(delta)
+      delta.apply(curstate)
+      curtimestamp += 1
+      pendingSends.clear()
+    }
+  }
+
   private def enqueue(delta: DeltaDebugger.Delta) {
     monitor.synchronized {
-      if (pendingSends.nonEmpty) {
-        val delta = DeltaDebugger.EventsSent(pendingSends.toList.toMap)
-        deltas.enqueue(delta)
-        delta.apply(curstate)
-        curtimestamp += 1
-        pendingSends.clear()
-      }
+      commitPendingSends()
       deltas.enqueue(delta)
       delta.apply(curstate)
       curtimestamp += 1
@@ -53,6 +57,7 @@ class DeltaDebugger(val system: ReactorSystem, val sessionuid: String) {
 
   def state(suid: String, reqts: Long): JObject = {
     monitor.synchronized {
+      commitPendingSends()
       if (suid != sessionuid || reqts < oldtimestamp) {
         DeltaDebugger.toJson(sessionuid, curtimestamp, Some(curstate.copy()), None)
       } else {
