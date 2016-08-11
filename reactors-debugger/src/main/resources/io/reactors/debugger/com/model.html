@@ -75,6 +75,9 @@
                 this.state.channels[uid] = data.state.channels[uid];
               }
             }
+
+            // Update send counts.
+            this.updateSends(data.state.sends);
           } else {
             this.ensure(data.deltas, "Neither state nor deltas found in state update.");
             for (var i = 0; i < data.deltas.length; i++) {
@@ -150,8 +153,17 @@
             break;
           case "sent":
             var sends = delta[1];
-            // TODO: Update state and post event.
+            this.updateSends(sends);
+            this.events.sends.post(sends);
             break;
+        }
+      },
+      updateSends: function(sends) {
+        for (var i = 0; i < sends.length; i++) {
+          var send = sends[i];
+          var key = send[0] + "-" + send[1];
+          var currentCount = Dict.ensure(this.state.sends, key, 0);
+          this.state.sends[key] = currentCount + send[2];
         }
       },
       enrichDelta: function(delta) {

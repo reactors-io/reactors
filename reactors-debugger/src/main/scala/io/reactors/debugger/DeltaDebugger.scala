@@ -71,9 +71,13 @@ class DeltaDebugger(val system: ReactorSystem, val sessionuid: String) {
   def eventSent[@spec(Int, Long, Double) T](c: Channel[T], x: T) {
     monitor.synchronized {
       val f = Reactor.currentFrame
-      if (f != null && c.isInstanceOf[Identifiable]) {
+      val cuid = c match {
+        case c: Channel.Local[_] => Some(c.frame.uid)
+        case _ => None
+      }
+      if (f != null && cuid.nonEmpty) {
         val senderUid = f.uid
-        val targetUid = c.asInstanceOf[Identifiable].uid
+        val targetUid = cuid.get
         val pair = (senderUid, targetUid)
         val count = pendingSends.getOrElse(pair, 0L)
         pendingSends(pair) = count + 1

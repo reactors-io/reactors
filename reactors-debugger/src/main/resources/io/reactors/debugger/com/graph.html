@@ -66,7 +66,7 @@
       }));
 
       this.subscriptions.push(this.events.sends.observe((sends) => {
-        // TODO
+        this.updateEdges(sends);
       }));
 
       this.subscriptions.push(this.events.stateUpdateDone.observe(() => {
@@ -147,6 +147,21 @@
       },
       endResetState: function() {
         this.sigma.refresh();
+      },
+      updateEdges: function(sends) {
+        for (var i = 0; i < sends.length; i++) {
+          var send = sends[i];
+          var key = send[0] + "-" + send[1];
+          var count = this.model.sends[key];
+          var edge = this.sigma.graph.edges(key);
+          if (!edge) {
+            this.sigma.graph.addEdge({
+              id: key,
+              source: send[0],
+              target: send[1]
+            });
+          }
+        }
       }
     },
     destroyed: function() {
