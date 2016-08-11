@@ -103,21 +103,50 @@ object DebuggerTest {
       Thread.sleep(1000)
     }
 
+    def waitUntil(f: WebDriver => Boolean) = {
+      (new WebDriverWait(driver, 10)).until(new ExpectedCondition[Boolean] {
+        def apply(d: WebDriver) = f(d)
+      })
+    }
+
     // Test that reactor creation is correctly logged.
     {
       runShellScenario(
-        "import scala.concurrent.duration._",
         "val proto = Reactor[String] { self => }",
-        "val ch = system.spawn(proto.withName(\"shell-test-reactor\"))"
+        "val ch = system.spawn(proto.withName(\"test-reactor-shell\"))"
       )
       logButton.click()
-      (new WebDriverWait(driver, 10)).until(new ExpectedCondition[Boolean] {
-        def apply(d: WebDriver) = {
-          val tdElements = driver.findElements(By.tagName("td")).asScala
-          tdElements.exists(
-            _.getText.matches("Reactor 'shell-test-reactor' \\(UID: .*\\) created."))
-        }
-      })
+      waitUntil { driver =>
+        val tdElements = driver.findElements(By.tagName("td")).asScala
+        tdElements.exists(
+          _.getText.matches("Reactor 'test-reactor-shell' \\(UID: .*\\) created."))
+      }
+    }
+
+    // Test that event sends are logged.
+    {
+      runShellScenario(
+        "val proto = Reactor[String] { self => self.main.events.on(self.main.seal()) }",
+        "val ch = system.spawn(proto.withName(\"test-receiver\"))",
+        "val proto = Reactor[String] { self => ch ! \"test\"; self.main.seal() }",
+        "system.spawn(proto.withName(\"test-sender\"))"
+      )
+      logButton.click()
+      waitUntil { driver =>
+        val tdElements = driver.findElements(By.tagName("td")).asScala
+        tdElements.exists(_.getText.matches(
+          "Reactor 'test-receiver' \\(UID: .*\\) created."))
+      }
+      waitUntil { driver =>
+        val tdElements = driver.findElements(By.tagName("td")).asScala
+        tdElements.exists(_.getText.matches(
+          "Reactor 'test-sender' \\(UID: .*\\) created."))
+      }
+      waitUntil { driver =>
+        val tdElements = driver.findElements(By.tagName("td")).asScala
+        tdElements.exists(_.getText.matches(
+          "Total of 1 event\\(s\\) sent \\(from 'test-sender' to 'test-receiver'\\)."))
+      }
     }
 
     // Wait for easier debugging.

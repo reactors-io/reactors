@@ -259,7 +259,18 @@
               var send = delta.sends[i];
               count += send[2];
             }
-            return "Total of " + count + " event(s) sent.";
+            var extraInfo = "";
+            if (delta.sends.length == 1) {
+              var send = delta.sends[0];
+              var suid = send[0];
+              var tuid = send[1];
+              var sname = this.state.reactors[suid].name;
+              var tname = this.state.reactors[tuid].name;
+              extraInfo = " (from '" + sname + "' to '" + tname + "')";
+            } else {
+              extraInfo = " (from " + delta.sends.length + " different sources)";
+            }
+            return "Total of " + count + " event(s) sent" + extraInfo + ".";
           default:
             return "Unknown event " + delta.tpe + ".";
         }
