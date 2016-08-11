@@ -34,12 +34,17 @@
       this.sigma = new sigma({
         container: "x-graph-sigma-" + this.uid,
         settings: {
+          borderSize: 1,
+          defaultNodeBorderColor:
+            style.getPropertyValue("--graph-node-hover-border-color"),
           defaultNodeColor: style.getPropertyValue("--graph-node-color"),
           defaultLabelColor: style.getPropertyValue("--graph-label-color"),
           defaultHoverLabelBGColor:
             style.getPropertyValue("--graph-label-hover-background-color"),
           defaultLabelHoverColor:
             style.getPropertyValue("--graph-label-hover-color"),
+          minEdgeSize: 0.15,
+          maxEdgeSize: 0.35,
           autoRescale: false,
           zoomMin: 0.007,
           zoomMax: 0.125,
@@ -155,10 +160,13 @@
           var count = this.model.sends[key];
           var edge = this.sigma.graph.edges(key);
           if (!edge) {
+            var style = window.getComputedStyle(document.body);
             this.sigma.graph.addEdge({
               id: key,
               source: send[0],
-              target: send[1]
+              target: send[1],
+              size: 0.22,
+              color: style.getPropertyValue("--graph-edge-color")
             });
           }
         }

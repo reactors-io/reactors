@@ -17,9 +17,11 @@
   --status-badge-error-color: rgba(200, 0, 0, 0.7);
   --status-badge-default-color: rgba(120, 120, 120, 0.7);
   --graph-node-color: rgba(0, 220, 0, 1.0);
+  --graph-node-hover-border-color: rgba(255, 255, 255, 0.9);
   --graph-label-color: rgba(255, 255, 255, 0.8);
   --graph-label-hover-color: rgba(255, 255, 255, 0.8);
   --graph-label-hover-background-color: rgba(15, 15, 15, 0.5);
+  --graph-edge-color: rgba(255, 255, 255, 0.9);
   --log-event-created: rgba(0, 150, 0, 0.95);
   --log-event-terminated: rgba(250, 100, 0, 0.95);
   --log-event-sent: rgba(0, 100, 255, 0.95);
