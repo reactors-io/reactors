@@ -217,17 +217,21 @@
         switch (delta.tpe) {
           case "start":
             var id = delta.reactorId;
-            return "<span class='x-log-window-event-created x-log-window-event' " +
+            return "<span class='x-model-event-created x-model-event' " +
               "  onClick='eventBus.emit(\"moveToReactor\", " + id + ")'>" +
               "<i class='icon ion-nuclear'></i> STARTED" +
               "</span>";
           case "term":
             var id = delta.reactorId;
             var c = this.ctx.getReactorCoordinates(id);
-            return "<span class='x-log-window-event-terminated x-log-window-event' " +
+            return "<span class='x-model-event-terminated x-model-event' " +
               "  onClick='eventBus.emit(\"moveTo\", " + c.x + ", " + c.y + ")'>" +
               "<i class='icon ion-nuclear'></i> TERMINATED" +
               "</span>";
+          case "sent":
+            return "<span class='x-model-event-sent x-model-event'>" +
+              "<i class='icon ion-paper-airplane'></i> EVENTS SENT" +
+              "</span>"
           default:
             return "";
         }
@@ -249,6 +253,8 @@
           case "seal":
             return "Channel '" + delta.channelName +
               "' (UID: " + delta.channelId + ") sealed.";
+          case "sent":
+            return "Events sent.";
           default:
             return "Unknown event " + delta.tpe + ".";
         }
@@ -264,4 +270,23 @@
 
 
 <style type="text/css">
+  .x-model-event {
+    cursor: pointer;
+  }
+
+  .x-model-event:hover {
+    text-decoration: underline;
+  }
+
+  .x-model-event-created {
+    color: var(--log-event-created);
+  }
+
+  .x-model-event-terminated {
+    color: var(--log-event-terminated);
+  }
+
+  .x-model-event-sent {
+    color: var(--log-event-sent);
+  }
 </style>
