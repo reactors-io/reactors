@@ -24,7 +24,7 @@ class PatternsSpec extends FunSuite {
     val a2 = Promise[Int]()
     val ch = system.spawn(Reactor[Int] { self =>
       var left = 3
-      self.main.events.throttle(_ => 500.millis) onEvent { x =>
+      self.main.events.throttle(_ => 1000.millis) onEvent { x =>
         left -= 1
         if (left == 2) a2.success(x)
         if (left == 1) a1.success(x)
@@ -41,10 +41,10 @@ class PatternsSpec extends FunSuite {
     assert(a2.future.value.get.get == 7)
     assert(a1.future.value == None)
     assert(a0.future.value == None)
-    Thread.sleep(500)
+    Thread.sleep(1000)
     assert(a1.future.value.get.get == 11)
     assert(a0.future.value == None)
-    Thread.sleep(500)
+    Thread.sleep(1000)
     assert(a0.future.value.get.get == 17)
   }
 
