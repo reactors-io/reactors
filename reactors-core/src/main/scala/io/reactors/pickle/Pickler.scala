@@ -11,7 +11,20 @@ import java.nio.ByteBuffer
 /** Pickles an object into a byte buffer, so that it can be sent over the wire.
  */
 trait Pickler {
+  /** Pickles an object into the specified `ByteBuffer`.
+   *
+   *  @tparam T        type of the pickled object
+   *  @param x         pickled object
+   *  @param buffer    pickling target
+   */
   def pickle[@spec(Int, Long, Double) T](x: T, buffer: ByteBuffer): Unit
+
+  /** Depickles an object from the specified `ByteBuffer`.
+   *
+   *  @tparam T        type of the depickled object
+   *  @param buffer    pickling source
+   *  @return          the depickled object
+   */
   def depickle[@spec(Int, Long, Double) T](buffer: ByteBuffer): T
 }
 
