@@ -991,6 +991,8 @@ class ReactorSystemTest extends FunSuite with Matchers {
         }
       })
       assert(Await.result(p.future, 10.seconds) == "gotem")
+      Thread.sleep(1000)
+      assert(system.channels.get("awaitee#main") == None)
     } finally system.shutdown()
   }
 }
