@@ -935,12 +935,62 @@ class ReactorSystemTest extends FunSuite with Matchers {
     } finally system.shutdown()
   }
 
-  test("channels reactor should look up channels when asked") {
+  test("channel resolution reactor should look up channels when asked") {
     val system = ReactorSystem.default("test")
     try {
       val p = Promise[Boolean]
       system.spawn(Proto[ChannelsAskReactor](p).withName("chaki"))
       assert(Await.result(p.future, 10.seconds))
+    } finally system.shutdown()
+  }
+
+  test("channel await reactor should await channels when asked") {
+    val system = ReactorSystem.default("test")
+    try {
+      val p = Promise[String]
+      val awaitee = Reactor[String] { self =>
+        self.main.events.onEvent { x =>
+          p.success(x)
+          self.main.seal()
+        }
+      }
+      system.spawn(awaitee.withName("awaitee"))
+      system.spawn(Reactor[String] { self =>
+        val answer = system.channels.daemon.open[Channel[_]]
+        system.names.await ! (("awaitee#main", answer.channel))
+        answer.events onMatch {
+          case (ch: Channel[String] @unchecked) =>
+            ch ! "done"
+            self.main.seal()
+        }
+      })
+      assert(Await.result(p.future, 10.seconds) == "done")
+    } finally system.shutdown()
+  }
+
+  test("channel await reactor should await a channel that appears later") {
+    val system = ReactorSystem.default("test")
+    try {
+      val p = Promise[String]
+      val ch = system.spawn(Reactor[String] { self =>
+        val answer = system.channels.daemon.open[Channel[_]]
+        system.names.await ! (("awaitee#main", answer.channel))
+        answer.events onMatch {
+          case (ch: Channel[String] @unchecked) =>
+            ch ! "gotem"
+            self.main.seal()
+        }
+        system.clock.timeout(1.second) on {
+          val proto = Reactor[String] { self =>
+            self.main.events.onEvent { x =>
+              p.success(x)
+              self.main.seal()
+            }
+          }
+          system.spawn(proto.withName("awaitee"))
+        }
+      })
+      assert(Await.result(p.future, 10.seconds) == "gotem")
     } finally system.shutdown()
   }
 }

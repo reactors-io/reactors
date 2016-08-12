@@ -136,6 +136,7 @@ object Services {
   extends Reactor[(String, Channel[Channel[_]])] {
     main.events onMatch {
       case (name, answer) =>
+        system.channels.await(name, (ch: Channel[_]) => answer ! ch)
     }
   }
 
