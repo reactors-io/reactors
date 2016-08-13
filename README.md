@@ -11,6 +11,27 @@ on asynchronous event streams.
 - [documentation](http://reactors.io/learn/)
 - [download page](http://reactors.io/download/)
 
+# Usage
+
+Add the following line to your SBT project definition:
+
+```
+libraryDependencies ++= Seq("com.storm-enroute" %% "reactors" % "0.6")
+```
+
+Then, import the `io.reactors` package in your project:
+
+```
+import io.reactors._
+```
+
+Alternatively, you can download the artifact from
+[Maven](https://repo1.maven.org/maven2/com/storm-enroute/reactors_2.11/).
+
+To learn how to write reactor-based programs,
+please read the [tutorial](http://reactors.io/tutorialdocs/reactors/).
+
+
 # Contributing
 
 You will need to install [SBT](www.scala-sbt.org) build tool on your system.
