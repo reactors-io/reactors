@@ -27,7 +27,6 @@ import io.reactors._
 
 Alternatively, you can download the artifact from
 [Maven](https://repo1.maven.org/maven2/com/storm-enroute/reactors_2.11/).
-
 To learn how to write reactor-based programs,
 please read the [tutorial](http://reactors.io/tutorialdocs/reactors/).
 
