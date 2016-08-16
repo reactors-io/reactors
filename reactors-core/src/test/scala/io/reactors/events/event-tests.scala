@@ -654,6 +654,16 @@ class EventsSpec extends FunSuite {
     assert(done == Set(1, 2))
   }
 
+  test("batch") {
+    val es = new Events.Emitter[Int]
+    val bs = es.batch(3)
+    val seen = mutable.Buffer[Seq[Int]]()
+    bs.onEvent(seen += _)
+    for (i <- 0 until 7) es.react(i)
+    es.unreact()
+    assert(seen == Seq(Seq(0, 1, 2), Seq(3, 4, 5), Seq(6)))
+  }
+
   test("takeWhile") {
     val buffer = mutable.Buffer[String]()
     val emitter = new Events.Emitter[String]

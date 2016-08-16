@@ -499,6 +499,26 @@ trait Events[@spec(Int, Long, Double) T] {
   def groupBy[K](f: T => K): Events[(K, Events[T])] =
     new Events.GroupBy(this, f)
 
+  /** Groups adjacent events together into batches.
+   *
+   *  Batches have the specified size, unless `this` unreacts before sufficiently many
+   *  events are batched -- in this case, the last batch may have less events than what
+   *  was specified.
+   *
+   *  {{{
+   *  time       --------------------------------------->
+   *  this       -----1---2---3------------4---5--|
+   *  batch(3)   -------------[1, 2, 3]--------[4, 5]-|
+   *  }}}
+   *
+   *  @param sz         the size of each batch, must be greater than `0`
+   *  @return           event stream with batches of adjacent events
+   */
+  def batch(sz: Int): Events[Seq[T]] = {
+    assert(sz > 0)
+    new Events.Batch(this, sz)
+  }
+
   /** Returns a new event stream that forwards the events from `this` event stream as
    *  long as they satisfy the predicate `p`.
    *
@@ -1913,6 +1933,38 @@ object Events {
     def unreact() {
       target.unreact()
       for ((k, events) <- groups) events.unreact()
+    }
+  }
+
+  private[reactors] class Batch[@spec(Int, Long, Double) T](
+    val self: Events[T],
+    val sz: Int
+  ) extends Events[Seq[T]] {
+    def onReaction(observer: Observer[Seq[T]]): Subscription =
+      self.onReaction(new BatchObserver(observer, sz))
+  }
+
+  private[reactors] class BatchObserver[@spec(Int, Long, Double) T](
+    val target: Observer[Seq[T]],
+    val sz: Int
+  ) extends Observer[T] {
+    var currentBatch = mutable.ArrayBuffer[T]()
+    def react(value: T, hint: Any) {
+      currentBatch += value
+      if (currentBatch.size == sz) {
+        target.react(currentBatch, null)
+        currentBatch = mutable.ArrayBuffer[T]()
+      }
+    }
+    def except(t: Throwable) {
+      target.except(t)
+    }
+    def unreact() {
+      if (currentBatch.size > 0) {
+        target.react(currentBatch, null)
+        currentBatch = mutable.ArrayBuffer[T]()
+      }
+      target.unreact()
     }
   }
 
