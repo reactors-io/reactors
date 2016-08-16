@@ -3,6 +3,7 @@ package io.reactors
 
 
 import io.reactors.common._
+import scala.collection._
 import scala.runtime.IntRef
 import scala.util.Random
 
@@ -476,6 +477,27 @@ trait Events[@spec(Int, Long, Double) T] {
    */
   def map[@spec(Boolean, Int, Long, Double) S](f: T => S): Events[S] =
     new Events.Map(this, f)
+
+  /** Returns an event stream that groups events into event stream using a function.
+   *
+   *  For each unique key returned by the specified function `f`, the resulting event
+   *  stream emits a pair with the key and the event stream of values that map to that
+   *  key. The resulting event stream unreacts when `this` event stream unreacts. The
+   *  nested event streams also unreact when `this` event stream unreacts.
+   *
+   *  {{{
+   *  time            ----------------------------->
+   *  this            ---3-------5----4------7--8-->
+   *  groupBy(_ % 2)     (1, 3---5-----------7----->)
+   *                                  (0, 4-----8-->)
+   *  }}}
+   *
+   *  @tparam K         the type of the keys according to which events are grouped
+   *  @param f          the grouping function for the events
+   *  @return           event stream that emits keys and associated event streams
+   */
+  def groupBy[K](f: T => K): Events[(K, Events[T])] =
+    new Events.GroupBy(this, f)
 
   /** Returns a new event stream that forwards the events from `this` event stream as
    *  long as they satisfy the predicate `p`.
@@ -1854,6 +1876,43 @@ object Events {
     }
     def unreact() {
       target.unreact()
+    }
+  }
+
+  private[reactors] class GroupBy[@spec(Int, Long, Double) T, K](
+    val self: Events[T],
+    val f: T => K
+  ) extends Events[(K, Events[T])] {
+    def onReaction(observer: Observer[(K, Events[T])]): Subscription =
+      self.onReaction(new GroupByObserver(observer, f))
+  }
+
+  private[reactors] class GroupByObserver[@spec(Int, Long, Double) T, K](
+    val target: Observer[(K, Events[T])],
+    val f: T => K
+  ) extends Observer[T] {
+    val groups = mutable.Map[K, Events.Emitter[T]]()
+    def react(value: T, hint: Any) {
+      val k = try {
+        f(value)
+      } catch {
+        case NonLethal(t) =>
+          target.except(t)
+          return
+      }
+      if (!groups.contains(k)) {
+        val events = new Events.Emitter[T]
+        groups(k) = events
+        target.react((k, events), hint)
+      }
+      groups(k).react(value, hint)
+    }
+    def except(t: Throwable) {
+      target.except(t)
+    }
+    def unreact() {
+      target.unreact()
+      for ((k, events) <- groups) events.unreact()
     }
   }
 

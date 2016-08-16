@@ -631,6 +631,29 @@ class EventsSpec extends FunSuite {
     assert(buffer == Seq("7", "11"))
   }
 
+  test("group by") {
+    val es = new Events.Emitter[Int]
+    val gs = es.groupBy(_ % 3)
+    val seen = mutable.Map[Int, mutable.Set[Int]]()
+    val done = mutable.Set[Int]()
+    val sub = gs onMatch {
+      case (k, events) =>
+        seen(k) = mutable.Set[Int]()
+        events.onEventOrDone(seen(k) += _)(done += k)
+    }
+    es.react(2)
+    assert(seen(2) == Set(2))
+    assert(done.isEmpty)
+    es.react(1)
+    assert(seen(1) == Set(1))
+    assert(done.isEmpty)
+    es.react(7)
+    assert(seen(1) == Set(1, 7))
+    assert(done.isEmpty)
+    es.unreact()
+    assert(done == Set(1, 2))
+  }
+
   test("takeWhile") {
     val buffer = mutable.Buffer[String]()
     val emitter = new Events.Emitter[String]
