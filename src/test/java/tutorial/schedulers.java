@@ -82,4 +82,51 @@ public class schedulers {
     Assert.assertEquals("event 2", System.out.queue.take());
     Assert.assertEquals("terminating", System.out.queue.take());
   }
+
+  /*!begin-include!*/
+  /*!begin-code!*/
+  public static class LifecycleReactor extends Reactor<String> {
+    private boolean first = true;
+    public LifecycleReactor() {
+      sysEvents().onEvent(x -> {
+        if (x.isReactorStarted()) System.out.println("started");
+        else if (x.isReactorScheduled()) System.out.println("scheduled");
+        else if (x.isReactorPreempted()) {
+          System.out.println("preempted");
+          if (first) first = false;
+          else throw new RuntimeException();
+        } else if (x.isReactorDied()) System.out.println("died");
+        else if (x.isReactorTerminated()) System.out.println("terminated");
+      });
+    }
+  }
+  /*!end-code!*/
+  /*!end-include(reactors-java-schedulers-lifecycle.html)!*/
+
+  @Test
+  public void lifecycle() throws InterruptedException {
+    /*!begin-include!*/
+    /*!begin-code!*/
+    Channel<String> ch = system.spawn(Proto.create(LifecycleReactor.class));
+    /*!end-code!*/
+    /*!end-include(reactors-java-schedulers-lifecycle-spawn.html)!*/
+
+    Assert.assertEquals("started", System.out.queue.take());
+    Assert.assertEquals("scheduled", System.out.queue.take());
+    Assert.assertEquals("preempted", System.out.queue.take());
+
+    Thread.sleep(1000);
+
+    /*!begin-include!*/
+    /*!begin-code!*/
+    ch.send("event");
+    /*!end-code!*/
+    /*!end-include(reactors-java-schedulers-lifecycle-send.html)!*/
+
+    Assert.assertEquals("scheduled", System.out.queue.take());
+    Assert.assertEquals("preempted", System.out.queue.take());
+    Assert.assertEquals("died", System.out.queue.take());
+    Assert.assertEquals("terminated", System.out.queue.take());
+
+      }
 }
