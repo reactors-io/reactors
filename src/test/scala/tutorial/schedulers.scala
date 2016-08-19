@@ -45,7 +45,12 @@ import SchedulersMockup._
 /*!md
 We then define a reactor that logs incoming events,
 reports every time it gets scheduled,
-and ends after being scheduled three times:
+and ends after being scheduled three times.
+We will use the `sysEvents` stream of the reactor,
+which will be explained shortly -
+for now, all you need to know is that this stream produces
+events when the reactor gets some execution time (i.e. gets scheduled),
+and pauses its execution (i.e. gets preempted).
 !*/
 /*!begin-code!*/
 class Logger extends Reactor[String] {
