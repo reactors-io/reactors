@@ -6,7 +6,7 @@ topic: reactors
 logoname: reactress-mini-logo-flat.png
 projectname: Reactors.IO
 homepage: http://reactors.io
-permalink: /reactors/schedulers/index.html
+permalink: /reactors/schedulers-and-lifecycle/index.html
 pagenum: 3
 pagetot: 40
 section: guide
@@ -19,7 +19,12 @@ package tutorial
 /*!md
 ## Schedulers
 
-TODO
+Each reactor template can be used to start multiple reactor instances,
+and each reactor instance can be started with a different reactor scheduler.
+Different schedulers have different characteristics in terms of execution priority,
+frequency, latency and throughput.
+In this section, we'll take a look at how to use a non-default scheduler,
+and how to define custom schedulers when necessary.
 
 We start with the import of the standard Reactors.IO package:
 !*/
