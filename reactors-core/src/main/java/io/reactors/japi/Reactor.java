@@ -2,6 +2,7 @@ package io.reactors.japi;
 
 
 
+import io.reactors.SysEvent;
 import java.util.function.Consumer;
 
 
@@ -27,6 +28,10 @@ public abstract class Reactor<T> {
 
   public Connector<T> main() {
     return defaultConnector;
+  }
+
+  public Events<SysEvent> sysEvents() {
+    return new Events(frame.reactor().sysEvents());
   }
 
   private static class AnonymousReactor<T> extends Reactor<T> {

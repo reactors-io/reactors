@@ -60,7 +60,7 @@ import org.scalatest._
 
 
 
-class Introduction extends FunSuite with Matchers {
+class EventStreams extends FunSuite with Matchers {
   /*!md
   So far, so good!
   Now, let's study the basic data-type that drives most computations in the Reactors.IO

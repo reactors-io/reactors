@@ -62,60 +62,6 @@ package object reactors {
 
   /* system events */
 
-  /** System events are a special kind of internal events that can be observed
-   *  by reactors.
-   */
-  sealed trait SysEvent
-
-  /** Denotes start of a reactor.
-   *
-   *  Produced before any other event.
-   */
-  case object ReactorStarted extends SysEvent
-
-  /** Denotes the termination of a reactor.
-   *
-   *  Called after all other events.
-   */
-  case object ReactorTerminated extends SysEvent
-
-  /** Denotes that the reactor was scheduled for execution by the scheduler.
-   *
-   *  Always sent after `ReactorStarted` and before `ReactorTerminated`.
-   *
-   *  This event usually occurs when reactor is woken up to process incoming events,
-   *  but may be invoked even if there are no pending events.
-   *  This event is typically used in conjunction with a scheduler that periodically
-   *  wakes up the reactor.
-   */
-  case object ReactorScheduled extends SysEvent
-
-  /** Denotes that the reactor was preempted by the scheduler.
-   *
-   *  Always sent after `ReactorStarted` and before `ReactorTerminated`.
-   *
-   *  When the reactor is preempted, it loses control of the execution thread, until the
-   *  scheduler schedules it again on some (possibly the same) thread.
-   *  This event is typically used to send another message back to the reactor,
-   *  indicating that he should be scheduled again later.
-   */
-  case object ReactorPreempted extends SysEvent
-
-  /** Denotes that the reactor died due to an exception.
-   *
-   *  This event is sent after `ReactorStarted`.
-   *  This event is sent before `ReactorTerminated`, *unless* the exception is thrown
-   *  while `ReactorTerminated` is being processed, in which case the `ReactorDied` is
-   *  not sent.
-   *
-   *  Note that, if the exception is thrown during the reactor constructor invocation
-   *  and before the appropriate event handler is created, this event cannot be sent
-   *  to that event handler.
-   *
-   *  @param t              the exception that the reactor threw
-   */
-  case class ReactorDied(t: Throwable) extends SysEvent
-
   /* exceptions */
 
   object exception {
@@ -185,5 +131,83 @@ package object reactors {
   
   case class ChannelUrl(reactorUrl: ReactorUrl, anchor: String) {
     val channelName = s"${reactorUrl.name}#$anchor"
+  }
+}
+
+
+package reactors {
+  /** System events are a special kind of internal events that can be observed
+   *  by reactors.
+   */
+  sealed abstract class SysEvent {
+    def isReactorStarted: Boolean = false
+    def isReactorTerminated: Boolean = false
+    def isReactorScheduled: Boolean = false
+    def isReactorPreempted: Boolean = false
+    def isReactorDied: Boolean = false
+
+    /** Returns a `Throwable` object if the event denotes an error, or `null` otherwise.
+     */
+    def error: Throwable = null
+  }
+
+  /** Denotes start of a reactor.
+   *
+   *  Produced before any other event.
+   */
+  case object ReactorStarted extends SysEvent {
+    override def isReactorStarted = true
+  }
+
+  /** Denotes the termination of a reactor.
+   *
+   *  Called after all other events.
+   */
+  case object ReactorTerminated extends SysEvent {
+    override def isReactorTerminated = true
+  }
+
+  /** Denotes that the reactor was scheduled for execution by the scheduler.
+   *
+   *  Always sent after `ReactorStarted` and before `ReactorTerminated`.
+   *
+   *  This event usually occurs when reactor is woken up to process incoming events,
+   *  but may be invoked even if there are no pending events.
+   *  This event is typically used in conjunction with a scheduler that periodically
+   *  wakes up the reactor.
+   */
+  case object ReactorScheduled extends SysEvent {
+    override def isReactorScheduled = true
+  }
+
+  /** Denotes that the reactor was preempted by the scheduler.
+   *
+   *  Always sent after `ReactorStarted` and before `ReactorTerminated`.
+   *
+   *  When the reactor is preempted, it loses control of the execution thread, until the
+   *  scheduler schedules it again on some (possibly the same) thread.
+   *  This event is typically used to send another message back to the reactor,
+   *  indicating that he should be scheduled again later.
+   */
+  case object ReactorPreempted extends SysEvent {
+    override def isReactorPreempted = true
+  }
+
+  /** Denotes that the reactor died due to an exception.
+   *
+   *  This event is sent after `ReactorStarted`.
+   *  This event is sent before `ReactorTerminated`, *unless* the exception is thrown
+   *  while `ReactorTerminated` is being processed, in which case the `ReactorDied` is
+   *  not sent.
+   *
+   *  Note that, if the exception is thrown during the reactor constructor invocation
+   *  and before the appropriate event handler is created, this event cannot be sent
+   *  to that event handler.
+   *
+   *  @param t              the exception that the reactor threw
+   */
+  case class ReactorDied(t: Throwable) extends SysEvent {
+    override def isReactorDied = true
+    override def error = t
   }
 }
