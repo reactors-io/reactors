@@ -48,7 +48,7 @@ public class schedulers {
   /*!end-include(reactors-java-schedulers-system.html)!*/
 
   @Test
-  public void forkJoinScheduler() throws InterruptedException {
+  public void globalExecutionContext() throws InterruptedException {
     /*!begin-include!*/
     /*!begin-code!*/
     Proto<String> proto = Proto.create(Logger.class).withScheduler(
