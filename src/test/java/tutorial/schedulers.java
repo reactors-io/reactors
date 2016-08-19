@@ -59,6 +59,8 @@ public class schedulers {
 
     Assert.assertEquals("scheduled", System.out.queue.take());
 
+    Thread.sleep(1000)
+
     /*!begin-include!*/
     /*!begin-code!*/
     ch.send("event 1");
@@ -67,6 +69,8 @@ public class schedulers {
 
     Assert.assertEquals("scheduled", System.out.queue.take());
     Assert.assertEquals("event 1", System.out.queue.take());
+
+    Thread.sleep(1000)
 
     /*!begin-include!*/
     /*!begin-code!*/

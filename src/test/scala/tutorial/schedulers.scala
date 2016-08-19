@@ -107,6 +107,8 @@ class Schedulers extends FunSuite with Matchers {
     followed by the event itself.
     !*/
 
+    Thread.sleep(1000)
+
     /*!begin-code!*/
     ch ! "event 1"
     /*!end-code!*/
