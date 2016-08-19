@@ -138,6 +138,7 @@ class Schedulers extends FunSuite with Matchers {
 
 
 /*!md
+
 ## Reactor Lifecycle
 
 Every reactor goes through a certain number of stages during its lifetime,
