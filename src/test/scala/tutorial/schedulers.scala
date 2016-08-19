@@ -142,7 +142,7 @@ class Schedulers extends FunSuite with Matchers {
 ## Reactor Lifecycle
 
 Every reactor goes through a certain number of stages during its lifetime,
-jointly called a *reactor lifecycle*.
+jointly called a **reactor lifecycle**.
 When the reactor enters a specific stage, it emits a lifecycle event.
 All lifecycle events are dispatched on a special daemon event stream called `sysEvents`.
 Every reactor is created with this event stream.
