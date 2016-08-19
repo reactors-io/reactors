@@ -33,7 +33,7 @@ please read the [tutorial](http://reactors.io/tutorialdocs/reactors/).
 
 # Contributing
 
-You will need to install [SBT](www.scala-sbt.org) build tool on your system.
+You will need to install [SBT](http://www.scala-sbt.org) build tool on your system.
 Once you do that, go to your project folder, and run:
 
 ```
