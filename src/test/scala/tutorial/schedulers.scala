@@ -63,7 +63,7 @@ class Logger extends Reactor[String] {
   main.events.onEvent(println)
 }
 /*!end-code!*/
-/*!include-code Java:reactors-java-schedulers-system.html!*/
+/*!include-code Java:reactors-java-schedulers-logger.html!*/
 
 
 class Schedulers extends FunSuite with Matchers {
