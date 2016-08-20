@@ -154,10 +154,28 @@ object ReactorsBuild extends MechaRepoBuild {
       case _ => Nil
     }
 
+  def gitPropsContents(dir: File, baseDir: File): Seq[File] = {
+    def run(cmd: String*): String = Process(cmd, Some(baseDir)).!!
+    val sha = run("git", "rev-parse", "HEAD").trim
+    val commitTs = run("git", "--no-pager", "show", "-s", "--format=%ct", "HEAD")
+    val contents = s"""
+    {
+      "sha": "$sha",
+      "commit-timestamp": $commitTs
+    }
+    """
+    val file = dir / "reactors-io" / ".gitprops"
+    IO.write(file, contents)
+    Seq(file)
+  }
+
   val reactorsCoreSettings = projectSettings("-core", coreDependencies) ++ Seq(
     (test in Test) <<= (test in Test)
       .dependsOn(test in (reactorsCommon, Test)),
-    publish <<= publish.dependsOn(publish in reactorsCommon)
+    publish <<= publish.dependsOn(publish in reactorsCommon),
+    resourceGenerators in Compile <+= (resourceManaged in Compile, baseDirectory) map {
+      (dir, baseDir) => gitPropsContents(dir, baseDir)
+    }
   )
 
   def coreDependencies(scalaVersion: String) = {

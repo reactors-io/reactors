@@ -50,6 +50,11 @@ trait MatrixBench extends JBench.OfflineReport {
     exec.independentSamples -> 1
   )
 
+  override def reporter = Reporter.Composite(
+    new RegressionReporter(tester, historian),
+    new MongoDbReporter[Double]
+  )
+
   @volatile var load = 0
 
   @gen("matrices")

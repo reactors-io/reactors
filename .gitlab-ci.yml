@@ -19,3 +19,8 @@ before_script:
 gate:
   script:
     - ~/.super-storm-enroute/tools/ci reactors $(pwd)
+
+
+bench:
+  script:
+    - tools/ci --bench=True . $(pwd)
