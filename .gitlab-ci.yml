@@ -23,4 +23,4 @@ gate:
 
 bench:
   script:
-    - tools/ci --bench=True . $(pwd)
+    - ~/.super-storm-enroute/tools/ci --bench=True . $(pwd)
