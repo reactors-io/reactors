@@ -147,22 +147,25 @@ When the reactor enters a specific stage, it emits a lifecycle event.
 All lifecycle events are dispatched on a special daemon event stream called `sysEvents`.
 Every reactor is created with this event stream.
 
-After calling `spawn`,
-the reactor is scheduled for execution.
-Its constructor is started asynchronously,
-and immediately after that,
-a `ReactorStarted` event is dispatched.
-Then, whenever the reactor gets execution time,
-the `ReactorScheduled` event is dispatched.
-After that, some number of events are dispatched on normal event streams.
-When the scheduling system decides to preempt the reactor,
-the `ReactorPreempted` event is dispatched.
-This scheduling cycle can be repeated any number of times.
-Eventually, the reactor terminates,
-either by normal execution or exceptionally.
-If a user code exception terminates execution,
-a `ReactorDied` event is dispatched.
-In any case, `ReactorTerminated` event gets emitted.
+The reactor lifecycle is as follows:
+
+- After calling `spawn`,
+  the reactor is scheduled for execution.
+  Its constructor is started asynchronously,
+  and immediately after that,
+  a `ReactorStarted` event is dispatched.
+- Then, whenever the reactor gets execution time,
+  the `ReactorScheduled` event is dispatched.
+  After that, some number of events are dispatched on normal event streams.
+-  When the scheduling system decides to preempt the reactor,
+  the `ReactorPreempted` event is dispatched.
+  This scheduling cycle can be repeated any number of times.
+- Eventually, the reactor terminates,
+  either by normal execution or exceptionally.
+  If a user code exception terminates execution,
+  a `ReactorDied` event is dispatched.
+- In either normal or exceptional execution,
+  `ReactorTerminated` event gets emitted.
 
 This reactor lifecycle is shown in the following diagram:
 
