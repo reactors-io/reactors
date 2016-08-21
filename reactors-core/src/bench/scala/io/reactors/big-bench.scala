@@ -27,6 +27,11 @@ class BigBench extends JBench.OfflineReport {
     verbose -> true
   )
 
+  override def reporter = Reporter.Composite(
+    new RegressionReporter(tester, historian),
+    new MongoDbReporter[Double]
+  )
+
   val sizes = Gen.range("size")(50, 250, 50)
 
   @transient lazy val system = new ReactorSystem("reactor-bench")
