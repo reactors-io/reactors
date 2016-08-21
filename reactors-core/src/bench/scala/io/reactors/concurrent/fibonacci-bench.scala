@@ -23,7 +23,7 @@ class FibonacciBench extends JBench.OfflineReport {
     exec.minWarmupRuns -> 20,
     exec.maxWarmupRuns -> 40,
     exec.benchRuns -> 32,
-    exec.independentSamples -> 4,
+    exec.independentSamples -> 1,
     verbose -> true
   )
 
@@ -32,7 +32,7 @@ class FibonacciBench extends JBench.OfflineReport {
     new MongoDbReporter[Double]
   )
 
-  val sizes = Gen.range("size")(5, 25, 5)
+  val sizes = Gen.range("size")(25, 25, 5)
 
   @transient lazy val system = new ReactorSystem("reactor-bench")
 

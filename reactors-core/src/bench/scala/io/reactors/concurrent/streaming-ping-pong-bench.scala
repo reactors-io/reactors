@@ -23,7 +23,7 @@ class StreamingPingPongBench extends JBench.OfflineReport {
     exec.minWarmupRuns -> 150,
     exec.maxWarmupRuns -> 300,
     exec.benchRuns -> 96,
-    exec.independentSamples -> 4,
+    exec.independentSamples -> 1,
     verbose -> true
   )
 
@@ -32,7 +32,7 @@ class StreamingPingPongBench extends JBench.OfflineReport {
     new MongoDbReporter[Double]
   )
 
-  val sizes = Gen.range("size")(5000, 25000, 5000)
+  val sizes = Gen.range("size")(25000, 25000, 5000)
 
   @transient lazy val system = new ReactorSystem("reactor-bench")
 

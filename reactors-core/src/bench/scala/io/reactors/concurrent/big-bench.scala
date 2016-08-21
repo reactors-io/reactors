@@ -24,7 +24,7 @@ class BigBench extends JBench.OfflineReport {
     exec.minWarmupRuns -> 20,
     exec.maxWarmupRuns -> 40,
     exec.benchRuns -> 32,
-    exec.independentSamples -> 4,
+    exec.independentSamples -> 1,
     verbose -> true
   )
 
@@ -33,7 +33,7 @@ class BigBench extends JBench.OfflineReport {
     new MongoDbReporter[Double]
   )
 
-  val sizes = Gen.range("size")(50, 250, 50)
+  val sizes = Gen.range("size")(250, 250, 50)
 
   @transient lazy val system = new ReactorSystem("reactor-bench")
 

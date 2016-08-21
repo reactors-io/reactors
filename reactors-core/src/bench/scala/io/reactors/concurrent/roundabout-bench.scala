@@ -24,7 +24,7 @@ class RoundaboutBench extends JBench.OfflineReport {
     exec.minWarmupRuns -> 80,
     exec.maxWarmupRuns -> 160,
     exec.benchRuns -> 40,
-    exec.independentSamples -> 4,
+    exec.independentSamples -> 1,
     verbose -> true
   )
 
@@ -33,7 +33,7 @@ class RoundaboutBench extends JBench.OfflineReport {
     new MongoDbReporter[Double]
   )
 
-  val sizes = Gen.range("size")(50, 1000, 50)
+  val sizes = Gen.range("size")(1000, 1000, 50)
 
   @transient lazy val system = new ReactorSystem("reactor-bench")
 

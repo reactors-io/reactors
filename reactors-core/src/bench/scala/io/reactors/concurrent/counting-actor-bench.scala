@@ -23,7 +23,7 @@ class CountingActorBench extends JBench.OfflineReport {
     exec.minWarmupRuns -> 80,
     exec.maxWarmupRuns -> 120,
     exec.benchRuns -> 72,
-    exec.independentSamples -> 4,
+    exec.independentSamples -> 1,
     verbose -> true
   )
 
@@ -32,7 +32,7 @@ class CountingActorBench extends JBench.OfflineReport {
     new MongoDbReporter[Double]
   )
 
-  val sizes = Gen.range("size")(50000, 250000, 50000)
+  val sizes = Gen.range("size")(250000, 250000, 50000)
 
   @transient lazy val system = new ReactorSystem("reactor-bench")
 
