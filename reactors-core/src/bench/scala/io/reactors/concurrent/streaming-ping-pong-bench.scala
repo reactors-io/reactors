@@ -1,4 +1,5 @@
 package io.reactors
+package concurrent
 
 
 
@@ -17,11 +18,11 @@ import scala.util.Failure
 
 
 
-class PingPongBench extends JBench.OfflineReport {
+class StreamingPingPongBench extends JBench.OfflineReport {
   override def defaultConfig = Context(
-    exec.minWarmupRuns -> 80,
-    exec.maxWarmupRuns -> 120,
-    exec.benchRuns -> 36,
+    exec.minWarmupRuns -> 120,
+    exec.maxWarmupRuns -> 240,
+    exec.benchRuns -> 96,
     exec.independentSamples -> 4,
     verbose -> true
   )
@@ -36,7 +37,7 @@ class PingPongBench extends JBench.OfflineReport {
   @transient lazy val system = new ReactorSystem("reactor-bench")
 
   @gen("sizes")
-  @benchmark("io.reactors.ping-pong")
+  @benchmark("io.reactors.streaming-ping-pong")
   @curve("onEvent")
   def reactorOnEventPingPong(sz: Int) = {
     val done = Promise[Boolean]()
@@ -52,7 +53,7 @@ class PingPongBench extends JBench.OfflineReport {
           }
         })
         var left = sz
-        pong ! "ping"
+        for (i <- 0 until StreamingPingPongBench.WINDOW_SIZE) pong ! "ping"
         self.main.events onEvent { x =>
           left -= 1
           if (left > 0) {
@@ -80,23 +81,25 @@ class PingPongBench extends JBench.OfflineReport {
   }
 
   @gen("sizes")
-  @benchmark("io.reactors.ping-pong")
+  @benchmark("io.reactors.streaming-ping-pong")
   @curve("akka")
   @setupBeforeAll("akkaPingPongSetup")
   @teardownAfterAll("akkaPingPongTeardown")
   def akkaPingPong(sz: Int) = {
     val done = Promise[Boolean]()
     val pong = actorSystem.actorOf(
-      Props.create(classOf[PingPongBench.Pong], new Integer(sz)))
+      Props.create(classOf[StreamingPingPongBench.Pong], new Integer(sz)))
     val ping = actorSystem.actorOf(
-      Props.create(classOf[PingPongBench.Ping], pong, new Integer(sz), done))
+      Props.create(classOf[StreamingPingPongBench.Ping], pong, new Integer(sz), done))
 
     assert(Await.result(done.future, 10.seconds))
   }
 }
 
 
-object PingPongBench {
+object StreamingPingPongBench {
+  val WINDOW_SIZE = 128
+
   class Pong(val sz: Integer) extends Actor {
     var left = sz.intValue
     def receive = {
@@ -110,7 +113,7 @@ object PingPongBench {
   class Ping(val pong: ActorRef, val sz: Integer, val done: Promise[Boolean])
   extends Actor {
     var left = sz.intValue
-    pong ! "ping"
+    for (i <- 0 until WINDOW_SIZE) pong ! "ping"
     def receive = {
       case _ =>
         left -= 1
