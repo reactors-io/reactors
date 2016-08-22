@@ -9,9 +9,9 @@ import org.scalacheck.Prop.forAllNoShrink
 import org.scalacheck.Gen.choose
 import org.scalatest._
 import scala.collection._
-import scala.concurrent.Await
-import scala.concurrent.Promise
+import scala.concurrent._
 import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext.Implicits.global
 
 
 
@@ -23,5 +23,17 @@ class ConversionsSpec extends FunSuite {
     val buffer = mutable.Buffer[Int]()
     events.onEvent(buffer += _)
     assert(buffer == Seq(1, 2, 3, 4))
+  }
+
+  test("Future#toIVar") {
+    val future = Future { 7 }
+    val done = Promise[Boolean]()
+    system.spawn(Reactor[String] { self =>
+      future.toIVar on {
+        done.success(true)
+        self.main.seal()
+      }
+    })
+    assert(Await.result(done.future, 10.seconds))
   }
 }

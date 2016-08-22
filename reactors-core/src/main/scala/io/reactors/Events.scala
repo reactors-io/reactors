@@ -6,6 +6,9 @@ import io.reactors.common._
 import scala.collection._
 import scala.runtime.IntRef
 import scala.util.Random
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
 
 
 
@@ -874,6 +877,13 @@ trait Events[@spec(Int, Long, Double) T] {
    */
   def collectHint[W](pf: PartialFunction[Any, W]): Events[T] =
     new Events.CollectHint(this, pf)
+
+  /** Converts an event stream of `Events[Try[S]]` to type `Events[S]`.
+   *
+   *  Normal events are emitted for `Success` objects, and exceptions for `Failure`.
+   */
+  def unliftTry[S](implicit evid: T <:< Try[S]): Events[S] =
+    new Events.UnliftTry(this, evid)
 
   /** Converts this event stream into a `Signal`.
    *
@@ -2645,6 +2655,35 @@ object Events {
           return
       }
       target.react(v, null)
+    }
+    def except(t: Throwable) = target.except(t)
+    def unreact() = target.unreact()
+  }
+
+  private[reactors] class UnliftTry[T, S](
+    val self: Events[T],
+    val evid: T <:< Try[S]
+  ) extends Events[S] {
+    def onReaction(obs: Observer[S]): Subscription =
+      self.onReaction(new UnliftTryObserver(obs, evid))
+  }
+
+  private[reactors] class UnliftTryObserver[T, S](
+    val target: Observer[S],
+    val evid: T <:< Try[S]
+  ) extends Observer[T] {
+    def react(x: T, hint: Any): Unit = {
+      val t = try {
+        evid(x)
+      } catch {
+        case t if isNonLethal(t) =>
+          target.except(t)
+          return
+      }
+      t match {
+        case Success(x) => target.react(x, null)
+        case Failure(t) => target.except(t)
+      }
     }
     def except(t: Throwable) = target.except(t)
     def unreact() = target.unreact()
