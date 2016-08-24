@@ -11,6 +11,7 @@ import org.scalatest.exceptions.TestFailedException
 import io.reactors.common.Ref
 import io.reactors.test._
 import scala.collection._
+import scala.util._
 
 
 
@@ -233,9 +234,10 @@ class EventsSpec extends FunSuite {
     emitter.react("ok")
     assert(buffer == Seq(Success("ok")))
     emitter.except(new Exception("not ok"))
-    assert(buffer == Seq(Success("ok"), Failure("not ok")))
+    val failure = Failure(new Exception("not ok"))
+    assert(buffer(1).asInstanceOf[Failure[String]].exception.getMessage == "not ok")
     emitter.react("ok again")
-    assert(buffer == Seq(Success("ok"), Failure("not ok"), Success("ok again")))
+    assert(buffer(2) == Success("ok again"))
   }
 
   test("ignoreExceptions") {
