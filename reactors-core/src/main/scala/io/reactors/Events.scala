@@ -878,6 +878,14 @@ trait Events[@spec(Int, Long, Double) T] {
   def collectHint[W](pf: PartialFunction[Any, W]): Events[T] =
     new Events.CollectHint(this, pf)
 
+  /** Converts an event stream of `Events[T]` to type `Events[Try[T]]`.
+   *
+   *  Inbound exceptions are lifted into `Failure` events, while normal events are
+   *  converted into `Success` events.
+   */
+  def liftTry: Events[Try[T]] =
+    new Events.LiftTry(this)
+
   /** Converts an event stream of `Events[Try[S]]` to type `Events[S]`.
    *
    *  Normal events are emitted for `Success` objects, and exceptions for `Failure`.
@@ -2660,6 +2668,23 @@ object Events {
     def unreact() = target.unreact()
   }
 
+  private[reactors] class LiftTry[T](
+    val self: Events[T]
+  ) extends Events[Try[T]] {
+    def onReaction(obs: Observer[Try[T]]): Subscription =
+      self.onReaction(new LiftTryObserver(obs))
+  }
+
+  private[reactors] class LiftTryObserver[T](
+    val target: Observer[Try[T]]
+  ) extends Observer[T] {
+    def react(x: T, hint: Any): Unit = {
+      target.react(Success(x), null)
+    }
+    def except(t: Throwable) = target.react(Failure(t), null)
+    def unreact() = target.unreact()
+  }
+
   private[reactors] class UnliftTry[T, S](
     val self: Events[T],
     val evid: T <:< Try[S]
@@ -2681,7 +2706,7 @@ object Events {
           return
       }
       t match {
-        case Success(x) => target.react(x, null)
+        case Success(x) => target.react(x, hint)
         case Failure(t) => target.except(t)
       }
     }

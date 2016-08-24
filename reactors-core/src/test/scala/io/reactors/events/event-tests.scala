@@ -226,6 +226,18 @@ class EventsSpec extends FunSuite {
     assert(buffer == Seq("ok", "kaboom"))
   }
 
+  test("lift try") {
+    val buffer = mutable.Buffer[Try[String]]()
+    val emitter = new Events.Emitter[String]()
+    emitter.liftTry.onEvent(buffer += _)
+    emitter.react("ok")
+    assert(buffer == Seq(Success("ok")))
+    emitter.except(new Exception("not ok"))
+    assert(buffer == Seq(Success("ok"), Failure("not ok")))
+    emitter.react("ok again")
+    assert(buffer == Seq(Success("ok"), Failure("not ok"), Success("ok again")))
+  }
+
   test("ignoreExceptions") {
     var seen = false
     val emitter = new Events.Emitter[String]
