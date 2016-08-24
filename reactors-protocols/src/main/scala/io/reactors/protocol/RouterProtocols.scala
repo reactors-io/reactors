@@ -35,9 +35,14 @@ trait RouterProtocols {
       }
     }
 
-    /** Picks a channel from a random uniform distribution.
+    /** Picks a channel from a random distribution.
+     *
+     *  @tparam T        type of the events routed
+     *  @param targets   target channels to which to route the events
+     *  @param random    randomization function, total number of channels to an index
+     *  @return          the selector function
      */
-    def uniform[T](
+    def random[T](
       targets: Seq[Channel[T]],
       random: Int => Int = {
         val r = new Random

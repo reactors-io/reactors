@@ -82,7 +82,7 @@ extends Properties("ServerProtocols") with ExtendedProperties {
         }
       })
       system.spawn(Reactor[Int] { self =>
-        val rc = system.channels.daemon.router(Router.uniform(chs))
+        val rc = system.channels.daemon.router(Router.random(chs))
         rc.channel ! 17
         self.main.seal()
       })
