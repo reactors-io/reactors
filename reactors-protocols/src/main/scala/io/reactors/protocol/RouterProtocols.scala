@@ -18,10 +18,17 @@ trait RouterProtocols {
     type Selector[T] = T => Channel[T]
 
     /** Always returns a zero channel, which loses all the events sent to it.
+     *
+     *  @tparam T       type of the events to route
+     *  @return         a selector function that drops events
      */
     def zeroSelector[T]: Selector[T] = (x: T) => new Channel.Zero[T]
 
     /** Picks channels in a Round Robin manner.
+     *
+     *  @tparam T       type of the events to route
+     *  @param targets  the channels to route the events to
+     *  @return         a selector function that chooses a channel
      */
     def roundRobin[T](targets: Seq[Channel[T]]): Selector[T] = {
       if (targets.isEmpty) zeroSelector
