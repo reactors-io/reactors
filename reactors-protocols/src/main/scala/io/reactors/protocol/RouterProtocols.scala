@@ -59,6 +59,11 @@ trait RouterProtocols {
      *  select a channel. Given that the same hash code is always returned for the same
      *  event, the same channel is always picked. This is useful when implementing, e.g.
      *  distributed hash tables.
+     *
+     *  @tparam T        type of the events routed
+     *  @param targets   target channels to which events are routed
+     *  @param hashing   hashing function from an event to some hash value
+     *  @return          the selector function
      */
     def hash[T](
       targets: Seq[Channel[T]],
