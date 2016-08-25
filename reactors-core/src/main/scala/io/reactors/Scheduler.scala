@@ -207,20 +207,22 @@ object Scheduler {
   ) extends Scheduler {
 
     def schedule(frame: Frame): Unit = {
-      Thread.currentThread match {
-        case t: ForkJoinReactorWorkerThread =>
-          if (t.forceSchedule) {
-            executor.execute(frame.schedulerState.asInstanceOf[Runnable])
-          } else {
-            if (t.pendingFastFrame != null) {
-              val runnable = t.pendingFastFrame.schedulerState.asInstanceOf[Runnable]
-              executor.execute(runnable)
-            }
-            t.pendingFastFrame = frame
-          }
-        case _ =>
-          executor.execute(frame.schedulerState.asInstanceOf[Runnable])
-      }
+      executor.execute(frame.schedulerState.asInstanceOf[Runnable])
+      // TODO: Clean this up if not useful.
+      // Thread.currentThread match {
+      //   case t: ForkJoinReactorWorkerThread =>
+      //     if (t.forceSchedule) {
+      //       executor.execute(frame.schedulerState.asInstanceOf[Runnable])
+      //     } else {
+      //       if (t.pendingFastFrame != null) {
+      //         val runnable = t.pendingFastFrame.schedulerState.asInstanceOf[Runnable]
+      //         executor.execute(runnable)
+      //       }
+      //       t.pendingFastFrame = frame
+      //     }
+      //   case _ =>
+      //     executor.execute(frame.schedulerState.asInstanceOf[Runnable])
+      // }
     }
 
     override def newState(frame: Frame): Scheduler.State = {
@@ -240,12 +242,12 @@ object Scheduler {
                 var loopsLeft = system.bundle.schedulerConfig.unscheduleCount
                 while (loopsLeft > 0) {
                   var executedSomething = false
-                  if (t.pendingFastFrame != null) {
-                    executedSomething = true
-                    val f = t.pendingFastFrame
-                    t.pendingFastFrame = null
-                    f.executeBatch()
-                  }
+                  // if (t.pendingFastFrame != null) {
+                  //   executedSomething = true
+                  //   val f = t.pendingFastFrame
+                  //   t.pendingFastFrame = null
+                  //   f.executeBatch()
+                  // }
                   val task = fj.poll()
                   if (task != null) {
                     executedSomething = true
@@ -261,13 +263,13 @@ object Scheduler {
             }
           } finally {
             t.unschedulingMode = false
-            if (t.pendingFastFrame != null) {
-              val f = t.pendingFastFrame
-              t.pendingFastFrame = null
-              t.forceSchedule = true
-              try this.schedule(f)
-              finally t.forceSchedule = false
-            }
+            // if (t.pendingFastFrame != null) {
+            //   val f = t.pendingFastFrame
+            //   t.pendingFastFrame = null
+            //   t.forceSchedule = true
+            //   try this.schedule(f)
+            //   finally t.forceSchedule = false
+            // }
           }
         case _ =>
           return
