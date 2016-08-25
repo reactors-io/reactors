@@ -9,7 +9,9 @@ Maven | [![Maven Artifact](https://img.shields.io/maven-central/v/com.storm-enro
 on asynchronous event streams.
 
 - [documentation](http://reactors.io/learn/)
+- [FAQ](http://reactors.io/faq/)
 - [download page](http://reactors.io/download/)
+
 
 # Usage
 
