@@ -77,37 +77,37 @@ class PatternsSpec extends FunSuite {
   }
 
   test("retry regular") {
-    retryTest(Backoff.regular(3, 500.millis)) { timestamps =>
-      assert(timestamps(0) > 0.millis && timestamps(0) < 250.millis)
-      assert(timestamps(1) > 450.millis && timestamps(1) < 750.millis)
-      assert(timestamps(2) > 950.millis && timestamps(2) < 1250.millis)
+    retryTest(Backoff.regular(3, 1000.millis)) { timestamps =>
+      assert(timestamps(0) > 0.millis && timestamps(0) < 500.millis)
+      assert(timestamps(1) > 950.millis && timestamps(1) < 1500.millis)
+      assert(timestamps(2) > 1950.millis && timestamps(2) < 2500.millis)
     }
   }
 
   test("retry linear") {
-    retryTest(Backoff.linear(3, 500.millis)) { timestamps =>
-      assert(timestamps(0) >= 0.millis && timestamps(0) < 250.millis)
-      assert(timestamps(1) >= 450.millis && timestamps(1) < 750.millis)
-      assert(timestamps(2) >= 1450.millis && timestamps(2) < 1750.millis)
+    retryTest(Backoff.linear(3, 1000.millis)) { timestamps =>
+      assert(timestamps(0) >= 0.millis && timestamps(0) < 500.millis)
+      assert(timestamps(1) >= 950.millis && timestamps(1) < 1500.millis)
+      assert(timestamps(2) >= 2950.millis && timestamps(2) < 3500.millis)
     }
   }
 
   test("retry exponential") {
-    retryTest(Backoff.exp(4, 500.millis)) { timestamps =>
-      assert(timestamps(0) >= 0.millis && timestamps(0) < 250.millis)
-      assert(timestamps(1) >= 450.millis && timestamps(1) < 750.millis)
-      assert(timestamps(2) >= 1450.millis && timestamps(2) < 1750.millis)
-      assert(timestamps(3) >= 3450.millis && timestamps(3) < 3750.millis)
+    retryTest(Backoff.exp(4, 1000.millis)) { timestamps =>
+      assert(timestamps(0) >= 0.millis && timestamps(0) < 500.millis)
+      assert(timestamps(1) >= 950.millis && timestamps(1) < 1500.millis)
+      assert(timestamps(2) >= 2950.millis && timestamps(2) < 3500.millis)
+      assert(timestamps(3) >= 6950.millis && timestamps(3) < 7500.millis)
     }
   }
 
   test("retry random exponential") {
-    retryTest(Backoff.exp(3, 500.millis)) { timestamps =>
-      assert(timestamps(0) >= 0.millis && timestamps(0) < 250.millis)
-      if (timestamps(1) >= 450.millis && timestamps(1) < 750.millis) {
-        assert(timestamps(2) >= 1450.millis && timestamps(2) < 2750.millis)
-      } else if (timestamps(1) >= 950.millis && timestamps(1) < 1250.millis) {
-        assert(timestamps(2) >= 1950.millis && timestamps(2) < 3250.millis)
+    retryTest(Backoff.exp(3, 1000.millis)) { timestamps =>
+      assert(timestamps(0) >= 0.millis && timestamps(0) < 500.millis)
+      if (timestamps(1) >= 950.millis && timestamps(1) < 1500.millis) {
+        assert(timestamps(2) >= 2950.millis && timestamps(2) < 5500.millis)
+      } else if (timestamps(1) >= 1950.millis && timestamps(1) < 2500.millis) {
+        assert(timestamps(2) >= 3950.millis && timestamps(2) < 6500.millis)
       } else {
         assert(false, timestamps)
       }
