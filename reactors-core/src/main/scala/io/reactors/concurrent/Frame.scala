@@ -129,7 +129,7 @@ final class Frame(
     }
 
     // Piggyback the worker thread to do some useful work.
-    scheduler.unscheduleAndRun(reactorSystem)
+    scheduler.unschedule(reactorSystem)
   }
 
   private def isolateAndProcessBatch() {

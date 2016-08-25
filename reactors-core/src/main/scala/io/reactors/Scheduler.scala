@@ -58,7 +58,7 @@ trait Scheduler {
    *  This method by default does nothing, but may be overridden for performance
    *  purposes.
    */
-  def unscheduleAndRun(system: ReactorSystem): Unit = {}
+  def unschedule(system: ReactorSystem): Unit = {}
 
   /** The handler for the fatal errors that are not sent to
    *  the `failures` stream of the reactor.
@@ -188,6 +188,15 @@ object Scheduler {
 
   /** A `Scheduler` that reuses the target Java `Executor`.
    *
+   *  It checks if the specified executor is a `ForkJoinPool` that uses
+   *  `ForkJoinReactorWorkerThread` and, if so, applies additional optimizations:
+   *
+   *  - When a frame completes execution, it calls `unschedule`. This will attempt to
+   *    remove submitted tasks from the `ForkJoinPool` a certain of times and execute
+   *    them directly. The `scheduler.default.unschedule-count` bundle configuration
+   *    key is the maximum number of attempts.  If removing is not successful,
+   *    this immediately stops.
+   *
    *  @param executor       The `Executor` used to schedule reactor tasks.
    *  @param handler        The default error handler for fatal errors not passed to
    *                        reactors.
@@ -220,7 +229,7 @@ object Scheduler {
       }
     }
 
-    override def unscheduleAndRun(system: ReactorSystem) {
+    override def unschedule(system: ReactorSystem) {
       Thread.currentThread match {
         case t: ForkJoinReactorWorkerThread =>
           if (t.unschedulingMode) return
