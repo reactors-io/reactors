@@ -8,6 +8,35 @@ import scala.collection._
 
 
 
+/** Catamorph of signal values.
+ *
+ *  Aggregates a bunch of signals using a regular catamorph.
+ *  A regular catamorph aggregates a set of values of one type,
+ *  and exposes a signal that is their aggregation.
+ *  A signal catamorph aggregates a set of signals of some type,
+ *  and exposes a signal that is the aggregation of the signals
+ *  it contains. The difference is that when any of the signal
+ *  values changes, the output signal also changes. This is
+ *  not the case with a regular catamorph, which only updates
+ *  itself when a value is inserted or removed.
+ *
+ *  Example:
+ *
+ *  {{{
+ *  Signal(1)--|
+ *             +--Signal(3)
+ *  Signal(2)--|
+ *  
+ *  -- after change --
+ *  
+ *  Signal(3)--|
+ *             +--Signal(5) -> updated!
+ *  Signal(2)--|
+ *  }}}
+ *
+ *  @tparam T          type of values inside the signals
+ *  @param catamorph   regular catamorph of the signals
+ */
 class SignalCatamorph[@spec(Int, Long, Double) T](
   val catamorph: RCatamorph[T, Signal[T]]
 ) extends RCatamorph[T, Signal[T]] {
