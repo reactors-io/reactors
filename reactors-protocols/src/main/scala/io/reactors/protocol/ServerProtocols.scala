@@ -40,7 +40,7 @@ trait ServerProtocols {
   implicit class ServerChannelBuilderOps(val builder: ChannelBuilder) {
     /** Open a new server channel.
      */
-    def server[T, S]: Connector[(T, Channel[S])] = builder.open[(T, Channel[S])]
+    def server[T, S]: Connector[Server.Req[T, S]] = builder.open[Server.Req[T, S]]
   }
 
   implicit class ServerSystemOps(val system: ReactorSystem) {
