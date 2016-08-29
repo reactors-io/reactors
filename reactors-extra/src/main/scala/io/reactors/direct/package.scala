@@ -69,4 +69,8 @@ package object direct {
       }
     }
   }
+
+  implicit class BackpressureLinkOps[T](val events: Events[T]) {
+    def !(x: T): Unit = ???
+  }
 }
