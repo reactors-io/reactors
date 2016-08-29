@@ -163,7 +163,7 @@ object ReactorsBuild extends MechaRepoBuild {
     {
       "sha": "$sha",
       "commit-timestamp": $commitTs,
-      "branch": $branch
+      "branch": "$branch"
     }
     """
     val file = dir / "reactors-io" / ".gitprops"
