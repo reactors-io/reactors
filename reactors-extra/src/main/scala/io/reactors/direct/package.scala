@@ -2,6 +2,7 @@ package io.reactors
 
 
 
+import io.reactors.protocols._
 import org.coroutines._
 import scala.language.experimental.macros
 import scala.reflect.macros.whitebox.Context
@@ -70,7 +71,14 @@ package object direct {
     }
   }
 
-  implicit class BackpressureLinkOps[T](val events: Events[T]) {
+  def backpressureSend[T: c.WeakTypeTag](c: Context)(body: c.Tree): c.Tree = {
+    import c.universe._
+    q"""
+      ???
+    """
+  }
+
+  implicit class BackpressureLinkOps[T](val link: Backpressure.Link[T]) {
     def !(x: T): Unit = ???
   }
 }

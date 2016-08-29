@@ -369,7 +369,8 @@ object ReactorsBuild extends MechaRepoBuild {
   ) settings(
     inConfig(Benchmarks)(Defaults.testSettings): _*
   ) dependsOn(
-    reactorsCore % "compile->compile;test->test"
+    reactorsCore % "compile->compile;test->test",
+    reactorsProtocols % "compile->compile;test->test"
   ) dependsOnSuperRepo
 
 }
