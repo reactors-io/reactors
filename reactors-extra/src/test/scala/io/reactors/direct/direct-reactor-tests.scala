@@ -22,15 +22,15 @@ class DirectReactorTest extends FunSuite with Matchers with BeforeAndAfterAll {
     })
   }
 
-  test("reactor defined with suspendable") {
-    val proto = Reactor.suspendable { (self: Reactor[String]) =>
+  test("reactor defined with direct") {
+    val proto = Reactor.direct { (self: Reactor[String]) =>
       val x = self.main.events.receive()
     }
   }
 
   test("reactor terminate after first message") {
     val done = Promise[Boolean]()
-    val ch = system.spawn(Reactor.suspendable { (self: Reactor[String]) =>
+    val ch = system.spawn(Reactor.direct { (self: Reactor[String]) =>
       val x = self.main.events.receive()
       if (x == "terminate") {
         done.success(true)
@@ -44,7 +44,7 @@ class DirectReactorTest extends FunSuite with Matchers with BeforeAndAfterAll {
   test("reactor terminate after n messages") {
     val n = 50
     val done = Promise[Seq[String]]()
-    val ch = system.spawn(Reactor.suspendable { (self: Reactor[String]) =>
+    val ch = system.spawn(Reactor.direct { (self: Reactor[String]) =>
       val seen = mutable.Buffer[String]()
       var left = n
       while (left > 0) {
@@ -63,9 +63,9 @@ class DirectReactorTest extends FunSuite with Matchers with BeforeAndAfterAll {
     val done = Promise[Boolean]()
 
     class PingPong {
-      val ping: Channel[String] = system.spawn(Reactor.suspendable {
+      val ping: Channel[String] = system.spawn(Reactor.direct {
         (self: Reactor[String]) =>
-        val pong = system.spawn(Reactor.suspendable {
+        val pong = system.spawn(Reactor.direct {
           (self: Reactor[String]) =>
           var left = n
           while (left > 0) {

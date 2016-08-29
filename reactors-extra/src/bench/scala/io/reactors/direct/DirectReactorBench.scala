@@ -32,15 +32,15 @@ class DirectReactorBench extends JBench.OfflineReport {
   @transient lazy val system = new ReactorSystem("reactor-bench")
 
   @gen("sizes")
-  @benchmark("io.reactors.suspendable.ping-pong")
-  @curve("suspendable")
+  @benchmark("io.reactors.direct.ping-pong")
+  @curve("direct")
   def reactorDirectPingPong(sz: Int) = {
     val done = Promise[Boolean]()
 
     class PingPong {
-      val ping: Channel[String] = system.spawn(Reactor.suspendable {
+      val ping: Channel[String] = system.spawn(Reactor.direct {
         (self: Reactor[String]) =>
-        val pong = system.spawn(Reactor.suspendable {
+        val pong = system.spawn(Reactor.direct {
           (self: Reactor[String]) =>
           var left = sz
           while (left > 0) {
@@ -66,7 +66,7 @@ class DirectReactorBench extends JBench.OfflineReport {
   }
 
   @gen("sizes")
-  @benchmark("io.reactors.suspendable.ping-pong")
+  @benchmark("io.reactors.direct.ping-pong")
   @curve("onEvent")
   def reactorOnEventPingPong(sz: Int) = {
     val done = Promise[Boolean]()
@@ -110,7 +110,7 @@ class DirectReactorBench extends JBench.OfflineReport {
   }
 
   @gen("sizes")
-  @benchmark("io.reactors.suspendable.ping-pong")
+  @benchmark("io.reactors.direct.ping-pong")
   @curve("akka")
   @setupBeforeAll("akkaPingPongSetup")
   @teardownAfterAll("akkaPingPongTeardown")

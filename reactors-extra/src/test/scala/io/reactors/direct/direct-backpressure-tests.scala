@@ -21,7 +21,7 @@ extends FunSuite with Matchers with BeforeAndAfterAll {
     // val worker = system.backpressure { (self: Reactor[String]) =>
     // }
 
-    // val proto = Reactor.suspendable { (self: Reactor[String]) =>
+    // val proto = Reactor.direct { (self: Reactor[String]) =>
       // val link = (worker ? {}).receive()
       // for (i <- 0 until 100) link ! job(i)
     // }

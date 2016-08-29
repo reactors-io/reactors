@@ -2,7 +2,7 @@ package io.reactors
 
 
 
-import io.reactors.protocols._
+import io.reactors.protocol._
 import org.coroutines._
 import scala.language.experimental.macros
 import scala.reflect.macros.whitebox.Context
@@ -20,7 +20,7 @@ package object direct {
   }
 
   implicit class ReactorCoroutineOps(val r: Reactor.type) extends AnyVal {
-    def suspendable[T](body: Reactor[T] => Unit): Proto[Reactor[T]] =
+    def direct[T](body: Reactor[T] => Unit): Proto[Reactor[T]] =
       macro reactorCoroutine[T]
     def fromCoroutine[@spec(Int, Long, Double) T, R](
       c: Reactor[T] ~~> ((() => Unit) => Subscription, R)
@@ -41,14 +41,14 @@ package object direct {
   implicit class EventsCoroutineOps[T <: AnyRef](val events: Events[T]) {
     /** Suspends execution of the reactor until the event stream produces an event.
      *
-     *  This combinator can only be used inside suspendable reactors. The coroutine it
-     *  returns is meant to be invoked from another coroutine or a suspendable context,
+     *  This combinator can only be used inside direct reactors. The coroutine it
+     *  returns is meant to be invoked from another coroutine or a direct context,
      *  but not started with the `call` combinator.
      *
      *  Example:
      *
      *  {{{
-     *  system.spawn(Reactor.suspendable { (self: Reactor[String]) =>
+     *  system.spawn(Reactor.direct { (self: Reactor[String]) =>
      *    val x = self.main.events.receive()
      *    println(x)
      *  })
