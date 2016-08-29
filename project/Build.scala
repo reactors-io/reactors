@@ -156,14 +156,14 @@ object ReactorsBuild extends MechaRepoBuild {
 
   def gitPropsContents(dir: File, baseDir: File): Seq[File] = {
     def run(cmd: String*): String = Process(cmd, Some(baseDir)).!!
-    val sha = run("git", "rev-parse", "HEAD").trim
-    val commitTs = run("git", "--no-pager", "show", "-s", "--format=%ct", "HEAD")
     val branch = run("git", "rev-parse", "--abbrev-ref", "HEAD").trim
+    val commitTs = run("git", "--no-pager", "show", "-s", "--format=%ct", "HEAD")
+    val sha = run("git", "rev-parse", "HEAD").trim
     val contents = s"""
     {
-      "sha": "$sha",
+      "branch": "$branch",
       "commit-timestamp": $commitTs,
-      "branch": "$branch"
+      "sha": "$sha"
     }
     """
     val file = dir / "reactors-io" / ".gitprops"
