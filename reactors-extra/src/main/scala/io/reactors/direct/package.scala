@@ -8,7 +8,7 @@ import scala.reflect.macros.whitebox.Context
 
 
 
-package object suspendable {
+package object direct {
   def reactorCoroutine[T: c.WeakTypeTag](c: Context)(body: c.Tree): c.Tree = {
     import c.universe._
     val coroutineName = TermName(c.freshName("c"))

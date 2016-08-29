@@ -1,5 +1,5 @@
 package io.reactors
-package suspendable
+package direct
 
 
 
@@ -18,7 +18,7 @@ import scala.util.Failure
 
 
 
-class SuspendableReactorBench extends JBench.OfflineReport {
+class DirectReactorBench extends JBench.OfflineReport {
   override def defaultConfig = Context(
     exec.minWarmupRuns -> 80,
     exec.maxWarmupRuns -> 120,
@@ -34,7 +34,7 @@ class SuspendableReactorBench extends JBench.OfflineReport {
   @gen("sizes")
   @benchmark("io.reactors.suspendable.ping-pong")
   @curve("suspendable")
-  def reactorSuspendablePingPong(sz: Int) = {
+  def reactorDirectPingPong(sz: Int) = {
     val done = Promise[Boolean]()
 
     class PingPong {
@@ -117,16 +117,16 @@ class SuspendableReactorBench extends JBench.OfflineReport {
   def akkaPingPong(sz: Int) = {
     val done = Promise[Boolean]()
     val pong = actorSystem.actorOf(
-      Props.create(classOf[SuspendableReactorBench.Pong], new Integer(sz)))
+      Props.create(classOf[DirectReactorBench.Pong], new Integer(sz)))
     val ping = actorSystem.actorOf(
-      Props.create(classOf[SuspendableReactorBench.Ping], pong, new Integer(sz), done))
+      Props.create(classOf[DirectReactorBench.Ping], pong, new Integer(sz), done))
 
     assert(Await.result(done.future, 10.seconds))
   }
 }
 
 
-object SuspendableReactorBench {
+object DirectReactorBench {
   class Pong(val sz: Integer) extends Actor {
     var left = sz.intValue
     def receive = {

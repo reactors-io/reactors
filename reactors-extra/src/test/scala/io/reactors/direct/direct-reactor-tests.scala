@@ -1,5 +1,5 @@
 package io.reactors
-package suspendable
+package direct
 
 
 
@@ -13,7 +13,7 @@ import scala.concurrent.duration._
 
 
 
-class SuspendableReactorTest extends FunSuite with Matchers with BeforeAndAfterAll {
+class DirectReactorTest extends FunSuite with Matchers with BeforeAndAfterAll {
   val system = ReactorSystem.default("test-system")
 
   test("reactor defined from a coroutine") {

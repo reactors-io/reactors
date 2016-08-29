@@ -12,8 +12,8 @@ trait BackpressureProtocols {
   self: ServerProtocols =>
 
   object Backpressure {
-    type Server[T] = self.Server[Channel[Long], Link[T]]
-    type Req[T] = self.Server.Req[Channel[Long], Link[T]]
+    type Server[T] = self.Server[Unit, Link[T]]
+    type Req[T] = self.Server.Req[Unit, Link[T]]
 
     class Link[T](private val channel: Channel[T]) extends Serializable {
       def available: Signal[Boolean] = ???
