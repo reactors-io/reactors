@@ -15,6 +15,8 @@ trait ServerProtocols {
    */
   type Server[T, S] = Channel[Server.Req[T, S]]
 
+  /** Contains various options for tuning the server protocol.
+   */
   object Server {
     type Req[T, S] = (T, Channel[S])
 
