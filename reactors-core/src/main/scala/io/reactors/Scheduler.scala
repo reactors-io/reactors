@@ -145,6 +145,8 @@ object Scheduler {
   private[reactors] class ForkJoinReactorWorkerThread(pool: ForkJoinPool)
   extends ForkJoinWorkerThread(pool) with Reactor.ReactorLocalThread {
     var unschedulingMode = false
+    var forceSchedule = false
+    var pendingFastFrame: Frame = null
     setName(s"reactors-io-scheduler-${getName}")
   }
 
