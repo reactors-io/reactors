@@ -76,9 +76,7 @@ trait ServerProtocols {
     def server[T, S](f: T => S)(
       implicit opts: Server.Opts[T] = Server.NoTerm
     ): Server[T, S] = {
-      system.spawn(Reactor[Server.Req[T, S]] { self =>
-        self.main.serve(f)
-      })
+      system.spawn(Reactor[Server.Req[T, S]](_.main.serve(f)))
     }
 
     /** Creates a server reactor that optionally responds to requests.
