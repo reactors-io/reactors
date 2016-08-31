@@ -37,9 +37,8 @@ trait BackpressureProtocols {
   }
 
   implicit class BackpressureConnectorOps[T](val conn: Connector[Backpressure.Req[T]]) {
-    def pressurize(): Connector[Backpressure.Req[T]] = {
+    def pressurize(): Events[T] = {
       ???
-      conn
     }
   }
 
