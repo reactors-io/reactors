@@ -17,24 +17,6 @@ trait ServerProtocols {
 
   object Server {
     type Req[T, S] = (T, Channel[S])
-
-    /** Typeclass that describes common server options
-     */
-    abstract class Opts[+T] {
-      def term: Option[T]
-    }
-
-    /** Options for which the server does not terminate.
-     */
-    object NoTerm extends Opts[Nothing] {
-      def term = None
-    }
-
-    object Opts {
-      def apply[T](x: T): Opts[T] = new Opts[T] {
-        val term = Some(x)
-      }
-    }
   }
 
   implicit class ServerChannelBuilderOps(val builder: ChannelBuilder) {
@@ -48,13 +30,16 @@ trait ServerProtocols {
 
   implicit class ServerConnectorOps[T, S](val conn: Connector[Server.Req[T, S]]) {
     /** Installs a serving function to the specified connector.
+     *
+     *  Takes an optional stopping predicate that must return `true` for requests that
+     *  seal the connector.
      */
     def serve(f: T => S)(
-      implicit opts: Server.Opts[T] = Server.NoTerm
+      implicit stop: T => Boolean = (req: T) => false
     ): Connector[Server.Req[T, S]] = {
       conn.events onMatch {
         case (x, ch) =>
-          if (opts.term != None && opts.term.get == x) {
+          if (stop(x)) {
             conn.seal()
           } else {
             ch ! f(x)
@@ -70,11 +55,11 @@ trait ServerProtocols {
      *  This reactor always responds by mapping the request of type `T` into a response
      *  of type `S`, with the specified function `f`.
      *
-     *  If `opts` parameter has a non-`None` terminator and the server receives that
-     *  termination value, it will seal its main channel.
+     *  If the optional `stop` predicate returns `true` for some request, the reactor's
+     *  main channel gets sealed.
      */
     def server[T, S](f: T => S)(
-      implicit opts: Server.Opts[T] = Server.NoTerm
+      implicit stop: T => Boolean = (req: T) => false
     ): Server[T, S] = {
       system.spawn(Reactor[Server.Req[T, S]](_.main.serve(f)))
     }
@@ -85,16 +70,16 @@ trait ServerProtocols {
      *  request type `T`. If the value obtained this way is not `nil`, the server
      *  responds.
      *
-     *  If `opts` parameter has a non-`None` terminator and the server receives that
-     *  termination value, it will seal its main channel.
+     *  If the optional `stop` predicate returns `true` for some request, the reactor's
+     *  main channel gets sealed.
      */
     def maybeServer[T, S](f: T => S, nil: S)(
-      implicit opts: Server.Opts[T] = Server.NoTerm
+      implicit stop: T => Boolean = (req: T) => false
     ): Server[T, S] = {
       system.spawn(Reactor[Server.Req[T, S]] { self =>
         self.main.events onMatch {
           case (x, ch) =>
-            if (opts.term != None && opts.term.get == x) {
+            if (stop(x)) {
               self.main.seal()
             } else {
               val resp = f(x)
