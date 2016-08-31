@@ -39,8 +39,29 @@ trait ServerProtocols {
 
   implicit class ServerChannelBuilderOps(val builder: ChannelBuilder) {
     /** Open a new server channel.
+     *
+     *  The returned connector only has the server type, but will not serve incoming
+     *  requests - for this, `serve` must be called on the connector.
      */
     def server[T, S]: Connector[Server.Req[T, S]] = builder.open[Server.Req[T, S]]
+  }
+
+  implicit class ServerConnectorOps[T, S](val conn: Connector[Server.Req[T, S]]) {
+    /** Installs a serving function to the specified connector.
+     */
+    def serve(f: T => S)(
+      implicit opts: Server.Opts[T] = Server.NoTerm
+    ): Connector[Server.Req[T, S]] = {
+      conn.events onMatch {
+        case (x, ch) =>
+          if (opts.term != None && opts.term.get == x) {
+            conn.seal()
+          } else {
+            ch ! f(x)
+          }
+      }
+      conn
+    }
   }
 
   implicit class ServerSystemOps(val system: ReactorSystem) {
@@ -56,14 +77,7 @@ trait ServerProtocols {
       implicit opts: Server.Opts[T] = Server.NoTerm
     ): Server[T, S] = {
       system.spawn(Reactor[Server.Req[T, S]] { self =>
-        self.main.events onMatch {
-          case (x, ch) =>
-            if (opts.term != None && opts.term.get == x) {
-              self.main.seal()
-            } else {
-              ch ! f(x)
-            }
-        }
+        self.main.serve(f)
       })
     }
 
