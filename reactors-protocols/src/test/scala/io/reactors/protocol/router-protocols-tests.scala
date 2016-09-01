@@ -23,7 +23,8 @@ class RouterProtocolsSpec extends FunSuite {
   test("default router with single channel") {
     val done = Promise[Boolean]()
     system.spawn(Reactor[Int] { self =>
-      val rc = system.channels.daemon.router(Router.roundRobin(Seq(self.main.channel)))
+      val rc = system.channels.daemon.router[Int]
+        .route(Router.roundRobin(Seq(self.main.channel)))
       rc.channel ! 17
       self.main.events onEvent { x =>
         if (x == 17) {
@@ -57,7 +58,7 @@ extends Properties("ServerProtocols") with ExtendedProperties {
         }
       })
       system.spawn(Reactor[Int] { self =>
-        val rc = system.channels.daemon.router(Router.roundRobin(chs))
+        val rc = system.channels.daemon.router[Int].route(Router.roundRobin(chs))
         for (i <- 0 until num) rc.channel ! i
         self.main.seal()
         done.success(true)
@@ -82,7 +83,7 @@ extends Properties("ServerProtocols") with ExtendedProperties {
         }
       })
       system.spawn(Reactor[Int] { self =>
-        val rc = system.channels.daemon.router(Router.random(chs))
+        val rc = system.channels.daemon.router[Int].route(Router.random(chs))
         rc.channel ! 17
         self.main.seal()
       })
@@ -104,7 +105,8 @@ extends Properties("ServerProtocols") with ExtendedProperties {
         self.system.clock.timeout(5.seconds).on(self.main.seal())
       })
       system.spawn(Reactor[Int] { self =>
-        val rc = system.channels.daemon.router(Router.hash(chs, (x: Int) => x))
+        val rc = system.channels.daemon.router[Int]
+          .route(Router.hash(chs, (x: Int) => x))
         for (i <- 0 until num) rc.channel ! i
         self.main.seal()
       })
@@ -127,8 +129,8 @@ extends Properties("ServerProtocols") with ExtendedProperties {
         }
       })
       system.spawn(Reactor[Int] { self =>
-        val rc = system.channels.daemon.router(
-          Router.deficitRoundRobin(chs, 1, (x: Int) => x))
+        val rc = system.channels.daemon.router[Int].
+          route(Router.deficitRoundRobin(chs, 1, (x: Int) => x))
         for (i <- 0 until num * reps) rc.channel ! (1 + i % maxcost)
       })
       latch.await(5, TimeUnit.SECONDS)

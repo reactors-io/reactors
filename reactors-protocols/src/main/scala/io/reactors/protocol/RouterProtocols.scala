@@ -128,7 +128,15 @@ trait RouterProtocols {
   }
 
   implicit class RouterChannelBuilderOps(val builder: ChannelBuilder) {
-    /** Create a new router channel.
+    /** Creates a new channel with the router signature.
+     */
+    def router[@spec(Int, Long, Double) T: Arrayable]: Connector[T] = builder.open[T]
+  }
+
+  implicit class RouterConnectorOps[@spec(Int, Long, Double) T](
+    val conn: Connector[T]
+  ) {
+    /** Installs routing logic to the router connector.
      *
      *  The router channel routes incoming events to some channel, defined by the
      *  `selector` function.
@@ -137,10 +145,7 @@ trait RouterProtocols {
      *  @param selector  function that selects a channel for the given event
      *  @return          a connector for the router channel
      */
-    def router[@spec(Int, Long, Double) T: Arrayable](
-      selector: T => Channel[T]
-    ): Connector[T] = {
-      val conn = builder.open[T]
+    def route(selector: T => Channel[T]): Connector[T] = {
       conn.events.onEvent { x =>
         selector(x) ! x
       }
