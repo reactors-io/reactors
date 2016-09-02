@@ -17,10 +17,15 @@ trait BackpressureProtocols {
 
     class Link[T](
       private val channel: Channel[T],
-      private val budget: Events[Long]
+      private val tokens: Events[Long]
     ) extends Serializable {
-      def available: Signal[Boolean] = ???
-      def trySend(x: T): Boolean = ???
+      private val budget = RCell(0L)
+      tokens.onEvent(budget += _)
+      def available: Signal[Boolean] = budget
+      def trySend(x: T): Boolean = {
+        budget := budget() - 1
+        channel ! x
+      }
     }
   }
 
@@ -38,6 +43,11 @@ trait BackpressureProtocols {
 
   implicit class BackpressureConnectorOps[T](val conn: Connector[Backpressure.Req[T]]) {
     def pressurize(): Events[T] = {
+      conn.events onMatch {
+        case (tokens, response) =>
+          tokens ! ???
+          response ! ???
+      }
       ???
     }
   }
@@ -45,9 +55,9 @@ trait BackpressureProtocols {
   implicit class BackpressureServerOps[T](val server: Backpressure.Server[T]) {
     def link: IVar[Backpressure.Link[T]] = {
       val system = Reactor.self.system
-      val budget = system.channels.daemon.open[Long]
-      (server ? budget.channel).map {
-        ch => new Backpressure.Link(ch, budget.events)
+      val tokens = system.channels.daemon.open[Long]
+      (server ? tokens.channel).map {
+        ch => new Backpressure.Link(ch, tokens.events)
       }.toIVar
     }
   }
