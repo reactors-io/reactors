@@ -3,6 +3,7 @@ package protocol
 
 
 
+import scala.collection._
 
 
 
@@ -45,13 +46,30 @@ trait BackpressureProtocols {
   }
 
   implicit class BackpressureConnectorOps[T](val conn: Connector[Backpressure.Req[T]]) {
-    def pressurize(): Events[T] = {
+    def global(startingBudget: Long): Events[T] = {
+      var budget = startingBudget
+      val input = Reactor.self.system.channels.daemon.open[T]
+      val links = ???
       conn.events onMatch {
         case (tokens, response) =>
           tokens ! ???
-          response ! ???
+          response ! input.channel
       }
-      ???
+      input.events
+    }
+    def perClient(startingBudget: Long): Events[T] = {
+      val system = Reactor.self.system
+      val input = system.channels.daemon.open[T]
+      conn.events onMatch {
+        case (tokens, response) =>
+          var budget = 0
+          val clientInput = system.channels.daemon.open[T]
+          clientInput.events.pipe(input.channel)
+          clientInput.events.on(tokens ! 1L)
+          tokens ! startingBudget
+          response ! clientInput.channel
+      }
+      input.events
     }
   }
 
