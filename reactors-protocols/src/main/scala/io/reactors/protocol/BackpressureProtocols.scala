@@ -34,9 +34,17 @@ trait BackpressureProtocols {
   }
 
   implicit class BackpressureSystemOps(val system: ReactorSystem) {
-    def backpressure[T](f: Events[T] => Unit): Backpressure.Server[T] =
+    def backpressureAll[T](window: Long)(
+      f: Events[T] => Unit
+    ): Backpressure.Server[T] =
       system.spawn(Reactor[Backpressure.Req[T]] { self =>
-        f(self.main.pressurize().events)
+        f(self.main.pressureAll(window).events)
+      })
+    def backpressurePerClient[T](window: Long)(
+      f: Events[T] => Unit
+    ): Backpressure.Server[T] =
+      system.spawn(Reactor[Backpressure.Req[T]] { self =>
+        f(self.main.pressurePerClient(window).events)
       })
   }
 
@@ -46,7 +54,8 @@ trait BackpressureProtocols {
   }
 
   implicit class BackpressureConnectorOps[T](val conn: Connector[Backpressure.Req[T]]) {
-    def global(startingBudget: Long): Events[T] = {
+    def pressureAll(startingBudget: Long): Events[T] = {
+      import conn.arrayable
       var budget = startingBudget
       val input = Reactor.self.system.channels.daemon.open[T]
       val links = ???
@@ -57,7 +66,8 @@ trait BackpressureProtocols {
       }
       input.events
     }
-    def perClient(startingBudget: Long): Events[T] = {
+    def pressurePerClient(startingBudget: Long): Events[T] = {
+      import conn.arrayable
       val system = Reactor.self.system
       val input = system.channels.daemon.open[T]
       conn.events onMatch {

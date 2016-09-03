@@ -16,7 +16,7 @@ class Connector[@spec(Int, Long, Double) T](
   private[reactors] val queue: EventQueue[T],
   private[reactors] val frame: Frame,
   val isDaemon: Boolean
-) extends Identifiable {
+)(implicit val arrayable: Arrayable[T]) extends Identifiable {
   /** Returns the unique identifier of the channel.
    */
   def uid = sharedChannel.asLocal.uid
