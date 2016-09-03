@@ -39,7 +39,7 @@ import scala.util.Try
  *  Event sink combinators, such as `onEvent`, return a `Subscription` object used to
  *  `unsubscribe` from their event source.
  *
- *  Combinators that start with the prefix `on`, `to` or `get` are called *sink
+ *  Combinators that start with the prefix `on`, `to`, `pipe` or `get` are called *sink
  *  combinators*. Calling these combinators subscribes to the event stream and creates
  *  a subscription object. The event source is from there on responsible for propagating
  *  events to sink combinators until it either *unreacts*, meaning that it will not
@@ -943,6 +943,12 @@ trait Events[@spec(Int, Long, Double) T] {
     sig.unsubscribe()
     sig()
   }
+
+  /** Pipes the events on this input stream to the target channel.
+   *
+   *  Exceptions are ignored.
+   */
+  def pipe(ch: Channel[T]): Subscription = this.ignoreExceptions.onEvent(x => ch ! x)
 
   /** Creates an `IVar` event stream value, completed with the first event from
    *  this event stream.
