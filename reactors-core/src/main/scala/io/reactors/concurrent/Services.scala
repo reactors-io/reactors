@@ -136,7 +136,7 @@ object Services {
   extends Reactor[(String, Channel[Channel[_]])] {
     main.events onMatch {
       case (name, answer) =>
-        system.channels.await(name, (ch: Channel[_]) => answer ! ch)
+        system.channels.await(name).onEvent((ch: Channel[_]) => answer ! ch)
     }
   }
 
@@ -345,9 +345,9 @@ object Services {
       (store.get(name): @unchecked) match {
         case null =>
           if (store.putIfAbsent(name, ch) != null) set(name, ch)
-        case lst: List[Channel[T] => Unit] @unchecked =>
+        case lst: List[Channel[Channel[T]]] @unchecked =>
           if (!store.replace(name, lst, ch)) set(name, ch)
-          else for (f <- lst) f(ch)
+          else for (awaiter <- lst) awaiter ! ch
         case och: Channel[T] =>
           if (!store.replace(name, och, ch)) set(name, ch)
       }
@@ -391,17 +391,24 @@ object Services {
      *
      *  @param name      names of the reactor and the channel, separated with `#`
      */
-    @tailrec private[reactors] final def await[T](
-      name: String, callback: Channel[T] => Unit
-    ): Unit = {
-      (store.get(name): @unchecked) match {
-        case null =>
-          if (store.putIfAbsent(name, callback :: Nil) != null) await(name, callback)
-        case lst: List[Channel[_] => Unit] @unchecked =>
-          if (!store.replace(name, lst, callback :: lst)) await(name, callback)
-        case ch: Channel[T] =>
-          callback(ch)
+    private[reactors] final def await[T](name: String): IVar[Channel[T]] = {
+      val conn = system.channels.daemon.open[Channel[T]]
+      val ivar = conn.events.toIVar
+      ivar.on(conn.seal())
+
+      @tailrec def retry() {
+        (store.get(name): @unchecked) match {
+          case null =>
+            if (store.putIfAbsent(name, conn.channel :: Nil) != null) retry()
+          case lst: List[Channel[Channel[T]]] @unchecked =>
+            if (!store.replace(name, lst, conn.channel :: lst)) retry()
+          case ch: Channel[T] =>
+            conn.channel ! ch
+        }
       }
+      retry()
+
+      ivar
     }
   }
 }

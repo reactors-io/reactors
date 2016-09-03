@@ -157,3 +157,48 @@ class CustomServiceReactor(val done: Promise[Boolean]) extends Reactor[Unit] {
       main.seal()
   }
 }
+
+
+class ChannelsTest extends FunSuite with Matchers with BeforeAndAfterAll {
+  val system = ReactorSystem.default("TestSystem")
+
+  test("existing channel should be awaited") {
+    val done = Promise[Boolean]()
+    system.spawn(Reactor[Unit] { self =>
+      val completer = system.channels.named("completer").open[String]
+      completer.events onMatch {
+        case "done" =>
+          done.success(true)
+          completer.seal()
+      }
+      system.channels.await[String]("test-reactor#completer").onEvent { ch =>
+        ch ! "done"
+        self.main.seal()
+      }
+    } withName("test-reactor"))
+    assert(Await.result(done.future, 10.seconds))
+  }
+
+  test("non-existing channel should be awaited") {
+    val done = Promise[Boolean]()
+    system.spawn(Reactor[Unit] { self =>
+      system.channels.await[String]("test-reactor#main").onEvent { ch =>
+        ch ! "done"
+        self.main.seal()
+      }
+    })
+    Thread.sleep(1000)
+    system.spawn(Reactor[String] { self =>
+      self.main.events onMatch {
+        case "done" =>
+          done.success(true)
+          self.main.seal()
+      }
+    } withName("test-reactor"))
+    assert(Await.result(done.future, 10.seconds))
+  }
+
+  override def afterAll() {
+    system.shutdown()
+  }
+}
