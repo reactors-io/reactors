@@ -20,11 +20,14 @@ trait BackpressureProtocols {
       private val tokens: Events[Long]
     ) extends Serializable {
       private val budget = RCell(0L)
-      tokens.onEvent(budget += _)
-      def available: Signal[Boolean] = budget
+      tokens.onEvent(budget := budget() + _)
+      def available: Signal[Boolean] = budget.map(_ > 0).toSignal(false)
       def trySend(x: T): Boolean = {
-        budget := budget() - 1
-        channel ! x
+        if (budget() == 0) false else {
+          budget := budget() - 1
+          channel ! x
+          true
+        }
       }
     }
   }
