@@ -46,18 +46,18 @@ trait RouterProtocols {
      *
      *  @tparam T        type of the events routed
      *  @param targets   target channels to which to route the events
-     *  @param random    randomization function, total number of channels to an index
+     *  @param randfun   randomization function, total number of channels to an index
      *  @return          the selector function
      */
     def random[T](
       targets: Seq[Channel[T]],
-      random: Int => Int = {
+      randfun: Int => Int = {
         val r = new Random
         (n: Int) => r.nextInt(n)
       }
     ): Selector[T] = {
       if (targets.isEmpty) zeroSelector
-      else (x: T) => targets(random(targets.length))
+      else (x: T) => targets(randfun(targets.length))
     }
 
     /** Consistently picks a channel using a hashing function on the event.
