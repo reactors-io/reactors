@@ -24,6 +24,12 @@ trait EventQueue[@spec(Int, Long, Double) T] {
    */
   def enqueue(x: T): Int
 
+  /** Emits an event on the `events` stream of this event queue, bypassing the queue.
+   *
+   *  @param x   the event to emit
+   */
+  def bypass(x: T): Unit
+
   /** Atomically dequeues an event from the queue, and emits it on the event stream.
    *
    *  This operation is linearizable, but can only be invoked by the queue's owner, that
@@ -71,6 +77,7 @@ object EventQueue {
   extends EventQueue[T] {
     def enqueue(x: T) = 0
     def dequeue()(implicit s: Spec[T]) = 0
+    def bypass(x: T) {}
     def unreact() {}
     def size = 0
     val events = new Events.Never[T]
@@ -104,6 +111,10 @@ object EventQueue {
       }
       if (shouldPropagate) emitter.react(x, null)
       remaining
+    }
+
+    def bypass(x: T) {
+      emitter.react(x)
     }
 
     def unreact() = {

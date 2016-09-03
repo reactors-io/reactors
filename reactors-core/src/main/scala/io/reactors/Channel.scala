@@ -58,14 +58,19 @@ object Channel {
   class Local[@spec(Int, Long, Double) T](
     val system: ReactorSystem,
     val uid: Long,
-    val frame: Frame
+    val frame: Frame,
+    val shortcut: Boolean
   ) extends Channel[T] with Identifiable {
     private[reactors] var connector: Connector[T] = _
     private[reactors] var isOpen = true
 
     def !(x: T): Unit = {
       system.debugApi.eventSent(this, x)
-      if (isOpen) frame.enqueueEvent(connector, x)
+      if (isOpen) {
+        if (shortcut && (Reactor.currentFrame eq frame)) {
+          connector.queue.bypass(x)
+        } else frame.enqueueEvent(connector, x)
+      }
     }
 
     def isSealed: Boolean = !isOpen

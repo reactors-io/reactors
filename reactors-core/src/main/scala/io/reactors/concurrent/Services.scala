@@ -330,7 +330,7 @@ object Services {
    *  To query channels in remote reactor systems, `Names` service should be used.
    */
   class Channels(val system: ReactorSystem)
-  extends ChannelBuilder(null, false, EventQueue.UnrolledRing.Factory)
+  extends ChannelBuilder(null, false, EventQueue.UnrolledRing.Factory, false)
   with Protocol.Service {
     private val store = new ConcurrentHashMap[String, AnyRef]
 

@@ -44,13 +44,14 @@ final class Frame(
   def openConnector[@spec(Int, Long, Double) Q: Arrayable](
     name: String,
     factory: EventQueue.Factory,
-    isDaemon: Boolean
+    isDaemon: Boolean,
+    shortcut: Boolean
   ): Connector[Q] = {
     // 1. Prepare and ensure a unique id for the channel.
     val uid = connectors.reserveId()
     val queue = factory.newInstance[Q]
     val chanUrl = ChannelUrl(url, name)
-    val localChan = new Channel.Local[Q](reactorSystem, uid, this)
+    val localChan = new Channel.Local[Q](reactorSystem, uid, this, shortcut)
     val chan = new Channel.Shared(chanUrl, localChan)
     val conn = new Connector(chan, queue, this, isDaemon)
     localChan.connector = conn
