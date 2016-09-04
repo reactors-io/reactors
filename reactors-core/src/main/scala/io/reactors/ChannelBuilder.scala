@@ -48,11 +48,6 @@ class ChannelBuilder(
     new ChannelBuilder(channelName, isDaemon, eventQueueFactory, shortcutLocal, nextras)
   }
 
-  /** Retrieves extra information previously stored into the channel builder.
-   */
-  def getExtra[C: ClassTag]: C =
-    extras(implicitly[ClassTag[C]].runtimeClass).asInstanceOf[C]
-
   /** Opens a new channel for this reactor.
    *
    *  @tparam Q        type of the events in the new channel
