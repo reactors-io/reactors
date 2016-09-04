@@ -77,8 +77,8 @@ trait BackpressureProtocols {
 
 
 object Backpressure {
-  type Server[T] = self.Server[Channel[Long], Channel[T]]
-  type Req[T] = self.Server.Req[Channel[Long], Channel[T]]
+  type Server[T] = io.reactors.protocol.Server[Channel[Long], Channel[T]]
+  type Req[T] = io.reactors.protocol.Server.Req[Channel[Long], Channel[T]]
 
   class Link[T](
     private val channel: Channel[T],
