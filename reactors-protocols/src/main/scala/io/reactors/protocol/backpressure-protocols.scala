@@ -38,12 +38,22 @@ trait BackpressureProtocols {
   implicit class BackpressureConnectorOps[T](val conn: Connector[Backpressure.Req[T]]) {
     def pressureAll(startingBudget: Long): Events[T] = {
       implicit val a = conn.extra[Backpressure.ChannelInfo[T]].arrayable
-      var budget = startingBudget
-      val input = Reactor.self.system.channels.daemon.open[T]
+      val system = Reactor.self.system
+      val input = system.channels.daemon.open[T]
       val links = new IndexedSet[Channel[Long]]
+      val allTokens = system.channels.daemon.shortcut.router[Long]
+        .route(Router.roundRobin(links))
+      var budget = startingBudget
+      input.events on {
+        allTokens.channel ! 1L
+      }
       conn.events onMatch {
         case (tokens, response) =>
-          tokens ! ???
+          links += tokens
+          if (budget > 0) {
+            allTokens.channel ! budget
+            budget = 0
+          }
           response ! input.channel
       }
       input.events
@@ -54,7 +64,6 @@ trait BackpressureProtocols {
       val input = system.channels.daemon.open[T]
       conn.events onMatch {
         case (tokens, response) =>
-          var budget = 0
           val clientInput = system.channels.daemon.open[T]
           clientInput.events.pipe(input.channel)
           clientInput.events.on(tokens ! 1L)
