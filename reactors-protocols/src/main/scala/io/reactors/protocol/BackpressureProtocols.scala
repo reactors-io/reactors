@@ -12,29 +12,6 @@ import scala.collection._
 trait BackpressureProtocols {
   self: ServerProtocols =>
 
-  object Backpressure {
-    type Server[T] = self.Server[Channel[Long], Channel[T]]
-    type Req[T] = self.Server.Req[Channel[Long], Channel[T]]
-
-    class Link[T](
-      private val channel: Channel[T],
-      private val tokens: Events[Long]
-    ) extends Serializable {
-      private val budget = RCell(0L)
-      tokens.onEvent(budget := budget() + _)
-      def available: Signal[Boolean] = budget.map(_ > 0).toSignal(false)
-      def trySend(x: T): Boolean = {
-        if (budget() == 0) false else {
-          budget := budget() - 1
-          channel ! x
-          true
-        }
-      }
-    }
-
-    case class ChannelInfo[T](arrayable: Arrayable[T])
-  }
-
   implicit class BackpressureSystemOps(val system: ReactorSystem) {
     def backpressureAll[T](window: Long)(
       f: Events[T] => Unit
@@ -96,4 +73,28 @@ trait BackpressureProtocols {
       }.toIVar
     }
   }
+}
+
+
+object Backpressure {
+  type Server[T] = self.Server[Channel[Long], Channel[T]]
+  type Req[T] = self.Server.Req[Channel[Long], Channel[T]]
+
+  class Link[T](
+    private val channel: Channel[T],
+    private val tokens: Events[Long]
+  ) extends Serializable {
+    private val budget = RCell(0L)
+    tokens.onEvent(budget := budget() + _)
+    def available: Signal[Boolean] = budget.map(_ > 0).toSignal(false)
+    def trySend(x: T): Boolean = {
+      if (budget() == 0) false else {
+        budget := budget() - 1
+        channel ! x
+        true
+      }
+    }
+  }
+
+  case class ChannelInfo[T](arrayable: Arrayable[T])
 }
