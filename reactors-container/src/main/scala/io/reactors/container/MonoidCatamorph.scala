@@ -8,6 +8,12 @@ import scala.collection._
 
 
 
+/** Stores elements of a monoid.
+ *
+ *  Incrementally computes an aggregation of the stored elements,
+ *  using a binary associative operator. The aggregation can be accessed
+ *  with the `signal` method.
+ */
 class MonoidCatamorph[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](
   val get: S => T, val zero: T, val op: (T, T) => T
 ) extends RCatamorph[T, S] {
