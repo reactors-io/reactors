@@ -3,6 +3,7 @@ package protocol
 
 
 
+import io.reactors.common.IndexedSet
 import io.reactors.test._
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -36,6 +37,36 @@ class RouterProtocolsSpec extends FunSuite {
       }
     })
     assert(Await.result(done.future, 10.seconds))
+  }
+
+  test("round robin should work correctly when targets change") {
+    val done = Promise[Seq[Int]]()
+    system.spawn(Reactor[Int] { self =>
+      val seen = mutable.Buffer[Int]()
+      val c1 = system.channels.open[Int]
+      val c2 = system.channels.open[Int]
+      val routees = new IndexedSet[Channel[Int]]
+      routees += self.main.channel
+      val rc = system.channels.daemon.router[Int]
+        .route(Router.roundRobin(routees))
+      rc.channel ! 17
+      self.main.events onEvent { x =>
+        seen += x
+        routees -= self.main.channel += c1.channel += c2.channel
+        rc.channel ! 18
+        rc.channel ! 19
+      }
+      c1.events onEvent { x =>
+        seen += x
+        c1.seal()
+      }
+      c2.events onEvent { x =>
+        seen += x
+        c2.seal()
+        done.success(seen)
+      }
+    })
+    assert(Await.result(done.future, 10.seconds) == Seq(17, 18, 19))
   }
 }
 

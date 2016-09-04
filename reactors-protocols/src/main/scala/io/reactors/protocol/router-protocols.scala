@@ -3,6 +3,7 @@ package protocol
 
 
 
+import scala.collection._
 import scala.util.Random
 
 
@@ -59,14 +60,13 @@ object Router {
    *  @return         a selector function that chooses a channel
    */
   def roundRobin[T](targets: Seq[Channel[T]]): Selector[T] = {
-    if (targets.isEmpty) zeroSelector
-    else {
-      var i = 0
-      (x: T) => {
-        val ch = targets(i)
+    var i = -1
+    (x: T) => {
+      if (targets.nonEmpty) {
         i = (i + 1) % targets.length
+        val ch = targets(i)
         ch
-      }
+      } else new Channel.Zero[T]
     }
   }
 
@@ -84,8 +84,10 @@ object Router {
       (n: Int) => r.nextInt(n)
     }
   ): Selector[T] = {
-    if (targets.isEmpty) zeroSelector
-    else (x: T) => targets(randfun(targets.length))
+    (x: T) => {
+      if (targets.nonEmpty) targets(randfun(targets.length))
+      else new Channel.Zero[T]
+    }
   }
 
   /** Consistently picks a channel using a hashing function on the event.
@@ -104,8 +106,10 @@ object Router {
     targets: Seq[Channel[T]],
     hashing: T => Int = (x: T) => x.##
   ): Selector[T] = {
-    if (targets.isEmpty) zeroSelector
-    else (x: T) => targets(hashing(x) % targets.length)
+    (x: T) => {
+      if (targets.nonEmpty) targets(hashing(x) % targets.length)
+      else new Channel.Zero[T]
+    }
   }
 
   /** Picks the next channel according to the Deficit Round Robin routing algorithm.
@@ -130,7 +134,7 @@ object Router {
    *  @return         a selector
    */
   def deficitRoundRobin[T](
-    targets: Seq[Channel[T]],
+    targets: immutable.Seq[Channel[T]],
     quantum: Int,
     cost: T => Int
   ): Selector[T] = {
