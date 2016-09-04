@@ -15,10 +15,6 @@ trait ServerProtocols {
    */
   type Server[T, S] = Channel[Server.Req[T, S]]
 
-  object Server {
-    type Req[T, S] = (T, Channel[S])
-  }
-
   implicit class ServerChannelBuilderOps(val builder: ChannelBuilder) {
     /** Open a new server channel.
      *
@@ -136,4 +132,9 @@ trait ServerProtocols {
       result.withSubscription(Subscription { connector.seal() })
     }
   }
+}
+
+
+object Server {
+  type Req[T, S] = (T, Channel[S])
 }
