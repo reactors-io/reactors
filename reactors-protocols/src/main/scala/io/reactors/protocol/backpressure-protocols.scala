@@ -3,6 +3,7 @@ package protocol
 
 
 
+import io.reactors.common.IndexedSet
 import scala.collection._
 
 
@@ -39,7 +40,7 @@ trait BackpressureProtocols {
       implicit val a = conn.extra[Backpressure.ChannelInfo[T]].arrayable
       var budget = startingBudget
       val input = Reactor.self.system.channels.daemon.open[T]
-      val links = ???
+      val links = new IndexedSet[Channel[Long]]
       conn.events onMatch {
         case (tokens, response) =>
           tokens ! ???
