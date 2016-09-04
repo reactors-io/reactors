@@ -10,7 +10,7 @@ import scala.util.Random
 
 /** Communication patterns for routing.
  */
-trait RouterProtocols {
+trait RouterProtocols { // TODO
   self: Patterns =>
 
   implicit class RouterChannelBuilderOps(val builder: ChannelBuilder) {
