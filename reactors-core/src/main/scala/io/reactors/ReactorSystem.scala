@@ -97,10 +97,10 @@ class ReactorSystem(
       // 3. allocate the standard connectors
       frame.name = uname
       frame.url = ReactorUrl(bundle.urlMap(proto.transport).url, uname)
-      frame.defaultConnector =
-        frame.openConnector[T](proto.channelName, factory, false, false)
-      frame.internalConnector =
-        frame.openConnector[SysEvent]("system", factory, true, false)
+      frame.defaultConnector = frame.openConnector[T](
+        proto.channelName, factory, false, false, immutable.Map())
+      frame.internalConnector = frame.openConnector[SysEvent](
+        "system", factory, true, false, immutable.Map())
       frame.internalConnector.asInstanceOf[Connector[SysEvent]].events.onEvent { x =>
         frame.sysEmitter.react(x, null)
       }

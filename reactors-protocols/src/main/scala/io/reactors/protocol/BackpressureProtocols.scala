@@ -31,6 +31,8 @@ trait BackpressureProtocols {
         }
       }
     }
+
+    case class ChannelInfo[T](arrayable: Arrayable[T])
   }
 
   implicit class BackpressureSystemOps(val system: ReactorSystem) {
@@ -49,13 +51,15 @@ trait BackpressureProtocols {
   }
 
   implicit class BackpressureChannelBuilderOps(val builder: ChannelBuilder) {
-    def backpressure[T]: Connector[Backpressure.Req[T]] =
-      builder.open[Backpressure.Req[T]]
+    def backpressure[T: Arrayable]: Connector[Backpressure.Req[T]] = {
+      val info = Backpressure.ChannelInfo(implicitly[Arrayable[T]])
+      builder.extra(info).open[Backpressure.Req[T]]
+    }
   }
 
   implicit class BackpressureConnectorOps[T](val conn: Connector[Backpressure.Req[T]]) {
     def pressureAll(startingBudget: Long): Events[T] = {
-      import conn.arrayable
+      implicit val a = conn.extra[Backpressure.ChannelInfo[T]].arrayable
       var budget = startingBudget
       val input = Reactor.self.system.channels.daemon.open[T]
       val links = ???
@@ -67,7 +71,7 @@ trait BackpressureProtocols {
       input.events
     }
     def pressurePerClient(startingBudget: Long): Events[T] = {
-      import conn.arrayable
+      implicit val a = conn.extra[Backpressure.ChannelInfo[T]].arrayable
       val system = Reactor.self.system
       val input = system.channels.daemon.open[T]
       conn.events onMatch {

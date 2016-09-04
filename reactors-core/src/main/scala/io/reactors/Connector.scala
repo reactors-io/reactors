@@ -4,6 +4,7 @@ package io.reactors
 
 import io.reactors.concurrent.Frame
 import scala.collection._
+import scala.reflect.ClassTag
 
 
 
@@ -15,8 +16,9 @@ class Connector[@spec(Int, Long, Double) T](
   private[reactors] val sharedChannel: Channel.Shared[T],
   private[reactors] val queue: EventQueue[T],
   private[reactors] val frame: Frame,
+  private[reactors] val extras: immutable.Map[Class[_], Any],
   val isDaemon: Boolean
-)(implicit val arrayable: Arrayable[T]) extends Identifiable {
+) extends Identifiable {
   /** Returns the unique identifier of the channel.
    */
   def uid = sharedChannel.asLocal.uid
@@ -32,6 +34,11 @@ class Connector[@spec(Int, Long, Double) T](
   /** Seals the channel, preventing it from delivering additional events.
    */
   def seal(): Boolean = frame.sealConnector(sharedChannel.asLocal.uid)
+
+  /** Returns extra information associated with this channel.
+   */
+  def extra[C: ClassTag]: C =
+    extras(implicitly[ClassTag[C]].runtimeClass).asInstanceOf[C]
 
   private[reactors] def dequeue(): Int = queue.dequeue()
 }

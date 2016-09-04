@@ -45,7 +45,8 @@ final class Frame(
     name: String,
     factory: EventQueue.Factory,
     isDaemon: Boolean,
-    shortcut: Boolean
+    shortcut: Boolean,
+    extras: immutable.Map[Class[_], Any]
   ): Connector[Q] = {
     // 1. Prepare and ensure a unique id for the channel.
     val uid = connectors.reserveId()
@@ -53,7 +54,7 @@ final class Frame(
     val chanUrl = ChannelUrl(url, name)
     val localChan = new Channel.Local[Q](reactorSystem, uid, this, shortcut)
     val chan = new Channel.Shared(chanUrl, localChan)
-    val conn = new Connector(chan, queue, this, isDaemon)
+    val conn = new Connector(chan, queue, this, extras, isDaemon)
     localChan.connector = conn
 
     // 2. Acquire a unique name or break if not unique.
