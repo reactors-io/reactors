@@ -11,3 +11,4 @@ with RouterProtocols
 with BackpressureProtocols
 with Patterns
 with Conversions
+with Convenience
