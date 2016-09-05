@@ -22,6 +22,7 @@ trait BackpressureProtocols {
           Backpressure.ChannelInfo(implicitly[Arrayable[T]]))
         f(self.main.pressureAll(window))
       })
+
     def backpressurePerClient[T: Arrayable](window: Long)(
       f: Events[T] => Unit
     ): Backpressure.Server[T] =
@@ -62,6 +63,7 @@ trait BackpressureProtocols {
       }
       input.events
     }
+
     def pressurePerClient(startingBudget: Long): Events[T] = {
       implicit val a = conn.extra[Backpressure.ChannelInfo[T]].arrayable
       val system = Reactor.self.system

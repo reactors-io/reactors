@@ -63,7 +63,7 @@ object DebuggerTest {
   }
 
   def runTests(driver: WebDriver, system: ReactorSystem) {
-    driver.get("localhost:8888")
+    driver.get("localhost:9310")
 
     // Run shell tests.
     runShellTests(driver, system)

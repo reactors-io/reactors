@@ -156,7 +156,7 @@ object ReactorSystem {
       }
       debug-api = {
         name = "io.reactors.DebugApi$Zero"
-        port = 8888
+        port = 9310
         repl = {
           expiration = 120
           expiration-check-period = 60

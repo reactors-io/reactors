@@ -873,7 +873,7 @@ class ReactorSystemTest extends FunSuite with Matchers {
     try {
       val p = Promise[Boolean]()
       system.spawn(Proto[TerminationExceptionReactor](p))
-      Thread.sleep(100)
+      Thread.sleep(1000)
       assert(p.future.value == None)
     } finally system.shutdown()
   }
