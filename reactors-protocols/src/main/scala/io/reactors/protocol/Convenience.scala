@@ -3,9 +3,6 @@ package protocol
 
 
 
-import scala.concurrent._
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.util.Try
 
 
 
@@ -19,9 +16,11 @@ trait Convenience {
 
 object Convenience {
   class ReactorSystemOps(val system: ReactorSystem) {
-    def spawn[@spec(Int, Long, Double) T](body: Reactor[T] => Unit): Channel[T] = {
-      val proto = Reactor[R](body)
-      system.spawn(body)
+    def spawnLocal[@spec(Int, Long, Double) T: Arrayable](
+      body: Reactor[T] => Unit
+    ): Channel[T] = {
+      val proto = Reactor[T](body)
+      system.spawn(proto)
     }
   }
 }

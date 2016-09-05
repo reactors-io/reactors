@@ -54,7 +54,7 @@ final class Frame(
     val chanUrl = ChannelUrl(url, name)
     val localChan = new Channel.Local[Q](reactorSystem, uid, this, shortcut)
     val chan = new Channel.Shared(chanUrl, localChan)
-    val conn = new Connector(chan, queue, this, extras, isDaemon)
+    val conn = new Connector(chan, queue, this, mutable.Map(extras.toSeq: _*), isDaemon)
     localChan.connector = conn
 
     // 2. Acquire a unique name or break if not unique.
