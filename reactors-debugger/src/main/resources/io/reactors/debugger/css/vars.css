@@ -1,9 +1,9 @@
 :root {
-  --widget-background-color-dim: rgba(10, 10, 10, 0.9);
-  --widget-background-color: rgba(15, 15, 15, 0.6);
-  --widget-background-color-selected: rgba(50, 50, 50, 0.4);
-  --widget-background-color-hovered: rgba(60, 60, 60, 0.5);
-  --widget-background-color-active: rgba(100, 100, 100, 0.5);
+  --widget-background-color-dim: rgba(10, 10, 10, 0.7);
+  --widget-background-color: rgba(15, 15, 15, 0.4);
+  --widget-background-color-selected: rgba(50, 50, 50, 0.3);
+  --widget-background-color-hovered: rgba(60, 60, 60, 0.4);
+  --widget-background-color-active: rgba(100, 100, 100, 0.4);
   --widget-font-color: rgba(150, 150, 150, 0.8);
   --widget-font-color-bright: rgba(225, 225, 225, 0.8);
   --widget-border: 1px solid rgba(60, 60, 60, 0.3);
