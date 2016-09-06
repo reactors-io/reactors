@@ -8,6 +8,11 @@ import scala.collection._
 
 
 
+/** Stores elements of an Abelian group.
+ *
+ *  Aggregation is computed incrementally using a binary operator
+ *  and its inverse.
+ */
 class AbelianCatamorph[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](
   val get: S => T, val zero: T, val op: (T, T) => T, val inv: (T, T) => T
 )(

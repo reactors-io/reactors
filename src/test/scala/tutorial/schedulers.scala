@@ -73,7 +73,8 @@ class Logger extends Reactor[String] {
 
 class Schedulers extends FunSuite with Matchers {
   /*!md
-  We then create a reactor system, as we saw in the previous sections,
+  Before starting, we need to create a reactor system,
+  as we learned in the previous sections:
   !*/
 
   /*!begin-code!*/

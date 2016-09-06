@@ -8,6 +8,12 @@ import scala.collection._
 
 
 
+/** Stores elements that form a commutative monoid.
+ *
+ *  Elements are incrementally aggregated using a binary operator
+ *  that is associative and commutative. The value of the aggregation
+ *  can be accessed with the `signal` method.
+ */
 class CommuteCatamorph[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](
   val get: S => T, val zero: T, val op: (T, T) => T
 ) extends RCatamorph[T, S] {
