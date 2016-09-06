@@ -14,13 +14,13 @@ trait BackpressureProtocols {
   self: ServerProtocols =>
 
   implicit class BackpressureSystemOps(val system: ReactorSystem) {
-    def backpressureAll[T: Arrayable](window: Long)(
+    def backpressureForAll[T: Arrayable](window: Long)(
       f: Events[T] => Unit
     ): Backpressure.Server[T] =
       system.spawn(Reactor[Backpressure.Req[T]] { self =>
         self.main.extra[Backpressure.ChannelInfo[T]](
           Backpressure.ChannelInfo(implicitly[Arrayable[T]]))
-        f(self.main.pressureAll(window))
+        f(self.main.pressureForAll(window))
       })
 
     def backpressurePerClient[T: Arrayable](window: Long)(
@@ -41,7 +41,7 @@ trait BackpressureProtocols {
   }
 
   implicit class BackpressureConnectorOps[T](val conn: Connector[Backpressure.Req[T]]) {
-    def pressureAll(startingBudget: Long): Events[T] = {
+    def pressureForAll(startingBudget: Long): Events[T] = {
       implicit val a = conn.extra[Backpressure.ChannelInfo[T]].arrayable
       val system = Reactor.self.system
       val input = system.channels.daemon.open[T]
