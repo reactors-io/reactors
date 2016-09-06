@@ -97,6 +97,7 @@ class ReactorSystem(
       // 3. allocate the standard connectors
       frame.name = uname
       frame.url = ReactorUrl(bundle.urlMap(proto.transport).url, uname)
+      // TODO: Delay sharing of these connectors until after `initSchedule` gets called.
       frame.defaultConnector = frame.openConnector[T](
         proto.channelName, factory, false, false, immutable.Map())
       frame.internalConnector = frame.openConnector[SysEvent](
