@@ -41,6 +41,8 @@ trait RouterProtocols {
 }
 
 
+/** Contains types and factory functions for router protocols.
+ */
 object Router {
   /** Type of a function that selects a channel given an event.
    */
