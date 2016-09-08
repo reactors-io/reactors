@@ -5,6 +5,7 @@ package protocol
 
 import io.reactors.common.IndexedSet
 import io.reactors.common.concurrent.UidGenerator
+import io.reactors.container.RHashMap
 import scala.collection._
 
 
@@ -104,7 +105,7 @@ trait BackpressureProtocols {
       val uidGen = new UidGenerator(1)
       val input = system.channels.daemon.open[T]
       val links = new IndexedSet[Channel[Long]]
-      val linkstate = mutable.Map[Backpressure.Uid, Backpressure.LinkState]()
+      val linkstate = new RHashMap[Backpressure.Uid, Backpressure.LinkState]
       val allTokens = system.channels.daemon.shortcut.router[Long]
         .route(Router.roundRobin(links))
       var budget = initialBudget
@@ -115,7 +116,8 @@ trait BackpressureProtocols {
         case (Backpressure.Open(tokens), response) =>
           val uid = uidGen.generate()
           links += tokens.inject { num =>
-            if (linkstate.contains(uid)) linkstate(uid).budget += num
+            val s = linkstate.applyOrNil(uid)
+            if (s != null) s.budget += num
           }
           linkstate(uid) = new Backpressure.LinkState(tokens)
           if (budget > 0) {
