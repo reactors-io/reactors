@@ -139,6 +139,16 @@ object ReactorSystem {
     new ReactorSystem(name, bundle)
   }
 
+  /** Contains machine information.
+   */
+  private val machineConfig: Config = {
+    ConfigFactory.parseString(s"""
+      system = {
+        num-processors = ${Runtime.getRuntime.availableProcessors()}
+      }
+    """)
+  }
+
   /** Retrieves the default bundle config object.
    *
    *  This configuration is merged with any custom configurations that are provided to
@@ -189,8 +199,11 @@ object ReactorSystem {
         net = {
           parallelism = 8
         }
+        uid-generator = {
+          scalability = 16 * ${system.num-processors}
+        }
       }
-    """)
+    """).withFallback(machineConfig)
   }
 
   /** Convert the configuration string to a `Config` object.
