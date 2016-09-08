@@ -126,8 +126,11 @@ trait BackpressureProtocols {
           }
           response ! (uid, input.channel)
         case (Backpressure.Seal(uid), _) =>
-          budget += linkstate(uid).budget
-          linkstate.remove(uid)
+          val s = linkstate.applyOrNil(uid)
+          if (s != null) {
+            budget += linkstate(uid).budget
+            linkstate.remove(uid)
+          }
       }
       input.events
     }
