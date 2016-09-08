@@ -199,9 +199,6 @@ object ReactorSystem {
         net = {
           parallelism = 8
         }
-        uid-generator = {
-          scalability = 16 * ${system.num-processors}
-        }
       }
     """).withFallback(machineConfig)
   }
