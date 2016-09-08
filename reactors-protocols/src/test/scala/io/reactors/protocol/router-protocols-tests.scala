@@ -57,12 +57,12 @@ class RouterProtocolsSpec extends FunSuite {
       c1.events onEvent { x =>
         seen += x
         c1.seal()
-        rc.channel ! 19
+        done.success(seen)
       }
       c2.events onEvent { x =>
         seen += x
         c2.seal()
-        done.success(seen)
+        rc.channel ! 19
       }
     })
     assert(Await.result(done.future, 10.seconds) == Seq(17, 18, 19))
