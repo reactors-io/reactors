@@ -47,8 +47,7 @@ class RouterProtocolsSpec extends FunSuite {
       val c2 = system.channels.open[Int]
       val routees = new IndexedSet[Channel[Int]]
       routees += self.main.channel
-      val rc = system.channels.daemon.router[Int]
-        .route(Router.roundRobin(routees))
+      val rc = system.channels.daemon.router[Int].route(Router.roundRobin(routees))
       rc.channel ! 17
       self.main.events onEvent { x =>
         seen += x
@@ -72,7 +71,7 @@ class RouterProtocolsSpec extends FunSuite {
 
 
 class RouterProtocolsCheck
-extends Properties("ServerProtocols") with ExtendedProperties {
+extends Properties("RouterProtocols") with ExtendedProperties {
   val system = ReactorSystem.default("check-system")
 
   val sizes = detChoose(0, 256)
