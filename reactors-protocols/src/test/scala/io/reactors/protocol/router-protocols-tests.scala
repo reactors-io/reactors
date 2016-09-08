@@ -53,11 +53,11 @@ class RouterProtocolsSpec extends FunSuite {
         seen += x
         routees -= self.main.channel += c1.channel += c2.channel
         rc.channel ! 18
-        rc.channel ! 19
       }
       c1.events onEvent { x =>
         seen += x
         c1.seal()
+        rc.channel ! 19
       }
       c2.events onEvent { x =>
         seen += x
