@@ -107,9 +107,15 @@ trait ServerProtocols {
       val connector = Reactor.self.system.channels.open[S]
       val result = connector.events.toIVar
       result.onDone(connector.seal())
-      server ! ((x, connector.channel))
+      server ! (x, connector.channel)
       result
     }
+
+    /** Send a request to the server, but ignore the response.
+     *
+     *  @param x     request event
+     */
+    def !?(x: T): Unit = server ! (x, new Channel.Zero[S])
   }
 
   implicit class ServerStreamOps[T, @specialized(Int, Long, Double) S: Arrayable](
@@ -120,7 +126,7 @@ trait ServerProtocols {
      *  The stream is interrupted when the server sends a `term` event.
      *
      *  Server can reply with multiple events.
-     *  There is no backpressure in this algorithm, so users are responsible for
+     *  There is no backpressure in this algorithm, so clients are responsible for
      *  ensuring that the server does not flood the client.
      *  Furthermote, the client can at any point unsubscribe from the event
      *  stream without notifying the server, so ensuring that the server sends a finite
