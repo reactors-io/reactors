@@ -26,7 +26,7 @@ import scala.collection._
  *    backpressure links. The advantage is that the server cannot be overwhelmed,
  *    regardless of the number of clients. The disadvantage is that some clients can
  *    fail while holding some of the tokens, in which case tokens are lost. If failures
- *    are possible in the system, such behavior can ultimately starve the protocol.
+ *    are possible in the system, such scenarios can ultimately starve the protocol.
  *  - The per-client backpressure policy maintains a fixed number of tokens per each
  *    backpressure link. The advantage is that the failure of any single client only
  *    obliviates the tokens from the client's own backpressure links, so other clients
@@ -109,12 +109,14 @@ trait BackpressureProtocols {
         .route(Router.roundRobin(links))
       var budget = initialBudget
       input.events on {
-        allTokens.channel ! 1L
+        allTokens.channel ! 1L + budget
       }
       conn.events onMatch {
         case (Backpressure.Open(tokens), response) =>
           val uid = uidGen.generate()
-          links += tokens.inject(num => linkstate(uid).budget += num)
+          links += tokens.inject { num =>
+            if (linkstate.contains(uid)) linkstate(uid).budget += num
+          }
           linkstate(uid) = new Backpressure.LinkState(tokens)
           if (budget > 0) {
             allTokens.channel ! budget
@@ -122,7 +124,8 @@ trait BackpressureProtocols {
           }
           response ! (uid, input.channel)
         case (Backpressure.Seal(uid), _) =>
-          // TODO: Complete seal operation.
+          budget += linkstate(uid).budget
+          linkstate.remove(uid)
       }
       input.events
     }
@@ -165,7 +168,11 @@ trait BackpressureProtocols {
       val budget = RCell(0L)
       tokens.events.onEvent(budget := budget() + _)
       (server ? Backpressure.Open(tokens.channel)).map {
-        case (uid, ch) => new Backpressure.Link(uid, ch, budget)
+        case (uid, ch) =>
+          Reactor.self.sysEvents onMatch {
+            case ReactorTerminated => server !? Backpressure.Seal(uid)
+          }
+          new Backpressure.Link(uid, ch, budget)
       }.toIVar
     }
   }
