@@ -4,6 +4,7 @@ package protocol
 
 
 import io.reactors.common.IndexedSet
+import io.reactors.common.concurrent.UidGenerator
 import scala.collection._
 
 
@@ -51,7 +52,7 @@ trait BackpressureProtocols {
     ): Backpressure.Server[T] =
       system.spawn(Reactor[Backpressure.Req[T]] { self =>
         self.main.extra[Backpressure.ChannelInfo[T]](
-          Backpressure.ChannelInfo(implicitly[Arrayable[T]]))
+          new Backpressure.ChannelInfo(implicitly[Arrayable[T]]))
         f(self.main.pressureForAll(budget))
       })
 
@@ -68,7 +69,7 @@ trait BackpressureProtocols {
     ): Backpressure.Server[T] =
       system.spawn(Reactor[Backpressure.Req[T]] { self =>
         self.main.extra[Backpressure.ChannelInfo[T]](
-          Backpressure.ChannelInfo(implicitly[Arrayable[T]]))
+          new Backpressure.ChannelInfo(implicitly[Arrayable[T]]))
         f(self.main.pressurePerClient(budget))
       })
   }
@@ -85,7 +86,7 @@ trait BackpressureProtocols {
      *  @return        a connector of the backpressure request type
      */
     def backpressure[T: Arrayable]: Connector[Backpressure.Req[T]] = {
-      val info = Backpressure.ChannelInfo(implicitly[Arrayable[T]])
+      val info = new Backpressure.ChannelInfo(implicitly[Arrayable[T]])
       builder.extra(info).open[Backpressure.Req[T]]
     }
   }
@@ -97,25 +98,31 @@ trait BackpressureProtocols {
      *
      *  @see [[io.reactors.protocol.BackpressureProtocols]]
      */
-    def pressureForAll(startingBudget: Long): Events[T] = {
+    def pressureForAll(initialBudget: Long): Events[T] = {
       implicit val a = conn.extra[Backpressure.ChannelInfo[T]].arrayable
       val system = Reactor.self.system
+      val uidGen = new UidGenerator(1)
       val input = system.channels.daemon.open[T]
       val links = new IndexedSet[Channel[Long]]
+      val linkstate = mutable.Map[Backpressure.Uid, Backpressure.LinkState]()
       val allTokens = system.channels.daemon.shortcut.router[Long]
         .route(Router.roundRobin(links))
-      var budget = startingBudget
+      var budget = initialBudget
       input.events on {
         allTokens.channel ! 1L
       }
       conn.events onMatch {
-        case (tokens, response) =>
-          links += tokens
+        case (Backpressure.Open(tokens), response) =>
+          val uid = uidGen.generate()
+          links += tokens.inject(num => linkstate(uid).budget += num)
+          linkstate(uid) = new Backpressure.LinkState(tokens)
           if (budget > 0) {
             allTokens.channel ! budget
             budget = 0
           }
-          response ! input.channel
+          response ! (uid, input.channel)
+        case (Backpressure.Seal(uid), _) =>
+          // TODO: Complete seal operation.
       }
       input.events
     }
@@ -124,17 +131,19 @@ trait BackpressureProtocols {
      *
      *  @see [[io.reactors.protocol.BackpressureProtocols]]
      */
-    def pressurePerClient(startingBudget: Long): Events[T] = {
+    def pressurePerClient(initialBudget: Long): Events[T] = {
       implicit val a = conn.extra[Backpressure.ChannelInfo[T]].arrayable
       val system = Reactor.self.system
       val input = system.channels.daemon.open[T]
       conn.events onMatch {
-        case (tokens, response) =>
+        case (Backpressure.Open(tokens), response) =>
           val clientInput = system.channels.daemon.open[T]
           clientInput.events.pipe(input.channel)
           clientInput.events.on(tokens ! 1L)
-          tokens ! startingBudget
-          response ! clientInput.channel
+          tokens ! initialBudget
+          response ! (0L, clientInput.channel)
+        case (Backpressure.Seal(_), _) =>
+          // Safe to ignore the seal operation, as budget is not shared.
       }
       input.events
     }
@@ -155,8 +164,8 @@ trait BackpressureProtocols {
       val tokens = system.channels.daemon.open[Long]
       val budget = RCell(0L)
       tokens.events.onEvent(budget := budget() + _)
-      (server ? tokens.channel).map {
-        ch => new Backpressure.Link(ch, budget)
+      (server ? Backpressure.Open(tokens.channel)).map {
+        case (uid, ch) => new Backpressure.Link(uid, ch, budget)
       }.toIVar
     }
   }
@@ -166,17 +175,22 @@ trait BackpressureProtocols {
 /** Contains backpressure types and auxiliary classes.
  */
 object Backpressure {
+  /** Unique identifier for established backpressure links.
+   */
+  type Uid = Long
+
   /** Type of the backpressure server channel.
    */
-  type Server[T] = io.reactors.protocol.Server[Channel[Long], Channel[T]]
+  type Server[T] = io.reactors.protocol.Server[Payload, (Uid, Channel[T])]
 
   /** Type of the backpressure request.
    */
-  type Req[T] = io.reactors.protocol.Server.Req[Channel[Long], Channel[T]]
+  type Req[T] = io.reactors.protocol.Server.Req[Payload, (Uid, Channel[T])]
 
   /** Represents the state of the link between the client and the backpressure server.
    */
   class Link[T](
+    private val uid: Long,
     private val channel: Channel[T],
     private val budget: RCell[Long]
   ) extends Serializable {
@@ -202,5 +216,23 @@ object Backpressure {
 
   /** Holds extra info about that backpressure server channel.
    */
-  case class ChannelInfo[T](arrayable: Arrayable[T])
+  class ChannelInfo[T](val arrayable: Arrayable[T])
+
+  /** Holds state of the link.
+   */
+  class LinkState(tokens: Channel[Long]) {
+    var budget = 0L
+  }
+
+  /** Payload for backpressure requests.
+   */
+  sealed trait Payload
+
+  /** Payload for opening a backpressure link.
+   */
+  case class Open(ch: Channel[Long]) extends Payload
+
+  /** Payload for closing an existing backpressure link.
+   */
+  case class Seal(uid: Uid) extends Payload
 }
