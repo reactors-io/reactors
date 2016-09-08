@@ -24,6 +24,7 @@ final class Frame(
   private[reactors] val connectors = new UniqueStore[Connector[_]]("channel", monitor)
   private[reactors] var nonDaemonCount = 0
   private[reactors] var active = false
+  private[reactors] val activeCount = new AtomicInteger(0)
   private[reactors] var lifecycleState: Frame.LifecycleState = Frame.Fresh
   private[reactors] val pendingQueues = new UnrolledRing[Connector[_]]
   private[reactors] val sysEmitter = new Events.Emitter[SysEvent]
@@ -103,21 +104,33 @@ final class Frame(
     if (mustSchedule) scheduler.schedule(this)
   }
 
-  def executeBatch() {
-    // 1. Check the state.
-    // This method can only be called if the frame is in the "active" state.
-    assert(active)
+  @tailrec
+  private def assertIsolated() {
+    val count = activeCount.get
+    if (count != 0) assert(false, s"Not isolated, count was: " + count)
+    else if (!activeCount.compareAndSet(0, 1)) assertIsolated()
+  }
 
+  def executeBatch() {
     // This method cannot be executed inside another reactor.
     if (Reactor.currentReactor != null) {
       throw new IllegalStateException(
         s"Cannot execute reactor inside another reactor: ${Reactor.currentReactor}.")
     }
 
-    // Process a batch of events.
+    // 1. Check the state and ensure that this is the only thread running.
+    // This method can only be called if the frame is in the "active" state, and no
+    // other thread is executing the frame.
+    assert(active)
+    assertIsolated()
+
+    // 2. Process a batch of events.
     try {
       isolateAndProcessBatch()
     } finally {
+      // Set active count back to 0.
+      activeCount.set(0)
+
       // Set the execution state to false if no more events, or otherwise re-schedule.
       var mustSchedule = false
       monitor.synchronized {
@@ -130,7 +143,7 @@ final class Frame(
       if (mustSchedule) scheduler.schedule(this)
     }
 
-    // Piggyback the worker thread to do some useful work.
+    // 3. Piggyback the worker thread to do some useful work.
     scheduler.unschedule(reactorSystem)
   }
 
