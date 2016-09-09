@@ -33,6 +33,9 @@
 
       var style = window.getComputedStyle(document.body);
 
+      sigma.classes.graph.addMethod('getNodeCount', function() {
+        return this.nodesArray.length;
+      });
       this.sigma = new sigma({
         container: "x-graph-sigma-" + this.uid,
         settings: {
@@ -134,7 +137,7 @@
             if (this.sigma.isForceAtlas2Running()) {
               this.sigma.killForceAtlas2();
             };
-          }, 800);
+          }, Math.min(2000, 400 + 2 * this.sigma.graph.getNodeCount()));
         }, 800);
       },
       resetState: function() {
