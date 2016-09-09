@@ -21,7 +21,7 @@
   --graph-label-color: rgba(255, 255, 255, 0.8);
   --graph-label-hover-color: rgba(255, 255, 255, 0.8);
   --graph-label-hover-background-color: rgba(15, 15, 15, 0.5);
-  --graph-edge-color: rgba(255, 255, 255, 0.8);
+  --graph-edge-color: rgba(0, 160, 255, 0.8);
   --log-event-created: rgba(0, 150, 0, 0.95);
   --log-event-terminated: rgba(250, 100, 0, 0.95);
   --log-event-sent: rgba(0, 100, 255, 0.95);

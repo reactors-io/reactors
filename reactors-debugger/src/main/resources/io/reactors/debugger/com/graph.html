@@ -46,10 +46,19 @@
           minEdgeSize: 0.15,
           maxEdgeSize: 0.35,
           autoRescale: false,
+          minArrowSize: 5,
+          batchEdgesDrawing: true,
+          hideEdgesOnMove: true,
           zoomMin: 0.007,
           zoomMax: 0.125,
           font: "Helvetica"
-        }
+        },
+        renderers: [
+          {
+            container: document.getElementById("x-graph-sigma-" + this.uid),
+            type: "canvas" // sigma.renderers.canvas works as well
+          }
+        ]
       });
       this.sigma.camera.goTo({ x: 3, y: 3, ratio: 0.01 });
 
@@ -168,15 +177,15 @@
               id: key,
               source: send[0],
               target: send[1],
-              size: 0.2,
+              size: 0.12,
               color: style.getPropertyValue("--graph-edge-color"),
-              type: "arrow"
-            });
-            this.sigma.refresh({
-              skipIndexation: true
+              type: "curvedArrow"
             });
           }
         }
+        this.sigma.refresh({
+          skipIndexation: true
+        });        
       }
     },
     destroyed: function() {
