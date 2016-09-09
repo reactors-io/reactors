@@ -37,7 +37,7 @@ class PatternsSpec extends FunSuite {
     ch ! 7
     ch ! 11
     ch ! 17
-    Thread.sleep(200)
+    Thread.sleep(400)
     assert(a2.future.value.get.get == 7)
     assert(a1.future.value == None)
     assert(a0.future.value == None)
