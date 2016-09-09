@@ -137,6 +137,9 @@
             if (this.sigma.isForceAtlas2Running()) {
               this.sigma.killForceAtlas2();
             };
+            this.sigma.refresh({
+              skipIndexation: true
+            });
           }, Math.min(2000, 400 + 2 * this.sigma.graph.getNodeCount()));
         }, 800);
       },

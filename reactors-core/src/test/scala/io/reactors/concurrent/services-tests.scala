@@ -3,9 +3,13 @@ package concurrent
 
 
 
+import io.reactors.test._
 import java.io.InputStream
 import java.net.URL
 import org.apache.commons.io._
+import org.scalacheck._
+import org.scalacheck.Prop.forAllNoShrink
+import org.scalacheck.Gen.choose
 import org.scalatest._
 import org.scalatest.concurrent.TimeLimitedTests
 import scala.collection._
@@ -179,27 +183,55 @@ class ChannelsTest extends FunSuite with Matchers with BeforeAndAfterAll {
     assert(Await.result(done.future, 10.seconds))
   }
 
-  // TODO: Re-enable when race condition gets fixed.
-  // test("non-existing channel should be awaited") {
-  //   val done = Promise[Boolean]()
-  //   system.spawn(Reactor[Unit] { self =>
-  //     system.channels.await[String]("test-reactor#main").onEvent { ch =>
-  //       ch ! "done"
-  //       self.main.seal()
-  //     }
-  //   })
-  //   Thread.sleep(1000)
-  //   system.spawn(Reactor[String] { self =>
-  //     self.main.events onMatch {
-  //       case "done" =>
-  //         done.success(true)
-  //         self.main.seal()
-  //     }
-  //   } withName("test-reactor"))
-  //   assert(Await.result(done.future, 10.seconds))
-  // }
+  test("non-existing channel should be awaited") {
+    val done = Promise[Boolean]()
+    system.spawn(Reactor[Unit] { self =>
+      system.channels.await[String]("test-reactor#main").onEvent { ch =>
+        ch ! "done"
+        self.main.seal()
+      }
+    })
+    Thread.sleep(1000)
+    system.spawn(Reactor[String] { self =>
+      self.main.events onMatch {
+        case "done" =>
+          done.success(true)
+          self.main.seal()
+      }
+    } withName("test-reactor"))
+    assert(Await.result(done.future, 10.seconds))
+  }
 
   override def afterAll() {
     system.shutdown()
   }
+}
+
+
+object ChannelsCheck extends Properties("ChannelsCheck") with ExtendedProperties {
+
+  val system = ReactorSystem.default("check-system")
+
+  property("channel should be awaited") =
+    forAllNoShrink(detChoose(1, 50)) { n =>
+      stackTraced {
+        val done = Promise[Boolean]()
+        system.spawn(Reactor[Unit] { self =>
+          system.channels.await[String]("check-reactor#main").onEvent { ch =>
+            ch ! "done"
+            self.main.seal()
+          }
+        })
+        Thread.sleep(n)
+        system.spawn(Reactor[String] { self =>
+          self.main.events onMatch {
+            case "done" =>
+              done.success(true)
+              self.main.seal()
+          }
+        } withName("check-reactor"))
+        Await.result(done.future, 10.seconds)
+      }
+    }
+
 }

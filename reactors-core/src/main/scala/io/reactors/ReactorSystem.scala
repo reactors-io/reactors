@@ -77,7 +77,7 @@ class ReactorSystem(
   protected[reactors] def trySpawnReactor[@spec(Int, Long, Double) T: Arrayable](
     proto: Proto[Reactor[T]]
   ): Channel[T] = {
-    // 1. ensure a unique id
+    // 1. Ensure a unique id.
     val uid = frames.reserveId()
     val scheduler = proto.scheduler match {
       case null => bundle.defaultScheduler
@@ -90,15 +90,18 @@ class ReactorSystem(
     assert(proto.channelName != "system")
     val frame = new Frame(uid, proto, scheduler, this)
 
-    // 2. reserve the unique name or break
+    // 2. Reserve the unique name or break.
     val uname = frames.tryStore(proto.name, frame)
 
     try {
-      // 3. allocate the standard connectors
+      // 3. Allocate the standard connectors.
       frame.name = uname
       frame.url = ReactorUrl(bundle.urlMap(proto.transport).url, uname)
-      // TODO: Delay sharing of these connectors until after `initSchedule` gets called.
-      //       Otherwise, this breaks the test that awaits a channel by name.
+
+      // 4. Prepare for the first execution.
+      scheduler.initSchedule(frame)
+
+      // 5. Create standard connectors.
       frame.defaultConnector = frame.openConnector[T](
         proto.channelName, factory, false, false, immutable.Map())
       frame.internalConnector = frame.openConnector[SysEvent](
@@ -107,17 +110,16 @@ class ReactorSystem(
         frame.sysEmitter.react(x, null)
       }
 
-      // 4. schedule for the first execution
-      scheduler.initSchedule(frame)
+      // 6. Schedule for first execution.
       frame.activate()
     } catch {
       case t: Throwable =>
-        // 5. if not successful, release the name and rethrow
+        // 7. If not successful, release the name and rethrow.
         frames.tryRelease(uname)
         throw t
     }
 
-    // 6. return the default channel
+    // 8. return the default channel
     frame.defaultConnector.channel.asInstanceOf[Channel[T]]
   }
 

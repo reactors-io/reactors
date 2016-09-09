@@ -3,6 +3,8 @@ package io.reactors
 
 
 import java.util.concurrent._
+import java.util.concurrent.atomic.AtomicReference
+import java.util.TimerTask
 import scala.collection._
 import scala.concurrent.ExecutionContext
 import scala.annotation.tailrec
@@ -390,37 +392,34 @@ object Scheduler {
 
     def shutdown() = if (timer != null) timer.cancel()
 
-    override def newState(frame: Frame) = new Scheduler.State.Default {
-      override def onBatchStart(frame: Frame): Unit = {
-        allowedBudget = frame.estimateTotalPendingEvents
+    override def newState(frame: Frame) = new Timer.State
+
+    def schedule(frame: Frame) {
+      val state = frame.schedulerState.asInstanceOf[Timer.State]
+      if (state.task == null) state.synchronized {
+        if (state.task == null) {
+          state.task = new TimerTask {
+            timerTask =>
+            def run() {
+              try {
+                if (frame.hasTerminated) {
+                  timerTask.cancel()
+                  removeFrame(frame)
+                } else {
+                  frame.executeBatch()
+                  frame.activate()
+                }
+              } catch handler
+            }
+            timer.schedule(state.task, period, period)
+          }
+        }
       }
     }
-
-    def schedule(frame: Frame) {}
 
     override def initSchedule(frame: Frame) {
       super.initSchedule(frame)
       addFrame(frame)
-
-      val task = new java.util.TimerTask {
-        timerTask =>
-        def run() {
-          try {
-            if (frame.hasTerminated) {
-              timerTask.cancel()
-              removeFrame(frame)
-            } else {
-              frame.executeBatch()
-
-              // we put into the "active" state to be consistent,
-              // although this is not strictly necessary
-              frame.activate()
-            }
-          } catch handler
-        }
-      }
-
-      timer.schedule(task, period, period)
     }
 
     private def addFrame(frame: Frame) = frames.synchronized {
@@ -437,7 +436,18 @@ object Scheduler {
         timer = null
       }
     }
+  }
 
+  object Timer {
+    /** Holds state of frames scheduled by the `Timer` scheduler.
+     */
+    class State extends Scheduler.State.Default {
+      @volatile var task: TimerTask = null
+
+      override def onBatchStart(frame: Frame): Unit = {
+        allowedBudget = frame.estimateTotalPendingEvents
+      }
+    }
   }
 
 }
