@@ -47,7 +47,8 @@ final class Frame(
     factory: EventQueue.Factory,
     isDaemon: Boolean,
     shortcut: Boolean,
-    extras: immutable.Map[Class[_], Any]
+    extras: immutable.Map[Class[_], Any],
+    publishImmediately: Boolean
   ): Connector[Q] = {
     // 1. Prepare and ensure a unique id for the channel.
     val uid = connectors.reserveId()
@@ -66,7 +67,8 @@ final class Frame(
     }
 
     // 3. Put connector to global store.
-    reactorSystem.channels.set(this.name + "#" + uname, chan)
+    if (publishImmediately)
+      reactorSystem.channels.set(this.name + "#" + uname, chan)
 
     // 4. Return connector.
     conn

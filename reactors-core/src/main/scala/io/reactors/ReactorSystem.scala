@@ -101,14 +101,20 @@ class ReactorSystem(
       // 4. Prepare for the first execution.
       scheduler.initSchedule(frame)
 
-      // 5. Create standard connectors.
+      // 5. Create standard connectors, and publish them only after they are .
       frame.defaultConnector = frame.openConnector[T](
-        proto.channelName, factory, false, false, immutable.Map())
+        proto.channelName, factory, false, false, immutable.Map(), false)
       frame.internalConnector = frame.openConnector[SysEvent](
-        "system", factory, true, false, immutable.Map())
+        "system", factory, true, false, immutable.Map(), false)
       frame.internalConnector.asInstanceOf[Connector[SysEvent]].events.onEvent { x =>
         frame.sysEmitter.react(x, null)
       }
+      this.channels.set(
+        uname + "#" + proto.channelName,
+        frame.defaultConnector.channel.asInstanceOf[Channel[T]])
+      this.channels.set(
+        uname + "#" + "system",
+        frame.internalConnector.channel.asInstanceOf[Channel[SysEvent]])
 
       // 6. Schedule for first execution.
       frame.activate()
