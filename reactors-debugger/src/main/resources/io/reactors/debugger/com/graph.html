@@ -6,6 +6,7 @@
 @@library(io/reactors/debugger/lib/bootstrap/js/bootstrap.min.js)
 @@library(io/reactors/debugger/lib/sigmajs/sigma.js)
 @@library(io/reactors/debugger/lib/sigmajs/plugins/sigma.plugins.animate.min.js)
+@@library(io/reactors/debugger/lib/sigmajs/plugins/sigma.layout.forceAtlas2.min.js)
 
 
 <template id="x-graph">
@@ -23,7 +24,8 @@
     data: function() {
       return {
         uid: Uid.num(),
-        subscriptions: []
+        subscriptions: [],
+        layoutRequested: false
       };
     },
     attached: function() {
@@ -61,6 +63,9 @@
         ]
       });
       this.sigma.camera.goTo({ x: 3, y: 3, ratio: 0.01 });
+
+      // Start dynamic layout.
+      this.requestDynamicLayout();
 
       // Install event stream observers.
       this.subscriptions.push(this.events.stateReset.observe(() => {
@@ -107,6 +112,31 @@
       });
     },
     methods: {
+      requestDynamicLayout: function() {
+        if (this.layoutRequested) return;
+
+        this.layoutRequested = true;
+        setTimeout(() => {
+          this.layoutRequested = false;
+          if (this.sigma.isForceAtlas2Running()) {
+            this.sigma.killForceAtlas2();
+          };
+          this.sigma.startForceAtlas2({
+            worker: true,
+            barnesHutOptimize: true,
+            slowDown: 2,
+            gravity: 1,
+            strongGravityMode: true,
+            scalingRatio: 0.5,
+            adjustSizes: true
+          });
+          setTimeout(() => {
+            if (this.sigma.isForceAtlas2Running()) {
+              this.sigma.killForceAtlas2();
+            };
+          }, 800);
+        }, 800);
+      },
       resetState: function() {
         this.sigma.graph.clear();
       },
@@ -133,6 +163,7 @@
               y: y,
               size: 1.0
             });
+            this.requestDynamicLayout();
           },
           () => {}
         );
@@ -181,6 +212,7 @@
               color: style.getPropertyValue("--graph-edge-color"),
               type: "curvedArrow"
             });
+            this.requestDynamicLayout();
           }
         }
         this.sigma.refresh({
