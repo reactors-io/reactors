@@ -411,8 +411,8 @@ object Scheduler {
                 }
               } catch handler
             }
-            timer.schedule(state.task, period, period)
           }
+          timer.schedule(state.task, period, period)
         }
       }
     }
