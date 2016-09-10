@@ -175,7 +175,7 @@ trait BackpressureProtocols {
       (server ? Backpressure.Open(tokens.channel)).map {
         case (uid, ch) =>
           Reactor.self.sysEvents onMatch {
-            case ReactorTerminated => server !? Backpressure.Seal(uid)
+            case ReactorTerminated => server ?! Backpressure.Seal(uid)
           }
           new Backpressure.Link(uid, ch, budget)
       }.toIVar

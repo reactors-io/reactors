@@ -115,7 +115,7 @@ trait ServerProtocols {
      *
      *  @param x     request event
      */
-    def !?(x: T): Unit = server ! (x, new Channel.Zero[S])
+    def ?!(x: T): Unit = server ! (x, new Channel.Zero[S])
   }
 
   implicit class ServerStreamOps[T, @specialized(Int, Long, Double) S: Arrayable](
