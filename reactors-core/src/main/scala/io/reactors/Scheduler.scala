@@ -3,7 +3,6 @@ package io.reactors
 
 
 import java.util.concurrent._
-import java.util.concurrent.atomic.AtomicReference
 import java.util.TimerTask
 import scala.collection._
 import scala.concurrent.ExecutionContext
@@ -80,7 +79,7 @@ trait Scheduler {
    *  @param frame       the reactor frame
    *  @return            creates a fresh scheduler info object
    */
-  protected def newState(frame: Frame): Scheduler.State = new Scheduler.State.Default
+  protected def newState(frame: Frame): Scheduler.State = new Scheduler.State.Default {}
 
 }
 
@@ -92,7 +91,7 @@ object Scheduler {
   /** Superclass for the information objects that a scheduler attaches to a reactor
    *  frame.
    */
-  abstract class State {
+  trait State {
     /** Called when a batch of events are about to be handled.
      *  
      *  @param frame    the reactor frame
@@ -111,7 +110,7 @@ object Scheduler {
   object State {
     /** The default info object implementation.
      */
-    class Default extends State {
+    trait Default extends State {
       @volatile var allowedBudget: Long = _
 
       override def onBatchStart(frame: Frame): Unit = {
@@ -191,6 +190,10 @@ object Scheduler {
    *  It checks if the specified executor is a `ForkJoinPool` that uses
    *  `ForkJoinReactorWorkerThread` and, if so, applies additional optimizations:
    *
+   *  - If `schedule` is called from a `ForkJoinWorkerThread` that belongs to the
+   *    `ForkJoinPool` that is the `executor`, then a more lightweight mechanism is
+   *    used to schedule the task. In this case, the scheduler state will be a
+   *    `ForkJoinTask`.
    *  - When a frame completes execution, it calls `unschedule`. This will attempt to
    *    remove submitted tasks from the `ForkJoinPool` a certain of times and execute
    *    them directly. The `scheduler.default.unschedule-count` bundle configuration
@@ -207,7 +210,13 @@ object Scheduler {
   ) extends Scheduler {
 
     def schedule(frame: Frame): Unit = {
-      executor.execute(frame.schedulerState.asInstanceOf[Runnable])
+      Thread.currentThread match {
+        case t: ForkJoinWorkerThread if t.getPool eq executor =>
+          val r = frame.schedulerState.asInstanceOf[Runnable]
+          ForkJoinTask.adapt(r).fork()
+        case _ =>
+          executor.execute(frame.schedulerState.asInstanceOf[Runnable])
+      }
     }
 
     override def newState(frame: Frame): Scheduler.State = {
