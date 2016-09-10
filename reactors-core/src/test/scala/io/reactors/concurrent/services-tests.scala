@@ -210,11 +210,10 @@ class ChannelsTest extends FunSuite with Matchers with BeforeAndAfterAll {
 
 object ChannelsCheck extends Properties("ChannelsCheck") with ExtendedProperties {
 
-  val system = ReactorSystem.default("check-system")
-
   property("channel should be awaited") =
-    forAllNoShrink(detChoose(1, 50)) { n =>
+    forAllNoShrink(detChoose(0, 50)) { n =>
       stackTraced {
+        val system = ReactorSystem.default("check-system")
         val done = Promise[Boolean]()
         system.spawn(Reactor[Unit] { self =>
           system.channels.await[String]("check-reactor#main").onEvent { ch =>
