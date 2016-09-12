@@ -82,7 +82,7 @@ class BackpressureProtocolsCheck
 extends Properties("BackpressureProtocolsCheck") with ExtendedProperties {
   val system = ReactorSystem.default("check-system")
 
-  val sizes = detChoose(0, 50)
+  val sizes = detChoose(1, 5)
 
   property("backpressure for all") = forAllNoShrink(sizes) {
     num =>

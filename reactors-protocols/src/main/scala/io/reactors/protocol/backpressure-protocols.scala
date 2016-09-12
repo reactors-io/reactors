@@ -115,11 +115,12 @@ trait BackpressureProtocols {
       conn.events onMatch {
         case (Backpressure.Open(tokens), response) =>
           val uid = uidGen.generate()
-          links += tokens.inject { num =>
+          val trackedTokens = tokens.inject { num =>
             val s = linkstate.applyOrNil(uid)
             if (s != null) s.budget += num
           }
-          linkstate(uid) = new Backpressure.LinkState(tokens)
+          links += trackedTokens
+          linkstate(uid) = new Backpressure.LinkState(trackedTokens)
           if (budget > 0) {
             allTokens.channel ! budget
             budget = 0
@@ -128,8 +129,13 @@ trait BackpressureProtocols {
         case (Backpressure.Seal(uid), _) =>
           val s = linkstate.applyOrNil(uid)
           if (s != null) {
-            budget += linkstate(uid).budget
             linkstate.remove(uid)
+            links -= s.tokens
+            budget += s.budget
+            if (budget > 0 && links.nonEmpty) {
+              allTokens.channel ! budget
+              budget = 0
+            }
           }
       }
       input.events
@@ -232,7 +238,7 @@ object Backpressure {
 
   /** Holds state of the link.
    */
-  class LinkState(tokens: Channel[Long]) {
+  class LinkState(val tokens: Channel[Long]) {
     var budget = 0L
   }
 

@@ -14,7 +14,7 @@ class IndexedSet[T >: Null <: AnyRef] extends Seq[T] {
   private val buffer = mutable.ArrayBuffer[T]()
   private val index = mutable.Map[T, Int]()
 
-  def length = buffer.size
+  def length = buffer.length
 
   def apply(i: Int) = buffer(i)
 
@@ -35,6 +35,7 @@ class IndexedSet[T >: Null <: AnyRef] extends Seq[T] {
       buffer(idx) = last
       buffer.remove(buffer.length - 1)
       index(last) = idx
+      index.remove(x)
     }
     this
   }
