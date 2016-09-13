@@ -258,9 +258,6 @@ object Scheduler {
     }
   }
 
-  object Executed {
-  }
-
   /** An abstract scheduler that always dedicates a thread to a reactor.
    */
   abstract class Dedicated extends Scheduler {
