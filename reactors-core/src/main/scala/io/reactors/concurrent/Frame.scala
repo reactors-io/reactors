@@ -114,6 +114,8 @@ final class Frame(
   }
 
   def executeBatch() {
+    scheduler.preschedule(reactorSystem)
+
     // This method cannot be executed inside another reactor.
     if (Reactor.currentReactor != null) {
       throw new IllegalStateException(
@@ -127,8 +129,11 @@ final class Frame(
     assertIsolated()
 
     // 2. Process a batch of events.
+    var throwable: Throwable = null
     try {
       isolateAndProcessBatch()
+    } catch {
+      case t: Throwable => throwable = t
     } finally {
       // Set active count back to 0.
       activeCount.set(0)
@@ -143,10 +148,10 @@ final class Frame(
         }
       }
       if (mustSchedule) scheduler.schedule(this)
-    }
 
-    // 3. Piggyback the worker thread to do some useful work.
-    scheduler.unschedule(reactorSystem)
+      // 3. Piggyback the worker thread to do some useful work.
+      scheduler.unschedule(reactorSystem, throwable)
+    }
   }
 
   private def isolateAndProcessBatch() {
