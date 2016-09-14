@@ -192,8 +192,7 @@ object Scheduler {
    *
    *  - If `schedule` is called from a `ForkJoinWorkerThread` that belongs to the
    *    `ForkJoinPool` that is the `executor`, then a more lightweight mechanism is
-   *    used to schedule the task. In this case, the scheduler state will be a
-   *    `ForkJoinTask`.
+   *    used to schedule the task.
    *  - When a frame completes execution, it calls `unschedule`. This will attempt to
    *    remove submitted tasks from the `ForkJoinPool` a certain of times and execute
    *    them directly. The `scheduler.default.unschedule-count` bundle configuration
