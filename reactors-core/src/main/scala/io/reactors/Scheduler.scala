@@ -181,19 +181,19 @@ object Scheduler {
       } else if (state.isInstanceOf[Frame]) {
         if (!execState.compareAndSet(state, ASLEEP)) setAsleep()
         else state.asInstanceOf[Frame]
-      }
+      } else null
     }
 
     @tailrec
     private def setUnscheduling(): Frame = {
       val state = execState.get
       if (state eq AWAKE) {
-        if (!execState.compareAndSet(state, UNSCHEDULING)) setAsleep()
+        if (!execState.compareAndSet(state, UNSCHEDULING)) setUnscheduling()
         else null
       } else if (state.isInstanceOf[Frame]) {
-        if (!execState.compareAndSet(state, UNSCHEDULING)) setAsleep()
+        if (!execState.compareAndSet(state, UNSCHEDULING)) setUnscheduling()
         else state.asInstanceOf[Frame]
-      }
+      } else null
     }
 
     private def isUnscheduling: Boolean = execState.get eq UNSCHEDULING
@@ -210,18 +210,34 @@ object Scheduler {
       } else false
     }
 
+    private def executeLater(frame: Frame) {
+      if (frame != null) {
+        val r = frame.schedulerState.asInstanceOf[Runnable]
+        ForkJoinTask.adapt(r).fork()
+      }
+    }
+
+    private def executeNow(frame: Frame): Boolean = {
+      if (frame != null) {
+        frame.executeBatch()
+        true
+      } else false
+    }
+
     def unschedule(system: ReactorSystem, t: Throwable) {
       if (isUnscheduling) return
-      if (t != null) return
+      if (t != null) {
+        executeLater(setAsleep())
+        return
+      }
 
-      val frame = setUnscheduling()
-      if (frame != null)
       try {
         getPool match {
           case fj: ReactorForkJoinPool =>
             var loopsLeft = system.bundle.schedulerConfig.unscheduleCount
             while (loopsLeft > 0) {
               var executedSomething = pollPool(fj)
+              executedSomething ||= executeNow(setUnscheduling())
               if (executedSomething) {
                 loopsLeft -= 1
               } else {
@@ -231,7 +247,7 @@ object Scheduler {
           case _ =>
         }
       } finally {
-        setAsleep()
+        executeLater(setAsleep())
       }
     }
   }
