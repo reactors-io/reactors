@@ -201,7 +201,7 @@ object ReactorSystem {
         }
         default = {
           budget = 50
-          unschedule-count = 20
+          unschedule-count = 50
         }
       }
       system = {

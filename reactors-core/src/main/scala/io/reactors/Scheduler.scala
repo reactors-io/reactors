@@ -153,8 +153,8 @@ object Scheduler {
   private[reactors] class ReactorForkJoinWorkerThread(pool: ReactorForkJoinPool)
   extends ForkJoinWorkerThread(pool) with Reactor.ReactorLocalThread {
     import ReactorForkJoinWorkerThread._
-    val execState = new AtomicReference[AnyRef](ASLEEP)
-    private var unschedulingMode = false
+    val miniQueue = new AtomicReference[Frame](null)
+    private var state: AnyRef = ASLEEP
 
     setName(s"reactors-io-scheduler-${getName}")
 
@@ -164,42 +164,19 @@ object Scheduler {
     }
 
     override def onTermination(t: Throwable) {
-      super.onTermination(t)
       // TODO: Remove from worker list.
-    }
-
-    private def setAwakeFromAsleep() {
-      execState.compareAndSet(ASLEEP, AWAKE)
+      super.onTermination(t)
     }
 
     @tailrec
-    private def setAsleep(): Frame = {
-      val state = execState.get
-      if ((state eq AWAKE) || (state eq UNSCHEDULING)) {
-        if (!execState.compareAndSet(state, ASLEEP)) setAsleep()
-        else null
-      } else if (state.isInstanceOf[Frame]) {
-        if (!execState.compareAndSet(state, ASLEEP)) setAsleep()
-        else state.asInstanceOf[Frame]
-      } else null
-    }
-
-    @tailrec
-    private def setUnscheduling(): Frame = {
-      val state = execState.get
-      if (state eq AWAKE) {
-        if (!execState.compareAndSet(state, UNSCHEDULING)) setUnscheduling()
-        else null
-      } else if (state.isInstanceOf[Frame]) {
-        if (!execState.compareAndSet(state, UNSCHEDULING)) setUnscheduling()
-        else state.asInstanceOf[Frame]
-      } else null
-    }
-
-    private def isUnscheduling: Boolean = execState.get eq UNSCHEDULING
-
-    def preschedule() {
-      setAwakeFromAsleep()
+    final def execute(frame: Frame) {
+      val state = miniQueue.get
+      if (state eq null) {
+        if (!miniQueue.compareAndSet(state, frame)) execute(frame)
+      } else {
+        val r = frame.schedulerState.asInstanceOf[Runnable]
+        ForkJoinTask.adapt(r).fork()
+      }
     }
 
     private def pollPool(fj: ReactorForkJoinPool): Boolean = {
@@ -208,6 +185,15 @@ object Scheduler {
         task.invoke()
         true
       } else false
+    }
+
+    @tailrec
+    private def popMiniQueue(): Frame = {
+      val state = miniQueue.get
+      if (state != null) {
+        if (!miniQueue.compareAndSet(state, null)) popMiniQueue()
+        else state
+      } else null
     }
 
     private def executeLater(frame: Frame) {
@@ -224,11 +210,18 @@ object Scheduler {
       } else false
     }
 
+    def preschedule() {
+      if (state != UNSCHEDULING) state = AWAKE
+    }
+
     def unschedule(system: ReactorSystem, t: Throwable) {
-      if (isUnscheduling) return
+      if (state == UNSCHEDULING) return
       if (t != null) {
-        executeLater(setAsleep())
+        state = ASLEEP
+        executeLater(popMiniQueue())
         return
+      } else {
+        state = UNSCHEDULING
       }
 
       try {
@@ -237,7 +230,7 @@ object Scheduler {
             var loopsLeft = system.bundle.schedulerConfig.unscheduleCount
             while (loopsLeft > 0) {
               var executedSomething = pollPool(fj)
-              executedSomething ||= executeNow(setUnscheduling())
+              executedSomething ||= executeNow(popMiniQueue())
               if (executedSomething) {
                 loopsLeft -= 1
               } else {
@@ -247,7 +240,8 @@ object Scheduler {
           case _ =>
         }
       } finally {
-        executeLater(setAsleep())
+        state = ASLEEP
+        executeLater(popMiniQueue())
       }
     }
   }
@@ -318,6 +312,8 @@ object Scheduler {
 
     def schedule(frame: Frame): Unit = {
       Thread.currentThread match {
+        case t: ReactorForkJoinWorkerThread if t.getPool eq executor =>
+          t.execute(frame)
         case t: ForkJoinWorkerThread if t.getPool eq executor =>
           val r = frame.schedulerState.asInstanceOf[Runnable]
           ForkJoinTask.adapt(r).fork()
