@@ -299,6 +299,8 @@ object Scheduler {
     private[reactors] val workers =
       new ConcurrentHashMap[Long, ReactorForkJoinWorkerThread]
 
+    reanimator.start()
+
     def poll() = pollSubmission()
   }
 
