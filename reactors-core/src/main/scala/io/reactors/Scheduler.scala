@@ -164,7 +164,7 @@ object Scheduler {
     }
 
     override def onTermination(t: Throwable) {
-      // TODO: Remove from worker list.
+      reactorPool.workers.remove(getId)
       super.onTermination(t)
     }
 
@@ -174,8 +174,12 @@ object Scheduler {
       if (state eq null) {
         if (!miniQueue.compareAndSet(state, frame)) execute(frame)
       } else {
-        val r = frame.schedulerState.asInstanceOf[Runnable]
-        ForkJoinTask.adapt(r).fork()
+        if (!miniQueue.compareAndSet(state, null)) execute(frame)
+        else {
+          val r = state.schedulerState.asInstanceOf[Runnable]
+          ForkJoinTask.adapt(r).fork()
+          execute(frame)
+        }
       }
     }
 
