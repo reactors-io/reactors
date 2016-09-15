@@ -3,6 +3,7 @@ package io.reactors
 
 
 import java.util.concurrent._
+import java.util.concurrent.atomic.AtomicReference
 import java.util.TimerTask
 import scala.collection._
 import scala.concurrent.ExecutionContext
@@ -54,12 +55,18 @@ trait Scheduler {
     frame.schedulerState = newState(frame)
   }
 
-  /** Optionally unschedules and runs some number of frames previously scheduled.
+  /** Called immediately before a reactor frame begins an execution batch.
+   */
+  def preschedule(system: ReactorSystem): Unit = {}
+
+  /** Called immediately after a reactor frame completes an execution batch.
+   *
+   *  Optionally unschedules and runs some number of frames previously scheduled.
    *
    *  This method by default does nothing, but may be overridden for performance
    *  purposes.
    */
-  def unschedule(system: ReactorSystem): Unit = {}
+  def unschedule(system: ReactorSystem, t: Throwable): Unit = {}
 
   /** The handler for the fatal errors that are not sent to
    *  the `failures` stream of the reactor.
@@ -143,28 +150,80 @@ object Scheduler {
   lazy val globalExecutionContext: Scheduler =
     new Executed(ExecutionContext.Implicits.global)
 
-  private[reactors] class ForkJoinReactorWorkerThread(pool: ForkJoinPool)
+  private[reactors] class ReactorForkJoinWorkerThread(pool: ReactorForkJoinPool)
   extends ForkJoinWorkerThread(pool) with Reactor.ReactorLocalThread {
-    var unschedulingMode = false
+    import ReactorForkJoinWorkerThread._
+    private val execState = new AtomicReference[AnyRef](ASLEEP)
+    private var unschedulingMode = false
+
     setName(s"reactors-io-scheduler-${getName}")
+
+    override def onStart() {
+      super.onStart()
+      // TODO: Add to worker list.
+    }
+
+    override def onTermination(t: Throwable) {
+      super.onTermination(t)
+      // TODO: Remove from worker list.
+    }
+
+    def preschedule() {
+    }
+
+    private def pollPool(fj: ReactorForkJoinPool): Boolean = {
+      val task = fj.poll()
+      if (task != null) {
+        task.invoke()
+        true
+      } else false
+    }
+
+    def unschedule(system: ReactorSystem, t: Throwable) {
+      if (unschedulingMode) return
+      if (t != null) return
+      unschedulingMode = true
+      try {
+        getPool match {
+          case fj: ReactorForkJoinPool =>
+            var loopsLeft = system.bundle.schedulerConfig.unscheduleCount
+            while (loopsLeft > 0) {
+              var executedSomething = pollPool(fj)
+              if (executedSomething) {
+                loopsLeft -= 1
+              } else {
+                loopsLeft = 0
+              }
+            }
+          case _ =>
+        }
+      } finally {
+        unschedulingMode = false
+      }
+    }
   }
 
-  trait ForkJoinTaskPolling {
-    def poll(): ForkJoinTask[_]
+  private[reactors] object ReactorForkJoinWorkerThread { 
+    val ASLEEP = new AnyRef {}
+    val AWAKE = new AnyRef {}
+    val UNSCHEDULING = new AnyRef {}
+  }
+
+  private[reactors] class ReactorForkJoinPool extends ForkJoinPool(
+    Runtime.getRuntime.availableProcessors,
+    new ForkJoinPool.ForkJoinWorkerThreadFactory {
+      def newThread(pool: ForkJoinPool) =
+        new ReactorForkJoinWorkerThread(pool.asInstanceOf[ReactorForkJoinPool])
+    },
+    null,
+    false
+  ) {
+    def poll() = pollSubmission()
   }
 
   /** Default fork/join pool instance used by the default scheduler.
    */
-  lazy val defaultForkJoinPool = new ForkJoinPool(
-    Runtime.getRuntime.availableProcessors,
-    new ForkJoinPool.ForkJoinWorkerThreadFactory {
-      def newThread(pool: ForkJoinPool) = new ForkJoinReactorWorkerThread(pool)
-    },
-    null,
-    false
-  ) with ForkJoinTaskPolling {
-    def poll() = pollSubmission()
-  }
+  lazy val defaultForkJoinPool: ForkJoinPool = new ReactorForkJoinPool
 
   /** Default reactor scheduler.
    */
@@ -188,7 +247,7 @@ object Scheduler {
   /** A `Scheduler` that reuses the target Java `Executor`.
    *
    *  It checks if the specified executor is a `ForkJoinPool` that uses
-   *  `ForkJoinReactorWorkerThread` and, if so, applies additional optimizations:
+   *  `ReactorForkJoinWorkerThread` and, if so, applies additional optimizations:
    *
    *  - If `schedule` is called from a `ForkJoinWorkerThread` that belongs to the
    *    `ForkJoinPool` that is the `executor`, then a more lightweight mechanism is
@@ -224,33 +283,19 @@ object Scheduler {
       }
     }
 
-    override def unschedule(system: ReactorSystem) {
+    override def preschedule(system: ReactorSystem) {
       Thread.currentThread match {
-        case t: ForkJoinReactorWorkerThread =>
-          if (t.unschedulingMode) return
-          t.unschedulingMode = true
-          try {
-            executor match {
-              case fj: ForkJoinPool with ForkJoinTaskPolling =>
-                var loopsLeft = system.bundle.schedulerConfig.unscheduleCount
-                while (loopsLeft > 0) {
-                  var executedSomething = false
-                  val task = fj.poll()
-                  if (task != null) {
-                    executedSomething = true
-                    task.invoke()
-                  }
-                  if (executedSomething) {
-                    loopsLeft -= 1
-                  } else {
-                    loopsLeft = 0
-                  }
-                }
-              case _ =>
-            }
-          } finally {
-            t.unschedulingMode = false
-          }
+        case t: ReactorForkJoinWorkerThread =>
+          t.preschedule()
+        case _ =>
+          return
+      }
+    }
+
+    override def unschedule(system: ReactorSystem, throwable: Throwable) {
+      Thread.currentThread match {
+        case t: ReactorForkJoinWorkerThread =>
+          t.unschedule(system, throwable)
         case _ =>
           return
       }

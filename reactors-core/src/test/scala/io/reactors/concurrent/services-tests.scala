@@ -157,7 +157,7 @@ class CustomServiceReactor(val done: Promise[Boolean]) extends Reactor[Unit] {
   sysEvents onMatch {
     case ReactorStarted =>
       if (system.service[CustomService].cell() == 1) done.success(true)
-      else done.success(true)
+      else done.success(false)
       main.seal()
   }
 }
