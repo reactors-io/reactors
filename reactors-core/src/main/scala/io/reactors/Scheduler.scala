@@ -153,7 +153,7 @@ object Scheduler {
   private[reactors] class ReactorForkJoinWorkerThread(pool: ReactorForkJoinPool)
   extends ForkJoinWorkerThread(pool) with Reactor.ReactorLocalThread {
     import ReactorForkJoinWorkerThread._
-    private val execState = new AtomicReference[AnyRef](ASLEEP)
+    val execState = new AtomicReference[AnyRef](ASLEEP)
     private var unschedulingMode = false
 
     setName(s"reactors-io-scheduler-${getName}")
@@ -168,7 +168,38 @@ object Scheduler {
       // TODO: Remove from worker list.
     }
 
+    private def setAwakeFromAsleep() {
+      execState.compareAndSet(ASLEEP, AWAKE)
+    }
+
+    @tailrec
+    private def setAsleep(): Frame = {
+      val state = execState.get
+      if ((state eq AWAKE) || (state eq UNSCHEDULING)) {
+        if (!execState.compareAndSet(state, ASLEEP)) setAsleep()
+        else null
+      } else if (state.isInstanceOf[Frame]) {
+        if (!execState.compareAndSet(state, ASLEEP)) setAsleep()
+        else state.asInstanceOf[Frame]
+      }
+    }
+
+    @tailrec
+    private def setUnscheduling(): Frame = {
+      val state = execState.get
+      if (state eq AWAKE) {
+        if (!execState.compareAndSet(state, UNSCHEDULING)) setAsleep()
+        else null
+      } else if (state.isInstanceOf[Frame]) {
+        if (!execState.compareAndSet(state, UNSCHEDULING)) setAsleep()
+        else state.asInstanceOf[Frame]
+      }
+    }
+
+    private def isUnscheduling: Boolean = execState.get eq UNSCHEDULING
+
     def preschedule() {
+      setAwakeFromAsleep()
     }
 
     private def pollPool(fj: ReactorForkJoinPool): Boolean = {
@@ -180,9 +211,11 @@ object Scheduler {
     }
 
     def unschedule(system: ReactorSystem, t: Throwable) {
-      if (unschedulingMode) return
+      if (isUnscheduling) return
       if (t != null) return
-      unschedulingMode = true
+
+      val frame = setUnscheduling()
+      if (frame != null)
       try {
         getPool match {
           case fj: ReactorForkJoinPool =>
@@ -198,7 +231,7 @@ object Scheduler {
           case _ =>
         }
       } finally {
-        unschedulingMode = false
+        setAsleep()
       }
     }
   }
