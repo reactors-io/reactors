@@ -68,19 +68,6 @@ trait Scheduler {
    */
   def unschedule(system: ReactorSystem, t: Throwable): Unit = {}
 
-  /** The handler for the fatal errors that are not sent to
-   *  the `failures` stream of the reactor.
-   *
-   *  '''Note:'''
-   *  If the `failures` event stream throws
-   *  while handling any throwables passed to it,
-   *  then those throwables are passed to this error handler.
-   *  This means that the `handler` can also receive non-fatal errors.
-   *
-   *  @see [[scala.util.control.NonFatal]]
-   */
-  def handler: Scheduler.Handler
-
   /** Creates an `State` object for the reactor frame.
    *
    *  @param frame       the reactor frame
@@ -150,8 +137,44 @@ object Scheduler {
   lazy val globalExecutionContext: Scheduler =
     new Executed(ExecutionContext.Implicits.global)
 
-  private[reactors] class ReactorForkJoinWorkerThread(pool: ReactorForkJoinPool)
-  extends ForkJoinWorkerThread(pool) with Reactor.ReactorLocalThread {
+  private[reactors] class ReactorForkJoinReanimatorThread(
+    val pool: ReactorForkJoinPool
+  ) extends Thread {
+    val reanimatorPeriod = 200
+
+    setName("reactors-io-scheduler-reanimator")
+    setDaemon(true)
+
+    private def reanimate() {
+      val it = pool.workers.elements()
+      while (it.hasMoreElements) {
+        val worker = it.nextElement()
+        val pendingFrame = worker.miniQueue.get
+        if (pendingFrame != null) {
+          val r = pendingFrame.schedulerState.asInstanceOf[Runnable]
+          pool.execute(r)
+        }
+      }
+    }
+
+    @tailrec
+    override final def run() {
+      try {
+        reanimate()
+      } catch {
+        case t: Throwable =>
+          // Invoke handler and ignore failures.
+          try pool.getUncaughtExceptionHandler.uncaughtException(this, t)
+          finally {}
+      } finally {}
+      Thread.sleep(reanimatorPeriod)
+      run()
+    }
+  }
+
+  private[reactors] class ReactorForkJoinWorkerThread(
+    val reactorPool: ReactorForkJoinPool
+  ) extends ForkJoinWorkerThread(reactorPool) with Reactor.ReactorLocalThread {
     import ReactorForkJoinWorkerThread._
     val miniQueue = new AtomicReference[Frame](null)
     private var state: AnyRef = ASLEEP
@@ -160,7 +183,7 @@ object Scheduler {
 
     override def onStart() {
       super.onStart()
-      // TODO: Add to worker list.
+      reactorPool.workers.put(getId, this)
     }
 
     override def onTermination(t: Throwable) {
@@ -256,15 +279,26 @@ object Scheduler {
     val UNSCHEDULING = new AnyRef {}
   }
 
-  private[reactors] class ReactorForkJoinPool extends ForkJoinPool(
+  private[reactors] class ReactorForkJoinPool(
+    val handler: Scheduler.Handler = Scheduler.defaultHandler
+  ) extends ForkJoinPool(
     Runtime.getRuntime.availableProcessors,
     new ForkJoinPool.ForkJoinWorkerThreadFactory {
       def newThread(pool: ForkJoinPool) =
         new ReactorForkJoinWorkerThread(pool.asInstanceOf[ReactorForkJoinPool])
     },
-    null,
+    new Thread.UncaughtExceptionHandler {
+      def uncaughtException(thread: Thread, throwable: Throwable) {
+        if (handler.isDefinedAt(throwable)) handler(throwable)
+      }
+    },
     false
   ) {
+    private[reactors] val reanimator =
+      new ReactorForkJoinReanimatorThread(this)
+    private[reactors] val workers =
+      new ConcurrentHashMap[Long, ReactorForkJoinWorkerThread]
+
     def poll() = pollSubmission()
   }
 
@@ -312,12 +346,9 @@ object Scheduler {
    *    mini-queues of all the threads, and flushes them if necessary.
    *
    *  @param executor       The `Executor` used to schedule reactor tasks.
-   *  @param handler        The default error handler for fatal errors not passed to
-   *                        reactors.
    */
   class Executed(
-    val executor: java.util.concurrent.Executor,
-    val handler: Scheduler.Handler = Scheduler.defaultHandler
+    val executor: java.util.concurrent.Executor
   ) extends Scheduler {
 
     def schedule(frame: Frame): Unit = {
