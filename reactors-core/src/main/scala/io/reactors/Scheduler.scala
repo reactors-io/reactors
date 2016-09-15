@@ -151,8 +151,10 @@ object Scheduler {
         val worker = it.nextElement()
         val pendingFrame = worker.miniQueue.get
         if (pendingFrame != null) {
-          val r = pendingFrame.schedulerState.asInstanceOf[Runnable]
-          pool.execute(r)
+          if (worker.miniQueue.compareAndSet(pendingFrame, null)) {
+            val r = pendingFrame.schedulerState.asInstanceOf[Runnable]
+            pool.execute(r)
+          }
         }
       }
     }
