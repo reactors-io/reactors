@@ -90,11 +90,4 @@ final class UniqueStore[T >: Null <: Identifiable with AnyRef](
   def forName(name: String): T = monitor.synchronized {
     if (byName.contains(name)) byName(name) else null
   }
-
-  /** Returns an object stored under the specified `id`, or `null`.
-   */
-  def forId(id: Long): T = monitor.synchronized {
-    if (!byId.contains(id)) null
-    else byName(byId(id))
-  }
 }

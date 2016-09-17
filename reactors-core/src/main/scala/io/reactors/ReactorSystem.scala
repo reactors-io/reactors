@@ -43,7 +43,7 @@ class ReactorSystem(
 
   /** Contains the frames for different reactors.
    */
-  private[reactors] val frames = new ScalableUniqueStore[Frame]("reactor", 512)
+  private[reactors] val frames = new ScalableUniqueStore[Frame.Info]("reactor", 512)
 
   /** Shuts down services. */
   def shutdown() {
@@ -91,7 +91,8 @@ class ReactorSystem(
     val frame = new Frame(uid, proto, scheduler, this)
 
     // 2. Reserve the unique name or break.
-    val uname = frames.tryStore(proto.name, frame)
+    // TODO: Handle the case where there were listeners installed for that frame.
+    val uname = frames.tryStore(proto.name, Frame.Info(frame, immutable.Map()))
 
     try {
       // 3. Allocate the standard connectors.
@@ -101,20 +102,16 @@ class ReactorSystem(
       // 4. Prepare for the first execution.
       scheduler.initSchedule(frame)
 
-      // 5. Create standard connectors, and publish them only after they are .
-      frame.defaultConnector = frame.openConnector[T](
-        proto.channelName, factory, false, false, immutable.Map(), false)
-      frame.internalConnector = frame.openConnector[SysEvent](
-        "system", factory, true, false, immutable.Map(), false)
-      frame.internalConnector.asInstanceOf[Connector[SysEvent]].events.onEvent { x =>
-        frame.sysEmitter.react(x, null)
-      }
-      this.channels.set(
-        uname + "#" + proto.channelName,
-        frame.defaultConnector.channel.asInstanceOf[Channel[T]])
-      this.channels.set(
-        uname + "#" + "system",
-        frame.internalConnector.channel.asInstanceOf[Channel[SysEvent]])
+      // 5. Create standard connectors, and publish only after frame fields are set.
+      frame.openConnector[T](
+        proto.channelName, factory, false, false, immutable.Map(),
+        conn => { frame.defaultConnector = conn })
+      frame.openConnector[SysEvent](
+        "system", factory, true, false, immutable.Map(),
+        conn => {
+          frame.internalConnector = conn
+          conn.events.onEvent(x => frame.sysEmitter.react(x, null))
+        })
 
       // 6. Schedule for first execution.
       frame.activate()

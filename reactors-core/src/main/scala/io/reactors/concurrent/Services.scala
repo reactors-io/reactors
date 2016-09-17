@@ -333,35 +333,7 @@ object Services {
   extends ChannelBuilder(
     null, false, EventQueue.UnrolledRing.Factory, false, immutable.Map()
   ) with Protocol.Service {
-    private val store = new ConcurrentHashMap[String, AnyRef]
-
     def shutdown() {
-    }
-
-    /** Binds the specified name to the specific channel.
-     *
-     *  Invoked whenever a channel is created.
-     */
-    @tailrec private[reactors] final def set[T](name: String, ch: Channel[T]): Unit = {
-      (store.get(name): @unchecked) match {
-        case null =>
-          if (store.putIfAbsent(name, ch) != null) set(name, ch)
-        case lst: List[Channel[Channel[T]]] @unchecked =>
-          if (!store.replace(name, lst, ch)) set(name, ch)
-          else for (awaiter <- lst) awaiter ! ch
-        case och: Channel[T] =>
-          if (!store.replace(name, och, ch)) set(name, ch)
-      }
-    }
-
-    /** Removes the channel under the specified name.
-     */
-    @tailrec private[reactors] final def remove(name: String): Unit = {
-      (store.get(name): @unchecked) match {
-        case och: Channel[_] =>
-          if (!store.remove(name, och)) remove(name)
-        case _ =>
-      }
     }
 
     /** Optionally returns the channel with the given name, if it exists.
@@ -369,11 +341,7 @@ object Services {
      *  @param name      names of the reactor and the channel, separated with a `#`
      */
     def get[T](name: String): Option[Channel[T]] = {
-      (store.get(name): @unchecked) match {
-        case null => None
-        case lst: List[() => Unit] @unchecked => None
-        case ch: Channel[T] => Some(ch)
-      }
+      ???
     }
 
     /** Optionally returns the channel with the given name, if it exists.
@@ -382,7 +350,7 @@ object Services {
      *  @param channelName  name of the channel
      */
     def get[T](reactorName: String, channelName: String): Option[Channel[T]] = {
-      get(reactorName + "#" + channelName)
+      ???
     }
 
     /** Await for the channel with the specified name.
@@ -397,15 +365,9 @@ object Services {
       val ivar = conn.events.toIVar
       ivar.on(conn.seal())
 
-      @tailrec def retry() {
-        (store.get(name): @unchecked) match {
-          case null =>
-            if (store.putIfAbsent(name, conn.channel :: Nil) != null) retry()
-          case lst: List[Channel[Channel[T]]] @unchecked =>
-            if (!store.replace(name, lst, conn.channel :: lst)) retry()
-          case ch: Channel[T] =>
-            conn.channel ! ch
-        }
+      //@tailrec def retry() {
+      def retry() {
+        ???
       }
       retry()
 

@@ -19,6 +19,10 @@ class Connector[@spec(Int, Long, Double) T](
   private[reactors] val extras: mutable.Map[Class[_], Any],
   val isDaemon: Boolean
 ) extends Identifiable {
+  /** Retrieves the name of this connector.
+   */
+  def name = sharedChannel.url.anchor
+
   /** Returns the unique identifier of the channel.
    */
   def uid = sharedChannel.asLocal.uid
@@ -33,7 +37,12 @@ class Connector[@spec(Int, Long, Double) T](
 
   /** Seals the channel, preventing it from delivering additional events.
    */
-  def seal(): Boolean = frame.sealConnector(sharedChannel.asLocal.uid)
+  def seal(): Boolean = {
+    if (sharedChannel.asLocal.isOpen) {
+      frame.sealConnector(this)
+      true
+    } else false
+  }
 
   /** Adds extra information to this connector.
    */
