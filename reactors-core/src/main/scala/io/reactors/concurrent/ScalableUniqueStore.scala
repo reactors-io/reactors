@@ -67,7 +67,7 @@ final class ScalableUniqueStore[T >: Null <: Identifiable with AnyRef](
       if (byName.putIfAbsent(proposedName, x) != None) null
       proposedName
     } else {
-      store(x.uid)
+      store(0L)
     }
   }
 

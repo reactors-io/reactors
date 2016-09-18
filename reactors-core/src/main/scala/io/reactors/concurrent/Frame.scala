@@ -66,9 +66,12 @@ final class Frame(
       }
       val uname = {
         if (channelName != null) {
-          if (info.connectors.contains(channelName))
-            throw new IllegalStateException(s"Channel '$channelName' already exists.")
-          else channelName
+          info.connectors.get(channelName) match {
+            case Some(c: Connector[_]) =>
+              throw new IllegalStateException(s"Channel '$channelName' already exists.")
+            case _ =>
+              channelName
+          }
         } else chooseName(uid)
       }
 
@@ -364,8 +367,9 @@ object Frame {
 
   private[reactors] case object Terminated extends LifecycleState
 
-  case class Info(frame: Frame, connectors: immutable.Map[String, AnyRef])
-  extends Identifiable {
+  private[reactors] case class Info(
+    frame: Frame, connectors: immutable.Map[String, AnyRef]
+  ) extends Identifiable {
     def uid: Long = if (frame != null) frame.uid else -1
     def isEmpty: Boolean = frame == null
   }

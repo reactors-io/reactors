@@ -696,7 +696,7 @@ class ReactorSystemTest extends FunSuite with Matchers {
       val proto = Reactor[Unit] { self => }
       system.spawn(proto.withName("Izzy"))
       assert(system.frames.forName("Izzy") != null)
-      assert(system.frames.forName("Izzy").name == "Izzy")
+      assert(system.frames.forName("Izzy").frame.name == "Izzy")
     } finally system.shutdown()
   }
 
@@ -718,7 +718,8 @@ class ReactorSystemTest extends FunSuite with Matchers {
       val proto = Reactor[Unit] { self => }
       val channel = system.spawn(proto.withName("Izzy"))
       assert(channel != null)
-      val conn = system.frames.forName("Izzy").connectors.forName("main")
+      val conn =
+        system.frames.forName("Izzy").connectors("main").asInstanceOf[Connector[_]]
       assert(conn != null)
       assert(conn.channel eq channel)
       assert(!conn.isDaemon)
@@ -730,7 +731,8 @@ class ReactorSystemTest extends FunSuite with Matchers {
     try {
       val proto = Reactor[Unit] { self => }
       val channel = system.spawn(proto.withName("Izzy"))
-      val conn = system.frames.forName("Izzy").connectors.forName("system")
+      val conn =
+        system.frames.forName("Izzy").connectors("system").asInstanceOf[Connector[_]]
       assert(conn != null)
       assert(conn.isDaemon)
     } finally system.shutdown()
