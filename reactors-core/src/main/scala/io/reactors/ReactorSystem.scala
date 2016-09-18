@@ -91,8 +91,26 @@ class ReactorSystem(
     val frame = new Frame(uid, proto, scheduler, this)
 
     // 2. Reserve the unique name or break.
-    // TODO: Handle the case where there were listeners installed for that frame.
-    val uname = frames.tryStore(proto.name, Frame.Info(frame, immutable.Map()))
+    var uname: String = null
+    while (uname == null) {
+      if (proto.name == null) {
+        // If choosing any name, it will always be fresh.
+        uname = frames.tryStore(proto.name, Frame.Info(frame, immutable.Map()))
+      } else {
+        // If choosing a specific name, it could already have channel listeners.
+        val info = frames.forName(proto.name)
+        if (info == null) {
+          uname = frames.tryStore(proto.name, Frame.Info(frame, immutable.Map()))
+        } else {
+          if (info.isEmpty) {
+            val ninfo = Frame.Info(frame, info.connectors)
+            if (frames.tryReplace(proto.name, info, ninfo)) {
+              uname = proto.name
+            }
+          } else exception.illegalArg(s"Reactor '${proto.name}' already exists.")
+        }
+      }
+    }
 
     try {
       // 3. Allocate the standard connectors.

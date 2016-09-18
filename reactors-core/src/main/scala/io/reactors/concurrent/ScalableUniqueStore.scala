@@ -51,8 +51,8 @@ final class ScalableUniqueStore[T >: Null <: Identifiable with AnyRef](
    *  Returns the name under which `x` is stored. If the name is not available, returns
    *  `null` and does not store the object.
    *
-   *  @param proposedName     the proposed name, or `null` to assign any name
-   *  @param x                the object to store
+   *  @param proposedName     proposed name, or `null` to assign any non-existing name
+   *  @param x                object to store
    *  @return                 name under which `x` was stored, or `null` if proposed
    *                          name already existed (in which case, nothing was stored)
    */
@@ -64,8 +64,7 @@ final class ScalableUniqueStore[T >: Null <: Identifiable with AnyRef](
       else possibleName
     }
     if (proposedName != null) {
-      if (byName.putIfAbsent(proposedName, x) != None)
-        throw new IllegalArgumentException(s"Name $proposedName unavailable.")
+      if (byName.putIfAbsent(proposedName, x) != None) null
       proposedName
     } else {
       store(x.uid)

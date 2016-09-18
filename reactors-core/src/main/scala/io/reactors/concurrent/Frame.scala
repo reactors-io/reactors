@@ -366,6 +366,7 @@ object Frame {
 
   case class Info(frame: Frame, connectors: immutable.Map[String, AnyRef])
   extends Identifiable {
-    def uid = frame.uid
+    def uid: Long = if (frame != null) frame.uid else -1
+    def isEmpty: Boolean = frame == null
   }
 }
