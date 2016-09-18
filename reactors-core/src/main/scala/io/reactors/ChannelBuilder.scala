@@ -55,6 +55,5 @@ class ChannelBuilder(
    */
   final def open[@spec(Int, Long, Double) Q: Arrayable]: Connector[Q] =
     Reactor.self.frame.openConnector[Q](
-      channelName, eventQueueFactory, isDaemon, shortcutLocal, extras,
-      conn => {})
+      channelName, eventQueueFactory, isDaemon, shortcutLocal, extras)
 }

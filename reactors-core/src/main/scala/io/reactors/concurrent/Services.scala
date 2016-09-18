@@ -384,6 +384,7 @@ object Services {
     final def await[T](
       reactorName: String, channelName: String
     ): IVar[Channel[T]] = {
+      assert(reactorName != null)
       val conn = system.channels.daemon.open[Channel[T]]
       val ivar = conn.events.toIVar
       ivar.on(conn.seal())

@@ -120,27 +120,31 @@ class ReactorSystem(
       // 4. Prepare for the first execution.
       scheduler.initSchedule(frame)
 
-      // 5. Create standard connectors, and publish only after frame fields are set.
-      frame.openConnector[T](
-        proto.channelName, factory, false, false, immutable.Map(),
-        conn => { frame.defaultConnector = conn })
-      frame.openConnector[SysEvent](
-        "system", factory, true, false, immutable.Map(),
-        conn => {
-          frame.internalConnector = conn
-          conn.events.onEvent(x => frame.sysEmitter.react(x, null))
-        })
+      // 5. Prepare pre-ctor: create standard connectors,
+      //    and publish only after frame fields are set.
+      //    Since this potentially shares the channel, other reactors can
+      //    send a message and revive this reactor too early. We need to manually mark
+      //    the reactor as already active to prevent this.
+      frame.active = true
+      frame.defaultConnector = frame.openConnector[T](
+        proto.channelName, factory, false, false, immutable.Map())
+      frame.internalConnector = frame.openConnector[SysEvent](
+        "system", factory, true, false, immutable.Map())
+      frame.internalConnector.asInstanceOf[Connector[SysEvent]].events.onEvent {
+        x => frame.sysEmitter.react(x, null)
+      }
 
       // 6. Schedule for first execution.
-      frame.activate()
+      frame.activate(true)
     } catch {
       case t: Throwable =>
         // 7. If not successful, release the name and rethrow.
+        // TODO: Fix this to preserve existing channel listeners.
         frames.tryRelease(uname)
         throw t
     }
 
-    // 8. return the default channel
+    // 8. Return the default channel.
     frame.defaultConnector.channel.asInstanceOf[Channel[T]]
   }
 

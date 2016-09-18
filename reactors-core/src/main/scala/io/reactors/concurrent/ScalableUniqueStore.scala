@@ -21,8 +21,8 @@ final class ScalableUniqueStore[T >: Null <: Identifiable with AnyRef](
   val uniqueNamePrefix: String,
   val scalability: Int
 ) {
-  private val uidCounter = new UidGenerator(scalability)
-  private val byName = new TrieMap[String, T]
+  private[reactors] val uidCounter = new UidGenerator(scalability)
+  private[reactors] val byName = new TrieMap[String, T]
 
   /** Compute and return a unique id.
    */
@@ -65,7 +65,7 @@ final class ScalableUniqueStore[T >: Null <: Identifiable with AnyRef](
     }
     if (proposedName != null) {
       if (byName.putIfAbsent(proposedName, x) != None) null
-      proposedName
+      else proposedName
     } else {
       store(0L)
     }

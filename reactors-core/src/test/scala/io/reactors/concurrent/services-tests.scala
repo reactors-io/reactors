@@ -6,6 +6,7 @@ package concurrent
 import io.reactors.test._
 import java.io.InputStream
 import java.net.URL
+import java.util.concurrent.atomic.AtomicLong
 import org.apache.commons.io._
 import org.scalacheck._
 import org.scalacheck.Prop.forAllNoShrink
@@ -210,26 +211,33 @@ class ChannelsTest extends FunSuite with Matchers with BeforeAndAfterAll {
 
 object ChannelsCheck extends Properties("ChannelsCheck") with ExtendedProperties {
 
+  val repetitions = 10
+  val nameCounter = new AtomicLong(0L)
+
   property("channel should be awaited") =
     forAllNoShrink(detChoose(0, 50)) { n =>
       stackTraced {
-        val system = ReactorSystem.default("check-system")
-        val done = Promise[Boolean]()
-        system.spawn(Reactor[Unit] { self =>
-          system.channels.await[String]("check-reactor#main").onEvent { ch =>
-            ch ! "done"
-            self.main.seal()
-          }
-        })
-        Thread.sleep(n)
-        system.spawn(Reactor[String] { self =>
-          self.main.events onMatch {
-            case "done" =>
-              done.success(true)
+        for (i <- 0 until repetitions) {
+          val checkReactorName = "check-reactor-" + nameCounter.getAndIncrement()
+          val system = ReactorSystem.default("check-system")
+          val done = Promise[Boolean]()
+          system.spawn(Reactor[Unit] { self =>
+            system.channels.await[String](checkReactorName + "#main").onEvent { ch =>
+              ch ! "done"
               self.main.seal()
-          }
-        } withName("check-reactor"))
-        Await.result(done.future, 10.seconds)
+            }
+          })
+          Thread.sleep(n)
+          system.spawn(Reactor[String] { self =>
+            self.main.events onMatch {
+              case "done" =>
+                done.success(true)
+                self.main.seal()
+            }
+          } withName(checkReactorName))
+          assert(Await.result(done.future, 10.seconds))
+        }
+        true
       }
     }
 

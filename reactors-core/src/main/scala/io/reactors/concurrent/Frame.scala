@@ -47,8 +47,7 @@ final class Frame(
     factory: EventQueue.Factory,
     isDaemon: Boolean,
     shortcut: Boolean,
-    extras: immutable.Map[Class[_], Any],
-    onBeforePublish: Connector[Q] => Unit
+    extras: immutable.Map[Class[_], Any]
   ): Connector[Q] = {
     // Note: invariant is that there is always at most one thread calling this method.
     // However, they may be multiple threads updating the frame map.
@@ -58,9 +57,10 @@ final class Frame(
       val uid = idCounter.getAndIncrement()
 
       // 2. Find a unique name.
-      val info = reactorSystem.frames.forName(name)
+      var info = reactorSystem.frames.forName(name)
+      assert(info != null, name)
       @tailrec def chooseName(count: Long): String = {
-        val n = s"channel-$count"
+        val n = s"channel-$uid-$count"
         if (info.connectors.contains(n)) chooseName(count + 1)
         else n
       }
@@ -72,7 +72,7 @@ final class Frame(
             case _ =>
               channelName
           }
-        } else chooseName(uid)
+        } else chooseName(0L)
       }
 
       // 3. Instantiate a connector.
@@ -86,7 +86,6 @@ final class Frame(
       localChan.connector = conn
 
       // 4. Add connector to the global list.
-      onBeforePublish(conn)
       if (reactorSystem.frames.tryReplace(name, info, ninfo)) {
         newConnector = conn
 
@@ -108,10 +107,10 @@ final class Frame(
 
   /** Atomically schedules the frame for execution, unless already scheduled.
    */
-  def activate() {
+  def activate(scheduleEvenIfActive: Boolean) {
     var mustSchedule = false
     monitor.synchronized {
-      if (!active) {
+      if (!active || scheduleEvenIfActive) {
         active = true
         mustSchedule = true
       }
@@ -305,6 +304,7 @@ final class Frame(
         reactorSystem.debugApi.reactorTerminated(reactor)
         if (reactor != null) sysEmitter.react(ReactorTerminated)
       } finally {
+        // TODO: Fix this to account for existing channel listeners.
         reactorSystem.frames.tryRelease(name)
       }
     }

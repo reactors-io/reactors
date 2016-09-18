@@ -547,7 +547,7 @@ object Scheduler {
                   removeFrame(frame)
                 } else {
                   frame.executeBatch()
-                  frame.activate()
+                  frame.activate(false)
                 }
               } catch handler
             }
