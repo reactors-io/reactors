@@ -238,6 +238,10 @@ object ReactorsBuild extends MechaRepoBuild {
     )
   }
 
+  def reactorsScalaJSSettings = projectSettings("-scalajs", scalaJSDependencies)
+
+  def scalaJSDependencies = defaultDependencies(scalaVersion)
+
   def reactorsExtraSettings = projectSettings("-extra", extraDependencies)
 
   def extraDependencies(scalaVersion: String) = {
@@ -295,6 +299,13 @@ object ReactorsBuild extends MechaRepoBuild {
     Benchmarks
   ) settings(
     inConfig(Benchmarks)(Defaults.testSettings): _*
+  ) dependsOnSuperRepo
+
+  lazy val reactorsScalaJS = Project(
+    "reactors-scalajs",
+    file("reactors-scalajs"),
+    settings = reactorsScalaJSSettings
+  ) dependsOn(
   ) dependsOnSuperRepo
 
   lazy val reactorsCore: Project = Project(
