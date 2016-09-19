@@ -31,8 +31,11 @@ object ReactorsBuild extends MechaRepoBuild {
     reactorsCrossScalaVersions.value.head
   }
 
-  def projectSettings(suffix: String, deps: String => Seq[ModuleID]) =
-    Defaults.defaultSettings ++ MechaRepoPlugin.defaultSettings ++ Seq(
+  def projectSettings(
+    suffix: String, deps: String => Seq[ModuleID],
+    defaults: Seq[Setting[_]] = Defaults.defaultSettings
+  ) = {
+    defaults ++ MechaRepoPlugin.defaultSettings ++ Seq(
       name := s"reactors$suffix",
       version <<= frameworkVersion,
       organization := "com.storm-enroute",
@@ -103,6 +106,7 @@ object ReactorsBuild extends MechaRepoBuild {
       mechaDocsBranchKey := "gh-pages",
       mechaDocsPathKey := "reactors"
     )
+  }
 
   val reactorsSettings = projectSettings("", _ => Seq()) ++ Seq(
     (test in Test) <<= (test in Test)
@@ -239,12 +243,14 @@ object ReactorsBuild extends MechaRepoBuild {
     )
   }
 
-  def reactorsScalaJSSettings = projectSettings("-scalajs", scalaJSDependencies) ++ Seq(
-    fork in Test := false,
-    fork in run := false
-  )
+  def reactorsScalaJSSettings = {
+    projectSettings("-scalajs", scalaJSDependencies, Seq()) ++ Seq(
+      fork in Test := false,
+      fork in run := false
+    )
+  }
 
-  def scalaJSDependencies(scalaVersion: String) = defaultDependencies(scalaVersion)
+  def scalaJSDependencies(scalaVersion: String): Seq[ModuleID] = Seq()
 
   def reactorsExtraSettings = projectSettings("-extra", extraDependencies)
 
