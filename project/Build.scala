@@ -246,7 +246,11 @@ object ReactorsBuild extends MechaRepoBuild {
   def reactorsScalaJSSettings = {
     projectSettings("-scalajs", scalaJSDependencies, Seq()) ++ Seq(
       fork in Test := false,
-      fork in run := false
+      fork in run := false,
+      unmanagedSourceDirectories in Compile +=
+        baseDirectory.value / ".." / "reactors-common" / "src" / "main" / "scala",
+      unmanagedSourceDirectories in Compile +=
+        baseDirectory.value / ".." / "reactors-core" / "src" / "main" / "scala"
     )
   }
 
