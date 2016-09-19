@@ -1,11 +1,13 @@
 
 
 
-import sbt._
-import Keys._
-import Process._
 import java.io._
 import org.stormenroute.mecha._
+import sbt._
+import sbt.Keys._
+import sbt.Process._
+import org.scalajs.sbtplugin.ScalaJSPlugin
+import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport._
 
 
 
@@ -30,8 +32,7 @@ object ReactorsBuild extends MechaRepoBuild {
   }
 
   def projectSettings(suffix: String, deps: String => Seq[ModuleID]) =
-    Defaults.defaultSettings ++
-    MechaRepoPlugin.defaultSettings ++ Seq(
+    Defaults.defaultSettings ++ MechaRepoPlugin.defaultSettings ++ Seq(
       name := s"reactors$suffix",
       version <<= frameworkVersion,
       organization := "com.storm-enroute",
@@ -238,9 +239,12 @@ object ReactorsBuild extends MechaRepoBuild {
     )
   }
 
-  def reactorsScalaJSSettings = projectSettings("-scalajs", scalaJSDependencies)
+  def reactorsScalaJSSettings = projectSettings("-scalajs", scalaJSDependencies) ++ Seq(
+    fork in Test := false,
+    fork in run := false
+  )
 
-  def scalaJSDependencies = defaultDependencies(scalaVersion)
+  def scalaJSDependencies(scalaVersion: String) = defaultDependencies(scalaVersion)
 
   def reactorsExtraSettings = projectSettings("-extra", extraDependencies)
 
@@ -305,7 +309,7 @@ object ReactorsBuild extends MechaRepoBuild {
     "reactors-scalajs",
     file("reactors-scalajs"),
     settings = reactorsScalaJSSettings
-  ) dependsOn(
+  ) enablePlugins(ScalaJSPlugin) dependsOn(
   ) dependsOnSuperRepo
 
   lazy val reactorsCore: Project = Project(
