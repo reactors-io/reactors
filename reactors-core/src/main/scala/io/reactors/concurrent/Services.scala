@@ -333,35 +333,7 @@ object Services {
   extends ChannelBuilder(
     null, false, EventQueue.UnrolledRing.Factory, false, immutable.Map()
   ) with Protocol.Service {
-    private val store = new ConcurrentHashMap[String, AnyRef]
-
     def shutdown() {
-    }
-
-    /** Binds the specified name to the specific channel.
-     *
-     *  Invoked whenever a channel is created.
-     */
-    @tailrec private[reactors] final def set[T](name: String, ch: Channel[T]): Unit = {
-      (store.get(name): @unchecked) match {
-        case null =>
-          if (store.putIfAbsent(name, ch) != null) set(name, ch)
-        case lst: List[Channel[Channel[T]]] @unchecked =>
-          if (!store.replace(name, lst, ch)) set(name, ch)
-          else for (awaiter <- lst) awaiter ! ch
-        case och: Channel[T] =>
-          if (!store.replace(name, och, ch)) set(name, ch)
-      }
-    }
-
-    /** Removes the channel under the specified name.
-     */
-    @tailrec private[reactors] final def remove(name: String): Unit = {
-      (store.get(name): @unchecked) match {
-        case och: Channel[_] =>
-          if (!store.remove(name, och)) remove(name)
-        case _ =>
-      }
     }
 
     /** Optionally returns the channel with the given name, if it exists.
@@ -369,11 +341,10 @@ object Services {
      *  @param name      names of the reactor and the channel, separated with a `#`
      */
     def get[T](name: String): Option[Channel[T]] = {
-      (store.get(name): @unchecked) match {
-        case null => None
-        case lst: List[() => Unit] @unchecked => None
-        case ch: Channel[T] => Some(ch)
-      }
+      val parts = name.split("#")
+      if (parts.length != 2)
+        exception.illegalArg("Channel name must contain exactly one '#'.")
+      else get[T](parts(0), parts(1))
     }
 
     /** Optionally returns the channel with the given name, if it exists.
@@ -382,29 +353,62 @@ object Services {
      *  @param channelName  name of the channel
      */
     def get[T](reactorName: String, channelName: String): Option[Channel[T]] = {
-      get(reactorName + "#" + channelName)
+      val info = system.frames.forName(reactorName)
+      if (info == null) None
+      else {
+        info.connectors.get(channelName) match {
+          case Some(conn: Connector[T] @unchecked) => Some(conn.channel)
+          case _ => None
+        }
+      }
     }
 
     /** Await for the channel with the specified name.
      *
-     *  When the channel with the specified name becomes available, invokes the
-     *  specified callback function.
-     *
-     *  @param name      names of the reactor and the channel, separated with `#`
+     *  @param name         name of the reactor and the channel, delimited with a `#`
+     *  @return             `Ivar` with the desired channel
      */
-    private[reactors] final def await[T](name: String): IVar[Channel[T]] = {
+    final def await[T](name: String): IVar[Channel[T]] = {
+      val parts = name.split("#")
+      if (parts.length != 2)
+        exception.illegalArg("Channel name must contain exactly one '#'.")
+      else await[T](parts(0), parts(1))
+    }
+
+    /** Await for the channel with the specified name.
+     *
+     *  @param reactorName  name of the reactor
+     *  @param channelName  name of the channel
+     *  @return             `IVar` with the desired channel
+     */
+    final def await[T](
+      reactorName: String, channelName: String
+    ): IVar[Channel[T]] = {
+      assert(reactorName != null)
       val conn = system.channels.daemon.open[Channel[T]]
       val ivar = conn.events.toIVar
       ivar.on(conn.seal())
 
       @tailrec def retry() {
-        (store.get(name): @unchecked) match {
-          case null =>
-            if (store.putIfAbsent(name, conn.channel :: Nil) != null) retry()
-          case lst: List[Channel[Channel[T]]] @unchecked =>
-            if (!store.replace(name, lst, conn.channel :: lst)) retry()
-          case ch: Channel[T] =>
-            conn.channel ! ch
+        val info = system.frames.forName(reactorName)
+        if (info == null) {
+          val ninfo = Frame.Info(null, immutable.Map(channelName -> List(conn.channel)))
+          if (system.frames.tryStore(reactorName, ninfo) == null) retry()
+        } else {
+          info.connectors.get(channelName) match {
+            case Some(c: Connector[T] @unchecked) =>
+              ivar := c.channel
+            case Some(lst: List[Channel[Channel[T]]] @unchecked) =>
+              val nchs = channelName -> (conn.channel :: lst)
+              val ninfo = Frame.Info(info.frame, info.connectors + nchs)
+              if (!system.frames.tryReplace(reactorName, info, ninfo)) retry()
+            case None =>
+              val nchs = channelName -> List(conn.channel)
+              val ninfo = Frame.Info(info.frame, info.connectors + nchs)
+              if (!system.frames.tryReplace(reactorName, info, ninfo)) retry()
+            case v =>
+              exception.illegalState("Should not reach this: " + v)
+          }
         }
       }
       retry()

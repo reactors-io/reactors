@@ -21,8 +21,8 @@ final class ScalableUniqueStore[T >: Null <: Identifiable with AnyRef](
   val uniqueNamePrefix: String,
   val scalability: Int
 ) {
-  private val uidCounter = new UidGenerator(scalability)
-  private val byName = new TrieMap[String, T]
+  private[reactors] val uidCounter = new UidGenerator(scalability)
+  private[reactors] val byName = new TrieMap[String, T]
 
   /** Compute and return a unique id.
    */
@@ -34,6 +34,15 @@ final class ScalableUniqueStore[T >: Null <: Identifiable with AnyRef](
     for ((name, obj) <- byName.snapshot) yield (obj.uid, name, obj)
   }
 
+  /** Proposes an unused name.
+   */
+  @tailrec
+  final def proposeName(uid: Long): String = {
+    val name = s"$uniqueNamePrefix-$uid"
+    if (byName.contains(name)) proposeName(uid + 1)
+    else name
+  }
+
   /** Attempt to store the value `x` with the `proposedName`.
    *
    *  '''Note:''' the UID of `x` must be unique among all `x` ever stored in this
@@ -42,11 +51,10 @@ final class ScalableUniqueStore[T >: Null <: Identifiable with AnyRef](
    *  Returns the name under which `x` is stored. If the name is not available, returns
    *  `null` and does not store the object.
    *
-   *  @param proposedName     the proposed name, or `null` to assign any name
-   *  @param x                the object
-   *  @return                 name under which `x` was stored
-   *  @throws                 an `IllegalArgumentException` if the proposed name already
-   *                          exists in the map
+   *  @param proposedName     proposed name, or `null` to assign any non-existing name
+   *  @param x                object to store
+   *  @return                 name under which `x` was stored, or `null` if proposed
+   *                          name already existed (in which case, nothing was stored)
    */
   def tryStore(proposedName: String, x: T): String = {
     @tailrec def store(count: Long): String = {
@@ -56,12 +64,25 @@ final class ScalableUniqueStore[T >: Null <: Identifiable with AnyRef](
       else possibleName
     }
     if (proposedName != null) {
-      if (byName.putIfAbsent(proposedName, x) != None)
-        throw new IllegalArgumentException(s"Name $proposedName unavailable.")
-      proposedName
+      if (byName.putIfAbsent(proposedName, x) != None) null
+      else proposedName
     } else {
-      store(0)
+      store(0L)
     }
+  }
+
+  /** Atomically replaces an existing entry in the unique store with a new one.
+   *
+   *  The new entry must be stored under an existing name, and it must have the same UID
+   *  as the entry that is currently under that name.
+   *
+   *  @param existingName    the existing name
+   *  @param ox              the expected old entry under the specified name
+   *  @param nx              the new entry to store under the specified name
+   *  @return                `true` if an existing entry was replaced, `false` otherwise
+   */
+  def tryReplace(existingName: String, ox: T, nx: T): Boolean = {
+    byName.replace(existingName, ox, nx)
   }
 
   /** Attempts to release the specified name.

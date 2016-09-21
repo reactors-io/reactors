@@ -21,7 +21,7 @@ final class Frame(
   val reactorSystem: ReactorSystem
 ) extends Identifiable {
   private[reactors] val monitor = new Monitor
-  private[reactors] val connectors = new UniqueStore[Connector[_]]("channel", monitor)
+  private[reactors] val idCounter = new AtomicLong(0L)
   private[reactors] var nonDaemonCount = 0
   private[reactors] var active = false
   private[reactors] val activeCount = new AtomicInteger(0)
@@ -43,43 +43,74 @@ final class Frame(
   @volatile private var spinsLeft = 0
 
   def openConnector[@spec(Int, Long, Double) Q: Arrayable](
-    name: String,
+    channelName: String,
     factory: EventQueue.Factory,
     isDaemon: Boolean,
     shortcut: Boolean,
-    extras: immutable.Map[Class[_], Any],
-    publishImmediately: Boolean
+    extras: immutable.Map[Class[_], Any]
   ): Connector[Q] = {
-    // 1. Prepare and ensure a unique id for the channel.
-    val uid = connectors.reserveId()
-    val queue = factory.newInstance[Q]
-    val chanUrl = ChannelUrl(url, name)
-    val localChan = new Channel.Local[Q](reactorSystem, uid, this, shortcut)
-    val chan = new Channel.Shared(chanUrl, localChan)
-    val conn = new Connector(chan, queue, this, mutable.Map(extras.toSeq: _*), isDaemon)
-    localChan.connector = conn
+    // Note: invariant is that there is always at most one thread calling this method.
+    // However, they may be multiple threads updating the frame map.
+    var newConnector: Connector[Q] = null
+    while (newConnector == null) {
+      // 1. Prepare and ensure a unique id for the channel.
+      val uid = idCounter.getAndIncrement()
 
-    // 2. Acquire a unique name or break if not unique.
-    val uname = monitor.synchronized {
-      val u = connectors.tryStore(name, conn)
-      if (!isDaemon) nonDaemonCount += 1
-      u
+      // 2. Find a unique name.
+      var info = reactorSystem.frames.forName(name)
+      assert(info != null, name)
+      @tailrec def chooseName(count: Long): String = {
+        val n = s"channel-$uid-$count"
+        if (info.connectors.contains(n)) chooseName(count + 1)
+        else n
+      }
+      val uname = {
+        if (channelName != null) {
+          info.connectors.get(channelName) match {
+            case Some(c: Connector[_]) =>
+              throw new IllegalStateException(s"Channel '$channelName' already exists.")
+            case _ =>
+              channelName
+          }
+        } else chooseName(0L)
+      }
+
+      // 3. Instantiate a connector.
+      val queue = factory.newInstance[Q]
+      val chanUrl = ChannelUrl(url, uname)
+      val localChan = new Channel.Local[Q](reactorSystem, uid, this, shortcut)
+      val chan = new Channel.Shared(chanUrl, localChan)
+      val conn = new Connector(
+        chan, queue, this, mutable.Map(extras.toSeq: _*), isDaemon)
+      val ninfo = Frame.Info(this, info.connectors + (uname -> conn))
+      localChan.connector = conn
+
+      // 4. Add connector to the global list.
+      if (reactorSystem.frames.tryReplace(name, info, ninfo)) {
+        newConnector = conn
+
+        // 5. If there were listeners under that connector name, trigger them.
+        info.connectors.get(uname) match {
+          case Some(listeners: List[Channel[Channel[Q]]] @unchecked) =>
+            for (ch <- listeners) ch ! conn.channel
+          case _ =>
+        }
+      }
     }
 
-    // 3. Put connector to global store.
-    if (publishImmediately)
-      reactorSystem.channels.set(this.name + "#" + uname, chan)
+    // 6. Update count of non-daemon channels.
+    if (!isDaemon) nonDaemonCount += 1
 
-    // 4. Return connector.
-    conn
+    // 7. Return connector.
+    newConnector
   }
 
   /** Atomically schedules the frame for execution, unless already scheduled.
    */
-  def activate() {
+  def activate(scheduleEvenIfActive: Boolean) {
     var mustSchedule = false
     monitor.synchronized {
-      if (!active) {
+      if (!active || scheduleEvenIfActive) {
         active = true
         mustSchedule = true
       }
@@ -273,8 +304,7 @@ final class Frame(
         reactorSystem.debugApi.reactorTerminated(reactor)
         if (reactor != null) sysEmitter.react(ReactorTerminated)
       } finally {
-        for ((uid, name, conn) <- connectors.values)
-          reactorSystem.channels.remove(this.name + "#" + name)
+        // TODO: Fix this to account for existing channel listeners.
         reactorSystem.frames.tryRelease(name)
       }
     }
@@ -308,38 +338,39 @@ final class Frame(
     count
   }
 
-  def sealConnector(uid: Long): Boolean = {
-    val sealedConn = monitor.synchronized {
-      val conn = connectors.forId(uid)
-      if (conn == null) null
-      else {
-        conn.sharedChannel.asLocal.isOpen = false
-        decrementConnectorCount(conn)
-        assert(connectors.tryReleaseById(uid))
-        reactorSystem.channels.remove(connectorName(conn))
-        conn
+  def sealConnector(connector: Connector[_]): Unit = {
+    monitor.synchronized {
+      connector.sharedChannel.asLocal.isOpen = false
+      if (!connector.isDaemon) nonDaemonCount -= 1
+
+      // Try to remove the connector.
+      var done = false
+      while (!done) {
+        val info = reactorSystem.frames.forName(name)
+        val ninfo = Frame.Info(this, info.connectors - connector.name)
+        done = reactorSystem.frames.tryReplace(name, info, ninfo)
       }
     }
-    if (sealedConn != null) {
-      assert(Reactor.selfAsOrNull != null)
-      sealedConn.queue.unreact()
-    }
-    sealedConn != null
-  }
-
-  def decrementConnectorCount(conn: Connector[_]) = monitor.synchronized {
-    if (!conn.isDaemon) nonDaemonCount -= 1
+    assert(Reactor.selfAsOrNull != null)
+    connector.queue.unreact()
   }
 
 }
 
 
 object Frame {
-  sealed trait LifecycleState
+  private[reactors] sealed trait LifecycleState
 
-  case object Fresh extends LifecycleState
+  private[reactors] case object Fresh extends LifecycleState
 
-  case object Running extends LifecycleState
+  private[reactors] case object Running extends LifecycleState
 
-  case object Terminated extends LifecycleState
+  private[reactors] case object Terminated extends LifecycleState
+
+  private[reactors] case class Info(
+    frame: Frame, connectors: immutable.Map[String, AnyRef]
+  ) extends Identifiable {
+    def uid: Long = if (frame != null) frame.uid else -1
+    def isEmpty: Boolean = frame == null
+  }
 }

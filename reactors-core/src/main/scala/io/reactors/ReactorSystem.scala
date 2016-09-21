@@ -43,7 +43,7 @@ class ReactorSystem(
 
   /** Contains the frames for different reactors.
    */
-  private[reactors] val frames = new ScalableUniqueStore[Frame]("reactor", 512)
+  private[reactors] val frames = new ScalableUniqueStore[Frame.Info]("reactor", 512)
 
   /** Shuts down services. */
   def shutdown() {
@@ -91,7 +91,26 @@ class ReactorSystem(
     val frame = new Frame(uid, proto, scheduler, this)
 
     // 2. Reserve the unique name or break.
-    val uname = frames.tryStore(proto.name, frame)
+    var uname: String = null
+    while (uname == null) {
+      if (proto.name == null) {
+        // If choosing any name, it will always be fresh.
+        uname = frames.tryStore(proto.name, Frame.Info(frame, immutable.Map()))
+      } else {
+        // If choosing a specific name, it could already have channel listeners.
+        val info = frames.forName(proto.name)
+        if (info == null) {
+          uname = frames.tryStore(proto.name, Frame.Info(frame, immutable.Map()))
+        } else {
+          if (info.isEmpty) {
+            val ninfo = Frame.Info(frame, info.connectors)
+            if (frames.tryReplace(proto.name, info, ninfo)) {
+              uname = proto.name
+            }
+          } else exception.illegalArg(s"Reactor '${proto.name}' already exists.")
+        }
+      }
+    }
 
     try {
       // 3. Allocate the standard connectors.
@@ -101,31 +120,31 @@ class ReactorSystem(
       // 4. Prepare for the first execution.
       scheduler.initSchedule(frame)
 
-      // 5. Create standard connectors, and publish them only after they are .
+      // 5. Prepare pre-ctor: create standard connectors,
+      //    and publish only after frame fields are set.
+      //    Since this potentially shares the channel, other reactors can
+      //    send a message and revive this reactor too early. We need to manually mark
+      //    the reactor as already active to prevent this.
+      frame.active = true
       frame.defaultConnector = frame.openConnector[T](
-        proto.channelName, factory, false, false, immutable.Map(), false)
+        proto.channelName, factory, false, false, immutable.Map())
       frame.internalConnector = frame.openConnector[SysEvent](
-        "system", factory, true, false, immutable.Map(), false)
-      frame.internalConnector.asInstanceOf[Connector[SysEvent]].events.onEvent { x =>
-        frame.sysEmitter.react(x, null)
+        "system", factory, true, false, immutable.Map())
+      frame.internalConnector.asInstanceOf[Connector[SysEvent]].events.onEvent {
+        x => frame.sysEmitter.react(x, null)
       }
-      this.channels.set(
-        uname + "#" + proto.channelName,
-        frame.defaultConnector.channel.asInstanceOf[Channel[T]])
-      this.channels.set(
-        uname + "#" + "system",
-        frame.internalConnector.channel.asInstanceOf[Channel[SysEvent]])
 
       // 6. Schedule for first execution.
-      frame.activate()
+      frame.activate(true)
     } catch {
       case t: Throwable =>
         // 7. If not successful, release the name and rethrow.
+        // TODO: Fix this to preserve existing channel listeners.
         frames.tryRelease(uname)
         throw t
     }
 
-    // 8. return the default channel
+    // 8. Return the default channel.
     frame.defaultConnector.channel.asInstanceOf[Channel[T]]
   }
 
