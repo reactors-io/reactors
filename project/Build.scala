@@ -252,7 +252,6 @@ object ReactorsBuild extends MechaRepoBuild {
       unmanagedSourceDirectories in Compile +=
         baseDirectory.value / ".." / "reactors-core" / "src" / "main" / "scala",
       libraryDependencies ++= Seq(
-        "eu.unicredit" %%% "shocon" % "0.1.2"
       )
     )
   }
