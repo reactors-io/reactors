@@ -13,7 +13,6 @@ import java.util.TimerTask
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.atomic._
-import org.apache.commons.io._
 import scala.annotation.tailrec
 import scala.annotation.unchecked
 import scala.collection._
@@ -204,7 +203,14 @@ object Services {
           blocking {
             val inputStream = resolver(new URL(url))
             try {
-              IOUtils.toString(inputStream, cs)
+              val sb = new StringBuilder
+              val reader = new BufferedReader(new InputStreamReader(inputStream))
+              var line = reader.readLine()
+              while (line != null) {
+                sb.append(line)
+                line = reader.readLine()
+              }
+              sb.toString
             } finally {
               inputStream.close()
             }
