@@ -108,14 +108,6 @@ trait Signal[@spec(Int, Long, Double) T] extends Events[T] with Subscription {
     zipped.toSignal(f(this.apply(), that.apply()))
   }
 
-  /** This is the same as `zip`.
-   */
-  def zipSig[@spec(Int, Long, Double) S, @spec(Int, Long, Double) R](
-    that: Signal[S]
-  )(f: (T, S) => R): Signal[R] = {
-    zip[S, R](that)(f)
-  }
-
   /** Synchronizes events on two signals, and returns another signal.
    *
    *  '''Note:''' this is the same as `sync`, but it works on signals, and returns a
@@ -239,6 +231,18 @@ object Signal {
       }
       levelsigs(0).toSignal(levelsigs(0)())
     }
+  }
+
+  def zip[@spec(Int, Long, Double) T, @spec(Int, Long, Double)](ss: Signal[T]*)(
+    f: (Seq[T]) => S
+  ): Signal[S] = {
+    ???
+  }
+
+  def sync[@spec(Int, Long, Double) T, @spec(Int, Long, Double)](ss: Signal[T]*)(
+    f: (Seq[T]) => S
+  )(implicit a: Arrayable[T]): Signal[S] = {
+    ???
   }
 
   private[reactors] class Changes[@spec(Int, Long, Double) T](val self: Signal[T])
