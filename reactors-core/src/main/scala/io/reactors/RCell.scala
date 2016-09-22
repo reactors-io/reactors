@@ -10,12 +10,16 @@ import scala.reflect.ClassTag
  *  whose changes may produce events.
  *
  *  An `RCell` is conceptually similar to a reactive emitter lifted into a signal.
+ *  An `RCell` can be created full, or empty. If empty, retrieving its value throws
+ *  an exception. Once assigned, the `RCell` is no longer empty.
  *
  *  @tparam T         the type of the values it stores
  *  @param value      the initial value of the reactive cell
  */
-class RCell[@spec(Int, Long, Double) T](private var value: T)
-extends Signal[T] with Observer[T] {
+class RCell[@spec(Int, Long, Double) T] private[reactors] (
+  private var value: T,
+  private var hasValue: Boolean
+) extends Signal[T] with Observer[T] {
   private var pushSource: Events.PushSource[T] = _
 
   private[reactors] def init(dummy: RCell[T]) {
@@ -24,12 +28,23 @@ extends Signal[T] with Observer[T] {
 
   init(this)
 
+  /** Creates an empty `RCell`
+   */
+  def this() = this(null.asInstanceOf[T], false)
+
+  /** Creates an `RCell`, initialized with a value.
+   */
+  def this(v: T) = this(v, true)
+
   /** Returns the current value in the reactive cell.
    */
-  def apply(): T = value
+  def apply(): T = {
+    if (!hasValue) throw new IllegalStateException("<empty>.apply()")
+    value
+  }
 
   /** Returns `false`. */
-  def isEmpty = false
+  def isEmpty = !hasValue
 
   /** Does nothing. */
   def unsubscribe() {}
@@ -41,6 +56,7 @@ extends Signal[T] with Observer[T] {
    */
   def :=(v: T): Unit = {
     value = v
+    hasValue = true
     pushSource.reactAll(v, null)
   }
 
@@ -58,7 +74,7 @@ extends Signal[T] with Observer[T] {
   def unreact() {}
 
   def onReaction(obs: Observer[T]): Subscription = {
-    obs.react(value, null)
+    if (hasValue) obs.react(value, null)
     pushSource.onReaction(obs)
   }
 
@@ -71,6 +87,10 @@ object RCell {
 
   /** A factory method for creating reactive cells.
    */
-  def apply[@spec(Int, Long, Double) T](x: T) = new RCell[T](x)
-  
+  def apply[@spec(Int, Long, Double) T](x: T): RCell[T] = new RCell[T](x)
+
+  /** Creates an empty reactive cell.
+   */
+  def apply[@spec(Int, Long, Double) T]: RCell[T] = new RCell[T]()
+
 }

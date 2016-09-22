@@ -1767,6 +1767,13 @@ class RCellSpec extends FunSuite with Matchers {
     buffer.size should equal (0)
   }
 
+  test("empty cell") {
+    val c = RCell[Int]
+    assert(c.isEmpty)
+    c := 17
+    assert(!c.isEmpty)
+    assert(c() == 17)
+  }
 }
 
 
