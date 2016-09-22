@@ -189,7 +189,8 @@ object ReactorsBuild extends MechaRepoBuild {
     val extraDeps = CrossVersion.partialVersion(scalaVersion) match {
       case Some((2, major)) if major >= 11 => Seq(
         "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.1",
-        "com.typesafe" % "config" % "1.2.1",
+        //"com.typesafe" % "config" % "1.2.1",
+        "eu.unicredit" %% "shocon" % "0.1.2",
         "commons-io" % "commons-io" % "2.4"
       )
       case Some((2, 10)) => Seq(
@@ -250,7 +251,10 @@ object ReactorsBuild extends MechaRepoBuild {
       unmanagedSourceDirectories in Compile +=
         baseDirectory.value / ".." / "reactors-common" / "src" / "main" / "scala",
       unmanagedSourceDirectories in Compile +=
-        baseDirectory.value / ".." / "reactors-core" / "src" / "main" / "scala"
+        baseDirectory.value / ".." / "reactors-core" / "src" / "main" / "scala",
+      libraryDependencies ++= Seq(
+        "eu.unicredit" %%% "shocon" % "0.1.2"
+      )
     )
   }
 
