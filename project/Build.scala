@@ -189,15 +189,15 @@ object ReactorsBuild extends MechaRepoBuild {
     val extraDeps = CrossVersion.partialVersion(scalaVersion) match {
       case Some((2, major)) if major >= 11 => Seq(
         "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.1",
-        //"com.typesafe" % "config" % "1.2.1",
-        "eu.unicredit" %% "shocon" % "0.1.2",
+        "com.typesafe" % "config" % "1.2.1",
+        //"eu.unicredit" %% "shocon" % "0.1.2",
         "commons-io" % "commons-io" % "2.4"
       )
       case Some((2, 10)) => Seq(
         "org.scalatest" % "scalatest_2.10" % "2.2.4" % "test",
         "org.scalacheck" %% "scalacheck" % "1.11.4" % "test",
-        //"com.typesafe" % "config" % "1.2.1",
-        "eu.unicredit" %% "shocon" % "0.1.2",
+        "com.typesafe" % "config" % "1.2.1",
+        //"eu.unicredit" %% "shocon" % "0.1.2",
         "commons-io" % "commons-io" % "2.4"
       )
       case _ => Nil
