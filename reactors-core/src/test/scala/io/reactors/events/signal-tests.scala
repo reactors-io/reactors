@@ -246,15 +246,54 @@ class SignalSpec extends FunSuite {
     assert(buffer == expected)
   }
 
-  test("syncSig") {
+  test("syncWith") {
     val e1 = new Events.Emitter[String]
     val e2 = new Events.Emitter[String]
     val s1 = e1.toSignal("1")
     val s2 = e2.toSignal("2")
-    val synced = (s1 syncSig s2)((_, _))
+    val synced = (s1 syncWith s2)((_, _))
     val buffer = mutable.Buffer[(String, String)]()
     synced.onEvent(buffer += _)
     buffer += synced()
     assert(buffer == Seq(("1", "2")))
+  }
+
+  test("zip many") {
+    val e1 = new Events.Emitter[Char]
+    val e2 = new Events.Emitter[Char]
+    val e3 = new Events.Emitter[Char]
+    val sig1 = e1.toSignal('d')
+    val sig2 = e2.toSignal('c')
+    val sig3 = e3.toSignal('e')
+    val zipped = Signal.zip(sig1, sig2, sig3) { ss => () =>
+      ss.find(s => s().isUpper).map(_()).getOrElse('?')
+    }
+    var done = false
+    zipped.onDone(done = true)
+    assert(zipped() == '?')
+    e2.react('f')
+    assert(zipped() == '?')
+    e3.react('A')
+    assert(zipped() == 'A')
+    e1.react('g')
+    assert(zipped() == 'A')
+    e1.react('B')
+    assert(zipped() == 'B')
+    e1.react('h')
+    assert(zipped() == 'A')
+    e1.unreact()
+    assert(zipped() == 'A')
+    e1.unreact()
+    assert(zipped() == 'A')
+    assert(!done)
+    e2.react('C')
+    assert(zipped() == 'C')
+    assert(!done)
+    e2.unreact()
+    assert(zipped() == 'C')
+    assert(!done)
+    e3.unreact()
+    assert(zipped() == 'C')
+    assert(done)
   }
 }
