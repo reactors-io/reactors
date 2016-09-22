@@ -10,7 +10,7 @@ import scala.runtime.ObjectRef
 
 
 
-sealed trait Conc[@specialized(Byte, Char, Int, Long, Float, Double) +T] {
+sealed trait Conc[@specialized(Int, Long, Float, Double) +T] {
   def level: Int
   def size: Int
   def left: Conc[T]
@@ -37,19 +37,21 @@ object Conc {
     def size = 0
   }
   
-  class Single[@specialized(Byte, Char, Int, Long, Float, Double) T](val x: T)
+  class Single[@specialized(Int, Long, Float, Double) T](val x: T)
   extends Leaf[T] {
     def level = 0
     def size = 1
     override def toString = s"Single($x)"
   }
   
-  class Chunk[@specialized(Byte, Char, Int, Long, Float, Double) T](
+  class Chunk[@specialized(Int, Long, Float, Double) T](
     val array: Array[T], val size: Int, val k: Int
   ) extends Leaf[T] {
     def level = 0
     override def toString = s"Chunk(${array.mkString("", ", ", "")}; $size; $k)"
   }
+
+  class Queue[@specialized(Int, Long, Float, Double) T]
 
 }
 
@@ -387,8 +389,8 @@ object ConcUtils {
   }
 
   def foreach[
-    @specialized(Byte, Char, Int, Long, Float, Double) T,
-    @specialized(Byte, Char, Int, Long, Float, Double) U
+    @specialized(Int, Long, Float, Double) T,
+    @specialized(Int, Long, Float, Double) U
   ](xs: Conc[T], f: T => U): Unit = (xs: @unchecked) match {
     case left <> right =>
       foreach(left, f)
@@ -505,7 +507,7 @@ object ConcUtils {
       invalid("All cases should have been covered: " + xs + ", " + xs.getClass)
   }
 
-  def apply[@specialized(Byte, Char, Int, Long, Float, Double) T](
+  def apply[@specialized(Int, Long, Float, Double) T](
     xs: Conc[T], i: Int
   ): T = (xs: @unchecked) match {
     case left <> _ if i < left.size =>
@@ -542,7 +544,7 @@ object ConcUtils {
   }
 
   private def updatedArray[
-    @specialized(Byte, Char, Int, Long, Float, Double) T: ClassTag
+    @specialized(Int, Long, Float, Double) T: ClassTag
   ](a: Array[T], i: Int, y: T, sz: Int): Array[T] = {
     val na = new Array[T](a.length)
     System.arraycopy(a, 0, na, 0, sz)
@@ -555,7 +557,7 @@ object ConcUtils {
   def asNum[T](xs: Conc[T]) = xs.asInstanceOf[Num[T]]
 
   def update[
-    @specialized(Byte, Char, Int, Long, Float, Double) T: ClassTag
+    @specialized(Int, Long, Float, Double) T: ClassTag
   ](xs: Conc[T], i: Int, y: T): Conc[T] = (xs: @unchecked) match {
     case left <> right if i < left.size =>
       new <>(update(left, i, y), right)
@@ -658,7 +660,7 @@ object ConcUtils {
   }
 
   private[common] def insertedArray[
-    @specialized(Byte, Char, Int, Long, Float, Double) T: ClassTag
+    @specialized(Int, Long, Float, Double) T: ClassTag
   ](a: Array[T], from: Int, i: Int, y: T, sz: Int): Array[T] = {
     val na = new Array[T](sz + 1)
     System.arraycopy(a, from, na, 0, i)
@@ -684,7 +686,7 @@ object ConcUtils {
     na
   }
 
-  def insert[@specialized(Byte, Char, Int, Long, Float, Double) T: ClassTag](
+  def insert[@specialized(Int, Long, Float, Double) T: ClassTag](
     xs: Conc[T], i: Int, y: T
   ): Conc[T] = (xs.normalized: @unchecked) match {
     case left <> right if i < left.size =>
@@ -1569,7 +1571,7 @@ object ConcUtils {
     zip(0, lwings, rwings)
   }
 
-  def split[@specialized(Byte, Char, Int, Long, Float, Double) T: ClassTag](
+  def split[@specialized(Int, Long, Float, Double) T: ClassTag](
     xs: Conc[T], n: Int, rref: ObjectRef[Conc[T]]
   ): Conc[T] = (xs.normalized: @unchecked) match {
     case left <> right =>
