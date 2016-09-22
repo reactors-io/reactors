@@ -99,12 +99,14 @@ trait Signal[@spec(Int, Long, Double) T] extends Events[T] with Subscription {
    *  @param that      the signal to zip `this` with
    *  @param f         the function that maps a tuple of values into an outgoing
    *                   event
-   *  @return          a subscription and the event stream that emits zipped events
+   *  @return          a subscription and the signal that emits zipped events
    */
   def zip[@spec(Int, Long, Double) S, @spec(Int, Long, Double) R](
     that: Signal[S]
-  )(f: (T, S) => R): Events[R] =
-    new Signal.Zip[T, S, R](this, that, f)
+  )(f: (T, S) => R): Signal[R] = {
+    val zipped = new Signal.Zip[T, S, R](this, that, f)
+    zipped.toSignal(f(this.apply(), that.apply()))
+  }
 
   /** Creates a new signal that emits tuples of the current
    *  and the last event emitted by `this` signal.

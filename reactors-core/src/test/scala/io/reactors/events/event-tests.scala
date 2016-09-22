@@ -1766,7 +1766,6 @@ class RCellSpec extends FunSuite with Matchers {
     e.except(new Exception)
     buffer.size should equal (0)
   }
-
 }
 
 

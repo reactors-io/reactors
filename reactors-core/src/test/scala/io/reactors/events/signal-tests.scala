@@ -222,4 +222,27 @@ class SignalSpec extends FunSuite {
     assert(aggregated() == 100)
   }
 
+  test("triple zip") {
+    val e1 = new Events.Emitter[String]
+    val e2 = new Events.Emitter[String]
+    val e3 = new Events.Emitter[String]
+    val s1 = e1.toSignal("")
+    val s2 = e2.toSignal("")
+    val s3 = e3.toSignal("")
+    val buffer = mutable.Buffer[(String, String, String)]()
+    val f = (x: String, y: String, z: String) => (x, y, z)
+    val zipped = ((s1 zip s2)((_, _)) zip s3) {
+      (p1, p2) => f(p1._1, p1._2, p2)
+    }
+    val sub = zipped.onEvent(buffer += _)
+    e1 react "a"
+    e2 react "b"
+    e3 react "c"
+    val expected = Seq(
+      ("a", "", ""),
+      ("a", "b", ""),
+      ("a", "b", "c")
+    )
+    assert(buffer == expected)
+  }
 }
