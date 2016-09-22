@@ -91,7 +91,7 @@ trait Signal[@spec(Int, Long, Double) T] extends Events[T] with Subscription {
    *  val differences = (a zip b)(_ - _)
    *  }}}
    *
-   *  '''Note:''': clients looking into pairing incoming events from two signals
+   *  '''Note:''' clients looking into pairing incoming events from two signals
    *  you should use the `sync` method inherited from `Events`.
    *
    *  @tparam S        the type of `that` signal
@@ -106,6 +106,32 @@ trait Signal[@spec(Int, Long, Double) T] extends Events[T] with Subscription {
   )(f: (T, S) => R): Signal[R] = {
     val zipped = new Signal.Zip[T, S, R](this, that, f)
     zipped.toSignal(f(this.apply(), that.apply()))
+  }
+
+  /** This is the same as `zip`.
+   */
+  def zipSig[@spec(Int, Long, Double) S, @spec(Int, Long, Double) R](
+    that: Signal[S]
+  )(f: (T, S) => R): Signal[R] = {
+    zip[S, R](that)(f)
+  }
+
+  /** Synchronizes events on two signals, and returns another signal.
+   *
+   *  '''Note:''' this is the same as `sync`, but it works on signals, and returns a
+   *  a signal.
+   *
+   *  @tparam S         the type of the events in `that` signal
+   *  @tparam R         the type of the events in the resulting signal
+   *  @param that       the signal to sync with
+   *  @param f          the mapping function for the pair of events
+   *  @return           the signal with the synchronized values
+   */
+  def syncSig[@spec(Int, Long, Double) S, @spec(Int, Long, Double) R](
+    that: Signal[S]
+  )(f: (T, S) => R)(implicit at: Arrayable[T], as: Arrayable[S]): Signal[R] = {
+    val initial = f(this.apply(), that.apply())
+    (this sync that)(f).toSignal(initial)
   }
 
   /** Creates a new signal that emits tuples of the current

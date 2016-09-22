@@ -245,4 +245,16 @@ class SignalSpec extends FunSuite {
     )
     assert(buffer == expected)
   }
+
+  test("syncSig") {
+    val e1 = new Events.Emitter[String]
+    val e2 = new Events.Emitter[String]
+    val s1 = e1.toSignal("1")
+    val s2 = e2.toSignal("2")
+    val synced = (s1 syncSig s2)((_, _))
+    val buffer = mutable.Buffer[(String, String)]()
+    synced.onEvent(buffer += _)
+    buffer += synced()
+    assert(buffer == Seq(("1", "2")))
+  }
 }
