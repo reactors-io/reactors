@@ -196,7 +196,8 @@ object ReactorsBuild extends MechaRepoBuild {
       case Some((2, 10)) => Seq(
         "org.scalatest" % "scalatest_2.10" % "2.2.4" % "test",
         "org.scalacheck" %% "scalacheck" % "1.11.4" % "test",
-        "com.typesafe" % "config" % "1.2.1",
+        //"com.typesafe" % "config" % "1.2.1",
+        "eu.unicredit" %% "shocon" % "0.1.2",
         "commons-io" % "commons-io" % "2.4"
       )
       case _ => Nil
