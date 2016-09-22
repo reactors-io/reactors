@@ -233,13 +233,13 @@ object Signal {
     }
   }
 
-  def zip[@spec(Int, Long, Double) T, @spec(Int, Long, Double)](ss: Signal[T]*)(
+  def zip[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](ss: Signal[T]*)(
     f: (Seq[T]) => S
   ): Signal[S] = {
     ???
   }
 
-  def sync[@spec(Int, Long, Double) T, @spec(Int, Long, Double)](ss: Signal[T]*)(
+  def sync[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](ss: Signal[T]*)(
     f: (Seq[T]) => S
   )(implicit a: Arrayable[T]): Signal[S] = {
     ???
