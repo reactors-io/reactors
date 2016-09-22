@@ -342,8 +342,9 @@ trait Events[@spec(Int, Long, Double) T] {
    *              type `T`
    *  @return     a subscription used to cancel this mutation
    */
-  def mutate[M >: Null <: AnyRef](m: Events.Mutable[M])(f: M => T => Unit):
-    Subscription =
+  def mutate[M >: Null <: AnyRef](m: Events.Mutable[M])(
+    f: M => T => Unit
+  ): Subscription =
     onReaction(new Events.MutateObserver(m, f))
 
   /** Mutates multiple mutable event stream values `m1` and `m2` each time that `this`
