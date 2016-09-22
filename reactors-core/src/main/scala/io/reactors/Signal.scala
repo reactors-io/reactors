@@ -236,13 +236,54 @@ object Signal {
   def zip[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](ss: Signal[T]*)(
     f: (Seq[T]) => S
   ): Signal[S] = {
-    ???
+    val zipped = new Signal.ZipMany[T, S](ss, f)
+    zipped.toSignal(f(ss.map(_())))
   }
 
   def sync[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](ss: Signal[T]*)(
-    f: (Seq[T]) => S
+    f: Seq[T] => S
   )(implicit a: Arrayable[T]): Signal[S] = {
     ???
+  }
+
+  private[reactors] class ZipMany[
+    @spec(Int, Long, Double) T,
+    @spec(Int, Long, Double) S
+  ](
+    val ss: Seq[Signal[T]], val f: Seq[T] => S
+  ) extends Events[S] {
+    def onReaction(target: Observer[S]): Subscription = {
+      val obs = new ZipManyObserver[T, S](target, ss, f)
+      val subs = for (s <- ss) yield s.onReaction(obs)
+      new Subscription.Composite(subs: _*)
+    }
+  }
+
+  private[reactors] class ZipManyObserver[
+    @spec(Int, Long, Double) T,
+    @spec(Int, Long, Double) S
+  ](
+    val target: Observer[S], val ss: Seq[Signal[T]], val f: Seq[T] => S
+  ) extends Observer[T] {
+    private var liveCount = ss.length
+    if (liveCount == 0) target.unreact()
+    def react(x: T, hint: Any) {
+      val v = try {
+        f(ss.map(sig => sig()))
+      } catch {
+        case NonLethal(t) =>
+          target.except(t)
+          return
+      }
+      target.react(v, null)
+    }
+    def except(t: Throwable) {
+      target.except(t)
+    }
+    def unreact() {
+      liveCount -= 1
+      if (liveCount == 0) target.unreact()
+    }
   }
 
   private[reactors] class Changes[@spec(Int, Long, Double) T](val self: Signal[T])
