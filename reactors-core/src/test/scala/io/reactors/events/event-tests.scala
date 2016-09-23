@@ -8,6 +8,7 @@ import org.scalacheck.Prop.forAllNoShrink
 import org.scalacheck.Gen.choose
 import org.scalatest._
 import org.scalatest.exceptions.TestFailedException
+import io.reactors.common.Conc
 import io.reactors.common.Ref
 import io.reactors.test._
 import scala.collection._
@@ -1156,6 +1157,24 @@ class EventsSpec extends FunSuite {
 
     val getEmitter = new GetEmitter
     assert(getEmitter.get == 7)
+  }
+
+  test("sliding") {
+    val emitter = new Events.Emitter[Int]
+    val sliding = emitter.sliding(3)
+    val seen = mutable.Buffer[Conc.Queue[Int]]()
+    var done = false
+    sliding.onEventOrDone(seen += _)(done = true)
+    emitter.react(1)
+    assert(seen.last.toArray.toSeq == Seq(1))
+    emitter.react(2)
+    assert(seen.last.toArray.toSeq == Seq(2, 1))
+    emitter.react(3)
+    assert(seen.last.toArray.toSeq == Seq(3, 2, 1))
+    emitter.react(4)
+    assert(seen.last.toArray.toSeq == Seq(4, 3, 2))
+    emitter.unreact()
+    assert(done)
   }
 
 }
