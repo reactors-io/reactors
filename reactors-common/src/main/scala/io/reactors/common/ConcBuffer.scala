@@ -37,4 +37,3 @@ class ConcBuffer[@specialized(Int, Long, Float, Double) T: ClassTag](
     conc
   }
 }
-

@@ -163,11 +163,11 @@ class RHashMap[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
   }
 
   private[reactors] def emitInserts(k: K, v: V) {
-    if (insertsEmitter.hasSubscriptions) insertsEmitter.react(k, v)
+    insertsEmitter.react(k, v)
   }
 
   private[reactors] def emitRemoves(k: K, v: V) {
-    if (removesEmitter.hasSubscriptions) removesEmitter.react(k, v)
+    removesEmitter.react(k, v)
   }
 
   private[reactors] def delete(k: K, expectedValue: V = null): V = {
