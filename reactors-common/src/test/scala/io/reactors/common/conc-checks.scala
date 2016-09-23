@@ -97,6 +97,7 @@ object ConcChecks extends Properties("Conc") with ConcSnippets
         assert(q.last == 0)
       }
       assert(q.size == sz)
+      assert(q.toArray.toSeq == (0 until sz).reverse)
       val seen = mutable.Buffer[Int]()
       for (x <- q) seen += x
       assert(seen == (0 until sz).reverse)
