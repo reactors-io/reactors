@@ -2,6 +2,7 @@ package io.reactors.common
 
 
 
+import io.reactors.Arrayable
 import scala.annotation.unchecked
 import scala.annotation.tailrec
 import scala.annotation.switch
@@ -51,7 +52,123 @@ object Conc {
     override def toString = s"Chunk(${array.mkString("", ", ", "")}; $size; $k)"
   }
 
-  class Queue[@specialized(Int, Long, Float, Double) T]
+  def reverseQueueForeach[
+    @specialized(Int, Long, Float, Double) T,
+    @specialized(Int, Long, Float, Double, Unit) U
+  ](xs: Conc[T], f: T => U): Unit = (xs: @unchecked) match {
+    case left <> right =>
+      reverseQueueForeach(right, f)
+      reverseQueueForeach(left, f)
+    case s: Single[T] @unchecked =>
+      f(s.x)
+    case Empty =>
+    case ConcRope.Append(left, right) =>
+      reverseQueueForeach(right, f)
+      reverseQueueForeach(left, f)
+    case ConcRope.Prepend(left, right) =>
+      reverseQueueForeach(right, f)
+      reverseQueueForeach(left, f)
+    case _ =>
+      invalid("All cases should have been covered: " + xs.getClass)
+  }
+
+  def reverseQueueApply[@specialized(Int, Long, Float, Double) T](
+    xs: Conc[T], i: Int
+  ): T = {
+    (xs: @unchecked) match {
+      case _ <> right if i < right.size =>
+        reverseQueueApply(right, i)
+      case left <> right =>
+        reverseQueueApply(left, i - right.size)
+      case s: Single[T] @unchecked => s.x
+      case ConcRope.Append(_, right) if i < right.size =>
+        reverseQueueApply(right, i)
+      case ConcRope.Append(left, right) =>
+        reverseQueueApply(left, i - right.size)
+      case ConcRope.Prepend(_, right) if i < right.size =>
+        reverseQueueApply(right, i)
+      case ConcRope.Prepend(left, right) =>
+        reverseQueueApply(left, i - right.size)
+      case _ =>
+        invalid("All cases should have been covered: " + xs.getClass)
+    }
+  }
+
+  class Queue[@specialized(Int, Long, Float, Double) T](
+    private[reactors] val left: Conc[T],
+    private[reactors] val right: Conc[T]
+  ) {
+    import ConcRope.Append
+    import ConcRope.Prepend
+
+    def this() = this(Empty, Empty)
+
+    def size: Int = left.size + right.size
+
+    def isEmpty: Boolean = size == 0
+
+    def head: T = {
+      @tailrec def find(c: Conc[T]): T = c match {
+        case Append(l, r) => find(r)
+        case Prepend(l, r) => find(r)
+        case l <> r => find(r)
+        case s: Single[T] @unchecked => s.x
+      }
+      if (size == 0) throw new IllegalStateException("<empty>.head")
+      if (right.size > 0) find(right)
+      else find(left)
+    }
+
+    def foreach[@specialized(Int, Long, Float, Double, Unit) U](f: T => U): Unit = {
+      reverseQueueForeach(right, f)
+      reverseQueueForeach(left, f)
+    }
+
+    def last: T = {
+      @tailrec def find(c: Conc[T]): T = c match {
+        case Append(l, r) => find(l)
+        case Prepend(l, r) => find(l)
+        case l <> r => find(l)
+        case s: Single[T] @unchecked => s.x
+      }
+      if (size == 0) throw new IllegalStateException("<empty>.last")
+      if (left.size > 0) find(left)
+      else find(right)
+    }
+
+    def apply(idx: Int): T = {
+      if (idx < 0 || idx >= size) throw new IndexOutOfBoundsException(s"$idx")
+      if (idx < right.size) reverseQueueApply(right, idx)
+      else reverseQueueApply(left, idx - right.size)
+    }
+
+    def enqueue(x: T): Queue[T] = {
+      new Queue(left, ConcRope.append(right, new Single(x)))
+    }
+
+    def dequeue(): Queue[T] = {
+      if (size == 0) throw new IllegalStateException("<empty>.dequeue")
+      if (left.size > 0) new Queue(ConcRope.unprependDirect(left), right)
+      else {
+        right.normalized match {
+          case l <> r =>
+            new Queue(ConcRope.unprependDirect(l), r)
+          case s: Single[T] @unchecked =>
+            new Queue(Empty, Empty)
+        }
+      }
+    }
+
+    def toArray(implicit a: Arrayable[T]): Array[T] = {
+      val array = a.newRawArray(size)
+      var i = 0
+      for (x <- this) {
+        array(i) = x
+        i += 1
+      }
+      array
+    }
+  }
 
 }
 
@@ -108,6 +225,45 @@ object ConcRope {
     (ys: @unchecked) match {
       case Prepend(zs, ws) => wrapPrepend(xs <> zs, ws)
       case ys => xs <> ys
+    }
+  }
+
+  def unprependDirect[T](xs: Conc[T]): Conc[T] = {
+    def unwind(left: Conc[T], acc: Conc[T]): Conc[T] = {
+      (left: @unchecked) match {
+        case zs: Single[T] =>
+          acc
+        case zs: Chunk[T] =>
+          if (zs.size > 1) {
+            val nxs = Prepend(new Chunk(zs.array.tail, zs.size - 1, zs.k), acc)
+            nxs
+          } else {
+            acc
+          }
+        case zs: <>[T] =>
+          val left <> right = ConcUtils.shakeRight(zs)
+          unwind(left, Prepend(right, acc))
+      }
+    }
+    (xs: @unchecked) match {
+      case Prepend(zs, ws) =>
+        unwind(zs, ws)
+      case xs: <>[T] =>
+        val left <> acc = ConcUtils.shakeRight(xs)
+        unwind(left, acc)
+      case Empty =>
+        throw new UnsupportedOperationException("Cannot unprepend on Empty.")
+      case xs: Single[T] =>
+        Empty
+      case xs: Chunk[T] =>
+        if (xs.size > 1) {
+          val nxs = new Chunk(xs.array.tail, xs.size - 1, xs.k)
+          nxs
+        } else {
+          Empty
+        }
+      case xs: Append[T] =>
+        unprependDirect(xs.normalized)
     }
   }
 
