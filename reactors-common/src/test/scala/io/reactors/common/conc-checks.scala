@@ -86,6 +86,32 @@ object ConcChecks extends Properties("Conc") with ConcSnippets
     )
   }
 
+  /* conc queue */
+
+  property("Conc.Queue operations") = forAll(detChoose(0, 1024)) { sz =>
+    stackTraced {
+      var q = new Queue[Int]()
+      for (i <- 0 until sz) {
+        q = q.enqueue(i)
+        assert(q.head == i)
+        assert(q.last == 0)
+      }
+      assert(q.size == sz)
+      assert(q.toArray.toSeq == (0 until sz).reverse)
+      val seen = mutable.Buffer[Int]()
+      for (x <- q) seen += x
+      assert(seen == (0 until sz).reverse)
+      for (i <- 0 until sz) assert(q(i) == (sz - 1 - i), (i, q(i)))
+      for (i <- 0 until sz) {
+        assert(q.head == (sz - 1))
+        assert(q.last == i)
+        q = q.dequeue()
+      }
+      assert(q.size == 0)
+      true
+    }
+  }
+
   /* conc rope */
 
   property("append correctness") = forAll(detChoose(1, 1000),
