@@ -534,15 +534,15 @@ trait Events[@spec(Int, Long, Double) T] {
    *  }}}
    *
    *  '''Note:''' whenever an event arrives, the sliding window must be updated.
-   *  The sliding window is represented by an immutable queue data structure, which is
-   *  used to incrementally create a new version of the sliding window.
-   *  This *enqueue* operation is `O(1)` time, but needs to allocate around 7 objects on
-   *  average. This is generally not very expensive, but clients that really need top
+   *  The sliding window is represented with an immutable queue data structure.
+   *  This data structure is used to incrementally a new version of the sliding window.
+   *  The update operation takes `O(1)` time, but needs to allocate around 7 objects on
+   *  average. That is generally not very expensive, but clients that really need top
    *  performance should use `mutate` with a mutable queue data structure to maintain
    *  the sliding window.
    *
    *  The resulting `Conc.Queue` has `O(log n)` access to elements, where `n` is the
-   *  size of the sliding window. It be converted into an array in `O(n)` time.
+   *  size of the sliding window. It be converted to an array in `O(n)` time.
    *
    *  @param sz      size of the sliding window
    *  @return        the sliding window data structure
