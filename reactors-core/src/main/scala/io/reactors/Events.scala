@@ -509,6 +509,9 @@ trait Events[@spec(Int, Long, Double) T] {
    *  events are batched -- in this case, the last batch may have less events than what
    *  was specified.
    *
+   *  '''Note:''' at the moment, this operation is not specialized, and may incur some
+   *  boxing when events are primitive elements.
+   *
    *  {{{
    *  time       --------------------------------------->
    *  this       -----1---2---3------------4---5--|
@@ -521,6 +524,33 @@ trait Events[@spec(Int, Long, Double) T] {
   def batch(sz: Int): Events[Seq[T]] = {
     assert(sz > 0)
     new Events.Batch(this, sz)
+  }
+
+  /** Creates a sliding window of the events produced in this event stream.
+   *
+   *  {{{
+   *  time       ------------------------------------------->
+   *  this       -----1----2------3----------4---------|
+   *  batch(3)   -----[1]--[2,1]--[3,2,1]----[4,3,2]---|
+   *  }}}
+   *
+   *  '''Note:''' whenever an event arrives, the sliding window must be updated.
+   *  The sliding window is represented with an immutable queue data structure.
+   *  This data structure is used to incrementally a new version of the sliding window.
+   *  The update operation takes `O(1)` time, but needs to allocate around 7 objects on
+   *  average. That is generally not very expensive, but clients that really need top
+   *  performance should use `mutate` with a mutable queue data structure to maintain
+   *  the sliding window.
+   *
+   *  The resulting `Conc.Queue` has `O(log n)` access to elements, where `n` is the
+   *  size of the sliding window. It be converted to an array in `O(n)` time.
+   *
+   *  @param sz      size of the sliding window
+   *  @return        the sliding window data structure
+   */
+  def sliding(sz: Int)(implicit s: Spec[T]): Events[Conc.Queue[T]] = {
+    assert(sz > 0)
+    new Events.Sliding(this, sz, s)
   }
 
   /** Returns a new event stream that forwards the events from `this` event stream as
@@ -1958,6 +1988,34 @@ object Events {
     def unreact() {
       target.unreact()
       for ((k, events) <- groups) events.unreact()
+    }
+  }
+
+  private[reactors] class Sliding[@spec(Int, Long, Double) T](
+    val self: Events[T],
+    val sz: Int,
+    val s: Spec[T]
+  ) extends Events[Conc.Queue[T]] {
+    def onReaction(observer: Observer[Conc.Queue[T]]) =
+      self.onReaction(new SlidingObserver(observer, sz, s))
+  }
+
+  private[reactors] class SlidingObserver[@spec(Int, Long, Double) T](
+    val target: Observer[Conc.Queue[T]],
+    val sz: Int,
+    val s: Spec[T]
+  ) extends Observer[T] {
+    private var queue = new Conc.Queue[T]()
+    def react(value: T, hint: Any) {
+      queue = queue.enqueue(value)
+      if (queue.size > sz) queue = queue.dequeue()
+      target.react(queue, hint)
+    }
+    def except(t: Throwable) {
+      target.except(t)
+    }
+    def unreact() {
+      target.unreact()
     }
   }
 
