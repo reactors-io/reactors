@@ -466,8 +466,7 @@ trait Events[@spec(Int, Long, Double) T] {
     Events[S] =
     new Events.Collect(this, pf)
 
-  /** Returns a new event stream that maps events from `this` event stream using the
-   *  mapping function `f`.
+  /** Returns a new stream that maps events from `this` stream using the function `f`.
    *
    *  {{{
    *  time    --------------------->
@@ -481,6 +480,19 @@ trait Events[@spec(Int, Long, Double) T] {
    */
   def map[@spec(Boolean, Int, Long, Double) S](f: T => S): Events[S] =
     new Events.Map(this, f)
+
+  /** Whenever `this` stream emits, uses the sampling function to emit another event.
+   *
+   *  This combinator is useful when there is a clear ordering of events in different
+   *  event stream, and the incremental system state needs to be sampled at specific
+   *  points in time.
+   *
+   *  @tparam S         the type of the sampled events
+   *  @param f          the sampling function
+   *  @return           event stream value with the sampled events
+   */
+  def sample[@spec(Int, Long, Double) S](f: =>S): Events[S] =
+    this.map(x => f)
 
   /** Returns an event stream that groups events into event stream using a function.
    *
@@ -806,6 +818,7 @@ trait Events[@spec(Int, Long, Double) T] {
     implicit evidence: T <:< Events[S], a: Arrayable[S]
   ): Events[S] =
     new Events.PostfixConcat[T, S](this, evidence, a)
+
 
   /** Returns an event stream that forwards from the first active nested event stream.
    *

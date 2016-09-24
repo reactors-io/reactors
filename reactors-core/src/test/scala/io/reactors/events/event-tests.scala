@@ -646,6 +646,21 @@ class EventsSpec extends FunSuite {
     assert(buffer == Seq("7", "11"))
   }
 
+  test("sample") {
+    val cell = RCell(4)
+    val emitter = new Events.Emitter[Unit]
+    val sampled = emitter.sample(cell())
+    val seen = mutable.Buffer[Int]()
+    sampled.onEvent(seen += _)
+    cell := 5
+    emitter.react(())
+    assert(seen == Seq(5))
+    cell := 6
+    cell := 7
+    emitter.react(())
+    assert(seen == Seq(5, 7))
+  }
+
   test("group by") {
     val es = new Events.Emitter[Int]
     val gs = es.groupBy(_ % 3)
