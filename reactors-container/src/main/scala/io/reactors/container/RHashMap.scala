@@ -25,6 +25,7 @@ class RHashMap[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
   private[reactors] var can: RHashMap.Can[K, V] = _
   private[reactors] var insertsEmitter: Events.Emitter[K] = null
   private[reactors] var removesEmitter: Events.Emitter[K] = null
+  private[reactors] var modifiedEmitter: Events.Emitter[Unit] = null
   private[reactors] var subscription: Subscription = null
 
   protected def init(k: K) {
@@ -32,6 +33,7 @@ class RHashMap[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
     table = new Array(RHashMap.initSize)
     insertsEmitter = new Events.Emitter[K]
     removesEmitter = new Events.Emitter[K]
+    modifiedEmitter = new Events.Emitter[Unit]
     subscription = Subscription.empty
   }
 
@@ -40,6 +42,8 @@ class RHashMap[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
   def inserts: Events[K] = insertsEmitter
 
   def removes: Events[K] = removesEmitter
+
+  def modified: Events[Unit] = modifiedEmitter
 
   def unsubscribe() = subscription.unsubscribe()
 
@@ -154,20 +158,13 @@ class RHashMap[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
     if (previousValue == null) elemCount += 1
     else needRemoveEvent = true
     
-    emitInserts(k, v)
-    if (needRemoveEvent) emitRemoves(k, previousValue)
+    insertsEmitter.react(k, v)
+    if (needRemoveEvent) removesEmitter.react(k, previousValue)
+    modifiedEmitter.react((), null)
     
     entry.propagate()
 
     previousValue
-  }
-
-  private[reactors] def emitInserts(k: K, v: V) {
-    insertsEmitter.react(k, v)
-  }
-
-  private[reactors] def emitRemoves(k: K, v: V) {
-    removesEmitter.react(k, v)
   }
 
   private[reactors] def delete(k: K, expectedValue: V = null): V = {
@@ -194,6 +191,7 @@ class RHashMap[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
         if (removesEmitter.hasSubscriptions)
           removesEmitter.react(k, previousValue)
         entry.propagate()
+        modifiedEmitter.react((), null)
 
         previousValue
       } else null
@@ -296,8 +294,9 @@ class RHashMap[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
         entry.propagate()(spec)
         if (previousValue != null) {
           elemCount -= 1
-          emitRemoves(entry.key, previousValue)
+          removesEmitter.react(entry.key, previousValue)
         }
+        modifiedEmitter.react((), null)
 
         entry = nextEntry
       }

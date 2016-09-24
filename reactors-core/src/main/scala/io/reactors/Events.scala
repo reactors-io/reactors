@@ -485,7 +485,9 @@ trait Events[@spec(Int, Long, Double) T] {
    *
    *  This combinator is useful when there is a clear ordering of events in different
    *  event stream, and the incremental system state needs to be sampled at specific
-   *  points in time.
+   *  points in time. The sampling function is guaranteed to be called only once per
+   *  each emitted event (however, if there are multiple subscribers to the resulting
+   *  event stream, then the sampling function will be called once for each subscriber).
    *
    *  @tparam S         the type of the sampled events
    *  @param f          the sampling function
@@ -937,17 +939,20 @@ trait Events[@spec(Int, Long, Double) T] {
   def unliftTry[S](implicit evid: T <:< Try[S]): Events[S] =
     new Events.UnliftTry(this, evid)
 
-  /** Incrementally computes state, and samples it to emit events.
+  /** Incrementally computes state, and emits events to an observer.
    *
-   *  @tparam S        type of the 
+   *  Creates an incrementally updated state, and uses it to emit events to an observer
+   *  whenever `this` event stream emits an event.
+   *
+   *  @tparam S        type of the output events
    *  @param state     function that creates some incrementally computed state, and
    *                   returns a tuple of the subscription for that state, and the
-   *                   function used to sample it
+   *                   function that emits events from this state
    *  @return          an event stream that emits a sampled view of the state whenever
    *                   `this` event stream emits an event
    */
   def incremental[@spec(Int, Long, Double) S](
-    state: =>(Subscription, () => S)
+    state: =>(Subscription, Observer[S] => Unit)
   )(implicit s: Spec[S]): Events[S] = {
     new Events.Incremental(this, () => state)
   }
@@ -2835,7 +2840,7 @@ object Events {
     @spec(Int, Long, Double) S
   ](
     val self: Events[T],
-    val state: () => (Subscription, () => S)
+    val state: () => (Subscription, Observer[S] => Unit)
   ) extends Events[S] {
     def onReaction(obs: Observer[S]): Subscription = {
       val (sub, sampler) = state()
@@ -2853,17 +2858,16 @@ object Events {
     val self: Events[T],
     val subscription: Subscription,
     val target: Observer[S],
-    val sampler: () => S
+    val sampler: Observer[S] => Unit
   ) extends Observer[T] {
     def react(x: T, hint: Any): Unit = {
-      val s = try {
-        sampler()
+      try {
+        sampler(target)
       } catch {
         case t if isNonLethal(t) =>
           target.except(t)
           return
       }
-      target.react(s, hint)
     }
     def except(t: Throwable) = target.except(t)
     def unreact() = {

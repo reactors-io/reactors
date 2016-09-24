@@ -25,6 +25,7 @@ class RFlatHashMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
   private var sz = 0
   private[reactors] var insertsEmitter: Events.Emitter[K] = null
   private[reactors] var removesEmitter: Events.Emitter[K] = null
+  private[reactors] var modifiedEmitter: Events.Emitter[Unit] = null
   private[reactors] var pairInsertsEmitter: Events.Emitter[K] = null
   private[reactors] var pairRemovesEmitter: Events.Emitter[K] = null
   private[reactors] var subscription: Subscription = _
@@ -35,6 +36,7 @@ class RFlatHashMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
     valtable = emptyVal.newArray(RFlatHashMap.initSize)
     insertsEmitter = new Events.Emitter[K]
     removesEmitter = new Events.Emitter[K]
+    modifiedEmitter = new Events.Emitter[Unit]
     pairInsertsEmitter = new Events.Emitter[K]
     pairRemovesEmitter = new Events.Emitter[K]
     subscription = Subscription.empty
@@ -50,6 +52,8 @@ class RFlatHashMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
   def inserts: Events[K] = insertsEmitter
 
   def removes: Events[K] = removesEmitter
+
+  def modified: Events[Unit] = modifiedEmitter
 
   /** Returns an `RMap` view of this hash map. May result in boxing if the map contains
    *  primitive values.
@@ -121,6 +125,7 @@ class RFlatHashMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
     if (keyAdded) sz += 1
     else notifyRemove(k, previousValue, notify)
     notifyInsert(k, v, notify)
+    notifyModified(notify)
 
     previousValue
   }
@@ -137,6 +142,10 @@ class RFlatHashMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
       removesEmitter.react(k, null)
       if (notify && pairRemovesEmitter.hasSubscriptions)
       pairRemovesEmitter.react(k, v.asInstanceOf[AnyRef])
+  }
+
+  private[reactors] def notifyModified(notify: Boolean) {
+    if (notify) modifiedEmitter.react((), null)
   }
 
   private[reactors] def delete(k: K, expectedValue: V = emptyVal.nil): V = {
@@ -169,6 +178,7 @@ class RFlatHashMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
       valtable(h0) = emptyVal.nil
       sz -= 1
       notifyRemove(k, previousValue, true)
+      notifyModified(true)
 
       previousValue
     } else emptyVal.nil
@@ -248,6 +258,7 @@ class RFlatHashMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
         valtable(pos) = emptyVal.nil
         sz -= 1
         notifyRemove(k, v, true)
+        notifyModified(true)
       }
 
       pos += 1
@@ -302,7 +313,8 @@ object RFlatHashMap {
   }
 
   class AsMap[@spec(Int, Long, Double) K, V](val self: RFlatHashMap[K, V])
-  extends RMap[K, V] {
+  extends RMap.Derived[K, V] {
+    def selfModified = self.modified
     def apply(k: K) = self.apply(k)
     def inserts = self.pairInsertsEmitter
     def removes = self.pairRemovesEmitter

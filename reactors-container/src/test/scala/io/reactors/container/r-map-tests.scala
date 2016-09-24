@@ -55,4 +55,60 @@ class RMapCheck extends Properties("RMap") with ExtendedProperties {
     }
   }
 
+  property("emit modified on collected values") = forAllNoShrink(sizes) { sz =>
+    stackTraced {
+      val table = new RHashMap[Int, String]
+      val collected = table.collectValue {
+        case "9" => "9"
+      }
+      var timesModified = 0
+      collected.modified.onEvent { _ =>
+        timesModified += 1
+      }
+      assert(timesModified == 0)
+      for (i <- 0 until sz) {
+        table(i) = (i % 10).toString
+        assert(timesModified == (i + 1) / 10)
+      }
+      true
+    }
+  }
+
+  property("emit adds") = forAllNoShrink(sizes) { sz =>
+    stackTraced {
+      val table = new RHashMap[Int, String]
+      var totalAdds = 0
+      table.adds.on(totalAdds += 1)
+      for (i <- 0 until sz) {
+        assert(totalAdds == i)
+        table(i) = i.toString
+      }
+      assert(totalAdds == sz)
+      for (i <- 0 until sz) {
+        assert(totalAdds == sz)
+        table(i) = (-i).toString
+      }
+      true
+    }
+  }
+
+  property("emit updates") = forAllNoShrink(sizes) { sz =>
+    stackTraced {
+      val table = new RHashMap[Int, String]
+      var totalUpdates = 0
+      table.updates.on(totalUpdates += 1)
+      for (i <- 0 until sz) {
+        assert(totalUpdates == 0)
+        table(i) = i.toString
+      }
+      assert(totalUpdates == 0)
+      for (i <- 0 until sz) {
+        assert(totalUpdates == i)
+        table(i) = (-i).toString
+      }
+      assert(totalUpdates == sz)
+      true
+    }
+  }
+
 }

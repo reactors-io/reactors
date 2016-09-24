@@ -24,6 +24,7 @@ class RQuadMatrix[@spec(Int, Long, Double) T](
   private[reactors] var removesEmitter: Events.Emitter[XY] = null
   private[reactors] var pairInsertsEmitter: Events.Emitter[XY] = null
   private[reactors] var pairRemovesEmitter: Events.Emitter[XY] = null
+  private[reactors] var modifiedEmitter: Events.Emitter[Unit] = null
   private[reactors] var subscription: Subscription = null
   private[reactors] var rawMap: RQuadMatrix.AsMap[T] = null
 
@@ -33,6 +34,7 @@ class RQuadMatrix[@spec(Int, Long, Double) T](
     removesEmitter = new Events.Emitter[XY]
     pairInsertsEmitter = new Events.Emitter[XY]
     pairRemovesEmitter = new Events.Emitter[XY]
+    modifiedEmitter = new Events.Emitter[Unit]
     subscription = Subscription.empty
     rawMap = new RQuadMatrix.AsMap[T](this)
   }
@@ -65,14 +67,18 @@ class RQuadMatrix[@spec(Int, Long, Double) T](
   def applyAndUpdate(x: Int, y: Int, v: T): T = {
     val prev = matrix.applyAndUpdate(x, y, v)
 
+    var modified = false
     if (prev != nil) {
       notifyRemove(x, y, prev)
       rawSize -= 1
+      modified = true
     }
     if (v != nil) {
       notifyInsert(x, y, v)
       rawSize += 1
+      modified = true
     }
+    notifyModified()
     prev
   }
 
@@ -88,6 +94,10 @@ class RQuadMatrix[@spec(Int, Long, Double) T](
       removesEmitter.react(XY(x, y), null)
     if (pairRemovesEmitter.hasSubscriptions)
       pairRemovesEmitter.react(XY(x, y), v.asInstanceOf[AnyRef])
+  }
+
+  private[reactors] def notifyModified() {
+    modifiedEmitter.react((), null)
   }
 
   /** Sets the value at the specified coordinates to `nil`.
@@ -128,6 +138,8 @@ class RQuadMatrix[@spec(Int, Long, Double) T](
   def inserts: Events[XY] = insertsEmitter
 
   def removes: Events[XY] = removesEmitter
+
+  def modified: Events[Unit] = modifiedEmitter
 
   def size: Int = rawSize
 
@@ -175,7 +187,8 @@ object RQuadMatrix {
 
   private[reactors] class AsMap[T](
     val self: RQuadMatrix[T]
-  ) extends RMap[XY, T] {
+  ) extends RMap.Derived[XY, T] {
+    def selfModified = self.modified
     def apply(xy: XY): T = self.apply(XY.xOf(xy), XY.yOf(xy))
     def inserts = self.pairInsertsEmitter
     def removes = self.pairRemovesEmitter

@@ -306,9 +306,9 @@ class EventsSpec extends FunSuite {
     var unsubscribed = false
     val emitter = new Events.Emitter[Int]
     val tick = new Events.Emitter[Unit]
-    val samples = tick.incremental {
+    val samples = tick.incremental[Int] {
       val state = emitter.toSignal(0)
-      (state.and(unsubscribed = true), () => state())
+      (state.and(unsubscribed = true), obs => obs.react(state(), null))
     }
     samples.onEvent(seen += _)
     assert(seen == Seq())
