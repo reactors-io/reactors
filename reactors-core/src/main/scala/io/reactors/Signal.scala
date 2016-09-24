@@ -91,7 +91,7 @@ trait Signal[@spec(Int, Long, Double) T] extends Events[T] with Subscription {
    *  val differences = (a zip b)(_ - _)
    *  }}}
    *
-   *  '''Note:''': clients looking into pairing incoming events from two signals
+   *  '''Note:''' clients looking into pairing incoming events from two signals
    *  you should use the `sync` method inherited from `Events`.
    *
    *  @tparam S        the type of `that` signal
@@ -99,12 +99,32 @@ trait Signal[@spec(Int, Long, Double) T] extends Events[T] with Subscription {
    *  @param that      the signal to zip `this` with
    *  @param f         the function that maps a tuple of values into an outgoing
    *                   event
-   *  @return          a subscription and the event stream that emits zipped events
+   *  @return          a subscription and the signal that emits zipped events
    */
   def zip[@spec(Int, Long, Double) S, @spec(Int, Long, Double) R](
     that: Signal[S]
-  )(f: (T, S) => R): Events[R] =
-    new Signal.Zip[T, S, R](this, that, f)
+  )(f: (T, S) => R): Signal[R] = {
+    val zipped = new Signal.Zip[T, S, R](this, that, f)
+    zipped.toSignal(f(this.apply(), that.apply()))
+  }
+
+  /** Synchronizes events on two signals, and returns another signal.
+   *
+   *  '''Note:''' this is the same as `sync`, but it works on signals, and returns a
+   *  a signal.
+   *
+   *  @tparam S         the type of the events in `that` signal
+   *  @tparam R         the type of the events in the resulting signal
+   *  @param that       the signal to sync with
+   *  @param f          the mapping function for the pair of events
+   *  @return           the signal with the synchronized values
+   */
+  def syncWith[@spec(Int, Long, Double) S, @spec(Int, Long, Double) R](
+    that: Signal[S]
+  )(f: (T, S) => R)(implicit at: Arrayable[T], as: Arrayable[S]): Signal[R] = {
+    val initial = f(this.apply(), that.apply())
+    (this sync that)(f).toSignal(initial)
+  }
 
   /** Creates a new signal that emits tuples of the current
    *  and the last event emitted by `this` signal.
@@ -195,8 +215,9 @@ object Signal {
    *  @param z        the zero value of the aggregation, used if the list is empty
    *  @param op       the aggregation operator, must be associative
    */
-  def aggregate[@spec(Int, Long, Double) T](ss: Signal[T]*)(z: T)(op: (T, T) => T):
-    Signal[T] = {
+  def aggregate[@spec(Int, Long, Double) T](ss: Signal[T]*)(z: T)(
+    op: (T, T) => T
+  ): Signal[T] = {
     if (ss.length == 0) new Signal.Const(z)
     else {
       var levelsigs: Seq[Signal[T]] = ss
@@ -210,6 +231,98 @@ object Signal {
         levelsigs = nextLevel.toBuffer
       }
       levelsigs(0).toSignal(levelsigs(0)())
+    }
+  }
+
+
+  /** Zips the list of signals, and produces an output signal from their values.
+   *
+   *  The output signal is updated whenever any of the input signals are updated.
+   *  The value used for the output is given by the specified update function `f`.
+   *  Assume that the update function returns the first uppercase character, or `?` if
+   *  there are no uppercase characters:
+   *
+   *  {{{
+   *  Signal.zip(sig1, sig2, sig3) { ss => () =>
+   *    ss.find(s => s().isUpper).map(_()).getOrElse('?'))
+   *  }
+   *  }}}
+   *
+   *  The values are produced as follows:
+   *
+   *  {{{
+   *  time    ----------------------------->
+   *  sig1    d------------g--B------h----->
+   *  sig2    c----f----------------------->
+   *  sig3    e---------A------------------>
+   *  output  ?----?----A--A--B------A----->
+   *  }}}
+   *
+   *  Above, the output returns `?` each time any of the inputs is updated, until the
+   *  `signal-3` becomes `A` -- at this point, the output value changes to `A`. The
+   *  output value is still `A` when `signal-1` produces `g`, as the current values
+   *  of the signals are `(g, f, A)` at this point. When `signal-1` becomes `B`,
+   *  the values of all the signals are `(B, f, A)`, so the output becomes `B`,
+   *  and so on.
+   *
+   *  '''Note:''' traversing all of the signals in the specified function in order to
+   *  update the value of the resulting signal takes `O(n)` time, where `n` is the
+   *  number of signals specified, and can be potentially slow. If the update function
+   *  is associative (e.g., adding integers of the input signals), then the output
+   *  signal can be computed incrementally, and `Signal.aggregate` should be used
+   *  instead.
+   *
+   *  @tparam T       type of the input signals
+   *  @tparam S       type of the output signal
+   *  @param ss       list of input signals
+   *  @param f        function used to produce the output from the input signals
+   *  @return         the output signal
+   */
+  def zip[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](ss: Signal[T]*)(
+    f: Seq[Signal[T]] => () => S
+  )(implicit s: Spec[T]): Signal[S] = {
+    val zipped = new Signal.ZipMany[T, S](ss, f)
+    zipped.toSignal(f(ss)())
+  }
+
+  private[reactors] class ZipMany[
+    @spec(Int, Long, Double) T,
+    @spec(Int, Long, Double) S
+  ](
+    val ss: Seq[Signal[T]], val f: Seq[Signal[T]] => () => S
+  ) extends Events[S] {
+    def onReaction(target: Observer[S]): Subscription = {
+      val obs = new ZipManyObserver[T, S](target, ss, f)
+      val subs = for (s <- ss) yield s.onReaction(obs)
+      new Subscription.Composite(subs: _*)
+    }
+  }
+
+  private[reactors] class ZipManyObserver[
+    @spec(Int, Long, Double) T,
+    @spec(Int, Long, Double) S
+  ](
+    val target: Observer[S], val ss: Seq[Signal[T]], val f: Seq[Signal[T]] => () => S
+  ) extends Observer[T] {
+    private var liveCount = ss.length
+    private val computeValue = f(ss)
+    if (liveCount == 0) target.unreact()
+    def react(x: T, hint: Any) {
+      val v = try {
+        computeValue()
+      } catch {
+        case NonLethal(t) =>
+          target.except(t)
+          return
+      }
+      target.react(v, null)
+    }
+    def except(t: Throwable) {
+      target.except(t)
+    }
+    def unreact() {
+      liveCount -= 1
+      if (liveCount == 0) target.unreact()
     }
   }
 
