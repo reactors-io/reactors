@@ -11,7 +11,8 @@ import scala.reflect.ClassTag
  *
  *  An `RCell` is conceptually similar to a reactive emitter lifted into a signal.
  *  An `RCell` can be created full, or empty. If empty, retrieving its value throws
- *  an exception. Once assigned, the `RCell` is no longer empty.
+ *  an exception. Once assigned, the `RCell` is no longer empty, until `clear` gets
+ *  called.
  *
  *  @tparam T         the type of the values it stores
  *  @param value      the initial value of the reactive cell
@@ -59,6 +60,13 @@ class RCell[@spec(Int, Long, Double) T] private[reactors] (
     value = v
     hasValue = true
     pushSource.reactAll(v, null)
+  }
+
+  /** Clears the content of this reactive cell, making it empty.
+   */
+  def clear(): Unit = {
+    value = null.asInstanceOf[T]
+    hasValue = false
   }
 
   /** Same as `:=`. */
