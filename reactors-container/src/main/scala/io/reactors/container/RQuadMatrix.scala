@@ -17,7 +17,7 @@ import scala.reflect.ClassTag
  */
 class RQuadMatrix[@spec(Int, Long, Double) T](
   implicit val arrayable: Arrayable[T]
-) extends Matrix[T] {
+) extends Matrix[T] with RContainer.Modifiable {
   private[reactors] var rawSize = 0
   private[reactors] var matrix: QuadMatrix[T] = null
   private[reactors] var insertsEmitter: Events.Emitter[XY] = null
@@ -26,6 +26,7 @@ class RQuadMatrix[@spec(Int, Long, Double) T](
   private[reactors] var pairRemovesEmitter: Events.Emitter[XY] = null
   private[reactors] var subscription: Subscription = null
   private[reactors] var rawMap: RQuadMatrix.AsMap[T] = null
+  private[reactors] var isClearAllowed = true
 
   private[reactors] def init(self: RQuadMatrix[T]) {
     matrix = new QuadMatrix[T]
@@ -34,7 +35,7 @@ class RQuadMatrix[@spec(Int, Long, Double) T](
     pairInsertsEmitter = new Events.Emitter[XY]
     pairRemovesEmitter = new Events.Emitter[XY]
     subscription = Subscription.empty
-    rawMap = new RQuadMatrix.AsMap[T](this)
+    isClearAllowed = true
   }
 
   init(this)
@@ -42,7 +43,12 @@ class RQuadMatrix[@spec(Int, Long, Double) T](
   /** Returns an `RMap` view of this matrix. May result in boxing if the matrix contains
    *  primitive values.
    */
-  def asMap: RMap[XY, T] = rawMap
+  def asMap: RMap[XY, T] = {
+    if (rawMap == null) {
+      rawMap = new RQuadMatrix.AsMap[T](this)
+    }
+    rawMap
+  }
 
   /** Returns the value stored at the specified coordinates, or `nil` otherwise.
    */
@@ -62,7 +68,8 @@ class RQuadMatrix[@spec(Int, Long, Double) T](
 
   /** Updates the value at the specified coordinates, and returns the previous value.
    */
-  def applyAndUpdate(x: Int, y: Int, v: T): T = {
+  def applyAndUpdate(x: Int, y: Int, v: T): T = try {
+    acquireModify()
     val prev = matrix.applyAndUpdate(x, y, v)
 
     if (prev != nil) {
@@ -74,7 +81,7 @@ class RQuadMatrix[@spec(Int, Long, Double) T](
       rawSize += 1
     }
     prev
-  }
+  } finally releaseModify()
 
   private[reactors] def notifyInsert(x: Int, y: Int, v: T) {
     if (insertsEmitter.hasSubscriptions)
@@ -97,8 +104,17 @@ class RQuadMatrix[@spec(Int, Long, Double) T](
   /** Clears the entire matrix.
    */
   def clear() = {
-    matrix.clear()
-    rawSize = 0
+    if (isClearAllowed) {
+      matrix.clear()
+      rawSize = 0
+    } else {
+      throw new IllegalStateException(
+        "Matrix was used as map, so calling clear is not allowed.")
+    }
+  }
+
+  private[reactors] def disallowClear(): Unit = {
+    isClearAllowed = false
   }
 
   /** Copies the contents of the specified rectangle into an array.
@@ -176,6 +192,7 @@ object RQuadMatrix {
   private[reactors] class AsMap[T](
     val self: RQuadMatrix[T]
   ) extends RMap[XY, T] {
+    self.disallowClear()
     def apply(xy: XY): T = self.apply(XY.xOf(xy), XY.yOf(xy))
     def inserts = self.pairInsertsEmitter
     def removes = self.pairRemovesEmitter

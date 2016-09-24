@@ -162,6 +162,18 @@ object RContainer {
     def apply(inserts: Events[S], removes: Events[S]): That
   }
 
+  private[reactors] trait Modifiable {
+    private var modificationInProgress = false
+    protected def acquireModify() {
+      if (modificationInProgress) throw new IllegalStateException(
+        s"Container cannot be modified while its own event propagation is in progress.")
+      modificationInProgress = true
+    }
+    protected def releaseModify() {
+      modificationInProgress = false
+    }
+  }
+
   /* operations */
 
   private[reactors] class Count[@spec(Int, Long, Double) T](

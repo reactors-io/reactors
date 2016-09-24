@@ -16,7 +16,7 @@ import scala.collection._
  */
 class MonoidCatamorph[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](
   val get: S => T, val zero: T, val op: (T, T) => T
-) extends RCatamorph[T, S] {
+) extends RCatamorph[T, S] with RContainer.Modifiable {
   import MonoidCatamorph._
 
   private[reactors] var subscription: Subscription = _
@@ -45,7 +45,8 @@ class MonoidCatamorph[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](
 
   def unsubscribe() = subscription.unsubscribe()
 
-  def +=(v: S): Boolean = {
+  def +=(v: S): Boolean = try {
+    acquireModify()
     if (!leaves.contains(v)) {
       val leaf = newLeaf(v, get)
       leaves(v) = leaf
@@ -54,9 +55,10 @@ class MonoidCatamorph[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](
       insertsEmitter.react(v, null)
       true
     } else false
-  }
+  } finally releaseModify()
 
-  def -=(v: S): Boolean = {
+  def -=(v: S): Boolean = try {
+    acquireModify()
     if (leaves.contains(v)) {
       val leaf = leaves(v)
       root = leaf.remove(zero, op)
@@ -65,18 +67,19 @@ class MonoidCatamorph[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](
       removesEmitter.react(v, null)
       true
     } else false
-  }
+  } finally releaseModify()
 
   def container = this
 
-  def push(v: S): Boolean = {
+  def push(v: S): Boolean = try {
+    acquireModify()
     if (leaves.contains(v)) {
       val leaf = leaves(v)
       leaf.pushUp(op)
       rootValue := root.value
       true
     } else false
-  }
+  } finally releaseModify()
 
   def size = leaves.size
 

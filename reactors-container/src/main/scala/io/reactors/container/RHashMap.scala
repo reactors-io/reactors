@@ -18,7 +18,7 @@ import scala.reflect.ClassTag
  */
 class RHashMap[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
   implicit val arrayable: Arrayable[K], val hash: Hash[K], val spec: Spec[K]
-) extends RMap[K, V] {
+) extends RMap[K, V] with RContainer.Modifiable {
   private var table: Array[RHashMap.Entry[K, V]] = null
   private var elemCount = 0
   private var entryCount = 0
@@ -127,7 +127,8 @@ class RHashMap[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
     }
   }
 
-  private[reactors] def insert(k: K, v: V): V = {
+  private[reactors] def insert(k: K, v: V): V = try {
+    acquireModify()
     assert(v != null)
     checkResize()
 
@@ -160,7 +161,7 @@ class RHashMap[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
     entry.propagate()
 
     previousValue
-  }
+  } finally releaseModify()
 
   private[reactors] def emitInserts(k: K, v: V) {
     if (insertsEmitter.hasSubscriptions) insertsEmitter.react(k, v)
@@ -170,7 +171,8 @@ class RHashMap[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
     if (removesEmitter.hasSubscriptions) removesEmitter.react(k, v)
   }
 
-  private[reactors] def delete(k: K, expectedValue: V = null): V = {
+  private[reactors] def delete(k: K, expectedValue: V = null): V = try {
+    acquireModify()
     val pos = index(k)
     var entry = table(pos)
 
@@ -198,7 +200,7 @@ class RHashMap[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
         previousValue
       } else null
     }
-  }
+  } finally releaseModify()
 
   private def checkResize()(implicit s: Spec[K]) {
     if (entryCount * 1000 / RHashMap.loadFactor > table.length) {
@@ -283,7 +285,8 @@ class RHashMap[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
 
   /** Removes all elements from the map.
    */
-  def clear()(implicit s: Spec[K]) {
+  def clear()(implicit s: Spec[K]): Unit = try {
+    acquireModify()
     var pos = 0
     while (pos < table.length) {
       var entry = table(pos)
@@ -307,7 +310,7 @@ class RHashMap[@spec(Int, Long, Double) K, V >: Null <: AnyRef](
     if (elemCount != 0) {
       throw new IllegalStateException("Size not zero after clear: " + elemCount)
     }
-  }
+  } finally releaseModify()
 
   def size: Int = elemCount
   

@@ -13,7 +13,7 @@ import scala.reflect.ClassTag
  */
 class RHashSet[@spec(Int, Long, Double) T](
   implicit val arrayable: Arrayable[T]
-) extends RContainer[T] {
+) extends RContainer[T] with RContainer.Modifiable {
   private var table: Array[T] = null
   private var sz = 0
   private[reactors] var insertsEmitter: Events.Emitter[T] = null
@@ -71,7 +71,8 @@ class RHashSet[@spec(Int, Long, Double) T](
     else true
   }
 
-  private[container] def insert(k: T, notify: Boolean = true): Boolean = {
+  private[container] def insert(k: T, notify: Boolean = true): Boolean = try {
+    if (notify) acquireModify()
     checkResize()
 
     var pos = index(k)
@@ -90,9 +91,10 @@ class RHashSet[@spec(Int, Long, Double) T](
     if (notify) insertsEmitter.react(k, null)
 
     added
-  }
+  } finally releaseModify()
 
-  private[container] def delete(k: T): Boolean = {
+  private[container] def delete(k: T): Boolean = try {
+    acquireModify()
     var pos = index(k)
     var curr = table(pos)
 
@@ -120,7 +122,7 @@ class RHashSet[@spec(Int, Long, Double) T](
 
       true
     }
-  }
+  } finally releaseModify()
 
   private[reactors] def checkResize()(implicit arrayable: Arrayable[T]) {
     if (sz * 1000 / RHashSet.loadFactor > table.length) {
@@ -160,7 +162,8 @@ class RHashSet[@spec(Int, Long, Double) T](
 
   def remove(key: T): Boolean = delete(key)
 
-  def clear()(implicit a: Arrayable[T]) {
+  def clear()(implicit a: Arrayable[T]): Unit = try {
+    acquireModify()
     var pos = 0
     while (pos < table.length) {
       val elem = table(pos)
@@ -172,7 +175,7 @@ class RHashSet[@spec(Int, Long, Double) T](
 
       pos += 1
     }
-  }
+  } finally releaseModify()
 
 }
 

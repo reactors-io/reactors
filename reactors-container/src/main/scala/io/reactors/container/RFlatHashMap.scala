@@ -19,7 +19,7 @@ import scala.reflect.ClassTag
 class RFlatHashMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
   implicit val emptyKey: Arrayable[K],
   implicit val emptyVal: Arrayable[V]
-) extends RContainer[K] {
+) extends RContainer[K] with RContainer.Modifiable {
   private var keytable: Array[K] = null
   private var valtable: Array[V] = null
   private var sz = 0
@@ -100,29 +100,34 @@ class RFlatHashMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
   }
 
   private[reactors] def insert(k: K, v: V, notify: Boolean = true): V = {
-    checkResize(this)
+    try {
+      if (notify) acquireModify()
+      checkResize(this)
 
-    var pos = index(k)
-    val nil = emptyKey.nil
-    var curr = keytable(pos)
-    assert(k != nil)
+      var pos = index(k)
+      val nil = emptyKey.nil
+      var curr = keytable(pos)
+      assert(k != nil)
 
-    while (curr != nil && curr != k) {
-      pos = (pos + 1) % keytable.length
-      curr = keytable(pos)
-    }
+      while (curr != nil && curr != k) {
+        pos = (pos + 1) % keytable.length
+        curr = keytable(pos)
+      }
 
-    val previousValue = valtable(pos)
-    keytable(pos) = k
-    valtable(pos) = v
+      val previousValue = valtable(pos)
+      keytable(pos) = k
+      valtable(pos) = v
     
-    val keyAdded = curr == nil
+      val keyAdded = curr == nil
 
-    if (keyAdded) sz += 1
-    else notifyRemove(k, previousValue, notify)
-    notifyInsert(k, v, notify)
+      if (keyAdded) sz += 1
+      else notifyRemove(k, previousValue, notify)
+      notifyInsert(k, v, notify)
 
-    previousValue
+      previousValue
+    } finally {
+      if (notify) releaseModify()
+    }
   }
 
   private[reactors] def notifyInsert(k: K, v: V, notify: Boolean) {
@@ -140,38 +145,41 @@ class RFlatHashMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
   }
 
   private[reactors] def delete(k: K, expectedValue: V = emptyVal.nil): V = {
-    var pos = index(k)
-    val nil = emptyKey.nil
-    var curr = keytable(pos)
+    try {
+      acquireModify()
+      var pos = index(k)
+      val nil = emptyKey.nil
+      var curr = keytable(pos)
 
-    while (curr != nil && curr != k) {
-      pos = (pos + 1) % keytable.length
-      curr = keytable(pos)
-    }
-
-    if (curr == nil) emptyVal.nil
-    else if (expectedValue == emptyVal.nil || expectedValue == curr) {
-      val previousValue = valtable(pos)
-
-      var h0 = pos
-      var h1 = (h0 + 1) % keytable.length
-      while (keytable(h1) != nil) {
-        val h2 = index(keytable(h1))
-        if (h2 != h1 && before(h2, h0)) {
-          keytable(h0) = keytable(h1)
-          valtable(h0) = valtable(h1)
-          h0 = h1
-        }
-        h1 = (h1 + 1) % keytable.length
+      while (curr != nil && curr != k) {
+        pos = (pos + 1) % keytable.length
+        curr = keytable(pos)
       }
 
-      keytable(h0) = emptyKey.nil
-      valtable(h0) = emptyVal.nil
-      sz -= 1
-      notifyRemove(k, previousValue, true)
+      if (curr == nil) emptyVal.nil
+      else if (expectedValue == emptyVal.nil || expectedValue == curr) {
+        val previousValue = valtable(pos)
 
-      previousValue
-    } else emptyVal.nil
+        var h0 = pos
+        var h1 = (h0 + 1) % keytable.length
+        while (keytable(h1) != nil) {
+          val h2 = index(keytable(h1))
+          if (h2 != h1 && before(h2, h0)) {
+            keytable(h0) = keytable(h1)
+            valtable(h0) = valtable(h1)
+            h0 = h1
+          }
+          h1 = (h1 + 1) % keytable.length
+        }
+
+        keytable(h0) = emptyKey.nil
+        valtable(h0) = emptyVal.nil
+        sz -= 1
+        notifyRemove(k, previousValue, true)
+
+        previousValue
+      } else emptyVal.nil
+    } finally releaseModify()
   }
 
   private[reactors] def checkResize(self: RFlatHashMap[K, V]) {
@@ -236,7 +244,8 @@ class RFlatHashMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
     case v => true
   }
 
-  def clear()(implicit sk: Spec[K], sv: Spec[V]) {
+  def clear()(implicit sk: Spec[K], sv: Spec[V]): Unit = try {
+    acquireModify()
     var pos = 0
     val nil = emptyKey.nil
     while (pos < keytable.length) {
@@ -252,7 +261,7 @@ class RFlatHashMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
 
       pos += 1
     }
-  }
+  } finally releaseModify()
 
   def size: Int = sz
 }

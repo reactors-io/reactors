@@ -17,7 +17,7 @@ class AbelianCatamorph[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](
   val get: S => T, val zero: T, val op: (T, T) => T, val inv: (T, T) => T
 )(
   implicit val canT: Arrayable[T], val canS: Arrayable[S]
-) extends RCatamorph[T, S] {
+) extends RCatamorph[T, S] with RContainer.Modifiable {
   import AbelianCatamorph._
 
   private[reactors] var subscription: Subscription = _
@@ -44,7 +44,8 @@ class AbelianCatamorph[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](
 
   def signal = value
 
-  def +=(v: S): Boolean = {
+  def +=(v: S): Boolean = try {
+    acquireModify()
     if (!elements.contains(v)) {
       val x = get(v)
       elements(v) = x
@@ -52,9 +53,10 @@ class AbelianCatamorph[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](
       insertsEmitter.react(v, null)
       true
     } else false
-  }
+  } finally releaseModify()
 
-  def -=(v: S): Boolean = {
+  def -=(v: S): Boolean = try {
+    acquireModify()
     if (elements.contains(v)) {
       val y = elements(v)
       elements.remove(v)
@@ -62,11 +64,12 @@ class AbelianCatamorph[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](
       removesEmitter.react(v, null)
       true
     } else false
-  }
+  } finally releaseModify()
 
   def container = this
 
-  def push(v: S): Boolean = {
+  def push(v: S): Boolean = try {
+    acquireModify()
     if (elements.contains(v)) {
       val y = elements(v)
       val x = get(v)
@@ -74,7 +77,7 @@ class AbelianCatamorph[@spec(Int, Long, Double) T, @spec(Int, Long, Double) S](
       value := op(inv(value(), y), x)
       true
     } else false
-  }
+  } finally releaseModify()
 
   def size = elements.size
 

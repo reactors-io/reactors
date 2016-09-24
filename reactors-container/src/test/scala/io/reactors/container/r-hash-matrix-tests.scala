@@ -15,6 +15,21 @@ import scala.collection._
 
 
 
+class RHashMatrixSpec extends FunSuite {
+  test("disallow clear after asMap") {
+    val matrix = new RHashMatrix[Long]
+    matrix(0, 0) = 7
+    assert(matrix(0, 0) == 7)
+    matrix.clear()
+    assert(matrix(0, 0) == matrix.nil)
+    matrix.asMap
+    intercept[IllegalStateException] {
+      matrix.clear()
+    }
+  }
+}
+
+
 class RHashMatrixCheck extends Properties("RHashMatrix") with ExtendedProperties {
   val sizes = detChoose(0, 1000)
 
