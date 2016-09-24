@@ -997,6 +997,21 @@ trait Events[@spec(Int, Long, Double) T] {
     iv
   }
 
+  /** Creates an initially empty `RCell`, updated with events of this event stream.
+   *
+   *  After the first event gets produced, the `RCell` is assigned this value, and is
+   *  from there on not empty. The `RCell` can also, alternatively, be modified by
+   *  clients.
+   *
+   *  @return          an `RCell` with the first event from this event stream
+   */
+  def toRCell: RCell[T] = {
+    val c = new RCell[T](null.asInstanceOf[T], false, Subscription.empty)
+    val obs = new Events.ToRCell(c)
+    c.subscription = this.onReaction(obs)
+    c
+  }
+
 }
 
 
@@ -1665,6 +1680,14 @@ object Events {
       signal.checkUnsubscribe()
       target.unreact()
     }
+  }
+
+  private[reactors] class ToRCell[@spec(Int, Long, Double) T](
+    val cell: RCell[T]
+  ) extends Observer[T] {
+    def react(value: T, hint: Any) = cell := value
+    def except(t: Throwable) = cell.except(t)
+    def unreact() {}
   }
 
   private[reactors] class ToIVar[@spec(Int, Long, Double) T](

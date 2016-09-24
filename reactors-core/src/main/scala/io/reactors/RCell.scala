@@ -17,8 +17,9 @@ import scala.reflect.ClassTag
  *  @param value      the initial value of the reactive cell
  */
 class RCell[@spec(Int, Long, Double) T] private[reactors] (
-  private var value: T,
-  private var hasValue: Boolean
+  private[reactors] var value: T,
+  private[reactors] var hasValue: Boolean,
+  private[reactors] var subscription: Subscription
 ) extends Signal[T] with Observer[T] {
   private var pushSource: Events.PushSource[T] = _
 
@@ -30,24 +31,24 @@ class RCell[@spec(Int, Long, Double) T] private[reactors] (
 
   /** Creates an empty `RCell`
    */
-  def this() = this(null.asInstanceOf[T], false)
+  def this() = this(null.asInstanceOf[T], false, Subscription.empty)
 
   /** Creates an `RCell`, initialized with a value.
    */
-  def this(v: T) = this(v, true)
+  def this(v: T) = this(v, true, Subscription.empty)
 
   /** Returns the current value in the reactive cell.
    */
   def apply(): T = {
-    if (!hasValue) throw new IllegalStateException("<empty>.apply()")
+    if (!hasValue) throw new NoSuchElementException("<empty>.apply()")
     value
   }
 
   /** Returns `false`. */
   def isEmpty = !hasValue
 
-  /** Does nothing. */
-  def unsubscribe() {}
+  /** If this `RCell` is bound to an event source, this unsubscribes from it. */
+  def unsubscribe() = subscription.unsubscribe()
 
   /** Assigns a new value to the reactive cell,
    *  and emits an event with the new value to all the subscribers.

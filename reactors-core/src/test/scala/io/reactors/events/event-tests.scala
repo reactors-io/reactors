@@ -1135,6 +1135,18 @@ class EventsSpec extends FunSuite {
     assert(!ivar.isUnassigned)
   }
 
+  test("toRCell") {
+    val emitter = new Events.Emitter[Int]
+    val cell = emitter.toRCell
+    assert(cell.isEmpty)
+    intercept[NoSuchElementException] {
+      cell()
+    }
+    emitter.react(7)
+    assert(!cell.isEmpty)
+    assert(cell() == 7)
+  }
+
   test("possibly") {
     var seen = 0
     val emitter = new Events.Emitter[Int]
