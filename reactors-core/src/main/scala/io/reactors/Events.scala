@@ -937,6 +937,21 @@ trait Events[@spec(Int, Long, Double) T] {
   def unliftTry[S](implicit evid: T <:< Try[S]): Events[S] =
     new Events.UnliftTry(this, evid)
 
+  /** Incrementally computes state, and samples it to emit events.
+   *
+   *  @tparam S        type of the 
+   *  @param state     function that creates some incrementally computed state, and
+   *                   returns a tuple of the subscription for that state, and the
+   *                   function used to sample it
+   *  @return          an event stream that emits a sampled view of the state whenever
+   *                   `this` event stream emits an event
+   */
+  def incremental[@spec(Int, Long, Double) S](
+    state: =>(Subscription, () => S)
+  )(implicit s: Spec[S]): Events[S] = {
+    new Events.Incremental(this, () => state)
+  }
+
   /** Converts this event stream into a `Signal`.
    *
    *  The resulting signal initially does not contain an event,
@@ -2813,6 +2828,48 @@ object Events {
     }
     def except(t: Throwable) = target.except(t)
     def unreact() = target.unreact()
+  }
+
+  private[reactors] class Incremental[
+    @spec(Int, Long, Double) T,
+    @spec(Int, Long, Double) S
+  ](
+    val self: Events[T],
+    val state: () => (Subscription, () => S)
+  ) extends Events[S] {
+    def onReaction(obs: Observer[S]): Subscription = {
+      val (sub, sampler) = state()
+      new Subscription.Composite(
+        sub,
+        self.onReaction(new IncrementalObserver(self, sub, obs, sampler))
+      )
+    }
+  }
+
+  private[reactors] class IncrementalObserver[
+    @spec(Int, Long, Double) T,
+    @spec(Int, Long, Double) S
+  ](
+    val self: Events[T],
+    val subscription: Subscription,
+    val target: Observer[S],
+    val sampler: () => S
+  ) extends Observer[T] {
+    def react(x: T, hint: Any): Unit = {
+      val s = try {
+        sampler()
+      } catch {
+        case t if isNonLethal(t) =>
+          target.except(t)
+          return
+      }
+      target.react(s, hint)
+    }
+    def except(t: Throwable) = target.except(t)
+    def unreact() = {
+      subscription.unsubscribe()
+      target.unreact()
+    }
   }
 
   private[reactors] class CollectHint[@spec(Int, Long, Double) T, W](

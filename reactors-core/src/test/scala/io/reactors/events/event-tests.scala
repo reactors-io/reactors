@@ -301,6 +301,30 @@ class EventsSpec extends FunSuite {
     assert(buffer == Seq(15))
   }
 
+  test("incremental") {
+    val seen = mutable.Buffer[Int]()
+    var unsubscribed = false
+    val emitter = new Events.Emitter[Int]
+    val tick = new Events.Emitter[Unit]
+    val samples = tick.incremental {
+      val state = emitter.toSignal(0)
+      (state.and(unsubscribed = true), () => state())
+    }
+    samples.onEvent(seen += _)
+    assert(seen == Seq())
+    tick.react(())
+    assert(seen == Seq(0))
+    emitter.react(11)
+    emitter.react(19)
+    assert(seen == Seq(0))
+    tick.react(())
+    assert(seen == Seq(0, 19))
+    assert(!unsubscribed)
+    tick.unreact()
+    assert(seen == Seq(0, 19))
+    assert(unsubscribed)
+  }
+
   test("toEmpty") {
     val emitter = new Events.Emitter[Int]
     val signal = emitter.toEmpty
