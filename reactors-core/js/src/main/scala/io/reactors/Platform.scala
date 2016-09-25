@@ -125,7 +125,7 @@ object Platform {
 
     /** Contains common network protocol services.
      */
-    class Net(val system: ReactorSystem, private val resolver: URL => InputStream)
+    class Net(val system: ReactorSystem)
     extends Protocol.Service {
       def shutdown() {}
     }
