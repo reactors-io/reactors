@@ -147,13 +147,13 @@ object ReactorsBuild extends MechaRepoBuild {
   def defaultDependencies(scalaVersion: String): Seq[ModuleID] =
     CrossVersion.partialVersion(scalaVersion) match {
       case Some((2, major)) if major >= 11 => Seq(
-        "org.scalatest" % "scalatest_2.11" % "2.2.6" % "test",
+        "org.scalatest" % "scalatest_2.11" % "3.0.0" % "test",
         "org.scalacheck" %% "scalacheck" % "1.11.4" % "test",
         "org.scala-lang" % "scala-reflect" % "2.11.4",
         "com.typesafe.akka" %% "akka-actor" % "2.3.15" % "bench"
       )
       case Some((2, 10)) => Seq(
-        "org.scalatest" % "scalatest_2.10" % "2.2.4" % "test",
+        "org.scalatest" % "scalatest_2.10" % "3.0.0" % "test",
         "org.scalacheck" %% "scalacheck" % "1.11.4" % "test"
       )
       case _ => Nil
@@ -182,7 +182,9 @@ object ReactorsBuild extends MechaRepoBuild {
     publish <<= publish.dependsOn(publish in reactorsCommon),
     resourceGenerators in Compile <+= (resourceManaged in Compile, baseDirectory) map {
       (dir, baseDir) => gitPropsContents(dir, baseDir)
-    }
+    },
+    unmanagedSourceDirectories in Compile +=
+      baseDirectory.value / "src" / "platform-jvm" / "scala"
   )
 
   def coreDependencies(scalaVersion: String) = {
@@ -193,8 +195,6 @@ object ReactorsBuild extends MechaRepoBuild {
         "commons-io" % "commons-io" % "2.4"
       )
       case Some((2, 10)) => Seq(
-        "org.scalatest" % "scalatest_2.10" % "2.2.4" % "test",
-        "org.scalacheck" %% "scalacheck" % "1.11.4" % "test",
         "com.typesafe" % "config" % "1.2.1",
         "commons-io" % "commons-io" % "2.4"
       )
@@ -251,7 +251,10 @@ object ReactorsBuild extends MechaRepoBuild {
         baseDirectory.value / ".." / "reactors-common" / "src" / "main" / "scala",
       unmanagedSourceDirectories in Compile +=
         baseDirectory.value / ".." / "reactors-core" / "src" / "main" / "scala",
+      unmanagedSourceDirectories in Compile +=
+        baseDirectory.value / ".." / "reactors-core" / "src" / "platform-js" / "scala",
       libraryDependencies ++= Seq(
+        "org.scala-js" %%% "scala-parser-combinators" % "1.0.2"
       )
     )
   }

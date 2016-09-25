@@ -18,9 +18,9 @@ import scala.concurrent.ExecutionContext.Implicits.global
 class WebDebugger(val system: ReactorSystem)
 extends DebugApi with Protocol.Service with WebApi {
   private val expirationSeconds =
-    system.bundle.config.getInt("debug-api.session.expiration")
+    system.bundle.config.int("debug-api.session.expiration")
   private val expirationCheckSeconds =
-    system.bundle.config.getInt("debug-api.session.expiration-check-period")
+    system.bundle.config.int("debug-api.session.expiration-check-period")
   private val server: WebServer = new WebServer(system, this)
   private val monitor = system.monitor
   private val startTime = System.currentTimeMillis()

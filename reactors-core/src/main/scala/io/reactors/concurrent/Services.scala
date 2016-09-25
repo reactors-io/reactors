@@ -169,7 +169,7 @@ object Services {
   class Net(val system: ReactorSystem, private val resolver: URL => InputStream)
   extends Protocol.Service {
     private val networkRequestForkJoinPool = {
-      val parallelism = system.config.getInt("system.net.parallelism")
+      val parallelism = system.config.int("system.net.parallelism")
       new ForkJoinPool(parallelism)
     }
     private implicit val networkRequestContext: ExecutionContext =

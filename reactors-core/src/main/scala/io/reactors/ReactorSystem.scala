@@ -2,7 +2,6 @@ package io.reactors
 
 
 
-import com.typesafe.config._
 import io.reactors.common.Monitor
 import io.reactors.concurrent._
 import io.reactors.pickle.Pickler
@@ -10,7 +9,6 @@ import java.util.Timer
 import java.util.concurrent.atomic._
 import scala.annotation.tailrec
 import scala.collection._
-import scala.collection.JavaConverters._
 
 
 
@@ -36,7 +34,7 @@ class ReactorSystem(
   private[reactors] val monitor = new Monitor
 
   private[reactors] val debugApi: DebugApi = {
-    val debugcls = Class.forName(bundle.config.getString("debug-api.name"))
+    val debugcls = Class.forName(bundle.config.string("debug-api.name"))
     val debugctor = debugcls.getConstructor(classOf[ReactorSystem])
     debugctor.newInstance(this).asInstanceOf[DebugApi]
   }
@@ -169,8 +167,8 @@ object ReactorSystem {
 
   /** Contains machine information.
    */
-  private val machineConfig: Config = {
-    ConfigFactory.parseString(s"""
+  private val machineConfig: Configuration = {
+    Configuration.parse(s"""
       system = {
         num-processors = ${Runtime.getRuntime.availableProcessors()}
       }
@@ -182,8 +180,8 @@ object ReactorSystem {
    *  This configuration is merged with any custom configurations that are provided to
    *  the reactor system bundle.
    */
-  val defaultConfig: Config = {
-    ConfigFactory.parseString("""
+  val defaultConfig: Configuration = {
+    Configuration.parse("""
       pickler = io.reactors.pickle.JavaSerialization
       remote = {
         udp = {
@@ -231,20 +229,20 @@ object ReactorSystem {
     """).withFallback(machineConfig)
   }
 
-  /** Convert the configuration string to a `Config` object.
+  /** Convert the configuration string to a `Configuration` object.
    */
-  def customConfig(txt: String): Config = ConfigFactory.parseString(txt)
+  def customConfig(txt: String): Configuration = Configuration.parse(txt)
 
   /** Contains various configuration values related to the reactor system,
    *  such as the set of registered schedulers and the system url.
    */
   class Bundle(
     val defaultScheduler: Scheduler,
-    private val customConfig: Config
+    private val customConfig: Configuration
   ) {
     private val schedulers = mutable.Map[String, Scheduler]()
 
-    def this(s: Scheduler, config: String) = this(s, ConfigFactory.parseString(config))
+    def this(s: Scheduler, config: String) = this(s, Configuration.parse(config))
 
     /** The set of configuration variables for the reactor system.
      */
@@ -253,30 +251,28 @@ object ReactorSystem {
     /** Scheduler configuration options.
      */
     object schedulerConfig {
-      val defaultBudget = config.getInt("scheduler.default.budget")
-      val unscheduleCount = config.getInt("scheduler.default.unschedule-count")
-      val spindownInitial = config.getInt("scheduler.spindown.initial")
-      val spindownMax = config.getInt("scheduler.spindown.max")
-      val spindownMin = config.getInt("scheduler.spindown.min")
-      val spindownCooldownRate = config.getInt("scheduler.spindown.cooldown-rate")
-      val spindownMutationRate = config.getDouble("scheduler.spindown.mutation-rate")
-      val spindownTestThreshold = config.getInt("scheduler.spindown.test-threshold")
-      val spindownTestIterations = config.getInt("scheduler.spindown.test-iterations")
+      val defaultBudget = config.int("scheduler.default.budget")
+      val unscheduleCount = config.int("scheduler.default.unschedule-count")
+      val spindownInitial = config.int("scheduler.spindown.initial")
+      val spindownMax = config.int("scheduler.spindown.max")
+      val spindownMin = config.int("scheduler.spindown.min")
+      val spindownCooldownRate = config.int("scheduler.spindown.cooldown-rate")
+      val spindownMutationRate = config.double("scheduler.spindown.mutation-rate")
+      val spindownTestThreshold = config.int("scheduler.spindown.test-threshold")
+      val spindownTestIterations = config.int("scheduler.spindown.test-iterations")
     }
 
-    val urlMap = config.getConfig("remote").root.values.asScala.collect {
-      case c: ConfigObject => c.toConfig
-    } map { c =>
-      val schema = c.getString("schema")
-      val url = SystemUrl(c.getString("schema"), c.getString("host"), c.getInt("port"))
-      val transportName = c.getString("transport")
+    val urlMap = config.children("remote").map { c =>
+      val schema = c.string("schema")
+      val url = SystemUrl(c.string("schema"), c.string("host"), c.int("port"))
+      val transportName = c.string("transport")
       (schema, Bundle.TransportInfo(url, transportName))
     } toMap
 
     val urls = urlMap.map(_._2.url).toSet
 
     val pickler = {
-      Class.forName(config.getString("pickler")).newInstance.asInstanceOf[Pickler]
+      Class.forName(config.string("pickler")).newInstance.asInstanceOf[Pickler]
     }
 
     /** Retrieves the scheduler registered under the specified name.
@@ -331,7 +327,7 @@ object ReactorSystem {
      *  @return           the default scheduler bundle
      */
     def default(default: Scheduler): Bundle = {
-      val b = new Bundle(default, ConfigFactory.empty)
+      val b = new Bundle(default, Configuration.empty)
       b.registerScheduler(schedulers.globalExecutionContext,
         Scheduler.globalExecutionContext)
       b.registerScheduler(schedulers.default, Scheduler.default)

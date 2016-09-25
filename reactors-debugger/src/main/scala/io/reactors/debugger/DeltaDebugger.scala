@@ -20,7 +20,7 @@ class DeltaDebugger(val system: ReactorSystem, val sessionuid: String) {
   private val deltas = new UnrolledRing[DeltaDebugger.Delta]
   private var pendingSends = mutable.Map[(Long, Long), Long]()
   private val windowSize =
-    system.bundle.config.getInt("debug-api.delta-debugger.window-size")
+    system.bundle.config.int("debug-api.delta-debugger.window-size")
 
   {
     monitor.synchronized {

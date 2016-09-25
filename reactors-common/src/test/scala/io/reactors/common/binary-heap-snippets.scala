@@ -3,11 +3,11 @@ package io.reactors.common
 
 
 import org.scalatest._
-import org.scalatest.matchers.ShouldMatchers
+import org.scalatest.Matchers
 
 
 
-trait BinaryHeapSnippets extends ShouldMatchers {
+trait BinaryHeapSnippets extends Matchers {
 
   def testEnqueueDequeue(size: Int) {
     val heap = new BinaryHeap[Int]

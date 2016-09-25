@@ -13,7 +13,7 @@ import scala.collection._
 
 
 
-class UnrolledRingSpec extends FlatSpec with ShouldMatchers {
+class UnrolledRingSpec extends FlatSpec with Matchers {
 
   "UnrolledRing" should "be empty" in {
     val ring = new UnrolledRing[String]

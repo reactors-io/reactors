@@ -3,11 +3,11 @@ package io.reactors.common
 
 
 import org.scalatest._
-import org.scalatest.matchers.ShouldMatchers
+import org.scalatest.Matchers
 
 
 
-class BinaryHeapSpec extends FlatSpec with ShouldMatchers with BinaryHeapSnippets {
+class BinaryHeapSpec extends FlatSpec with Matchers with BinaryHeapSnippets {
 
   "BinaryHeap" should "be empty" in {
     val heap = new BinaryHeap[Int]
