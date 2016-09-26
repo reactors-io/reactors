@@ -19,7 +19,7 @@ package test {
         def draw() = {
           low + math.abs(deterministicRandom.nextInt()) % (1L + high - low)
         }
-        value(0).map(_ => math.max(low, math.min(high, draw().toInt)))
+        const(0).map(_ => math.max(low, math.min(high, draw().toInt)))
       }
     }
 
@@ -29,7 +29,7 @@ package test {
         def draw() = {
           low + deterministicRandom.nextDouble() * (high - low)
         }
-        value(0).map(_ => math.max(low, math.min(high, draw())))
+        const(0).map(_ => math.max(low, math.min(high, draw())))
       }
     }
 

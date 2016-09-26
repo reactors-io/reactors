@@ -127,6 +127,39 @@ object ReactorsBuild extends MechaRepoBuild {
 
   lazy val reactorsCommonJs = reactorsCommon.js
 
+  lazy val reactorsCore = crossProject
+    .in(file("reactors-core"))
+    .settings(
+      projectSettings("-core") ++ Seq(
+        resourceGenerators in Compile <+=
+          (resourceManaged in Compile, baseDirectory) map {
+            (dir, baseDir) => gitPropsContents(dir, baseDir)
+          },
+        libraryDependencies ++= Seq(
+          "org.scalatest" %%% "scalatest" % "3.0.0" % "test",
+          "org.scalacheck" %%% "scalacheck" % "1.12.2" % "test"
+        ),
+        unmanagedSourceDirectories in Compile +=
+          baseDirectory.value.getParentFile / "shared" / "src" / "main" / "scala",
+        unmanagedSourceDirectories in Test +=
+          baseDirectory.value.getParentFile / "shared" / "src" / "test" / "scala"
+      ): _*
+    )
+    .jvmSettings(
+      (test in Test) <<= (test in Test).dependsOn(test in (reactorsCommon.jvm, Test)),
+      publish <<= publish.dependsOn(publish in reactorsCommon.jvm)
+    )
+    .jvmConfigure(_.copy(id = "reactors-core-jvm").dependsOnSuperRepo)
+    .jsSettings(
+      (test in Test) <<= (test in Test).dependsOn(test in (reactorsCommon.js, Test)),
+      publish <<= publish.dependsOn(publish in reactorsCommon.js)
+    )
+    .jsConfigure(_.copy(id = "reactors-core-js"))
+
+  lazy val reactorsCoreJvm = reactorsCore.jvm
+
+  lazy val reactorsCoreJs = reactorsCore.js
+
   lazy val reactors: CrossProject = crossProject
     .in(file("reactors"))
     .settings(
@@ -134,15 +167,15 @@ object ReactorsBuild extends MechaRepoBuild {
     )
     .jvmSettings(
       (test in Test) <<= (test in Test)
-        .dependsOn(test in (reactorsCommon.jvm, Test)),
-        // .dependsOn(test in (reactorsCore, Test))
+        .dependsOn(test in (reactorsCommon.jvm, Test))
+        .dependsOn(test in (reactorsCore.jvm, Test)),
         // .dependsOn(test in (reactorsContainer, Test))
         // .dependsOn(test in (reactorsRemote, Test))
         // .dependsOn(test in (reactorsProtocols, Test))
         // .dependsOn(test in (reactorsExtra, Test)),
       publish <<= publish
-        .dependsOn(publish in reactorsCommon.jvm),
-        // .dependsOn(publish in reactorsCore)
+        .dependsOn(publish in reactorsCommon.jvm)
+        .dependsOn(publish in reactorsCore.jvm),
         // .dependsOn(publish in reactorsContainer)
         // .dependsOn(publish in reactorsRemote)
         // .dependsOn(publish in reactorsProtocols)
@@ -159,8 +192,8 @@ object ReactorsBuild extends MechaRepoBuild {
     )
     .jsConfigure(_.copy(id = "reactors-js").dependsOnSuperRepo)
     .aggregate(
-      reactorsCommon
-      // reactorsCore,
+      reactorsCommon,
+      reactorsCore
       // reactorsContainer,
       // reactorsRemote,
       // reactorsProtocols,
@@ -168,8 +201,8 @@ object ReactorsBuild extends MechaRepoBuild {
       // reactorsExtra
     )
     .dependsOn(
-      reactorsCommon % "compile->compile;test->test"
-      // reactorsCore % "compile->compile;test->test",
+      reactorsCommon % "compile->compile;test->test",
+      reactorsCore % "compile->compile;test->test"
       // reactorsContainer % "compile->compile;test->test",
       // reactorsRemote % "compile->compile;test->test",
       // reactorsProtocols % "compile->compile;test->test",
