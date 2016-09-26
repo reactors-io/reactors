@@ -2,8 +2,8 @@ package io.reactors
 
 
 
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
-import scala.collection.concurrent.TrieMap
 import scala.reflect.ClassTag
 import scala.runtime.ObjectRef
 
@@ -21,12 +21,12 @@ package common {
 
 package object common {
 
-  private val counterMap = TrieMap[Class[_], AtomicLong]()
+  private val counterMap = new ConcurrentHashMap[Class[_], AtomicLong]
 
   final def freshId[C: ClassTag]: Long = {
     val cls = implicitly[ClassTag[C]].runtimeClass
-    if (!(counterMap contains cls)) counterMap.putIfAbsent(cls, new AtomicLong)
-    val counter = counterMap(cls)
+    if (!(counterMap.containsKey(cls))) counterMap.putIfAbsent(cls, new AtomicLong)
+    val counter = counterMap.get(cls)
     counter.incrementAndGet()
   }
 

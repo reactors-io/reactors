@@ -21,10 +21,9 @@ object ReactorsBuild extends MechaRepoBuild {
   }
 
   def projectSettings(
-    suffix: String,
-    defaults: Seq[Setting[_]] = Defaults.defaultSettings
+    suffix: String
   ) = {
-    defaults ++ MechaRepoPlugin.defaultSettings ++ Seq(
+    MechaRepoPlugin.defaultSettings ++ Seq(
       name := s"reactors$suffix",
       organization := "io.reactors",
       scalaVersion <<= reactorsScalaVersion,
@@ -100,7 +99,7 @@ object ReactorsBuild extends MechaRepoBuild {
       projectSettings("-common") ++ Seq(
         libraryDependencies ++= Seq(
           "org.scalatest" %%% "scalatest" % "3.0.0" % "test",
-          "org.scalacheck" %%% "scalacheck" % "1.12.2" % "test"
+          "org.scalacheck" %%% "scalacheck" % "1.13.2" % "test"
         ),
         unmanagedSourceDirectories in Compile +=
           baseDirectory.value.getParentFile / "shared" / "src" / "main" / "scala",
@@ -119,7 +118,8 @@ object ReactorsBuild extends MechaRepoBuild {
     .jvmConfigure(_.copy(id = "reactors-common-jvm").dependsOnSuperRepo)
     .jsSettings(
       fork in Test := false,
-      fork in run := false
+      fork in run := false,
+      scalaJSUseRhino in Global := false
     )
     .jsConfigure(_.copy(id = "reactors-common-js"))
 
@@ -152,7 +152,8 @@ object ReactorsBuild extends MechaRepoBuild {
     .jvmConfigure(_.copy(id = "reactors-core-jvm").dependsOnSuperRepo)
     .jsSettings(
       (test in Test) <<= (test in Test).dependsOn(test in (reactorsCommon.js, Test)),
-      publish <<= publish.dependsOn(publish in reactorsCommon.js)
+      publish <<= publish.dependsOn(publish in reactorsCommon.js),
+      scalaJSUseRhino in Global := false
     )
     .jsConfigure(_.copy(id = "reactors-core-js"))
 
