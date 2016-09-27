@@ -153,9 +153,15 @@ object ReactorsBuild extends MechaRepoBuild {
     .jsSettings(
       (test in Test) <<= (test in Test).dependsOn(test in (reactorsCommon.js, Test)),
       publish <<= publish.dependsOn(publish in reactorsCommon.js),
-      scalaJSUseRhino in Global := false
+      scalaJSUseRhino in Global := false,
+      libraryDependencies ++= Seq(
+        "org.scala-js" %%% "scala-parser-combinators" % "1.0.2"
+      )
     )
     .jsConfigure(_.copy(id = "reactors-core-js"))
+    .dependsOn(
+      reactorsCommon % "compile->compile;test->test"
+    )
 
   lazy val reactorsCoreJvm = reactorsCore.jvm
 
