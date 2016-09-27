@@ -154,7 +154,7 @@ object ReactorsBuild extends MechaRepoBuild {
           },
         libraryDependencies ++= Seq(
           "org.scalatest" %%% "scalatest" % "3.0.0" % "test",
-          "org.scalacheck" %%% "scalacheck" % "1.12.2" % "test"
+          "org.scalacheck" %%% "scalacheck" % "1.13.2" % "test"
         ),
         unmanagedSourceDirectories in Compile +=
           baseDirectory.value.getParentFile / "shared" / "src" / "main" / "scala",
@@ -193,7 +193,7 @@ object ReactorsBuild extends MechaRepoBuild {
       projectSettings("-container") ++ Seq(
         libraryDependencies ++= Seq(
           "org.scalatest" %%% "scalatest" % "3.0.0" % "test",
-          "org.scalacheck" %%% "scalacheck" % "1.12.2" % "test"
+          "org.scalacheck" %%% "scalacheck" % "1.13.2" % "test"
         ),
         unmanagedSourceDirectories in Compile +=
           baseDirectory.value.getParentFile / "shared" / "src" / "main" / "scala",
