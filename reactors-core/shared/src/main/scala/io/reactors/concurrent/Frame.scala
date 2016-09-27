@@ -182,6 +182,7 @@ final class Frame(
 
       // 3. Piggyback the worker thread to do some useful work.
       scheduler.unschedule(reactorSystem, throwable)
+      if (throwable != null) throw throwable
     }
   }
 
