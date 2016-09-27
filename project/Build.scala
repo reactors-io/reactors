@@ -91,6 +91,23 @@ object ReactorsBuild extends MechaRepoBuild {
     )
   }
 
+  def gitPropsContents(dir: File, baseDir: File): Seq[File] = {
+    def run(cmd: String*): String = Process(cmd, Some(baseDir)).!!
+    val branch = run("git", "rev-parse", "--abbrev-ref", "HEAD").trim
+    val commitTs = run("git", "--no-pager", "show", "-s", "--format=%ct", "HEAD")
+    val sha = run("git", "rev-parse", "HEAD").trim
+    val contents = s"""
+    {
+      "branch": "$branch",
+      "commit-timestamp": $commitTs,
+      "sha": "$sha"
+    }
+    """
+    val file = dir / "reactors-io" / ".gitprops"
+    IO.write(file, contents)
+    Seq(file)
+  }
+
   lazy val Benchmark = config("bench") extend (Test)
 
   lazy val reactorsCommon: CrossProject = crossProject.crossType(CrossType.Full)
@@ -121,7 +138,7 @@ object ReactorsBuild extends MechaRepoBuild {
       fork in run := false,
       scalaJSUseRhino in Global := false
     )
-    .jsConfigure(_.copy(id = "reactors-common-js"))
+    .jsConfigure(_.copy(id = "reactors-common-js").dependsOnSuperRepo)
 
   lazy val reactorsCommonJvm = reactorsCommon.jvm
 
@@ -147,7 +164,10 @@ object ReactorsBuild extends MechaRepoBuild {
     )
     .jvmSettings(
       (test in Test) <<= (test in Test).dependsOn(test in (reactorsCommon.jvm, Test)),
-      publish <<= publish.dependsOn(publish in reactorsCommon.jvm)
+      publish <<= publish.dependsOn(publish in reactorsCommon.jvm),
+      libraryDependencies ++= Seq(
+        "com.typesafe" % "config" % "1.2.1"
+      )
     )
     .jvmConfigure(_.copy(id = "reactors-core-jvm").dependsOnSuperRepo)
     .jsSettings(
@@ -158,7 +178,7 @@ object ReactorsBuild extends MechaRepoBuild {
         "org.scala-js" %%% "scala-parser-combinators" % "1.0.2"
       )
     )
-    .jsConfigure(_.copy(id = "reactors-core-js"))
+    .jsConfigure(_.copy(id = "reactors-core-js").dependsOnSuperRepo)
     .dependsOn(
       reactorsCommon % "compile->compile;test->test"
     )
@@ -166,6 +186,39 @@ object ReactorsBuild extends MechaRepoBuild {
   lazy val reactorsCoreJvm = reactorsCore.jvm
 
   lazy val reactorsCoreJs = reactorsCore.js
+
+  lazy val reactorsContainer = crossProject
+    .in(file("reactors-container"))
+    .settings(
+      projectSettings("-container") ++ Seq(
+        libraryDependencies ++= Seq(
+          "org.scalatest" %%% "scalatest" % "3.0.0" % "test",
+          "org.scalacheck" %%% "scalacheck" % "1.12.2" % "test"
+        ),
+        unmanagedSourceDirectories in Compile +=
+          baseDirectory.value.getParentFile / "shared" / "src" / "main" / "scala",
+        unmanagedSourceDirectories in Test +=
+          baseDirectory.value.getParentFile / "shared" / "src" / "test" / "scala"
+      ): _*
+    )
+    .jvmSettings(
+      (test in Test) <<= (test in Test).dependsOn(test in (reactorsCore.jvm, Test)),
+      publish <<= publish.dependsOn(publish in reactorsCore.jvm)
+    )
+    .jvmConfigure(_.copy(id = "reactors-container-jvm").dependsOnSuperRepo)
+    .jsSettings(
+      (test in Test) <<= (test in Test).dependsOn(test in (reactorsCore.js, Test)),
+      publish <<= publish.dependsOn(publish in reactorsCore.js),
+      scalaJSUseRhino in Global := false
+    )
+    .jsConfigure(_.copy(id = "reactors-container-js").dependsOnSuperRepo)
+    .dependsOn(
+      reactorsCore % "compile->compile;test->test"
+    )
+
+  lazy val reactorsContainerJvm = reactorsContainer.jvm
+
+  lazy val reactorsContainerJs = reactorsContainer.js
 
   lazy val reactors: CrossProject = crossProject
     .in(file("reactors"))
@@ -175,15 +228,15 @@ object ReactorsBuild extends MechaRepoBuild {
     .jvmSettings(
       (test in Test) <<= (test in Test)
         .dependsOn(test in (reactorsCommon.jvm, Test))
-        .dependsOn(test in (reactorsCore.jvm, Test)),
-        // .dependsOn(test in (reactorsContainer, Test))
+        .dependsOn(test in (reactorsCore.jvm, Test))
+        .dependsOn(test in (reactorsContainer.jvm, Test)),
         // .dependsOn(test in (reactorsRemote, Test))
         // .dependsOn(test in (reactorsProtocols, Test))
         // .dependsOn(test in (reactorsExtra, Test)),
       publish <<= publish
         .dependsOn(publish in reactorsCommon.jvm)
-        .dependsOn(publish in reactorsCore.jvm),
-        // .dependsOn(publish in reactorsContainer)
+        .dependsOn(publish in reactorsCore.jvm)
+        .dependsOn(publish in reactorsContainer.jvm),
         // .dependsOn(publish in reactorsRemote)
         // .dependsOn(publish in reactorsProtocols)
         // .dependsOn(publish in reactorsExtra),
@@ -200,8 +253,8 @@ object ReactorsBuild extends MechaRepoBuild {
     .jsConfigure(_.copy(id = "reactors-js").dependsOnSuperRepo)
     .aggregate(
       reactorsCommon,
-      reactorsCore
-      // reactorsContainer,
+      reactorsCore,
+      reactorsContainer
       // reactorsRemote,
       // reactorsProtocols,
       // reactorsDebugger,
@@ -209,8 +262,8 @@ object ReactorsBuild extends MechaRepoBuild {
     )
     .dependsOn(
       reactorsCommon % "compile->compile;test->test",
-      reactorsCore % "compile->compile;test->test"
-      // reactorsContainer % "compile->compile;test->test",
+      reactorsCore % "compile->compile;test->test",
+      reactorsContainer % "compile->compile;test->test"
       // reactorsRemote % "compile->compile;test->test",
       // reactorsProtocols % "compile->compile;test->test",
       // reactorsDebugger % "compile->compile;test->test",
@@ -235,23 +288,6 @@ object ReactorsBuild extends MechaRepoBuild {
   //     )
   //     case _ => Nil
   //   }
-
-  def gitPropsContents(dir: File, baseDir: File): Seq[File] = {
-    def run(cmd: String*): String = Process(cmd, Some(baseDir)).!!
-    val branch = run("git", "rev-parse", "--abbrev-ref", "HEAD").trim
-    val commitTs = run("git", "--no-pager", "show", "-s", "--format=%ct", "HEAD")
-    val sha = run("git", "rev-parse", "HEAD").trim
-    val contents = s"""
-    {
-      "branch": "$branch",
-      "commit-timestamp": $commitTs,
-      "sha": "$sha"
-    }
-    """
-    val file = dir / "reactors-io" / ".gitprops"
-    IO.write(file, contents)
-    Seq(file)
-  }
 
   // val reactorsCoreSettings = projectSettings("-core", coreDependencies) ++ Seq(
   //   (test in Test) <<= (test in Test)
