@@ -74,4 +74,64 @@ object Platform {
     def parse(s: String) = new SimpleConfiguration(HoconParser.simpleParse(s))
     def empty = new SimpleConfiguration(Map())
   }
+
+  private[reactors] val machineConfiguration = s"""
+    system = {
+      num-processors = ${1}
+    }
+  """
+
+  private[reactors] val defaultConfiguration = """
+    pickler = "io.reactors.pickle.NoPickler"
+    remote = {
+    }
+    debug-api = {
+      name = "io.reactors.DebugApi$Zero"
+    }
+    scheduler = {
+      spindown = {
+        initial = 0
+        min = 0
+        max = 0
+        cooldown-rate = 8
+        mutation-rate = 0.15
+        test-threshold = 32
+        test-iterations = 3
+      }
+      default = {
+        budget = 50
+        unschedule-count = 0
+      }
+    }
+    system = {
+      net = {
+        parallelism = 1
+      }
+    }
+  """
+
+  private[reactors] def registerDefaultSchedulers(b: ReactorSystem.Bundle): Unit = {
+    b.registerScheduler(JsScheduler.Key.default, JsScheduler.default)
+  }
+
+  private[reactors] lazy val defaultScheduler = JsScheduler.default
+
+  object Services {
+    /** Contains I/O-related services.
+     */
+    class Io(val system: ReactorSystem) extends Protocol.Service {
+      val defaultCharset = Charset.defaultCharset.name
+
+      def shutdown() {}
+    }
+
+    /** Contains common network protocol services.
+     */
+    class Net(val system: ReactorSystem, private val resolver: URL => InputStream)
+    extends Protocol.Service {
+      def shutdown() {}
+    }
+  }
+
+  private[reactors] def inetAddress(host: String, port: String) = ???
 }

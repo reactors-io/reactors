@@ -2,7 +2,6 @@ package io
 
 
 
-import java.net.InetSocketAddress
 import scala.annotation.implicitNotFound
 
 
@@ -124,7 +123,7 @@ package object reactors {
   /* URL classes for remote */  
 
   case class SystemUrl(schema: String, host: String, port: Int) {
-    lazy val inetSocketAddress = new InetSocketAddress(host, port)
+    lazy val inetSocketAddress = Platform.inetAddress(host, port)
   }
   
   case class ReactorUrl(systemUrl: SystemUrl, name: String)

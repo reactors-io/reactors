@@ -44,17 +44,17 @@ abstract class Services {
   /** Debugger services. */
   val debugger = service[Services.Debugger]
 
-  /** I/O services. */
-  val io = service[Services.Io]
-
   /** Logging services. */
   val log = service[Services.Log]
 
   /** Naming services. */
   val names = service[Services.Names]
 
+  /** I/O services. */
+  val io = service[Platform.Services.Io]
+
   /** Network services. */
-  val net = service[Services.Net]
+  val net = service[Platform.Services.Net]
 
   /** Remoting services, used to contact other reactor systems. */
   lazy val remote = service[Remote]
@@ -108,14 +108,6 @@ object Services {
     def shutdown() {}
   }
 
-  /** Contains I/O-related services.
-   */
-  class Io(val system: ReactorSystem) extends Protocol.Service {
-    val defaultCharset = Charset.defaultCharset.name
-
-    def shutdown() {}
-  }
-
   /** Contains various logging-related services.
    */
   class Log(val system: ReactorSystem) extends Protocol.Service {
@@ -161,73 +153,6 @@ object Services {
     }
 
     def shutdown() {
-    }
-  }
-
-  /** Contains common network protocol services.
-   */
-  class Net(val system: ReactorSystem, private val resolver: URL => InputStream)
-  extends Protocol.Service {
-    private val networkRequestForkJoinPool = {
-      val parallelism = system.config.int("system.net.parallelism")
-      new ForkJoinPool(parallelism)
-    }
-    private implicit val networkRequestContext: ExecutionContext =
-      ExecutionContext.fromExecutor(networkRequestForkJoinPool)
-
-    def this(s: ReactorSystem) = this(s, url => url.openStream())
-
-    def shutdown() {
-      networkRequestForkJoinPool.shutdown()
-    }
-
-    /** Contains various methods used to retrieve remote resources.
-     */
-    object resource {
-
-      /** Asynchronously retrieves the resource at the given URL.
-       *
-       *  Once the resource is retrieved, the resulting `IVar` gets a string event with
-       *  the resource contents.
-       *  In the case of failure, the event stream raises an exception and unreacts.
-       *
-       *  @param url     the url to load the resource from
-       *  @param cs      the name of the charset to use
-       *  @return        a single-assignment variable with the resource string
-       */
-      def asString(
-        url: String, cs: String = system.io.defaultCharset
-      ): IVar[String] = {
-        val connector = system.channels.daemon.open[Try[String]]
-        Future {
-          blocking {
-            val inputStream = resolver(new URL(url))
-            try {
-              val sb = new StringBuilder
-              val reader = new BufferedReader(new InputStreamReader(inputStream))
-              var line = reader.readLine()
-              while (line != null) {
-                sb.append(line)
-                line = reader.readLine()
-              }
-              sb.toString
-            } finally {
-              inputStream.close()
-            }
-          }
-        } onComplete {
-          case s @ Success(_) =>
-            connector.channel ! s
-          case f @ Failure(t) =>
-            connector.channel ! f
-        }
-        val ivar = connector.events.map({
-          case Success(s) => s
-          case Failure(t) => throw t
-        }).toIVar
-        ivar.ignoreExceptions.onDone(connector.seal())
-        ivar
-      }
     }
   }
 

@@ -167,67 +167,15 @@ object ReactorSystem {
 
   /** Contains machine information.
    */
-  private val machineConfig: Configuration = {
-    Configuration.parse(s"""
-      system = {
-        num-processors = ${Runtime.getRuntime.availableProcessors()}
-      }
-    """)
-  }
+  private val machineConfig = Configuration.parse(Platform.machineConfiguration)
 
   /** Retrieves the default bundle config object.
    *
    *  This configuration is merged with any custom configurations that are provided to
    *  the reactor system bundle.
    */
-  val defaultConfig: Configuration = {
-    Configuration.parse("""
-      pickler = "io.reactors.pickle.JavaSerialization"
-      remote = {
-        udp = {
-          schema = "reactor.udp"
-          transport = "io.reactors.remote.UdpTransport"
-          host = "localhost"
-          port = 17771
-        }
-      }
-      debug-api = {
-        name = "io.reactors.DebugApi$Zero"
-        port = 9500
-        repl = {
-          expiration = 120
-          expiration-check-period = 60
-        }
-        session = {
-          expiration = 240
-          expiration-check-period = 150
-        }
-        delta-debugger = {
-          window-size = 1024
-        }
-      }
-      scheduler = {
-        spindown = {
-          initial = 10
-          min = 10
-          max = 1600
-          cooldown-rate = 8
-          mutation-rate = 0.15
-          test-threshold = 32
-          test-iterations = 3
-        }
-        default = {
-          budget = 50
-          unschedule-count = 50
-        }
-      }
-      system = {
-        net = {
-          parallelism = 8
-        }
-      }
-    """).withFallback(machineConfig)
-  }
+  val defaultConfig =
+    Configuration.parse(Platform.defaultConfiguration).withFallback(machineConfig)
 
   /** Convert the configuration string to a `Configuration` object.
    */
@@ -311,15 +259,6 @@ object ReactorSystem {
   /** Scheduler bundle factory methods.
    */
   object Bundle {
-    object schedulers {
-      val globalExecutionContext = "org.reactors.Scheduler.globalExecutionContext"
-      val default = "org.reactors.Scheduler.default"
-      val newThread = "org.reactors.Scheduler.newThread"
-      val piggyback = "org.reactors.Scheduler.piggyback"
-
-      def defaultScheduler = default
-    }
-
     case class TransportInfo(url: SystemUrl, transportName: String)
 
     /** A bundle with default schedulers from the `Scheduler` companion object.
@@ -328,17 +267,12 @@ object ReactorSystem {
      */
     def default(default: Scheduler): Bundle = {
       val b = new Bundle(default, Configuration.empty)
-      b.registerScheduler(schedulers.globalExecutionContext,
-        Scheduler.globalExecutionContext)
-      b.registerScheduler(schedulers.default, Scheduler.default)
-      b.registerScheduler(schedulers.newThread, Scheduler.newThread)
-      b.registerScheduler(schedulers.piggyback, Scheduler.piggyback)
+      Platform.registerDefaultSchedulers(b)
       b
     }
   }
 
   /** Default scheduler bundle.
    */
-  def defaultBundle = Bundle.default(Scheduler.default)
-
+  def defaultBundle = Bundle.default(Platform.defaultScheduler)
 }
