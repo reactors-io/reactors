@@ -182,11 +182,11 @@ object ReactorSystem {
    */
   val defaultConfig: Configuration = {
     Configuration.parse("""
-      pickler = io.reactors.pickle.JavaSerialization
+      pickler = "io.reactors.pickle.JavaSerialization"
       remote = {
         udp = {
           schema = "reactor.udp"
-          transport = io.reactors.remote.UdpTransport
+          transport = "io.reactors.remote.UdpTransport"
           host = "localhost"
           port = 17771
         }
