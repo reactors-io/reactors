@@ -577,7 +577,8 @@ class JvmReactorSystemTest extends FunSuite with Matchers {
       val p = Promise[Throwable]()
       val ch = system.spawn(Proto[RunningExceptionReactor](p))
       ch ! "die"
-      assert(Await.result(p.future, 10.seconds).getMessage == "exception thrown")
+      val expected = "Exception thrown (THIS IS OK)!"
+      assert(Await.result(p.future, 10.seconds).getMessage == expected)
     } finally system.shutdown()
   }
 
