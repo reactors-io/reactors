@@ -928,11 +928,15 @@ trait Events[@spec(Int, Long, Double) T] {
    *  The resulting signal initially does not contain an event,
    *  and subsequently contains any event that `this` event stream produces.
    *
-   *  @param init      an initial value for the signal
    *  @return          the signal version of the current event stream
    */
   def toEmpty: Signal[T] =
-    new Events.ToSignal(this, false, null.asInstanceOf[T])
+    new Events.ToSignal(this, false, null.asInstanceOf[T], false)
+
+  /** Same as `toEmpty`, but emits an event on subscription if signal is non-empty.
+   */
+  def toEager: Signal[T] =
+    new Events.ToSignal(this, false, null.asInstanceOf[T], true)
 
   /** Given an initial event `init`, converts this event stream into a `Signal`.
    *
@@ -943,7 +947,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  @return          the signal version of the current event stream
    */
   def toSignal(init: T): Signal[T] =
-    new Events.ToSignal(this, true, init)
+    new Events.ToSignal(this, true, init, false)
 
   /** Given an initial event `init`, converts the event stream into a cold `Signal`.
    *
@@ -1574,7 +1578,8 @@ object Events {
   private[reactors] class ToSignal[@spec(Int, Long, Double) T](
     val self: Events[T],
     private var full: Boolean,
-    private var cached: T
+    private var cached: T,
+    private var propagateOnSubscribe: Boolean
   ) extends Signal[T] with Observer[T] with Subscription.Proxy {
     private var pushSource: PushSource[T] = _
     private var rawSubscription: Subscription = _
@@ -1590,6 +1595,7 @@ object Events {
         obs.unreact()
         Subscription.empty
       } else {
+        if (propagateOnSubscribe && full) obs.react(cached, null)
         pushSource.onReaction(obs)
       }
     }
