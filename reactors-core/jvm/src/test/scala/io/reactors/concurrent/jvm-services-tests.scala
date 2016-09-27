@@ -8,9 +8,6 @@ import java.io.InputStream
 import java.net.URL
 import java.util.concurrent.atomic.AtomicLong
 import org.apache.commons.io._
-import org.scalacheck._
-import org.scalacheck.Prop.forAllNoShrink
-import org.scalacheck.Gen.choose
 import org.scalatest._
 import org.scalatest.concurrent.TimeLimitedTests
 import scala.collection._
@@ -28,7 +25,7 @@ class NetTest extends FunSuite with Matchers with BeforeAndAfterAll {
     val res = Promise[String]()
     val resolver = (url: URL) => IOUtils.toInputStream("ok", "UTF-8")
     system.spawn(Proto[ResourceStringReactor](res, resolver)
-      .withScheduler(ReactorSystem.Bundle.schedulers.piggyback))
+      .withScheduler(JvmScheduler.Key.piggyback))
     assert(res.future.value.get.get == "ok", s"got ${res.future.value}")
   }
 
@@ -37,7 +34,7 @@ class NetTest extends FunSuite with Matchers with BeforeAndAfterAll {
     val res = Promise[String]()
     val resolver: URL => InputStream = url => throw testError
     system.spawn(Proto[ResourceStringReactor](res, resolver)
-      .withScheduler(ReactorSystem.Bundle.schedulers.piggyback))
+      .withScheduler(JvmScheduler.Key.piggyback))
     assert(res.future.value.get == Failure(testError), s"got ${res.future.value}")
   }
 
@@ -50,8 +47,8 @@ class NetTest extends FunSuite with Matchers with BeforeAndAfterAll {
 
 class ResourceStringReactor(val res: Promise[String], val resolver: URL => InputStream)
 extends Reactor[Unit] {
-  val net = new Services.Net(system, resolver)
-  val response = net.resource.asString("http://dummy.url/resource.txt")
+  val net = new Platform.Services.Net(system, resolver)
+  val response = net.resourceAsString("http://dummy.url/resource.txt")
   response.ignoreExceptions onEvent { s =>
     res success s
     main.seal()

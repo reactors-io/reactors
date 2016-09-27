@@ -2,10 +2,14 @@ package io.reactors
 
 
 
+import io.reactors.common.freshId
+import io.reactors.concurrent._
 import java.util.concurrent._
 import java.util.concurrent.atomic.AtomicReference
 import java.util.TimerTask
-
+import scala.annotation.tailrec
+import scala.collection._
+import scala.concurrent.ExecutionContext
 
 
 
@@ -475,4 +479,6 @@ object JvmScheduler {
     val piggyback = "org.reactors.JvmScheduler::piggyback"
     def defaultScheduler = default
   }
+
+  private[reactors] val javaKey = Key
 }

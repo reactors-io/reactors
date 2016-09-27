@@ -19,6 +19,22 @@ import scala.util.Success
 
 
 
+class PiggyReactor(val p: Promise[Boolean]) extends Reactor[Unit] {
+  sysEvents onMatch {
+    case ReactorStarted =>
+      try {
+        val piggy = JvmScheduler.Key.piggyback
+        system.spawn(Proto[SelfReactor].withScheduler(piggy))
+      } catch {
+        case e: IllegalStateException =>
+          p.success(true)
+      } finally {
+        main.seal()
+      }
+  }
+}
+
+
 class CtorExceptionReactor(val p: Promise[(Boolean, Boolean)])
 extends Reactor[Unit] {
   var excepted = false
@@ -30,7 +46,7 @@ extends Reactor[Unit] {
       terminated = true
       p.success((excepted, terminated))
   }
-  sys.error("Exception thrown in ctor!")
+  sys.error("Exception thrown in ctor (THIS IS OK)!")
 }
 
 
@@ -38,14 +54,14 @@ class TerminationExceptionReactor(val p: Promise[Boolean]) extends Reactor[Unit]
   sysEvents onMatch {
     case ReactorDied(t) => p.success(true)
     case ReactorPreempted => main.seal()
-    case ReactorTerminated => sys.error("Exception thrown during termination!")
+    case ReactorTerminated => sys.error("Exception during termination (THIS IS OK)!")
   }
 }
 
 
 class RunningExceptionReactor(val p: Promise[Throwable]) extends Reactor[String] {
   main.events onMatch {
-    case "die" => sys.error("exception thrown")
+    case "die" => sys.error("Exception thrown (THIS IS OK)!")
   }
   sysEvents onMatch {
     case ReactorDied(t) => p.success(t)
@@ -144,7 +160,7 @@ class NamedReactor(val p: Promise[Boolean]) extends Reactor[String] {
 }
 
 
-abstract class BaseReactorSystemCheck(name: String) extends Properties(name) {
+abstract class BaseJvmReactorSystemCheck(name: String) extends Properties(name) {
 
   val system = ReactorSystem.default("check-system")
 
@@ -172,8 +188,8 @@ abstract class BaseReactorSystemCheck(name: String) extends Properties(name) {
 }
 
 
-abstract class ReactorSystemCheck(name: String)
-extends BaseReactorSystemCheck(name) with ExtendedProperties {
+abstract class JvmReactorSystemCheck(name: String)
+extends BaseJvmReactorSystemCheck(name) with ExtendedProperties {
 
   property("should receive many events") = forAllNoShrink(choose(1, 1024)) { num =>
     val p = Promise[Boolean]()
@@ -505,28 +521,31 @@ extends BaseReactorSystemCheck(name) with ExtendedProperties {
 }
 
 
-object NewThreadReactorSystemCheck extends ReactorSystemCheck("NewThreadSystem") {
-  val scheduler = ReactorSystem.Bundle.schedulers.newThread
+object NewThreadReactorSystemCheck
+extends JvmReactorSystemCheck("NewThreadSystem") {
+  val scheduler = JvmScheduler.Key.newThread
 }
 
 
-object GlobalExecutionContextReactorSystemCheck extends ReactorSystemCheck("ECSystem") {
-  val scheduler = ReactorSystem.Bundle.schedulers.globalExecutionContext
+object GlobalExecutionContextReactorSystemCheck
+extends JvmReactorSystemCheck("ECSystem") {
+  val scheduler = JvmScheduler.Key.globalExecutionContext
 }
 
 
-object DefaultSchedulerReactorSystemCheck
-extends ReactorSystemCheck("DefaultSchedulerSystem") {
-  val scheduler = ReactorSystem.Bundle.schedulers.default
+object DefaultJvmSchedulerReactorSystemCheck
+extends JvmReactorSystemCheck("DefaultJvmSchedulerSystem") {
+  val scheduler = JvmScheduler.Key.default
 }
 
 
-object PiggybackReactorSystemCheck extends BaseReactorSystemCheck("PiggybackSystem") {
-  val scheduler = ReactorSystem.Bundle.schedulers.piggyback
+object PiggybackReactorSystemCheck
+extends BaseJvmReactorSystemCheck("PiggybackSystem") {
+  val scheduler = JvmScheduler.Key.piggyback
 }
 
 
-class ReactorSystemTest extends FunSuite with Matchers {
+class JvmReactorSystemTest extends FunSuite with Matchers {
   test("reactor should terminate on ctor exception") {
     val scheduler = new JvmScheduler.Dedicated.NewThread(true, Scheduler.silentHandler)
     val bundle = ReactorSystem.Bundle.default(scheduler)
@@ -559,6 +578,15 @@ class ReactorSystemTest extends FunSuite with Matchers {
       val ch = system.spawn(Proto[RunningExceptionReactor](p))
       ch ! "die"
       assert(Await.result(p.future, 10.seconds).getMessage == "exception thrown")
+    } finally system.shutdown()
+  }
+
+  test("piggyback scheduler should throw an exception if called from a reactor") {
+    val system = ReactorSystem.default("test")
+    try {
+      val p = Promise[Boolean]()
+      system.spawn(Proto[PiggyReactor](p))
+      assert(Await.result(p.future, 10.seconds))
     } finally system.shutdown()
   }
 }

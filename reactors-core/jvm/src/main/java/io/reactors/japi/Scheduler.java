@@ -17,7 +17,7 @@ public class Scheduler {
   }
 
   public static Scheduler timer(long period, boolean isDaemon) {
-    return new Scheduler(new io.reactors.Scheduler.Timer(period, isDaemon));
+    return new Scheduler(new io.reactors.JvmScheduler.Timer(period, isDaemon));
   }
 
   public static Scheduler timer(long period) {
@@ -25,14 +25,14 @@ public class Scheduler {
   }
 
   public static final String NEW_THREAD =
-    io.reactors.ReactorSystem$Bundle$schedulers$.MODULE$.newThread();
+    io.reactors.JvmScheduler$.MODULE$.javaKey().newThread();
 
   public static final String DEFAULT =
-    io.reactors.ReactorSystem$Bundle$schedulers$.MODULE$.defaultScheduler();
+    io.reactors.JvmScheduler$.MODULE$.javaKey().defaultScheduler();
 
   public static final String PIGGYBACK =
-    io.reactors.ReactorSystem$Bundle$schedulers$.MODULE$.piggyback();
+    io.reactors.JvmScheduler$.MODULE$.javaKey().piggyback();
 
   public static final String GLOBAL_EXECUTION_CONTEXT =
-    io.reactors.ReactorSystem$Bundle$schedulers$.MODULE$.globalExecutionContext();
+    io.reactors.JvmScheduler$.MODULE$.javaKey().globalExecutionContext();
 }

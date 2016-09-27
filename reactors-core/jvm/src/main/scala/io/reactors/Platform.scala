@@ -3,8 +3,18 @@ package io.reactors
 
 
 import com.typesafe.config._
+import java.io._
 import java.net.InetSocketAddress
+import java.net.URL
+import java.nio.charset.Charset
+import java.util.concurrent.ForkJoinPool
 import scala.collection.JavaConverters._
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+import scala.concurrent.blocking
+import scala.util.Success
+import scala.util.Failure
+import scala.util.Try
 
 
 
@@ -164,6 +174,6 @@ object Platform {
     }
   }
 
-  private[reactors] def inetAddress(host: String, port: String) =
+  private[reactors] def inetAddress(host: String, port: Int) =
     new InetSocketAddress(host, port)
 }

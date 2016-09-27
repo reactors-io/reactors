@@ -26,22 +26,6 @@ class SelfReactor(val p: Promise[Boolean]) extends Reactor[Int] {
 }
 
 
-class PiggyReactor(val p: Promise[Boolean]) extends Reactor[Unit] {
-  sysEvents onMatch {
-    case ReactorStarted =>
-      try {
-        val piggy = ReactorSystem.Bundle.schedulers.piggyback
-        system.spawn(Proto[SelfReactor].withScheduler(piggy))
-      } catch {
-        case e: IllegalStateException =>
-          p.success(true)
-      } finally {
-        main.seal()
-      }
-  }
-}
-
-
 class PromiseReactor(val p: Promise[Unit]) extends Reactor[Unit] {
   p.success(())
 }
@@ -169,97 +153,6 @@ class EventSourceReactor(val p: Promise[Boolean]) extends Reactor[String] {
   }
   sysEvents onMatch {
     case ReactorPreempted => main.seal()
-  }
-}
-
-
-object Log {
-  def apply(msg: String) = println(s"${Thread.currentThread.getName}: $msg")
-}
-
-
-class RingReactor(
-  val index: Int,
-  val num: Int,
-  val sink: Either[Promise[Boolean], Channel[String]],
-  val sched: String
-) extends Reactor[String] {
-
-  val next: Channel[String] = {
-    if (index == 0) {
-      val p = Proto[RingReactor](index + 1, num, Right(main.channel), sched)
-        .withScheduler(sched)
-      system.spawn(p)
-    } else if (index < num) {
-      val p = Proto[RingReactor](index + 1, num, sink, sched).withScheduler(sched)
-      system.spawn(p)
-    } else {
-      sink match {
-        case Right(first) => first
-        case _ => sys.error("unexpected case")
-      }
-    }
-  }
-
-  main.events onMatch {
-    case "start" =>
-      next ! "ping"
-    case "ping" =>
-      next ! "ping"
-      main.seal()
-      if (index == 0) sink match {
-        case Left(p) => p.success(true)
-        case _ => sys.error("unexpected case")
-      }
-  }
-}
-
-
-class TerminatedReactor(val p: Promise[Boolean]) extends Reactor[Unit] {
-  sysEvents onMatch {
-    case ReactorStarted =>
-      main.seal()
-    case ReactorTerminated =>
-      // should still be different than null
-      p.success(system.frames.forName("ephemo") != null)
-  }
-}
-
-
-class LookupChannelReactor(val started: Promise[Boolean], val ended: Promise[Boolean])
-extends Reactor[Unit] {
-  sysEvents onMatch {
-    case ReactorStarted =>
-      val terminator = system.channels.daemon.named("terminator").open[String]
-      terminator.events onMatch {
-        case "end" =>
-          main.seal()
-          ended.success(true)
-      }
-      started.success(true)
-  }
-}
-
-
-class ChannelsAskReactor(val p: Promise[Boolean]) extends Reactor[Unit] {
-  val answer = system.channels.daemon.open[Option[Channel[_]]]
-  system.names.resolve ! (("chaki#main", answer.channel))
-  answer.events onMatch {
-    case Some(ch: Channel[Unit] @unchecked) => ch ! (())
-    case None => sys.error("chaki#main not found")
-  }
-  main.events on {
-    main.seal()
-    p.success(true)
-  }
-}
-
-
-class NamedReactor(val p: Promise[Boolean]) extends Reactor[String] {
-  main.events onMatch {
-    case "die" =>
-      main.seal()
-      p.success(true)
   }
 }
 
@@ -446,15 +339,6 @@ class ReactorSystemTest extends FunSuite with Matchers {
     try {
       val p = Promise[Boolean]()
       system.spawn(Proto[SelfReactor](p))
-      assert(Await.result(p.future, 10.seconds))
-    } finally system.shutdown()
-  }
-
-  test("piggyback scheduler should throw an exception if called from a reactor") {
-    val system = ReactorSystem.default("test")
-    try {
-      val p = Promise[Boolean]()
-      system.spawn(Proto[PiggyReactor](p))
       assert(Await.result(p.future, 10.seconds))
     } finally system.shutdown()
   }

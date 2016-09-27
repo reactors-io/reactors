@@ -120,8 +120,6 @@ object Platform {
     /** Contains I/O-related services.
      */
     class Io(val system: ReactorSystem) extends Protocol.Service {
-      val defaultCharset = Charset.defaultCharset.name
-
       def shutdown() {}
     }
 
@@ -133,5 +131,5 @@ object Platform {
     }
   }
 
-  private[reactors] def inetAddress(host: String, port: String) = ???
+  private[reactors] def inetAddress(host: String, port: Int) = ???
 }

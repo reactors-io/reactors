@@ -2,10 +2,6 @@ package io.reactors
 
 
 
-import scala.collection._
-import scala.concurrent.ExecutionContext
-import scala.annotation.tailrec
-import io.reactors.common.freshId
 import io.reactors.concurrent._
 
 

@@ -28,22 +28,23 @@ with TimeLimitedTests {
   def timeLimit = 10 seconds
 
   test("periodic timer should fire 3 times") {
-    system.spawn(Proto[PeriodReactor].withScheduler(
-      ReactorSystem.Bundle.schedulers.piggyback))
+    val done = Promise[Boolean]()
+    system.spawn(Proto[PeriodReactor](done))
+    assert(Await.result(done.future, 10.seconds))
   }
 
   test("timeout should fire exactly once") {
     val timeoutCount = Promise[Int]()
-    system.spawn(Proto[TimeoutReactor](timeoutCount).withScheduler(
-      ReactorSystem.Bundle.schedulers.piggyback))
+    system.spawn(Proto[TimeoutReactor](timeoutCount))
+    Await.ready(timeoutCount.future, 10.seconds)
     assert(timeoutCount.future.value.get.get == 1,
       s"Total timeouts: ${timeoutCount.future.value}")
   }
 
   test("countdown should accumulate 45") {
     val total = Promise[Seq[Int]]()
-    system.spawn(Proto[CountdownReactor](total).withScheduler(
-      ReactorSystem.Bundle.schedulers.piggyback))
+    system.spawn(Proto[CountdownReactor](total))
+    Await.ready(total.future, 10.seconds)
     assert(total.future.value.get.get == Seq(9, 8, 7, 6, 5, 4, 3, 2, 1, 0),
       s"Total sum of countdowns = ${total.future.value}")
   }
@@ -55,11 +56,14 @@ with TimeLimitedTests {
 }
 
 
-class PeriodReactor extends Reactor[Unit] {
+class PeriodReactor(val done: Promise[Boolean]) extends Reactor[Unit] {
   var countdown = 3
   system.clock.periodic(50.millis) on {
     countdown -= 1
-    if (countdown <= 0) main.seal()
+    if (countdown <= 0) {
+      main.seal()
+      done.trySuccess(true)
+    }
   }
 }
 
@@ -70,7 +74,7 @@ class TimeoutReactor(val timeoutCount: Promise[Int]) extends Reactor[Unit] {
     timeouts += 1
     system.clock.timeout(500.millis) on {
       main.seal()
-      timeoutCount success timeouts
+      timeoutCount.trySuccess(timeouts)
     }
   }
 }
@@ -81,8 +85,8 @@ class CountdownReactor(val total: Promise[Seq[Int]]) extends Reactor[Unit] {
   system.clock.countdown(10, 50.millis).onEventOrDone {
     x => elems += x
   } {
-    total.success(elems)
     main.seal()
+    total.trySuccess(elems)
   }
 }
 
@@ -92,8 +96,8 @@ class CustomServiceTest extends FunSuite with Matchers with BeforeAndAfterAll {
 
   test("custom service should be retrieved") {
     val done = Promise[Boolean]()
-    system.spawn(Proto[CustomServiceReactor](done).withScheduler(
-      ReactorSystem.Bundle.schedulers.piggyback))
+    system.spawn(Proto[CustomServiceReactor](done))
+    Await.ready(done.future, 10.seconds)
     assert(done.future.value.get.get, s"Status: ${done.future.value}")
   }
 
