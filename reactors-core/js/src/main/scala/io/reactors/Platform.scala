@@ -132,4 +132,10 @@ object Platform {
   }
 
   private[reactors] def inetAddress(host: String, port: Int) = ???
+
+  private[reactors] object Reflect {
+    def instantiate[T](clazz: Class[T], params: Seq[Any]): T = {
+      ???
+    }
+  }
 }

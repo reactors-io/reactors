@@ -3,7 +3,6 @@ package io.reactors
 
 
 import scala.reflect.ClassTag
-import io.reactors.common.Reflect
 
 
 
@@ -23,7 +22,7 @@ final class Proto[+I <: Reactor[_]] private[reactors] (
 
   /** Instantiates and returns the reactor.
    */
-  def create(): I = Reflect.instantiate(clazz, params).asInstanceOf[I]
+  def create(): I = Platform.Reflect.instantiate(clazz, params).asInstanceOf[I]
 
   /** Associates the specified scheduler and returns the new `Proto` object.
    *
