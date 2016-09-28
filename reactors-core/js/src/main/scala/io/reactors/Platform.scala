@@ -142,9 +142,11 @@ object Platform {
       }
       js.Dynamic.newInstance(ctor)(args.asInstanceOf[Seq[js.Any]]: _*).asInstanceOf[T]
     }
+
+    def clazz[T](name: String): Class[T] = ???
   }
 
-  @JSExportDescendantClasses(true)
+  @scala.scalajs.js.annotation.JSExportDescendentClasses(true)
   class Reflectable {
   }
 }

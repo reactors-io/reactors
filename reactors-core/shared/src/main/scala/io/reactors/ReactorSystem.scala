@@ -34,7 +34,7 @@ class ReactorSystem(
   private[reactors] val monitor = new Monitor
 
   private[reactors] val debugApi: DebugApi = {
-    val debugcls = Class.forName(bundle.config.string("debug-api.name"))
+    val debugcls = Platform.Reflect.clazz(bundle.config.string("debug-api.name"))
     val debugctor = debugcls.getConstructor(classOf[ReactorSystem])
     debugctor.newInstance(this).asInstanceOf[DebugApi]
   }
@@ -220,7 +220,7 @@ object ReactorSystem {
     val urls = urlMap.map(_._2.url).toSet
 
     val pickler = {
-      Class.forName(config.string("pickler")).newInstance.asInstanceOf[Pickler]
+      Platform.Reflect.clazz(config.string("pickler")).newInstance.asInstanceOf[Pickler]
     }
 
     /** Retrieves the scheduler registered under the specified name.

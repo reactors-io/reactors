@@ -7,7 +7,6 @@ import io.reactors.test._
 import java.io.InputStream
 import java.net.URL
 import java.util.concurrent.atomic.AtomicLong
-import org.apache.commons.io._
 import org.scalacheck._
 import org.scalacheck.Prop.forAllNoShrink
 import org.scalacheck.Gen.choose

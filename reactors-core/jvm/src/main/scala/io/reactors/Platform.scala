@@ -180,6 +180,7 @@ object Platform {
 
   private[reactors] object Reflect {
     def instantiate[T](clazz: Class[T], params: scala.Array[Any]): T = {
+      // Java-only version.
       instantiate(clazz, params.toSeq)
     }
 
@@ -187,6 +188,10 @@ object Platform {
       val ctor = matchingConstructor(clazz, params)
       ctor.setAccessible(true)
       ctor.newInstance(params.asInstanceOf[Seq[AnyRef]]: _*)
+    }
+
+    def clazz[T](name: String): Class[T] = {
+      Class.forName(name).asInstanceOf[Class[T]]
     }
 
     private def matchingConstructor[T](

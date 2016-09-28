@@ -17,7 +17,7 @@ class Remote(val system: ReactorSystem) extends Protocol.Service {
 
   for ((tp, t) <- system.bundle.urlMap) {
     val transportCtor =
-      Class.forName(t.transportName).getConstructor(classOf[ReactorSystem])
+      Platform.Reflect.clazz(t.transportName).getConstructor(classOf[ReactorSystem])
     val transport = transportCtor.newInstance(system).asInstanceOf[Remote.Transport]
     transports(t.url.schema) = transport
   }
@@ -35,7 +35,7 @@ class Remote(val system: ReactorSystem) extends Protocol.Service {
 
 
 object Remote {
-  trait Transport {
+  trait Transport extends Platform.Reflectable {
     def newChannel[@spec(Int, Long, Double) T: Arrayable](url: ChannelUrl): Channel[T]
     def shutdown(): Unit
   }

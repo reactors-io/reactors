@@ -111,46 +111,6 @@ class RingReactor(
 }
 
 
-class TerminatedReactor(val p: Promise[Boolean]) extends Reactor[Unit] {
-  sysEvents onMatch {
-    case ReactorStarted =>
-      main.seal()
-    case ReactorTerminated =>
-      // should still be different than null
-      p.success(system.frames.forName("ephemo") != null)
-  }
-}
-
-
-class LookupChannelReactor(val started: Promise[Boolean], val ended: Promise[Boolean])
-extends Reactor[Unit] {
-  sysEvents onMatch {
-    case ReactorStarted =>
-      val terminator = system.channels.daemon.named("terminator").open[String]
-      terminator.events onMatch {
-        case "end" =>
-          main.seal()
-          ended.success(true)
-      }
-      started.success(true)
-  }
-}
-
-
-class ChannelsAskReactor(val p: Promise[Boolean]) extends Reactor[Unit] {
-  val answer = system.channels.daemon.open[Option[Channel[_]]]
-  system.names.resolve ! (("chaki#main", answer.channel))
-  answer.events onMatch {
-    case Some(ch: Channel[Unit] @unchecked) => ch ! (())
-    case None => sys.error("chaki#main not found")
-  }
-  main.events on {
-    main.seal()
-    p.success(true)
-  }
-}
-
-
 class NamedReactor(val p: Promise[Boolean]) extends Reactor[String] {
   main.events onMatch {
     case "die" =>
