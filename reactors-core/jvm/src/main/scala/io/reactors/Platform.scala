@@ -8,6 +8,7 @@ import java.net.InetSocketAddress
 import java.net.URL
 import java.nio.charset.Charset
 import java.util.concurrent.ForkJoinPool
+import java.lang.reflect._
 import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
@@ -235,4 +236,8 @@ object Platform {
     private def boxedVersion(cls: Class[_]) =
       if (!cls.isPrimitive) cls else boxedMapping(cls)
   }
+
+  private[reactors] def javaReflect = Reflect
+
+  private[reactors] trait Reflectable
 }

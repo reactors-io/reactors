@@ -4,6 +4,8 @@ package io.reactors
 
 import scala.annotation.unchecked
 import scala.collection._
+import scala.scalajs._
+import scala.scalajs.js.annotation.JSExportDescendentClasses
 import scala.util.parsing.combinator._
 
 
@@ -134,8 +136,15 @@ object Platform {
   private[reactors] def inetAddress(host: String, port: Int) = ???
 
   private[reactors] object Reflect {
-    def instantiate[T](clazz: Class[T], params: Seq[Any]): T = {
-      ???
+    def instantiate[T](clazz: Class[T], args: Seq[Any]): T = {
+      val ctor = (js.Dynamic.global /: clazz.getName.split("\\.")) {
+        (prev, part) => prev.selectDynamic(part)
+      }
+      js.Dynamic.newInstance(ctor)(args.asInstanceOf[Seq[js.Any]]: _*).asInstanceOf[T]
     }
+  }
+
+  @JSExportDescendantClasses(true)
+  class Reflectable {
   }
 }

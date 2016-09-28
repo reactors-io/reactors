@@ -68,7 +68,7 @@ import io.reactors.concurrent._
  *  
  *  @tparam T        the type of events, which `this` reactor produces
  */
-trait Reactor[@spec(Int, Long, Double) T] {
+trait Reactor[@spec(Int, Long, Double) T] extends Platform.Reflectable {
   @volatile private[reactors] var frame: Frame = _
 
   private def illegal() =

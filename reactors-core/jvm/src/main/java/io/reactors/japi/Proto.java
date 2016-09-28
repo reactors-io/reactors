@@ -13,7 +13,7 @@ public class Proto<T> {
   public static class ProxyReactor<T> extends io.reactors.Reactor.Abstract<T> {
     public ProxyReactor(Class<?> cls, Object... as) {
       try {
-        io.reactors.common.Reflect.instantiate(cls, as);
+        io.reactors.Platform$.MODULE$.javaReflect().instantiate(cls, as);
       } catch (Exception e) {
         throw new RuntimeException(e);
       }

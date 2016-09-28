@@ -4,7 +4,6 @@ package io.reactors
 
 import scala.collection._
 import scala.reflect.ClassTag
-import io.reactors.common.Reflect
 
 
 
