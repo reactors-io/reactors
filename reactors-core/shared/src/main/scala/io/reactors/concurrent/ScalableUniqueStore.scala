@@ -4,8 +4,6 @@ package concurrent
 
 
 import io.reactors.common.concurrent.UidGenerator
-import java.util.concurrent.ConcurrentHashMap
-import scala.collection.concurrent.TrieMap
 import scala.annotation.tailrec
 import scala.collection._
 
@@ -22,7 +20,7 @@ final class ScalableUniqueStore[T >: Null <: Identifiable with AnyRef](
   val scalability: Int
 ) {
   private[reactors] val uidCounter = new UidGenerator(scalability)
-  private[reactors] val byName = new TrieMap[String, T]
+  private[reactors] val byName = Platform.newSnapshotMap[String, T]
 
   /** Compute and return a unique id.
    */

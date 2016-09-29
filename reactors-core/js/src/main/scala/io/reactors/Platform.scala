@@ -151,4 +151,30 @@ object Platform {
   @scala.scalajs.js.annotation.JSExportDescendentClasses(true)
   class Reflectable {
   }
+
+  private[reactors] class SnapshotMap[K, V] extends mutable.HashMap[K, V] {
+    def replace(k: K, ov: V, nv: V): Boolean = this.get(k) match {
+      case Some(v) if v == ov =>
+        this(k) = nv
+        true
+      case _ =>
+        false
+    }
+
+    def putIfAbsent(k: K, v: V): Option[V] = this.get(k) match {
+      case Some(ov) =>
+        Some(ov)
+      case None =>
+        this(k) = v
+        None
+    }
+
+    def snapshot: Map[K, V] = {
+      val m = mutable.Map[K, V]()
+      for ((k, v) <- this) m(k) = v
+      m
+    }
+  }
+
+  private[reactors] def newSnapshotMap[K, V] = new SnapshotMap[K, V]
 }

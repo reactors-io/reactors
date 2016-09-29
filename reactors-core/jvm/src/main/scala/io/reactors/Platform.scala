@@ -10,6 +10,7 @@ import java.nio.charset.Charset
 import java.util.concurrent.ForkJoinPool
 import java.lang.reflect._
 import scala.collection.JavaConverters._
+import scala.collection.concurrent.TrieMap
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.blocking
@@ -246,4 +247,6 @@ object Platform {
   private[reactors] def javaReflect = Reflect
 
   private[reactors] trait Reflectable
+
+  private[reactors] def newSnapshotMap[K, V] = new TrieMap[K, V]
 }
