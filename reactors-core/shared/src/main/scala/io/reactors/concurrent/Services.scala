@@ -19,7 +19,7 @@ import scala.util.DynamicVariable
 
 /** Defines services used by an reactor system.
  */
-abstract class Services {
+abstract class Services extends Platform.Reflectable {
   def system: ReactorSystem
 
   private val services = mutable.Map[ClassTag[_], AnyRef]()
@@ -58,8 +58,7 @@ abstract class Services {
   def service[T <: Protocol.Service: ClassTag] = {
     val tag = implicitly[ClassTag[T]]
     if (!services.contains(tag)) {
-      val ctor = tag.runtimeClass.getConstructor(classOf[ReactorSystem])
-      services(tag) = ctor.newInstance(system).asInstanceOf[AnyRef]
+      services(tag) = Platform.Reflect.instantiate(tag.runtimeClass, Seq(system))
     }
     services(tag).asInstanceOf[T]
   }
