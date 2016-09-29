@@ -8,6 +8,9 @@ import java.io.InputStream
 import java.net.URL
 import java.util.concurrent.atomic.AtomicLong
 import org.apache.commons.io._
+import org.scalacheck.Properties
+import org.scalacheck.Prop.forAllNoShrink
+import org.scalacheck.Gen.choose
 import org.scalatest._
 import org.scalatest.concurrent.TimeLimitedTests
 import scala.collection._
@@ -57,4 +60,39 @@ extends Reactor[Unit] {
     res failure t
     main.seal()
   }
+}
+
+
+object ChannelsCheck extends Properties("ChannelsCheck") with ExtendedProperties {
+
+  val repetitions = 10
+  val nameCounter = new AtomicLong(0L)
+
+  property("channel should be awaited") =
+    forAllNoShrink(detChoose(0, 50)) { n =>
+      stackTraced {
+        for (i <- 0 until repetitions) {
+          val checkReactorName = "check-reactor-" + nameCounter.getAndIncrement()
+          val system = ReactorSystem.default("check-system")
+          val done = Promise[Boolean]()
+          system.spawn(Reactor[Unit] { self =>
+            system.channels.await[String](checkReactorName + "#main").onEvent { ch =>
+              ch ! "done"
+              self.main.seal()
+            }
+          })
+          Thread.sleep(n)
+          system.spawn(Reactor[String] { self =>
+            self.main.events onMatch {
+              case "done" =>
+                done.success(true)
+                self.main.seal()
+            }
+          } withName(checkReactorName))
+          assert(Await.result(done.future, 10.seconds))
+        }
+        true
+      }
+    }
+
 }
