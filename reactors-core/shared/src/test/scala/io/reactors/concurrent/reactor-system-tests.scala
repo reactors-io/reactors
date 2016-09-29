@@ -3,11 +3,14 @@ package concurrent
 
 
 
+import io.reactors.common.afterTime
 import io.reactors.test._
 import org.scalacheck._
 import org.scalacheck.Prop.forAllNoShrink
 import org.scalacheck.Gen.choose
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.AsyncFunSuite
+import org.scalatest.Matchers
+import org.scalatest.concurrent.AsyncTimeLimitedTests
 import scala.annotation.unchecked
 import scala.collection._
 import scala.concurrent.Await
@@ -197,7 +200,10 @@ class ChannelsAskReactor(val p: Promise[Boolean]) extends Reactor[Unit] {
 }
 
 
-class ReactorSystemTest extends FunSuite with Matchers {
+class ReactorSystemTest extends AsyncFunSuite
+with Matchers with AsyncTimeLimitedTests {
+  def timeLimit = 10.seconds
+
   test("system should return without throwing") {
     val system = ReactorSystem.default("test")
     try {
@@ -226,6 +232,7 @@ class ReactorSystemTest extends FunSuite with Matchers {
         val proto = Reactor[Unit] { self => }
         system.spawn(proto.withName("Izzy"))
       }
+      assert(true)
     } finally system.shutdown()
   }
 
@@ -257,217 +264,226 @@ class ReactorSystemTest extends FunSuite with Matchers {
 
   test("system should schedule reactor's ctor for execution") {
     val system = ReactorSystem.default("test")
-    try {
-      val p = Promise[Unit]()
-      system.spawn(Proto[PromiseReactor](p))
-      Await.result(p.future, 10.seconds)
-    } finally system.shutdown()
+    val p = Promise[Unit]()
+    system.spawn(Proto[PromiseReactor](p))
+    p.future onComplete {
+      case _ => system.shutdown()
+    }
+    p.future.map(_ => assert(true))
   }
 
   test("system should invoke the ctor with the Reactor.self set") {
     val system = ReactorSystem.default("test")
-    try {
-      val p = Promise[Boolean]()
-      system.spawn(Proto[ReactorSelfReactor](p))
-      assert(Await.result(p.future, 10.seconds))
-    } finally system.shutdown()
+    val p = Promise[Boolean]()
+    system.spawn(Proto[ReactorSelfReactor](p))
+    p.future.onComplete(_ => system.shutdown())
+    p.future.map(t => assert(t))
   }
 
   test("reactor should ensure the ReactorStarted event") {
     val system = ReactorSystem.default("test")
-    try {
-      val p = Promise[Boolean]()
-      system.spawn(Proto[ReactorStartedReactor](p))
-      assert(Await.result(p.future, 10.seconds))
-    } finally system.shutdown()
+    val p = Promise[Boolean]()
+    system.spawn(Proto[ReactorStartedReactor](p))
+    p.future.onComplete(_ => system.shutdown())
+    p.future.map(t => assert(t))
   }
 
   test("reactor should process an event that arrives after the first batch") {
     val system = ReactorSystem.default("test")
-    try {
-      val p = Promise[Boolean]()
-      val ch = system.spawn(Proto[AfterFirstBatchReactor](p))
-      Thread.sleep(250)
+    val p = Promise[Boolean]()
+    val ch = system.spawn(Proto[AfterFirstBatchReactor](p))
+    afterTime(250.millis) {
       ch ! "success"
-      assert(Await.result(p.future, 10.seconds))
-    } finally system.shutdown()
+    }
+    p.future.onComplete(_ => system.shutdown())
+    p.future.map(t => assert(t))
   }
 
   test("reactor should process an event that arrives during the first batch") {
     val system = ReactorSystem.default("test")
-    try {
-      val p = Promise[Boolean]()
-      val ch = system.spawn(Proto[DuringFirstBatchReactor](p))
-      assert(Await.result(p.future, 10.seconds))
-    } finally system.shutdown()
+    val p = Promise[Boolean]()
+    val ch = system.spawn(Proto[DuringFirstBatchReactor](p))
+    p.future.onComplete(_ => system.shutdown())
+    p.future.map(t => assert(t))
   }
 
   test("reactor should process an event that arrives during the first event") {
     val system = ReactorSystem.default("test")
-    try {
-      val p = Promise[Boolean]()
-      val ch = system.spawn(Proto[DuringFirstEventReactor](p))
-      ch ! "message"
-      assert(Await.result(p.future, 10.seconds))
-    } finally system.shutdown()
+    val p = Promise[Boolean]()
+    val ch = system.spawn(Proto[DuringFirstEventReactor](p))
+    ch ! "message"
+    p.future.onComplete(_ => system.shutdown())
+    p.future.map(t => assert(t))
   }
 
   test("reactor should process two events that arrive during the first event") {
     val system = ReactorSystem.default("test")
-    try {
-      val p = Promise[Boolean]()
-      val ch = system.spawn(Proto[TwoDuringFirstReactor](p))
-      ch ! "start"
-      assert(Await.result(p.future, 10.seconds))
-    } finally system.shutdown()
+    val p = Promise[Boolean]()
+    val ch = system.spawn(Proto[TwoDuringFirstReactor](p))
+    ch ! "start"
+    p.future.onComplete(_ => system.shutdown())
+    p.future.map(t => assert(t))
   }
 
   test("reactor should process 100 incoming events") {
     val system = ReactorSystem.default("test")
-    try {
-      val p = Promise[Boolean]()
-      val ch = system.spawn(Proto[CountdownPromiseReactor](p, 100))
-      Thread.sleep(250)
+    val p = Promise[Boolean]()
+    val ch = system.spawn(Proto[CountdownPromiseReactor](p, 100))
+    afterTime(250.millis) {
       for (i <- 0 until 100) ch ! "dec"
-      assert(Await.result(p.future, 10.seconds))
-    } finally system.shutdown()
+    }
+    p.future.onComplete(_ => system.shutdown())
+    p.future.map(t => assert(t))
   }
 
   test("reactor should terminate after sealing its channel") {
     val system = ReactorSystem.default("test")
-    try {
-      val p = Promise[Boolean]()
-      val ch = system.spawn(Proto[AfterSealTerminateReactor](p))
-      ch ! "seal"
-      assert(Await.result(p.future, 10.seconds))
-    } finally system.shutdown()
+    val p = Promise[Boolean]()
+    val ch = system.spawn(Proto[AfterSealTerminateReactor](p))
+    ch ! "seal"
+    p.future.onComplete(_ => system.shutdown())
+    p.future.map(t => assert(t))
   }
 
   test("reactor should be able to open a new channel") {
     val system = ReactorSystem.default("test")
-    try {
-      val p = Promise[Boolean]()
-      system.spawn(Proto[NewChannelReactor](p))
-      assert(Await.result(p.future, 10.seconds))
-    } finally system.shutdown()
+    val p = Promise[Boolean]()
+    system.spawn(Proto[NewChannelReactor](p))
+    p.future.onComplete(_ => system.shutdown())
+    p.future.map(t => assert(t))
   }
 
   test("reactor should get ReactorScheduled events") {
     val system = ReactorSystem.default("test")
-    try {
-      val p = Promise[Boolean]()
-      val ch = system.spawn(Proto[ReactorScheduledReactor](p))
-      for (i <- 0 until 5) {
-        Thread.sleep(60)
-        ch ! "dummy"
+    val p = Promise[Boolean]()
+    val ch = system.spawn(Proto[ReactorScheduledReactor](p))
+    def resend(left: Int) {
+      if (left > 0) {
+        afterTime(60.millis) {
+          ch ! "dummy"
+          resend(left - 1)
+        }
       }
-      assert(Await.result(p.future, 10.seconds))
-    } finally system.shutdown()
+    }
+    resend(5)
+    p.future.onComplete(_ => system.shutdown())
+    p.future.map(t => assert(t))
   }
 
   test("reactor should get ReactorPreempted events") {
     val system = ReactorSystem.default("test")
-    try {
-      val p = Promise[Boolean]()
-      system.spawn(Proto[ReactorPreemptedReactor](p))
-      assert(Await.result(p.future, 10.seconds))
-    } finally system.shutdown()
+    val p = Promise[Boolean]()
+    system.spawn(Proto[ReactorPreemptedReactor](p))
+    p.future.onComplete(_ => system.shutdown())
+    p.future.map(t => assert(t))
   }
 
   test("Reactor.self should be correctly set") {
     val system = ReactorSystem.default("test")
-    try {
-      val p = Promise[Boolean]()
-      system.spawn(Proto[SelfReactor](p))
-      assert(Await.result(p.future, 10.seconds))
-    } finally system.shutdown()
+    val p = Promise[Boolean]()
+    system.spawn(Proto[SelfReactor](p))
+    p.future.onComplete(_ => system.shutdown())
+    p.future.map(t => assert(t))
   }
 
   test("after termination and before ReactorTerminated reactor name must be released") {
     val system = ReactorSystem.default("test")
-    try {
-      val p = Promise[Boolean]()
-      system.spawn(Proto[TerminatedReactor](p).withName("ephemo"))
-      assert(Await.result(p.future, 10.seconds))
-      Thread.sleep(1200)
-      assert(system.frames.forName("ephemo") == null)
-    } finally system.shutdown()
+    val done = Promise[Boolean]()
+    val p = Promise[Boolean]()
+    system.spawn(Proto[TerminatedReactor](p).withName("ephemo"))
+    p.future.onComplete {
+      case Success(true) =>
+        afterTime(1200.millis) {
+          assert(system.frames.forName("ephemo") == null)
+          done.success(true)
+        }
+    }
+    done.future.onComplete(_ => system.shutdown())
+    done.future.map(t => assert(t))
   }
 
   test("after the reactor starts, its channel should be looked up") {
     val system = ReactorSystem.default("test")
-    try {
-      val started = Promise[Boolean]()
-      val ended = Promise[Boolean]()
-      val channel = system.spawn(Proto[LookupChannelReactor](started, ended)
-        .withName("pi"))
-      assert(Await.result(started.future, 10.seconds))
-      system.channels.get[String]("pi#terminator") match {
-        case Some(ch) => ch ! "end"
-        case None => sys.error("channel not found")
-      }
-      assert(Await.result(ended.future, 10.seconds))
-    } finally system.shutdown()
+    val done = Promise[Boolean]()
+    val started = Promise[Boolean]()
+    val ended = Promise[Boolean]()
+    val channel = system.spawn(Proto[LookupChannelReactor](started, ended)
+      .withName("pi"))
+    started.future.onComplete {
+      case Success(true) =>
+        system.channels.get[String]("pi#terminator") match {
+          case Some(ch) => ch ! "end"
+          case None => sys.error("channel not found")
+        }
+        ended.future.onComplete {
+          case Success(true) => done.success(true)
+        }
+    }
+    done.future.onComplete(_ => system.shutdown())
+    done.future.map(t => assert(t))
   }
 
   test("channel resolution reactor should look up channels when asked") {
     val system = ReactorSystem.default("test")
-    try {
-      val p = Promise[Boolean]
-      system.spawn(Proto[ChannelsAskReactor](p).withName("chaki"))
-      assert(Await.result(p.future, 10.seconds))
-    } finally system.shutdown()
+    val p = Promise[Boolean]
+    system.spawn(Proto[ChannelsAskReactor](p).withName("chaki"))
+    p.future.onComplete(_ => system.shutdown())
+    p.future.map(t => assert(t))
   }
 
   test("channel await reactor should await channels when asked") {
     val system = ReactorSystem.default("test")
-    try {
-      val p = Promise[String]
-      val awaitee = Reactor[String] { self =>
-        self.main.events.onEvent { x =>
-          p.success(x)
-          self.main.seal()
-        }
+    val p = Promise[String]
+    val awaitee = Reactor[String] { self =>
+      self.main.events.onEvent { x =>
+        p.success(x)
+        self.main.seal()
       }
-      system.spawn(awaitee.withName("awaitee"))
-      system.spawn(Reactor[String] { self =>
-        val answer = system.channels.daemon.open[Channel[_]]
-        system.names.await ! (("awaitee#main", answer.channel))
-        answer.events onMatch {
-          case (ch: Channel[String] @unchecked) =>
-            ch ! "done"
-            self.main.seal()
-        }
-      })
-      assert(Await.result(p.future, 10.seconds) == "done")
-    } finally system.shutdown()
+    }
+    system.spawn(awaitee.withName("awaitee"))
+    system.spawn(Reactor[String] { self =>
+      val answer = system.channels.daemon.open[Channel[_]]
+      system.names.await ! (("awaitee#main", answer.channel))
+      answer.events onMatch {
+        case (ch: Channel[String] @unchecked) =>
+          ch ! "done"
+          self.main.seal()
+      }
+    })
+    p.future.onComplete(_ => system.shutdown())
+    p.future.map(t => assert(t == "done"))
   }
 
   test("channel await reactor should await a channel that appears later") {
     val system = ReactorSystem.default("test")
-    try {
-      val p = Promise[String]
-      val ch = system.spawn(Reactor[String] { self =>
-        val answer = system.channels.daemon.open[Channel[_]]
-        system.names.await ! (("awaitee#main", answer.channel))
-        answer.events onMatch {
-          case (ch: Channel[String] @unchecked) =>
-            ch ! "gotem"
+    val done = Promise[Boolean]
+    val p = Promise[String]
+    val ch = system.spawn(Reactor[String] { self =>
+      val answer = system.channels.daemon.open[Channel[_]]
+      system.names.await ! (("awaitee#main", answer.channel))
+      answer.events onMatch {
+        case (ch: Channel[String] @unchecked) =>
+          ch ! "gotem"
+          self.main.seal()
+      }
+      system.clock.timeout(1.second) on {
+        val proto = Reactor[String] { self =>
+          self.main.events.onEvent { x =>
+            p.success(x)
             self.main.seal()
-        }
-        system.clock.timeout(1.second) on {
-          val proto = Reactor[String] { self =>
-            self.main.events.onEvent { x =>
-              p.success(x)
-              self.main.seal()
-            }
           }
-          system.spawn(proto.withName("awaitee"))
         }
-      })
-      assert(Await.result(p.future, 10.seconds) == "gotem")
-      Thread.sleep(1000)
-      assert(system.channels.get("awaitee#main") == None)
-    } finally system.shutdown()
+        system.spawn(proto.withName("awaitee"))
+      }
+    })
+    p.future.onComplete {
+      case Success("gotem") =>
+        afterTime(1000.millis) {
+          assert(system.channels.get("awaitee#main") == None)
+          done.success(true)
+        }
+    }
+    done.future.onComplete(_ => system.shutdown())
+    done.future.map(t => assert(t))
   }
 }

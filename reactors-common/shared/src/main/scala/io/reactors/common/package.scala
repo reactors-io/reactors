@@ -2,8 +2,11 @@ package io.reactors
 
 
 
+import java.util.Timer
+import java.util.TimerTask
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
+import scala.concurrent.duration._
 import scala.reflect.ClassTag
 import scala.runtime.ObjectRef
 
@@ -28,6 +31,17 @@ package object common {
     if (!(counterMap.containsKey(cls))) counterMap.putIfAbsent(cls, new AtomicLong)
     val counter = counterMap.get(cls)
     counter.incrementAndGet()
+  }
+
+  private lazy val timer = new Timer(true)
+
+  def afterTime[U](t: Duration)(body: =>U): Unit = {
+    val task = new TimerTask {
+      def run(): Unit = {
+        body
+      }
+    }
+    timer.schedule(task, t.toMillis)
   }
 
   def invalid(msg: String) = throw new IllegalStateException(msg)
