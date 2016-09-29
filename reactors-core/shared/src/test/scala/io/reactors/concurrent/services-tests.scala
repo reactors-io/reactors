@@ -7,6 +7,8 @@ import io.reactors.test._
 import java.io.InputStream
 import java.net.URL
 import java.util.concurrent.atomic.AtomicLong
+import java.util.Timer
+import java.util.TimerTask
 import org.scalacheck._
 import org.scalacheck.Prop.forAllNoShrink
 import org.scalacheck.Gen.choose
@@ -92,14 +94,18 @@ class CountdownReactor(val total: Promise[Seq[Int]]) extends Reactor[Unit] {
 }
 
 
-class CustomServiceTest extends FunSuite with Matchers with BeforeAndAfterAll {
+class CustomServiceTest extends AsyncFunSuite
+with Matchers with BeforeAndAfterAll with AsyncTimeLimitedTests {
   val system = ReactorSystem.default("TestSystem")
+
+  def timeLimit = 10.seconds
 
   test("custom service should be retrieved") {
     val done = Promise[Boolean]()
     system.spawn(Proto[CustomServiceReactor](done))
-    Await.ready(done.future, 10.seconds)
-    assert(done.future.value.get.get, s"Status: ${done.future.value}")
+    done.future.map { t =>
+      assert(t, s"Status: ${done.future.value}")
+    }
   }
 
   override def afterAll() {
@@ -126,8 +132,11 @@ class CustomServiceReactor(val done: Promise[Boolean]) extends Reactor[Unit] {
 }
 
 
-class ChannelsTest extends FunSuite with Matchers with BeforeAndAfterAll {
+class ChannelsTest extends AsyncFunSuite
+with Matchers with BeforeAndAfterAll with AsyncTimeLimitedTests {
   val system = ReactorSystem.default("TestSystem")
+
+  def timeLimit = 10.seconds
 
   test("existing channel should be awaited") {
     val done = Promise[Boolean]()
@@ -143,7 +152,7 @@ class ChannelsTest extends FunSuite with Matchers with BeforeAndAfterAll {
         self.main.seal()
       }
     } withName("test-reactor"))
-    assert(Await.result(done.future, 10.seconds))
+    done.future.map(t => assert(t))
   }
 
   test("non-existing channel should be awaited") {
@@ -154,15 +163,19 @@ class ChannelsTest extends FunSuite with Matchers with BeforeAndAfterAll {
         self.main.seal()
       }
     })
-    Thread.sleep(1000)
-    system.spawn(Reactor[String] { self =>
-      self.main.events onMatch {
-        case "done" =>
-          done.success(true)
-          self.main.seal()
+    val timer = new Timer(true)
+    timer.schedule(new TimerTask {
+      def run() = {
+        system.spawn(Reactor[String] { self =>
+          self.main.events onMatch {
+            case "done" =>
+              done.success(true)
+              self.main.seal()
+          }
+        } withName("test-reactor"))
       }
-    } withName("test-reactor"))
-    assert(Await.result(done.future, 10.seconds))
+    }, 1000)
+    done.future.map(t => assert(t))
   }
 
   override def afterAll() {
