@@ -37,7 +37,6 @@ with Matchers with BeforeAndAfterAll with AsyncTimeLimitedTests {
   test("timeout should fire exactly once") {
     val timeoutCount = Promise[Int]()
     system.spawn(Proto[TimeoutReactor](timeoutCount))
-    Await.ready(timeoutCount.future, 10.seconds)
     timeoutCount.future.map { x =>
       assert(x == 1, s"Total timeouts: ${timeoutCount.future.value}")
     }
