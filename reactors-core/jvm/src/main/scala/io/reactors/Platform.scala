@@ -190,8 +190,9 @@ object Platform {
       ctor.newInstance(params.asInstanceOf[Seq[AnyRef]]: _*)
     }
 
-    def clazz[T](name: String): Class[T] = {
-      Class.forName(name).asInstanceOf[Class[T]]
+    def instantiate[T](name: String, params: Seq[Any]): T = {
+      val clazz = Class.forName(name).asInstanceOf[Class[T]]
+      instantiate(clazz, params)
     }
 
     private def matchingConstructor[T](

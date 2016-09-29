@@ -16,9 +16,8 @@ class Remote(val system: ReactorSystem) extends Protocol.Service {
   private val transports = mutable.Map[String, Remote.Transport]()
 
   for ((tp, t) <- system.bundle.urlMap) {
-    val transportCtor =
-      Platform.Reflect.clazz(t.transportName).getConstructor(classOf[ReactorSystem])
-    val transport = transportCtor.newInstance(system).asInstanceOf[Remote.Transport]
+    val transport = Platform.Reflect.instantiate(t.transportName, Seq(system))
+      .asInstanceOf[Remote.Transport]
     transports(t.url.schema) = transport
   }
 

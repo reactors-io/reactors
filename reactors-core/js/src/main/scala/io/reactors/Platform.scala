@@ -137,13 +137,15 @@ object Platform {
 
   private[reactors] object Reflect {
     def instantiate[T](clazz: Class[T], args: Seq[Any]): T = {
-      val ctor = (js.Dynamic.global /: clazz.getName.split("\\.")) {
+      instantiate(clazz.getName, args)
+    }
+
+    def instantiate[T](className: String, args: Seq[Any]): T = {
+      val ctor = (js.Dynamic.global /: className.split("\\.")) {
         (prev, part) => prev.selectDynamic(part)
       }
       js.Dynamic.newInstance(ctor)(args.asInstanceOf[Seq[js.Any]]: _*).asInstanceOf[T]
     }
-
-    def clazz[T](name: String): Class[T] = ???
   }
 
   @scala.scalajs.js.annotation.JSExportDescendentClasses(true)
