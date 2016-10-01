@@ -110,7 +110,7 @@ trait Signal[@spec(Int, Long, Double) T] extends Events[T] with Subscription {
 
   /** Synchronizes events on two signals, and returns another signal.
    *
-   *  '''Note:''' this is the same as `sync`, but it works on signals, and returns a
+   *  '''Note:''' this is the same as `sync`, but it works on signals, and returns
    *  a signal.
    *
    *  @tparam S         the type of the events in `that` signal
@@ -468,7 +468,10 @@ object Signal {
     val self: Signal[T],
     val subscription: Subscription
   ) extends Signal[T] {
-    def onReaction(obs: Observer[T]) = self.onReaction(obs)
+    def onReaction(obs: Observer[T]) = new Subscription.Composite(
+      self.onReaction(obs),
+      subscription
+    )
     def apply() = self.apply()
     def isEmpty = self.isEmpty
     def unsubscribe() {

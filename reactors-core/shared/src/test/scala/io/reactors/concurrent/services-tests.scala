@@ -60,8 +60,7 @@ with Matchers with BeforeAndAfterAll {
 
 class PeriodReactor(val done: Promise[Boolean]) extends Reactor[Unit] {
   var countdown = 3
-  val clock: Signal[Long] = system.clock.periodic(50.millis)
-  clock on {
+  val clock: Subscription = system.clock.periodic(50.millis) on {
     countdown -= 1
     if (countdown <= 0) {
       main.seal()
