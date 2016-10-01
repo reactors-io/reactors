@@ -101,7 +101,9 @@ with Matchers with BeforeAndAfterAll with AsyncTimeLimitedTests {
 
   test("custom service should be retrieved") {
     val done = Promise[Boolean]()
+    println("so far so good")
     system.spawn(Proto[CustomServiceReactor](done))
+    println("spawning done")
     done.future.map { t =>
       assert(t, s"Status: ${done.future.value}")
     }

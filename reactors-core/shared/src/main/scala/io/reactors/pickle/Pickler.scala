@@ -10,7 +10,7 @@ import java.nio.ByteBuffer
 
 /** Pickles an object into a byte buffer, so that it can be sent over the wire.
  */
-trait Pickler {
+trait Pickler extends Platform.Reflectable {
   /** Pickles an object into the specified `ByteBuffer`.
    *
    *  @tparam T        type of the pickled object

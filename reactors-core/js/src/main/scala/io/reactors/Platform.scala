@@ -137,10 +137,12 @@ object Platform {
 
   private[reactors] object Reflect {
     def instantiate[T](clazz: Class[T], args: Seq[Any]): T = {
+      println(clazz)
       instantiate(clazz.getName, args)
     }
 
     def instantiate[T](className: String, args: Seq[Any]): T = {
+      println(className)
       val ctor = (js.Dynamic.global /: className.split("\\.")) {
         (prev, part) => prev.selectDynamic(part)
       }
@@ -149,7 +151,7 @@ object Platform {
   }
 
   @scala.scalajs.js.annotation.JSExportDescendentClasses(true)
-  class Reflectable {
+  trait Reflectable {
   }
 
   private[reactors] class SnapshotMap[K, V] extends mutable.HashMap[K, V] {

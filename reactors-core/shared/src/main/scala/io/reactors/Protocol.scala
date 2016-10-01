@@ -15,7 +15,7 @@ trait Protocol {
 
 object Protocol {
   /** A protocol that can be shut down. */
-  trait Service extends Protocol {
+  trait Service extends Protocol with Platform.Reflectable {
     def shutdown(): Unit
   }
 }
