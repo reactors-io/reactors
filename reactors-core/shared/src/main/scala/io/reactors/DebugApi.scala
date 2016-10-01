@@ -8,7 +8,7 @@ import io.reactors.concurrent.Frame
 
 /** Debugger interface for the reactor system.
  */
-abstract class DebugApi {
+abstract class DebugApi extends Platform.Reflectable {
   /** Returns `true` iff debugging is currently enabled.
    */
   def isEnabled: Boolean
@@ -60,42 +60,4 @@ abstract class DebugApi {
 
 
 object DebugApi {
-  /** A debugger API implementation that ignores all debugger actions.
-   */
-  class Zero(val system: ReactorSystem) extends DebugApi {
-    def isEnabled = false
-
-    def eventSent[@spec(Int, Long, Double) T](c: Channel[T], x: T) {
-    }
-
-    def eventDelivered[@spec(Int, Long, Double) T](c: Channel[T], x: T) {
-    }
-
-    def reactorStarted(f: Frame) {
-    }
-
-    def reactorScheduled(r: Reactor[_]) {
-    }
-
-    def reactorPreempted(r: Reactor[_]) {
-    }
-
-    def reactorDied(r: Reactor[_]) {
-    }
-
-    def reactorTerminated(r: Reactor[_]) {
-    }
-
-    def connectorOpened[T](c: Connector[T]) {
-    }
-
-    def connectorSealed[T](c: Connector[T]) {
-    }
-
-    def log(x: Any){
-    }
-
-    def shutdown() {
-    }
-  }
 }

@@ -112,7 +112,7 @@ class ReactorSystem(
     try {
       // 3. Allocate the standard connectors.
       frame.name = uname
-      frame.url = ReactorUrl(bundle.urlMap(proto.transport).url, uname)
+      frame.url = ReactorUrl(bundle.urlMap(proto.transportOrDefault(this)).url, uname)
 
       // 4. Prepare for the first execution.
       scheduler.initSchedule(frame)

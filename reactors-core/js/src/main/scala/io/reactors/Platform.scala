@@ -86,9 +86,16 @@ object Platform {
   private[reactors] val defaultConfiguration = """
     pickler = "io.reactors.pickle.NoPickler"
     remote = {
+      dgram = {
+        schema = "reactor.dgram"
+        transport = "io.reactors.remote.NodeJSDatagramTransport"
+        host = "localhost"
+        port = 17771
+      }
     }
+    remote-default-schema = "reactor.dgram"
     debug-api = {
-      name = "io.reactors.DebugApi$Zero"
+      name = "io.reactors.debugger.ZeroDebugApi"
     }
     scheduler = {
       spindown = {
@@ -118,33 +125,17 @@ object Platform {
 
   private[reactors] lazy val defaultScheduler = JsScheduler.default
 
-  object Services {
-    /** Contains I/O-related services.
-     */
-    class Io(val system: ReactorSystem) extends Protocol.Service {
-      def shutdown() {}
-    }
-
-    /** Contains common network protocol services.
-     */
-    class Net(val system: ReactorSystem)
-    extends Protocol.Service {
-      def shutdown() {}
-    }
-  }
-
   private[reactors] def inetAddress(host: String, port: Int) = ???
 
   private[reactors] object Reflect {
     def instantiate[T](clazz: Class[T], args: Seq[Any]): T = {
-      println(clazz)
       instantiate(clazz.getName, args)
     }
 
     def instantiate[T](className: String, args: Seq[Any]): T = {
-      println(className)
       val ctor = (js.Dynamic.global /: className.split("\\.")) {
-        (prev, part) => prev.selectDynamic(part)
+        (prev, part) =>
+        prev.selectDynamic(part)
       }
       js.Dynamic.newInstance(ctor)(args.asInstanceOf[Seq[js.Any]]: _*).asInstanceOf[T]
     }

@@ -17,7 +17,7 @@ final class Proto[+I <: Reactor[_]] private[reactors] (
   val eventQueueFactory: EventQueue.Factory = null,
   val name: String = null,
   val channelName: String = "main",
-  val transport: String = "reactor.udp"
+  val transport: String = null
 ) {
 
   /** Instantiates and returns the reactor.
@@ -58,6 +58,12 @@ final class Proto[+I <: Reactor[_]] private[reactors] (
    */
   def withTransport(tname: String): Proto[I] =
     new Proto(clazz, params, scheduler, eventQueueFactory, name, channelName, tname)
+
+  private[reactors] def transportOrDefault(system: ReactorSystem): String = {
+    if (transport != null) transport else {
+      system.bundle.config.string("remote-default-schema")
+    }
+  }
 
 }
 

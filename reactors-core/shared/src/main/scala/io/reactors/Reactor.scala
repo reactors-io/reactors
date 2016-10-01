@@ -2,7 +2,6 @@ package io.reactors
 
 
 
-import scala.annotation.tailrec
 import scala.collection._
 import scala.util.DynamicVariable
 import io.reactors.concurrent._

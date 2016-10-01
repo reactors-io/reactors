@@ -97,13 +97,14 @@ class CustomServiceTest extends AsyncFunSuite
 with Matchers with BeforeAndAfterAll with AsyncTimeLimitedTests {
   val system = ReactorSystem.default("TestSystem")
 
+  implicit override def executionContext =
+    scala.concurrent.ExecutionContext.Implicits.global
+
   def timeLimit = 10.seconds
 
   test("custom service should be retrieved") {
     val done = Promise[Boolean]()
-    println("so far so good")
     system.spawn(Proto[CustomServiceReactor](done))
-    println("spawning done")
     done.future.map { t =>
       assert(t, s"Status: ${done.future.value}")
     }
