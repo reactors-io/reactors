@@ -3,6 +3,7 @@ package concurrent
 
 
 
+import io.reactors.services.Net
 import io.reactors.test._
 import java.io.InputStream
 import java.net.URL
@@ -50,7 +51,7 @@ class NetTest extends FunSuite with Matchers with BeforeAndAfterAll {
 
 class ResourceStringReactor(val res: Promise[String], val resolver: URL => InputStream)
 extends Reactor[Unit] {
-  val net = new Platform.Services.Net(system, resolver)
+  val net = new Net(system, resolver)
   val response = net.resourceAsString("http://dummy.url/resource.txt")
   response.ignoreExceptions onEvent { s =>
     res success s

@@ -4,7 +4,6 @@ package concurrent
 
 
 import io.reactors.services._
-import java.text.SimpleDateFormat
 import java.util.Date
 import scala.collection._
 import scala.concurrent.duration._

@@ -3,11 +3,7 @@ package io.reactors
 
 
 import com.typesafe.config._
-import java.io._
 import java.net.InetSocketAddress
-import java.net.URL
-import java.nio.charset.Charset
-import java.util.concurrent.ForkJoinPool
 import java.lang.reflect._
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap

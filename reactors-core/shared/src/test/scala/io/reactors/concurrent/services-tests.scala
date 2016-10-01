@@ -22,11 +22,11 @@ import scala.util.Failure
 
 
 class ClockTest extends AsyncFunSuite
-with Matchers with BeforeAndAfterAll with AsyncTimeLimitedTests {
+with Matchers with BeforeAndAfterAll {
 
   val system = ReactorSystem.default("TestSystem")
 
-  def timeLimit = 10 seconds
+  implicit override def executionContext = ExecutionContext.Implicits.global
 
   test("periodic timer should fire 3 times") {
     val done = Promise[Boolean]()
@@ -60,10 +60,12 @@ with Matchers with BeforeAndAfterAll with AsyncTimeLimitedTests {
 
 class PeriodReactor(val done: Promise[Boolean]) extends Reactor[Unit] {
   var countdown = 3
-  system.clock.periodic(50.millis) on {
+  val clock: Signal[Long] = system.clock.periodic(50.millis)
+  clock on {
     countdown -= 1
     if (countdown <= 0) {
       main.seal()
+      clock.unsubscribe()
       done.trySuccess(true)
     }
   }
@@ -97,8 +99,7 @@ class CustomServiceTest extends AsyncFunSuite
 with Matchers with BeforeAndAfterAll with AsyncTimeLimitedTests {
   val system = ReactorSystem.default("TestSystem")
 
-  implicit override def executionContext =
-    scala.concurrent.ExecutionContext.Implicits.global
+  implicit override def executionContext = ExecutionContext.Implicits.global
 
   def timeLimit = 10.seconds
 

@@ -3,7 +3,7 @@ package io.reactors
 
 
 import io.reactors.concurrent.Frame
-import scala.scalajs.concurrent.JSExecutionContext
+import scala.concurrent.ExecutionContext
 
 
 
@@ -11,8 +11,7 @@ object JsScheduler {
   class GlobalQueue extends Scheduler {
     def schedule(frame: Frame): Unit = {
       val r = frame.schedulerState.asInstanceOf[Runnable]
-      JSExecutionContext.queue.execute(r)
-    }
+      ExecutionContext.Implicits.global.execute(r)    }
 
     override def newState(frame: Frame): Scheduler.State = {
       new Scheduler.State.Default with Runnable {
