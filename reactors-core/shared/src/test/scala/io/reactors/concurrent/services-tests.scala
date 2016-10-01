@@ -140,6 +140,8 @@ with Matchers with BeforeAndAfterAll with AsyncTimeLimitedTests {
 
   def timeLimit = 10.seconds
 
+  implicit override def executionContext = ExecutionContext.Implicits.global
+
   test("existing channel should be awaited") {
     val done = Promise[Boolean]()
     system.spawn(Reactor[Unit] { self =>
