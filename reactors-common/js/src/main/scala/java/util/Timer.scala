@@ -74,7 +74,7 @@ class Timer(val name: String, val isDaemon: Boolean) {
           task.doRun()
           left -= period
         }
-        setTimeout((period + left).millis) {
+        setTimeout((period - left).millis) {
           loop(nowTime)
         }
       }
