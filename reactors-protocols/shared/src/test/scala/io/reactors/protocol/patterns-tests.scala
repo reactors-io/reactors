@@ -3,20 +3,25 @@ package protocol
 
 
 
+import io.reactors.common.afterTime
 import io.reactors.test._
-import org.scalacheck._
-import org.scalacheck.Prop.forAllNoShrink
-import org.scalacheck.Gen.choose
 import org.scalatest._
+import org.scalatest.concurrent.AsyncTimeLimitedTests
 import scala.collection._
-import scala.concurrent.Await
+import scala.concurrent.Future
 import scala.concurrent.Promise
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
 
 
-class PatternsSpec extends FunSuite {
+class PatternsSpec
+extends AsyncFunSuite with AsyncTimeLimitedTests {
   val system = ReactorSystem.default("server-protocols")
+
+  def timeLimit = 10.seconds
+
+  implicit override def executionContext = ExecutionContext.Implicits.global
 
   test("throttle") {
     val a0 = Promise[Int]()
@@ -37,18 +42,26 @@ class PatternsSpec extends FunSuite {
     ch ! 7
     ch ! 11
     ch ! 17
-    Thread.sleep(400)
-    assert(a2.future.value.get.get == 7)
-    assert(a1.future.value == None)
-    assert(a0.future.value == None)
-    Thread.sleep(1000)
-    assert(a1.future.value.get.get == 11)
-    assert(a0.future.value == None)
-    Thread.sleep(1000)
-    assert(a0.future.value.get.get == 17)
+    val done = Promise[Boolean]()
+    afterTime(400.millis) {
+      assert(a2.future.value.get.get == 7)
+      assert(a1.future.value == None)
+      assert(a0.future.value == None)
+      afterTime(1000.millis) {
+        assert(a1.future.value.get.get == 11)
+        assert(a0.future.value == None)
+        afterTime(1000.millis) {
+          assert(a0.future.value.get.get == 17)
+          done.success(true)
+        }
+      }
+    }
+    done.future.map(t => assert(t))
   }
 
-  def retryTest(delays: Seq[Duration])(check: Seq[Duration] => Unit) {
+  def retryTest(delays: Seq[Duration])(
+    check: Seq[Duration] => Unit
+  ): Future[Assertion] = {
     val done = Promise[Boolean]()
     val seen = Promise[Seq[Duration]]()
     val start = System.currentTimeMillis()
@@ -71,9 +84,14 @@ class PatternsSpec extends FunSuite {
         done.success(true)
       }
     })
-    assert(Await.result(done.future, 10.seconds) == true)
-    val timestamps = seen.future.value.get.get
-    check(timestamps)
+    for {
+      t <- done.future
+      timestamps <- seen.future
+    } yield {
+      assert(t)
+      check(timestamps)
+      assert(true)
+    }
   }
 
   test("retry regular") {
@@ -111,40 +129,6 @@ class PatternsSpec extends FunSuite {
       } else {
         assert(false, timestamps)
       }
-    }
-  }
-}
-
-
-class PatternsCheck extends Properties("Patterns") with ExtendedProperties {
-  val system = ReactorSystem.default("check-system")
-
-  val sizes = detChoose(0, 50)
-
-  property("throttle") = forAllNoShrink(sizes) {
-    num =>
-    stackTraced {
-      val buffer = mutable.Buffer[Int]()
-      val seen = Promise[Seq[Int]]()
-      val ch = system.spawn(Reactor[Int] { self =>
-        if (num == 0) seen.success(buffer)
-        self.main.events.throttle(_ => 1.millis) onEvent { i =>
-          buffer += i
-          if (i == num - 1) {
-            seen.success(buffer)
-            self.main.seal()
-          }
-        }
-      })
-      for (i <- 0 until num) ch ! i
-      try {
-        assert(Await.result(seen.future, 10.seconds) == (0 until num))
-      } catch {
-        case t: Throwable =>
-          println(num, buffer)
-          throw t
-      }
-      true
     }
   }
 }

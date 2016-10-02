@@ -4,19 +4,22 @@ package protocol
 
 
 import io.reactors.test._
-import org.scalacheck._
-import org.scalacheck.Prop.forAllNoShrink
-import org.scalacheck.Gen.choose
 import org.scalatest._
+import org.scalatest.concurrent.AsyncTimeLimitedTests
 import scala.collection._
 import scala.concurrent._
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits.global
 
 
 
-class ConversionsSpec extends FunSuite {
+class ConversionsSpec
+extends AsyncFunSuite with AsyncTimeLimitedTests {
   val system = ReactorSystem.default("conversions")
+
+  def timeLimit = 10.seconds
+
+  implicit override def executionContext = ExecutionContext.Implicits.global
 
   test("Traversable#toEvents") {
     val events = Seq(1, 2, 3, 4).toEvents
@@ -34,6 +37,6 @@ class ConversionsSpec extends FunSuite {
         self.main.seal()
       }
     })
-    assert(Await.result(done.future, 10.seconds))
+    done.future.map(t => assert(t))
   }
 }

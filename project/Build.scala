@@ -162,6 +162,8 @@ object ReactorsBuild extends MechaRepoBuild {
           baseDirectory.value.getParentFile / "shared" / "src" / "test" / "scala"
       ): _*
     )
+    .configs(Benchmark)
+    .settings(inConfig(Benchmark)(Defaults.testSettings): _*)
     .jvmSettings(
       (test in Test) <<= (test in Test).dependsOn(test in (reactorsCommon.jvm, Test)),
       publish <<= publish.dependsOn(publish in reactorsCommon.jvm),
@@ -201,6 +203,8 @@ object ReactorsBuild extends MechaRepoBuild {
           baseDirectory.value.getParentFile / "shared" / "src" / "test" / "scala"
       ): _*
     )
+    .configs(Benchmark)
+    .settings(inConfig(Benchmark)(Defaults.testSettings): _*)
     .jvmSettings(
       (test in Test) <<= (test in Test).dependsOn(test in (reactorsCore.jvm, Test)),
       publish <<= publish.dependsOn(publish in reactorsCore.jvm)
@@ -220,6 +224,43 @@ object ReactorsBuild extends MechaRepoBuild {
 
   lazy val reactorsContainerJs = reactorsContainer.js
 
+  lazy val reactorsProtocols = crossProject
+    .in(file("reactors-protocols"))
+    .settings(
+      projectSettings("-protocols") ++ Seq(
+        libraryDependencies ++= Seq(
+          "org.scalatest" %%% "scalatest" % "3.0.0" % "test",
+          "org.scalacheck" %%% "scalacheck" % "1.13.2" % "test"
+        ),
+        unmanagedSourceDirectories in Compile +=
+          baseDirectory.value.getParentFile / "shared" / "src" / "main" / "scala",
+        unmanagedSourceDirectories in Test +=
+          baseDirectory.value.getParentFile / "shared" / "src" / "test" / "scala"
+      ): _*
+    )
+    .configs(Benchmark)
+    .settings(inConfig(Benchmark)(Defaults.testSettings): _*)
+    .jvmSettings(
+      (test in Test) <<= (test in Test).dependsOn(test in (reactorsCore.jvm, Test)),
+      publish <<= publish.dependsOn(publish in reactorsCore.jvm)
+    )
+    .jvmConfigure(_.copy(id = "reactors-protocols-jvm").dependsOnSuperRepo)
+    .jsSettings(
+      (test in Test) <<= (test in Test).dependsOn(test in (reactorsCore.js, Test)),
+      publish <<= publish.dependsOn(publish in reactorsCore.js),
+      scalaJSUseRhino in Global := false
+    )
+    .jsConfigure(_.copy(id = "reactors-protocols-js").dependsOnSuperRepo)
+    .dependsOn(
+      reactorsCommon % "compile->compile;test->test",
+      reactorsCore % "compile->compile;test->test",
+      reactorsContainer % "compile->compile;test->test"
+    )
+
+  lazy val reactorsProtocolsJvm = reactorsProtocols.jvm
+
+  lazy val reactorsProtocolsJs = reactorsProtocols.js
+
   lazy val reactors: CrossProject = crossProject
     .in(file("reactors"))
     .settings(
@@ -229,16 +270,16 @@ object ReactorsBuild extends MechaRepoBuild {
       (test in Test) <<= (test in Test)
         .dependsOn(test in (reactorsCommon.jvm, Test))
         .dependsOn(test in (reactorsCore.jvm, Test))
-        .dependsOn(test in (reactorsContainer.jvm, Test)),
+        .dependsOn(test in (reactorsContainer.jvm, Test))
         // .dependsOn(test in (reactorsRemote, Test))
-        // .dependsOn(test in (reactorsProtocols, Test))
+        .dependsOn(test in (reactorsProtocols.jvm, Test)),
         // .dependsOn(test in (reactorsExtra, Test)),
       publish <<= publish
         .dependsOn(publish in reactorsCommon.jvm)
         .dependsOn(publish in reactorsCore.jvm)
-        .dependsOn(publish in reactorsContainer.jvm),
+        .dependsOn(publish in reactorsContainer.jvm)
         // .dependsOn(publish in reactorsRemote)
-        // .dependsOn(publish in reactorsProtocols)
+        .dependsOn(publish in reactorsProtocols.jvm),
         // .dependsOn(publish in reactorsExtra),
       libraryDependencies ++= Seq(
         "com.novocode" % "junit-interface" % "0.11" % "test",
@@ -254,18 +295,18 @@ object ReactorsBuild extends MechaRepoBuild {
     .aggregate(
       reactorsCommon,
       reactorsCore,
-      reactorsContainer
+      reactorsContainer,
       // reactorsRemote,
-      // reactorsProtocols,
+      reactorsProtocols
       // reactorsDebugger,
       // reactorsExtra
     )
     .dependsOn(
       reactorsCommon % "compile->compile;test->test",
       reactorsCore % "compile->compile;test->test",
-      reactorsContainer % "compile->compile;test->test"
+      reactorsContainer % "compile->compile;test->test",
       // reactorsRemote % "compile->compile;test->test",
-      // reactorsProtocols % "compile->compile;test->test",
+      reactorsProtocols % "compile->compile;test->test"
       // reactorsDebugger % "compile->compile;test->test",
       // reactorsExtra % "compile->compile;test->test"
     )
@@ -323,23 +364,6 @@ object ReactorsBuild extends MechaRepoBuild {
   //   }
   //   defaultDependencies(scalaVersion) ++ extraDeps
   // }
-
-  // def reactorsScalaJSSettings = {
-  //   projectSettings("-scalajs", scalaJSDependencies, Seq()) ++ Seq(
-  //     fork in Test := false,
-  //     fork in run := false,
-  //     unmanagedSourceDirectories in Compile +=
-  //       baseDirectory.value / ".." / "reactors-common" / "src" / "main" / "scala",
-  //     unmanagedSourceDirectories in Compile +=
-  //       baseDirectory.value / ".." / "reactors-core" / "src" / "main" / "scala",
-  //     unmanagedSourceDirectories in Compile +=
-  //       baseDirectory.value / ".." / "reactors-core" / "src" / "platform-js" / "scala"
-  //   )
-  // }
-
-  // def scalaJSDependencies(scalaVersion: String): Seq[ModuleID] = Seq(
-  //   "org.scala-js" %%% "scala-parser-combinators" % "1.0.2"
-  // )
 
   // def commonDependencies(scalaVersion: String) = defaultDependencies(scalaVersion)
 
