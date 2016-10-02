@@ -129,7 +129,7 @@ final class Frame(
       pendingQueues.enqueue(conn)
 
       // 4. Schedule the frame for later execution.
-      if (!active) {
+      if (!active && lifecycleState != Frame.Terminated) {
         active = true
         mustSchedule = true
       }
