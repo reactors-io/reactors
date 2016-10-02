@@ -69,6 +69,9 @@ object Platform {
         window-size = 1024
       }
     }
+    error-handler = {
+      name = "io.reactors.DefaultErrorHandler"
+    }
     scheduler = {
       spindown = {
         initial = 10
@@ -81,7 +84,7 @@ object Platform {
       }
       default = {
         budget = 50
-        unschedule-count = 50
+        postschedule-count = 50
       }
     }
     system = {

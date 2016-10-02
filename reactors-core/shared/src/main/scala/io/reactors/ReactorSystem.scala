@@ -33,9 +33,18 @@ class ReactorSystem(
    */
   private[reactors] val monitor = new Monitor
 
+  /** Debugging API.
+   */
   private[reactors] val debugApi: DebugApi = {
     Platform.Reflect.instantiate(bundle.config.string("debug-api.name"), Seq(this))
       .asInstanceOf[DebugApi]
+  }
+
+  /** Error handler used to report uncaught exceptions.
+   */
+  private[reactors] val errorHandler: ErrorHandler = {
+    Platform.Reflect.instantiate(bundle.config.string("error-handler.name"), Seq())
+      .asInstanceOf[ErrorHandler]
   }
 
   /** Contains the frames for different reactors.
@@ -199,7 +208,7 @@ object ReactorSystem {
      */
     object schedulerConfig {
       val defaultBudget = config.int("scheduler.default.budget")
-      val unscheduleCount = config.int("scheduler.default.unschedule-count")
+      val postscheduleCount = config.int("scheduler.default.postschedule-count")
       val spindownInitial = config.int("scheduler.spindown.initial")
       val spindownMax = config.int("scheduler.spindown.max")
       val spindownMin = config.int("scheduler.spindown.min")

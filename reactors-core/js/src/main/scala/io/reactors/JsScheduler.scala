@@ -11,11 +11,19 @@ object JsScheduler {
   class GlobalQueue extends Scheduler {
     def schedule(frame: Frame): Unit = {
       val r = frame.schedulerState.asInstanceOf[Runnable]
-      ExecutionContext.Implicits.global.execute(r)    }
+      ExecutionContext.Implicits.global.execute(r)
+    }
 
     override def newState(frame: Frame): Scheduler.State = {
       new Scheduler.State.Default with Runnable {
-        def run() = frame.executeBatch()
+        def run() = {
+          try frame.executeBatch()
+          catch {
+            case t: Throwable =>
+              println(t)
+              frame.reactorSystem.errorHandler(t)
+          }
+        }
       }
     }
   }

@@ -58,7 +58,7 @@ trait Scheduler {
    *  This method by default does nothing, but may be overridden for performance
    *  purposes.
    */
-  def unschedule(system: ReactorSystem, t: Throwable): Unit = {}
+  def postschedule(system: ReactorSystem, t: Throwable): Unit = {}
 
   /** Creates an `State` object for the reactor frame.
    *
@@ -108,19 +108,4 @@ object Scheduler {
       }
     }
   }
-
-  type Handler = PartialFunction[Throwable, Unit]
-
-  /** The default handler prints the exception to the standard error stream.
-   */
-  val defaultHandler: Handler = {
-    case t: Throwable => t.printStackTrace()
-  }
-
-  /** Silent handler ignores exceptions.
-   */
-  val silentHandler: Handler = {
-    case t: Throwable => // do nothing
-  }
-
 }

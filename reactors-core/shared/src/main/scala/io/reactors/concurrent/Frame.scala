@@ -181,7 +181,7 @@ final class Frame(
       if (mustSchedule) scheduler.schedule(this)
 
       // 3. Piggyback the worker thread to do some useful work.
-      scheduler.unschedule(reactorSystem, throwable)
+      scheduler.postschedule(reactorSystem, throwable)
       if (throwable != null) throw throwable
     }
   }

@@ -125,7 +125,7 @@ object JvmScheduler {
       if (state != UNSCHEDULING) state = AWAKE
     }
 
-    def unschedule(system: ReactorSystem, t: Throwable) {
+    def postschedule(system: ReactorSystem, t: Throwable) {
       if (state == UNSCHEDULING) return
       if (t != null) {
         state = ASLEEP
@@ -138,7 +138,7 @@ object JvmScheduler {
       try {
         getPool match {
           case fj: ReactorForkJoinPool =>
-            var loopsLeft = system.bundle.schedulerConfig.unscheduleCount
+            var loopsLeft = system.bundle.schedulerConfig.postscheduleCount
             while (loopsLeft > 0) {
               var executedSomething = pollPool(fj)
               executedSomething ||= executeNow(popMiniQueue())
@@ -163,19 +163,13 @@ object JvmScheduler {
     val UNSCHEDULING = new AnyRef {}
   }
 
-  private[reactors] class ReactorForkJoinPool(
-    val handler: Scheduler.Handler = Scheduler.defaultHandler
-  ) extends ForkJoinPool(
+  private[reactors] class ReactorForkJoinPool extends ForkJoinPool(
     Runtime.getRuntime.availableProcessors,
     new ForkJoinPool.ForkJoinWorkerThreadFactory {
       def newThread(pool: ForkJoinPool) =
         new ReactorForkJoinWorkerThread(pool.asInstanceOf[ReactorForkJoinPool])
     },
-    new Thread.UncaughtExceptionHandler {
-      def uncaughtException(thread: Thread, throwable: Throwable) {
-        if (handler.isDefinedAt(throwable)) handler(throwable)
-      }
-    },
+    null,
     false
   ) {
     private[reactors] val reanimator =
@@ -219,9 +213,9 @@ object JvmScheduler {
    *  - If `schedule` is called from a `ForkJoinWorkerThread` that belongs to the
    *    `ForkJoinPool` that is the `executor`, then a more lightweight mechanism is
    *    used to schedule the task.
-   *  - When a frame completes execution, it calls `unschedule`. This will attempt to
+   *  - When a frame completes execution, it calls `postschedule`. This will attempt to
    *    remove submitted tasks from the `ForkJoinPool` a certain of times and execute
-   *    them directly. The `scheduler.default.unschedule-count` bundle configuration
+   *    them directly. The `scheduler.default.postschedule-count` bundle configuration
    *    key is the maximum number of attempts.  If removing is not successful,
    *    this immediately stops.
    *  - Each `ReactorForkJoinWorkerThread` has an associated mini-queue into which it
@@ -251,7 +245,10 @@ object JvmScheduler {
 
     override def newState(frame: Frame): Scheduler.State = {
       new Scheduler.State.Default with Runnable {
-        def run() = frame.executeBatch()
+        def run() = {
+          try frame.executeBatch()
+          catch frame.reactorSystem.errorHandler
+        }
       }
     }
 
@@ -264,10 +261,10 @@ object JvmScheduler {
       }
     }
 
-    override def unschedule(system: ReactorSystem, throwable: Throwable) {
+    override def postschedule(system: ReactorSystem, throwable: Throwable) {
       Thread.currentThread match {
         case t: ReactorForkJoinWorkerThread =>
-          t.unschedule(system, throwable)
+          t.postschedule(system, throwable)
         case _ =>
           return
       }
@@ -286,11 +283,12 @@ object JvmScheduler {
    */
   object Dedicated {
 
-    private[reactors] class Worker(val frame: Frame, val handler: Scheduler.Handler)
+    private[reactors] class Worker(val frame: Frame)
     extends Scheduler.State.Default {
       @volatile var thread: Thread = _
 
       @tailrec final def loop(): Unit = {
+        val handler = frame.reactorSystem.errorHandler
         try {
           frame.executeBatch()
           frame.monitor.synchronized {
@@ -323,16 +321,13 @@ object JvmScheduler {
      *  The thread is optionally a daemon thread.
      *
      *  @param isDaemon          Is the new thread a daemon.
-     *  @param handler           The error handler for fatal errors not passed to
-     *                           reactors.
      */
     class NewThread(
-      val isDaemon: Boolean,
-      val handler: Scheduler.Handler = Scheduler.defaultHandler
+      val isDaemon: Boolean
     ) extends Dedicated {
 
       override def newState(frame: Frame): Dedicated.Worker = {
-        val w = new Worker(frame, handler)
+        val w = new Worker(frame)
         w.thread = new WorkerThread(w)
         w
       }
@@ -357,14 +352,11 @@ object JvmScheduler {
      *  This scheduler is meant to be used to turn the application main thread
      *  into a reactor, i.e. to step from the normal multithreaded world into
      *  the reactor universe.
-     *
-     *  @param handler           The error handler for the fatal errors not passed to
-     *                           reactors.
      */
-    class Piggyback(val handler: Scheduler.Handler = Scheduler.defaultHandler)
+    class Piggyback
     extends Dedicated {
       override def newState(frame: Frame): Dedicated.Worker = {
-        val w = new Worker(frame, handler)
+        val w = new Worker(frame)
         w
       }
 
@@ -403,8 +395,7 @@ object JvmScheduler {
    */
   class Timer(
     private val period: Long,
-    val isDaemon: Boolean = true,
-    val handler: Scheduler.Handler = Scheduler.defaultHandler
+    val isDaemon: Boolean = true
   ) extends Scheduler {
     private var timer: java.util.Timer = null
     private val frames = mutable.Set[Frame]()
@@ -431,7 +422,7 @@ object JvmScheduler {
                   frame.executeBatch()
                   frame.activate(false)
                 }
-              } catch handler
+              } catch frame.reactorSystem.errorHandler
             }
           }
           timer.schedule(state.task, period, period)

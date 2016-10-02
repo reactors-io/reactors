@@ -97,6 +97,9 @@ object Platform {
     debug-api = {
       name = "io.reactors.debugger.ZeroDebugApi"
     }
+    error-handler = {
+      name = "io.reactors.DefaultErrorHandler"
+    }
     scheduler = {
       spindown = {
         initial = 0
@@ -109,7 +112,7 @@ object Platform {
       }
       default = {
         budget = 50
-        unschedule-count = 0
+        postschedule-count = 0
       }
     }
     system = {

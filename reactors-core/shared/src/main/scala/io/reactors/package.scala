@@ -209,4 +209,33 @@ package reactors {
     override def isReactorDied = true
     override def error = t
   }
+
+  trait ErrorHandler extends PartialFunction[Throwable, Unit]
+  with Platform.Reflectable
+
+  /** The default handler prints the exception to the standard error stream.
+   */
+  class DefaultErrorHandler extends ErrorHandler {
+    def isDefinedAt(t: Throwable): Boolean = t match {
+      case t: Throwable => true
+      case _ => false
+    }
+
+    def apply(t: Throwable): Unit = t match {
+      case t: Throwable => t.printStackTrace()
+    }
+  }
+
+  /** Silent handler ignores exceptions.
+   */
+  class SilentErrorHandler extends ErrorHandler {
+    def isDefinedAt(t: Throwable): Boolean = t match {
+      case t: Throwable => true
+      case _ => false
+    }
+
+    def apply(t: Throwable): Unit = t match {
+      case t: Throwable => // Do nothing.
+    }
+  }
 }

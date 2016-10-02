@@ -190,8 +190,10 @@ class ChannelsAskReactor(val p: Promise[Boolean]) extends Reactor[Unit] {
   val answer = system.channels.daemon.open[Option[Channel[_]]]
   system.names.resolve ! (("chaki#main", answer.channel))
   answer.events onMatch {
-    case Some(ch: Channel[Unit] @unchecked) => ch ! (())
-    case None => sys.error("chaki#main not found")
+    case Some(ch: Channel[Unit] @unchecked) =>
+      ch ! (())
+    case None =>
+      sys.error("chaki#main not found")
   }
   main.events on {
     main.seal()
@@ -425,13 +427,13 @@ with Matchers with AsyncTimeLimitedTests {
     done.future.map(t => assert(t))
   }
 
-  // test("channel resolution reactor should look up channels when asked") {
-  //   val system = ReactorSystem.default("test")
-  //   val p = Promise[Boolean]
-  //   system.spawn(Proto[ChannelsAskReactor](p).withName("chaki"))
-  //   p.future.onComplete(_ => system.shutdown())
-  //   p.future.map(t => assert(t))
-  // }
+  test("channel resolution reactor should look up channels when asked") {
+    val system = ReactorSystem.default("test")
+    val p = Promise[Boolean]
+    system.spawn(Proto[ChannelsAskReactor](p).withName("chaki"))
+    p.future.onComplete(_ => system.shutdown())
+    p.future.map(t => assert(t))
+  }
 
   // test("channel await reactor should await channels when asked") {
   //   val system = ReactorSystem.default("test")
