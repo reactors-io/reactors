@@ -210,6 +210,8 @@ package reactors {
     override def error = t
   }
 
+  /** Class that describes error handlers that report uncaught reactor-level exceptions.
+   */
   trait ErrorHandler extends PartialFunction[Throwable, Unit]
   with Platform.Reflectable
 

@@ -35,7 +35,7 @@ class Log(val system: ReactorSystem) extends Protocol.Service {
 }
 
 
-private[reactors] class NameResolverReactor
+class NameResolverReactor
 extends Reactor[(String, Channel[Option[Channel[_]]])] {
   main.events onMatch {
     case (name, answer) => answer ! system.channels.get(name)
@@ -43,7 +43,7 @@ extends Reactor[(String, Channel[Option[Channel[_]]])] {
 }
 
 
-private[reactors] class NameAwaiterReactor
+class NameAwaiterReactor
 extends Reactor[(String, Channel[Channel[_]])] {
   main.events onMatch {
     case (name, answer) =>
