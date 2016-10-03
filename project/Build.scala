@@ -296,6 +296,29 @@ object ReactorsBuild extends MechaRepoBuild {
 
   lazy val reactorsRemoteJs = reactorsRemote.js
 
+  lazy val reactorsExtra = project
+    .copy(id = "reactors-extra")
+    .in(file("reactors-extra"))
+    .settings(
+      projectSettings("-extra") ++ Seq(
+        libraryDependencies ++= Seq(
+          "org.scalatest" %%% "scalatest" % "3.0.0" % "test",
+          "org.scalacheck" %%% "scalacheck" % "1.13.2" % "test"
+        )
+      ): _*
+    )
+    .configs(Benchmark)
+    .settings(inConfig(Benchmark)(Defaults.testSettings): _*)
+    .settings(
+      (test in Test) <<= (test in Test).dependsOn(test in (reactorsCore.jvm, Test)),
+      publish <<= publish.dependsOn(publish in reactorsCore.jvm)
+    )
+    .dependsOn(
+      reactorsCore.jvm % "compile->compile;test->test",
+      reactorsProtocols.jvm % "compile->compile;test->test"
+    )
+    .dependsOnSuperRepo
+
   lazy val reactors: CrossProject = crossProject
     .in(file("reactors"))
     .settings(
@@ -306,49 +329,78 @@ object ReactorsBuild extends MechaRepoBuild {
         .dependsOn(test in (reactorsCommon.jvm, Test))
         .dependsOn(test in (reactorsCore.jvm, Test))
         .dependsOn(test in (reactorsContainer.jvm, Test))
-        // .dependsOn(test in (reactorsRemote, Test))
-        .dependsOn(test in (reactorsProtocols.jvm, Test)),
-        // .dependsOn(test in (reactorsExtra, Test)),
+        .dependsOn(test in (reactorsRemote.jvm, Test))
+        .dependsOn(test in (reactorsProtocols.jvm, Test))
+        .dependsOn(test in (reactorsExtra, Test)),
       publish <<= publish
         .dependsOn(publish in reactorsCommon.jvm)
         .dependsOn(publish in reactorsCore.jvm)
         .dependsOn(publish in reactorsContainer.jvm)
-        // .dependsOn(publish in reactorsRemote)
-        .dependsOn(publish in reactorsProtocols.jvm),
-        // .dependsOn(publish in reactorsExtra),
+        .dependsOn(publish in reactorsRemote.jvm)
+        .dependsOn(publish in reactorsProtocols.jvm)
+        .dependsOn(publish in reactorsExtra),
       libraryDependencies ++= Seq(
         "com.novocode" % "junit-interface" % "0.11" % "test",
         "junit" % "junit" % "4.12" % "test"
       )
     )
-    .jvmConfigure(_.copy(id = "reactors-jvm").dependsOnSuperRepo)
+    .jvmConfigure(
+      _.copy(id = "reactors-jvm").dependsOnSuperRepo
+        .aggregate(reactorsExtra)
+        .dependsOn(reactorsExtra % "compile->compile;test->test")
+    )
     .jsSettings(
       fork in Test := false,
-      fork in run := false
+      fork in run := false,
+      (test in Test) <<= (test in Test)
+        .dependsOn(test in (reactorsCommon.js, Test))
+        .dependsOn(test in (reactorsCore.js, Test))
+        .dependsOn(test in (reactorsContainer.js, Test))
+        .dependsOn(test in (reactorsRemote.js, Test))
+        .dependsOn(test in (reactorsProtocols.js, Test)),
+      publish <<= publish
+        .dependsOn(publish in reactorsCommon.js)
+        .dependsOn(publish in reactorsCore.js)
+        .dependsOn(publish in reactorsContainer.js)
+        .dependsOn(publish in reactorsRemote.js)
+        .dependsOn(publish in reactorsProtocols.js)
     )
-    .jsConfigure(_.copy(id = "reactors-js").dependsOnSuperRepo)
+    .jsConfigure(
+      _.copy(id = "reactors-js").dependsOnSuperRepo
+    )
     .aggregate(
       reactorsCommon,
       reactorsCore,
       reactorsContainer,
-      // reactorsRemote,
+      reactorsRemote,
       reactorsProtocols
-      // reactorsDebugger,
-      // reactorsExtra
+      // reactorsDebugger
     )
     .dependsOn(
       reactorsCommon % "compile->compile;test->test",
       reactorsCore % "compile->compile;test->test",
       reactorsContainer % "compile->compile;test->test",
-      // reactorsRemote % "compile->compile;test->test",
+      reactorsRemote % "compile->compile;test->test",
       reactorsProtocols % "compile->compile;test->test"
-      // reactorsDebugger % "compile->compile;test->test",
-      // reactorsExtra % "compile->compile;test->test"
+      // reactorsDebugger % "compile->compile;test->test"
     )
 
   lazy val reactorsJvm = reactors.jvm
 
   lazy val reactorsJs = reactors.js
+
+  // lazy val reactorsExtra: Project = Project(
+  //   "reactors-extra",
+  //   file("reactors-extra"),
+  //   settings = reactorsExtraSettings
+  // ) configs(
+  //   Benchmark
+  // ) settings(
+  //   inConfig(Benchmark)(Defaults.testSettings): _*
+  // ) dependsOn(
+  //   reactorsCore % "compile->compile;test->test",
+  //   reactorsProtocols % "compile->compile;test->test"
+  // ) dependsOnSuperRepo
 
   // def defaultDependencies(scalaVersion: String): Seq[ModuleID] =
   //   CrossVersion.partialVersion(scalaVersion) match {

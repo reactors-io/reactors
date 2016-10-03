@@ -76,10 +76,10 @@ class RemoteTest extends FunSuite with Matchers {
     // start two reactor systems
     val sendSys = ReactorSystem.default(
       "test-send-sys",
-      new ReactorSystem.Bundle(Scheduler.default, "remote.udp.port = 0"))
+      new ReactorSystem.Bundle(JvmScheduler.default, "remote.udp.port = 0"))
     val recvSys = ReactorSystem.default(
       "test-recv-sys",
-      new ReactorSystem.Bundle(Scheduler.default, "remote.udp.port = 0"))
+      new ReactorSystem.Bundle(JvmScheduler.default, "remote.udp.port = 0"))
     try {
       // prepare channel
       val sysUrl = SystemUrl("reactor.udp", "localhost",
