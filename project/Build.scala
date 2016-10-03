@@ -24,7 +24,7 @@ object ReactorsBuild extends MechaRepoBuild {
     MechaRepoPlugin.defaultSettings ++ Seq(
       name := s"reactors$suffix",
       organization := "io.reactors",
-      scalaVersion <<= reactorsScalaVersion,
+      scalaVersion := reactorsScalaVersion,
       testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
       parallelExecution in Test := false,
       parallelExecution in ThisBuild := false,
