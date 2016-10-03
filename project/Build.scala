@@ -311,6 +311,7 @@ object ReactorsBuild extends MechaRepoBuild {
     .settings(
       projectSettings("-extra") ++ Seq(
         libraryDependencies ++= Seq(
+          "org.scala-lang" % "scala-reflect" % "2.11.4",
           "org.scalatest" %%% "scalatest" % "3.0.0" % "test",
           "org.scalacheck" %%% "scalacheck" % "1.13.2" % "test",
           "com.typesafe.akka" %% "akka-actor" % "2.3.15" % "bench"
