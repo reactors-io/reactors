@@ -34,7 +34,7 @@ class WebServer(val system: ReactorSystem, webapi: WebApi) {
 
 object WebServer {
   private[debugger] def createServer(system: ReactorSystem, webapi: WebApi): Setup = {
-    val port = system.bundle.config.getInt("debug-api.port")
+    val port = system.bundle.config.int("debug-api.port")
 
     def loadPage(path: String): String = {
       sealed trait NodeType
