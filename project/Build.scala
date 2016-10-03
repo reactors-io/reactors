@@ -16,9 +16,7 @@ object ReactorsBuild extends MechaRepoBuild {
 
   def repoName = "reactors"
 
-  val reactorsScalaVersion = Def.setting {
-    crossScalaVersions.value.head
-  }
+  val reactorsScalaVersion = "2.11.8"
 
   def projectSettings(
     suffix: String
