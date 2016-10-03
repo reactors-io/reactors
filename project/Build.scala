@@ -51,6 +51,7 @@ object ReactorsBuild extends MechaRepoBuild {
           "https://oss.sonatype.org/content/repositories/releases",
         "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/"
       ),
+      libraryDependencies ++= superRepoDependencies(s"reactors$suffix"),
       ivyLoggingLevel in ThisBuild := UpdateLogging.Quiet,
       publishMavenStyle := true,
       publishTo <<= version { (v: String) =>
