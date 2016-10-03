@@ -400,9 +400,6 @@ object JvmScheduler {
     private var timer: java.util.Timer = null
     private val frames = mutable.Set[Frame]()
 
-    def this(period: Long, isDaemon: Boolean) =
-      this(period, isDaemon, Scheduler.defaultHandler)
-
     def shutdown() = if (timer != null) timer.cancel()
 
     override def newState(frame: Frame) = new Timer.State

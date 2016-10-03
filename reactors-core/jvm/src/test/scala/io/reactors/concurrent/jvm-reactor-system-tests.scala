@@ -507,7 +507,7 @@ extends BaseJvmReactorSystemCheck("PiggybackSystem") {
 
 class JvmReactorSystemTest extends FunSuite with Matchers {
   test("reactor should terminate on ctor exception") {
-    val scheduler = new JvmScheduler.Dedicated.NewThread(true, Scheduler.silentHandler)
+    val scheduler = new JvmScheduler.Dedicated.NewThread(true)
     val bundle = ReactorSystem.Bundle.default(scheduler)
     val system = ReactorSystem.default("test", bundle)
     try {
@@ -518,7 +518,7 @@ class JvmReactorSystemTest extends FunSuite with Matchers {
   }
 
   test("reactor does not raise ReactorDied events after ReactorTerminated") {
-    val scheduler = new JvmScheduler.Dedicated.NewThread(true, Scheduler.silentHandler)
+    val scheduler = new JvmScheduler.Dedicated.NewThread(true)
     val bundle = ReactorSystem.Bundle.default(scheduler)
     val system = ReactorSystem.default("test", bundle)
     try {
@@ -530,7 +530,7 @@ class JvmReactorSystemTest extends FunSuite with Matchers {
   }
 
   test("reactor should terminate on exceptions while running") {
-    val scheduler = new JvmScheduler.Dedicated.NewThread(true, Scheduler.silentHandler)
+    val scheduler = new JvmScheduler.Dedicated.NewThread(true)
     val bundle = ReactorSystem.Bundle.default(scheduler)
     val system = ReactorSystem.default("test", bundle)
     try {
