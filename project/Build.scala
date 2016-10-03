@@ -128,7 +128,7 @@ object ReactorsBuild extends MechaRepoBuild {
     .settings(inConfig(Benchmark)(Defaults.testSettings): _*)
     .jvmSettings(
       libraryDependencies ++= Seq(
-        "com.typesafe.akka" %% "akka-actor" % "2.3.15" % "bench"
+        "com.typesafe.akka" %% "akka-actor" % "2.3.15" % "test;bench"
       ),
       libraryDependencies ++= superRepoDependencies(s"reactors-common-jvm")
     )
@@ -169,7 +169,7 @@ object ReactorsBuild extends MechaRepoBuild {
       publish <<= publish.dependsOn(publish in reactorsCommon.jvm),
       libraryDependencies ++= Seq(
         "com.typesafe" % "config" % "1.2.1",
-        "com.typesafe.akka" %% "akka-actor" % "2.3.15" % "bench"
+        "com.typesafe.akka" %% "akka-actor" % "2.3.15" % "test;bench"
       )
     )
     .jvmConfigure(_.copy(id = "reactors-core-jvm").dependsOnSuperRepo)
@@ -314,7 +314,7 @@ object ReactorsBuild extends MechaRepoBuild {
           "org.scala-lang" % "scala-reflect" % "2.11.4",
           "org.scalatest" %%% "scalatest" % "3.0.0" % "test",
           "org.scalacheck" %%% "scalacheck" % "1.13.2" % "test",
-          "com.typesafe.akka" %% "akka-actor" % "2.3.15" % "bench"
+          "com.typesafe.akka" %% "akka-actor" % "2.3.15" % "test;bench"
         )
       ): _*
     )
