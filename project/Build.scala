@@ -261,6 +261,41 @@ object ReactorsBuild extends MechaRepoBuild {
 
   lazy val reactorsProtocolsJs = reactorsProtocols.js
 
+  lazy val reactorsRemote = crossProject
+    .in(file("reactors-remote"))
+    .settings(
+      projectSettings("-remote") ++ Seq(
+        libraryDependencies ++= Seq(
+          "org.scalatest" %%% "scalatest" % "3.0.0" % "test",
+          "org.scalacheck" %%% "scalacheck" % "1.13.2" % "test"
+        ),
+        unmanagedSourceDirectories in Compile +=
+          baseDirectory.value.getParentFile / "shared" / "src" / "main" / "scala",
+        unmanagedSourceDirectories in Test +=
+          baseDirectory.value.getParentFile / "shared" / "src" / "test" / "scala"
+      ): _*
+    )
+    .configs(Benchmark)
+    .settings(inConfig(Benchmark)(Defaults.testSettings): _*)
+    .jvmSettings(
+      (test in Test) <<= (test in Test).dependsOn(test in (reactorsCore.jvm, Test)),
+      publish <<= publish.dependsOn(publish in reactorsCore.jvm)
+    )
+    .jvmConfigure(_.copy(id = "reactors-remote-jvm").dependsOnSuperRepo)
+    .jsSettings(
+      (test in Test) <<= (test in Test).dependsOn(test in (reactorsCore.js, Test)),
+      publish <<= publish.dependsOn(publish in reactorsCore.js),
+      scalaJSUseRhino in Global := false
+    )
+    .jsConfigure(_.copy(id = "reactors-remote-js").dependsOnSuperRepo)
+    .dependsOn(
+      reactorsCore % "compile->compile;test->test"
+    )
+
+  lazy val reactorsRemoteJvm = reactorsRemote.jvm
+
+  lazy val reactorsRemoteJs = reactorsRemote.js
+
   lazy val reactors: CrossProject = crossProject
     .in(file("reactors"))
     .settings(

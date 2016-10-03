@@ -37,7 +37,7 @@ class RemoteTest extends FunSuite with Matchers {
         val packet = new DatagramPacket(new Array[Byte](1024), 1024)
         socket.receive(packet)
         val buffer = ByteBuffer.wrap(packet.getData, packet.getOffset, packet.getLength)
-        
+
         def read(): Any = {
           val inputStream = new ByteBufferInputStream(buffer)
           val objectInputStream = new ObjectInputStream(inputStream)
