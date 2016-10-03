@@ -13,7 +13,6 @@ env:
 
 install:
   - nvm install $NODE_VERSION
-  - npm install
 
 script:
   - nvm use $NODE_VERSION
