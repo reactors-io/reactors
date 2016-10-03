@@ -170,7 +170,8 @@ object ReactorsBuild extends MechaRepoBuild {
       (test in Test) <<= (test in Test).dependsOn(test in (reactorsCommon.jvm, Test)),
       publish <<= publish.dependsOn(publish in reactorsCommon.jvm),
       libraryDependencies ++= Seq(
-        "com.typesafe" % "config" % "1.2.1"
+        "com.typesafe" % "config" % "1.2.1",
+        "com.typesafe.akka" %% "akka-actor" % "2.3.15" % "bench"
       )
     )
     .jvmConfigure(_.copy(id = "reactors-core-jvm").dependsOnSuperRepo)
