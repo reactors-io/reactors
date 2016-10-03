@@ -40,7 +40,7 @@ object DebuggerTest {
         name = "io.reactors.debugger.WebDebugger"
       }
     """)
-    val bundle = new ReactorSystem.Bundle(Scheduler.default, config)
+    val bundle = new ReactorSystem.Bundle(JvmScheduler.default, config)
     val system = new ReactorSystem("web-debugger-test-system", bundle)
 
     var error: Throwable = null

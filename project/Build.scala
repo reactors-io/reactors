@@ -32,6 +32,8 @@ object ReactorsBuild extends MechaRepoBuild {
       parallelExecution in ThisBuild := false,
       concurrentRestrictions in Global += Tags.limit(Tags.Test, 1),
       cancelable in Global := true,
+      fork in Test := true,
+      fork in run := true,
       javaOptions in test += "-Xmx2G -XX:MaxPermSize=384m",
       scalacOptions ++= Seq(
         "-deprecation"
@@ -175,6 +177,8 @@ object ReactorsBuild extends MechaRepoBuild {
     .jsSettings(
       (test in Test) <<= (test in Test).dependsOn(test in (reactorsCommon.js, Test)),
       publish <<= publish.dependsOn(publish in reactorsCommon.js),
+      fork in Test := false,
+      fork in run := false,
       scalaJSUseRhino in Global := false,
       libraryDependencies ++= Seq(
         "org.scala-js" %%% "scala-parser-combinators" % "1.0.2"
@@ -213,6 +217,8 @@ object ReactorsBuild extends MechaRepoBuild {
     .jsSettings(
       (test in Test) <<= (test in Test).dependsOn(test in (reactorsCore.js, Test)),
       publish <<= publish.dependsOn(publish in reactorsCore.js),
+      fork in Test := false,
+      fork in run := false,
       scalaJSUseRhino in Global := false
     )
     .jsConfigure(_.copy(id = "reactors-container-js").dependsOnSuperRepo)
@@ -248,6 +254,8 @@ object ReactorsBuild extends MechaRepoBuild {
     .jsSettings(
       (test in Test) <<= (test in Test).dependsOn(test in (reactorsCore.js, Test)),
       publish <<= publish.dependsOn(publish in reactorsCore.js),
+      fork in Test := false,
+      fork in run := false,
       scalaJSUseRhino in Global := false
     )
     .jsConfigure(_.copy(id = "reactors-protocols-js").dependsOnSuperRepo)
@@ -285,6 +293,8 @@ object ReactorsBuild extends MechaRepoBuild {
     .jsSettings(
       (test in Test) <<= (test in Test).dependsOn(test in (reactorsCore.js, Test)),
       publish <<= publish.dependsOn(publish in reactorsCore.js),
+      fork in Test := false,
+      fork in run := false,
       scalaJSUseRhino in Global := false
     )
     .jsConfigure(_.copy(id = "reactors-remote-js").dependsOnSuperRepo)
@@ -319,6 +329,37 @@ object ReactorsBuild extends MechaRepoBuild {
     )
     .dependsOnSuperRepo
 
+  lazy val reactorsDebugger = project
+    .copy(id = "reactors-debugger")
+    .in(file("reactors-debugger"))
+    .settings(
+      projectSettings("-debugger") ++ Seq(
+        libraryDependencies ++= Seq(
+          "org.scala-lang" % "scala-compiler" % "2.11.8",
+          "org.rapidoid" % "rapidoid-http-server" % "5.1.9",
+          "org.rapidoid" % "rapidoid-gui" % "5.1.9",
+          "com.github.spullara.mustache.java" % "compiler" % "0.9.2",
+          "commons-io" % "commons-io" % "2.4",
+          "org.json4s" %% "json4s-jackson" % "3.4.0",
+          "org.scalatest" %%% "scalatest" % "3.0.0" % "test",
+          "org.scalacheck" %%% "scalacheck" % "1.13.2" % "test",
+          "org.seleniumhq.selenium" % "selenium-java" % "2.53.1" % "test",
+          "org.seleniumhq.selenium" % "selenium-chrome-driver" % "2.53.1" % "test"
+        )
+      ): _*
+    )
+    .configs(Benchmark)
+    .settings(inConfig(Benchmark)(Defaults.testSettings): _*)
+    .settings(
+      (test in Test) <<= (test in Test).dependsOn(test in (reactorsCore.jvm, Test)),
+      publish <<= publish.dependsOn(publish in reactorsCore.jvm)
+    )
+    .dependsOn(
+      reactorsCore.jvm % "compile->compile;test->test",
+      reactorsProtocols.jvm % "compile->compile;test->test"
+    )
+    .dependsOnSuperRepo
+
   lazy val reactors: CrossProject = crossProject
     .in(file("reactors"))
     .settings(
@@ -331,6 +372,7 @@ object ReactorsBuild extends MechaRepoBuild {
         .dependsOn(test in (reactorsContainer.jvm, Test))
         .dependsOn(test in (reactorsRemote.jvm, Test))
         .dependsOn(test in (reactorsProtocols.jvm, Test))
+        .dependsOn(test in (reactorsDebugger, Test))
         .dependsOn(test in (reactorsExtra, Test)),
       publish <<= publish
         .dependsOn(publish in reactorsCommon.jvm)
@@ -346,8 +388,14 @@ object ReactorsBuild extends MechaRepoBuild {
     )
     .jvmConfigure(
       _.copy(id = "reactors-jvm").dependsOnSuperRepo
-        .aggregate(reactorsExtra)
-        .dependsOn(reactorsExtra % "compile->compile;test->test")
+        .aggregate(
+          reactorsDebugger,
+          reactorsExtra
+        )
+        .dependsOn(
+          reactorsDebugger % "compile->compile;test->test",
+          reactorsExtra % "compile->compile;test->test"
+        )
     )
     .jsSettings(
       fork in Test := false,
@@ -374,7 +422,6 @@ object ReactorsBuild extends MechaRepoBuild {
       reactorsContainer,
       reactorsRemote,
       reactorsProtocols
-      // reactorsDebugger
     )
     .dependsOn(
       reactorsCommon % "compile->compile;test->test",
@@ -382,89 +429,11 @@ object ReactorsBuild extends MechaRepoBuild {
       reactorsContainer % "compile->compile;test->test",
       reactorsRemote % "compile->compile;test->test",
       reactorsProtocols % "compile->compile;test->test"
-      // reactorsDebugger % "compile->compile;test->test"
     )
 
   lazy val reactorsJvm = reactors.jvm
 
   lazy val reactorsJs = reactors.js
-
-  // lazy val reactorsExtra: Project = Project(
-  //   "reactors-extra",
-  //   file("reactors-extra"),
-  //   settings = reactorsExtraSettings
-  // ) configs(
-  //   Benchmark
-  // ) settings(
-  //   inConfig(Benchmark)(Defaults.testSettings): _*
-  // ) dependsOn(
-  //   reactorsCore % "compile->compile;test->test",
-  //   reactorsProtocols % "compile->compile;test->test"
-  // ) dependsOnSuperRepo
-
-  // def defaultDependencies(scalaVersion: String): Seq[ModuleID] =
-  //   CrossVersion.partialVersion(scalaVersion) match {
-  //     case Some((2, major)) if major >= 11 => Seq(
-  //       "org.scalatest" % "scalatest_2.11" % "3.0.0" % "test",
-  //       "org.scalacheck" %% "scalacheck" % "1.11.4" % "test",
-  //       "org.scala-lang" % "scala-reflect" % "2.11.4",
-  //       "com.typesafe.akka" %% "akka-actor" % "2.3.15" % "bench"
-  //     )
-  //     case Some((2, 10)) => Seq(
-  //       "org.scalatest" % "scalatest_2.10" % "3.0.0" % "test",
-  //       "org.scalacheck" %% "scalacheck" % "1.11.4" % "test"
-  //     )
-  //     case _ => Nil
-  //   }
-
-  // val reactorsCoreSettings = projectSettings("-core", coreDependencies) ++ Seq(
-  //   (test in Test) <<= (test in Test)
-  //     .dependsOn(test in (reactorsCommon, Test)),
-  //   publish <<= publish.dependsOn(publish in reactorsCommon),
-  //   resourceGenerators in Compile <+= (resourceManaged in Compile, baseDirectory) map {
-  //     (dir, baseDir) => gitPropsContents(dir, baseDir)
-  //   },
-  //   scalaSource in Compile <<=
-  //     (baseDirectory in Compile)(_ / "shared" / "src" / "main" / "scala"),
-  //   scalaSource in Test <<=
-  //     (baseDirectory in Test)(_ / "shared" / "src" / "test" / "scala"),
-  //   javaSource in Compile <<=
-  //     (baseDirectory in Compile)(_ / "shared" / "src" / "main" / "java"),
-  //   javaSource in Test <<=
-  //     (baseDirectory in Test)(_ / "shared" / "src" / "test" / "java"),
-  //   unmanagedSourceDirectories in Compile +=
-  //     baseDirectory.value / "jvm" / "main"
-  // )
-
-  // def coreDependencies(scalaVersion: String) = {
-  //   val extraDeps = CrossVersion.partialVersion(scalaVersion) match {
-  //     case Some((2, major)) if major >= 11 => Seq(
-  //       "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.1",
-  //       "com.typesafe" % "config" % "1.2.1",
-  //       "commons-io" % "commons-io" % "2.4"
-  //     )
-  //     case Some((2, 10)) => Seq(
-  //       "com.typesafe" % "config" % "1.2.1",
-  //       "commons-io" % "commons-io" % "2.4"
-  //     )
-  //     case _ => Nil
-  //   }
-  //   defaultDependencies(scalaVersion) ++ extraDeps
-  // }
-
-  // def commonDependencies(scalaVersion: String) = defaultDependencies(scalaVersion)
-
-  // def reactorsContainerSettings = projectSettings("-container", containerDependencies)
-
-  // def containerDependencies(scalaVersion: String) = defaultDependencies(scalaVersion)
-
-  // def reactorsRemoteSettings = projectSettings("-remote", remoteDependencies)
-
-  // def remoteDependencies(scalaVersion: String) = defaultDependencies(scalaVersion)
-
-  // def reactorsProtocolsSettings = projectSettings("-protocols", protocolsDependencies)
-
-  // def protocolsDependencies(scalaVersion: String) = defaultDependencies(scalaVersion)
 
   // def reactorsDebuggerSettings = projectSettings("-debugger", debuggerDependencies)
 

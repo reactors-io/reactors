@@ -249,7 +249,7 @@ object WebDebugger {
         name = "io.reactors.debugger.WebDebugger"
       }
     """)
-    val bundle = new ReactorSystem.Bundle(Scheduler.default, config)
+    val bundle = new ReactorSystem.Bundle(JvmScheduler.default, config)
     val system = new ReactorSystem("web-debugger", bundle)
     system.names.resolve
   }
