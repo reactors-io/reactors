@@ -101,7 +101,7 @@ class ReactorSystem(
     while (uname == null) {
       if (proto.name == null) {
         // If choosing any name, it will always be fresh.
-        uname = frames.tryStore(proto.name, Frame.Info(frame, immutable.Map()))
+        uname = frames.tryStore(null, Frame.Info(frame, immutable.Map()))
       } else {
         // If choosing a specific name, it could already have channel listeners.
         val info = frames.forName(proto.name)
@@ -145,8 +145,19 @@ class ReactorSystem(
     } catch {
       case t: Throwable =>
         // 7. If not successful, release the name and rethrow.
-        // TODO: Fix this to preserve existing channel listeners.
-        frames.tryRelease(uname)
+        var done = false
+        while (!done) {
+          val info = frames.forName(uname)
+          if (info == null) {
+            // This should only happen if `activate` scheduled the frame and then threw
+            // an exception, OR if `initSchedule` of a custom scheduler schedules the
+            // frame for execution, which is not allowed.
+            throw new IllegalStateException("Frame removed before being scheduled.")
+          } else {
+            val ninfo = info.retainOnlyListeners
+            done = frames.tryReplace(uname, info, ninfo)
+          }
+        }
         throw t
     }
 

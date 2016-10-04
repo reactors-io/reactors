@@ -490,4 +490,60 @@ with Matchers with AsyncTimeLimitedTests {
     done.future.onComplete(_ => system.shutdown())
     done.future.map(t => assert(t))
   }
+
+  test("existing channel listeners must be preserved after spawn failures") {
+    val system = ReactorSystem.default("test")
+    val scheduler = new Scheduler.Proxy(system.bundle.defaultScheduler) {
+      override def initSchedule(f: Frame) = sys.error("Init error (SHOULD BE CAUGHT!)")
+    }
+    system.bundle.registerScheduler("proxy", scheduler)
+    val done = Promise[Boolean]()
+    val ready = Promise[Boolean]()
+    system.spawn(Reactor[Unit] { self =>
+      system.channels.await[String]("test-reactor#aux").onEvent { ch =>
+        ch ! "done"
+        self.main.seal()
+      }
+      ready.success(true)
+    })
+    def spawnTestReactor(fail: Boolean) = {
+      val proto = Reactor[Unit] { self =>
+        val aux = system.channels.named("aux").open[String]
+        aux.events onMatch {
+          case "done" =>
+            done.success(true)
+            aux.seal()
+        }
+        self.main.seal()
+      }
+      if (fail) system.spawn(proto.withScheduler("proxy").withName("test-reactor"))
+      else system.spawn(proto.withName("test-reactor"))
+    }
+    ready.future.onComplete { _ =>
+      try spawnTestReactor(true)
+      catch {
+        case _: RuntimeException => spawnTestReactor(false)
+      }
+    }
+    done.future.onComplete(_ => system.shutdown())
+    done.future.map(t => assert(t))
+  }
+
+  // test("existing channel listeners must be preserved after terminations") {
+  //   val system = ReactorSystem.default("test")
+  //   val done = Promise[Boolean]()
+  //   val ready = Promise[Boolean]()
+  //   system.spawn(Reactor[Unit] { self =>
+  //     system.channels.await[String]("").onEvent { ch =>
+  //       ch ! "done"
+  //       self.main.seal()
+  //     }
+  //     ready.success(true)
+  //   })
+  //   def spawnTestReactor(fail: Boolean) = {
+  //     val proto = Reactor[Unit] { self =>
+
+  //     }
+  //   }
+  // }
 }

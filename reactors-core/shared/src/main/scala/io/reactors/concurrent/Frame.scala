@@ -57,7 +57,7 @@ final class Frame(
       val uid = idCounter.getAndIncrement()
 
       // 2. Find a unique name.
-      var info = reactorSystem.frames.forName(name)
+      val info = reactorSystem.frames.forName(name)
       assert(info != null, name)
       @tailrec def chooseName(count: Long): String = {
         val n = s"channel-$uid-$count"
@@ -373,5 +373,10 @@ object Frame {
   ) extends Identifiable {
     def uid: Long = if (frame != null) frame.uid else -1
     def isEmpty: Boolean = frame == null
+    def retainOnlyListeners: Info = {
+      Info(null, connectors.collect {
+        case (k, v: List[_]) => (k, v)
+      })
+    }
   }
 }
