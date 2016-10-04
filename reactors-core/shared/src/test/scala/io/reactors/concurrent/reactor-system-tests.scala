@@ -529,21 +529,37 @@ with Matchers with AsyncTimeLimitedTests {
     done.future.map(t => assert(t))
   }
 
-  // test("existing channel listeners must be preserved after terminations") {
-  //   val system = ReactorSystem.default("test")
-  //   val done = Promise[Boolean]()
-  //   val ready = Promise[Boolean]()
-  //   system.spawn(Reactor[Unit] { self =>
-  //     system.channels.await[String]("").onEvent { ch =>
-  //       ch ! "done"
-  //       self.main.seal()
-  //     }
-  //     ready.success(true)
-  //   })
-  //   def spawnTestReactor(fail: Boolean) = {
-  //     val proto = Reactor[Unit] { self =>
-
-  //     }
-  //   }
-  // }
+  test("existing channel listeners must be preserved after terminations") {
+    val system = ReactorSystem.default("test")
+    val done = Promise[Boolean]()
+    val ready = Promise[Boolean]()
+    system.spawn(Reactor[Unit] { self =>
+      system.channels.await[String]("test-reactor#aux").onEvent { ch =>
+        ch ! "done"
+        self.main.seal()
+      }
+      ready.success(true)
+    })
+    def spawnTestReactor(fail: Boolean) = {
+      val proto = Reactor[Unit] { self =>
+        if (fail) sys.error("Reactor terminated (THIS IS OK!)")
+        val aux = system.channels.named("aux").open[String]
+        aux.events onMatch {
+          case "done" =>
+            done.success(true)
+            aux.seal()
+        }
+        self.main.seal()
+      }
+      system.spawn(proto.withName("test-reactor"))
+    }
+    ready.future.onComplete { _ =>
+      spawnTestReactor(true)
+      afterTime(1000.millis) {
+        spawnTestReactor(false)
+      }
+    }
+    done.future.onComplete(_ => system.shutdown())
+    done.future.map(t => assert(t))
+  }
 }

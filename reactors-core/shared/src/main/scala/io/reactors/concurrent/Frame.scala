@@ -305,8 +305,23 @@ final class Frame(
         reactorSystem.debugApi.reactorTerminated(reactor)
         if (reactor != null) sysEmitter.react(ReactorTerminated)
       } finally {
-        // TODO: Fix this to account for existing channel listeners.
-        reactorSystem.frames.tryRelease(name)
+        var done = false
+        while (!done) {
+          val info = reactorSystem.frames.forName(name)
+          if (info == null) {
+            // This should not happen, since the frame is at all times isolated.
+            // Reaching this point means that there is some other code that corrupts
+            // the `frames` map, or that a scheduler schedule the frame in the
+            // `initSchedule` method, which it is not allowed to do.
+            throw new IllegalStateException("Frame removed before termination.")
+          } else {
+            val ninfo = info.retainOnlyListeners
+            done = {
+              if (ninfo != null) reactorSystem.frames.tryReplace(name, info, ninfo)
+              else reactorSystem.frames.tryRelease(name)
+            }
+          }
+        }
       }
     }
   }
@@ -374,9 +389,11 @@ object Frame {
     def uid: Long = if (frame != null) frame.uid else -1
     def isEmpty: Boolean = frame == null
     def retainOnlyListeners: Info = {
-      Info(null, connectors.collect {
+      val listeners = connectors.collect {
         case (k, v: List[_]) => (k, v)
-      })
+      }
+      if (listeners.nonEmpty) Info(null, listeners)
+      else null
     }
   }
 }

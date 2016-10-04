@@ -155,7 +155,10 @@ class ReactorSystem(
             throw new IllegalStateException("Frame removed before being scheduled.")
           } else {
             val ninfo = info.retainOnlyListeners
-            done = frames.tryReplace(uname, info, ninfo)
+            done = {
+              if (ninfo != null) frames.tryReplace(uname, info, ninfo)
+              else frames.tryRelease(uname)
+            }
           }
         }
         throw t
