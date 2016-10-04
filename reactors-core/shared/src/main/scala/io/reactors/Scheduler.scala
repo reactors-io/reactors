@@ -108,4 +108,20 @@ object Scheduler {
       }
     }
   }
+
+  /** Forwards all scheduling calls to a different scheduler.
+   */
+  class Proxy(val target: Scheduler) extends Scheduler {
+    def schedule(f: Frame) = target.schedule(f)
+
+    override def initSchedule(f: Frame) = target.initSchedule(f)
+
+    override def preschedule(system: ReactorSystem) = target.preschedule(system)
+
+    override def postschedule(system: ReactorSystem, t: Throwable): Unit =
+      target.postschedule(system, t)
+
+    protected override def newState(frame: Frame): Scheduler.State =
+      target.newState(frame)
+  }
 }
