@@ -20,7 +20,6 @@ object JsScheduler {
           try frame.executeBatch()
           catch {
             case t: Throwable =>
-              println(t)
               frame.reactorSystem.errorHandler(t)
           }
         }

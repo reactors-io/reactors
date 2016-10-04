@@ -530,7 +530,12 @@ with Matchers with AsyncTimeLimitedTests {
   }
 
   test("existing channel listeners must be preserved after terminations") {
-    val system = ReactorSystem.default("test")
+    val system = ReactorSystem.default("test",
+      ReactorSystem.Bundle.default(ReactorSystem.defaultScheduler, """
+        error-handler = {
+          name = "io.reactors.SilentErrorHandler"
+        }
+      """))
     val done = Promise[Boolean]()
     val ready = Promise[Boolean]()
     system.spawn(Reactor[Unit] { self =>

@@ -287,12 +287,29 @@ object ReactorSystem {
      *  
      *  @return           the default scheduler bundle
      */
-    def default(default: Scheduler): Bundle = {
-      val b = new Bundle(default, Configuration.empty)
+    def default(defaultScheduler: Scheduler): Bundle = {
+      val b = new Bundle(defaultScheduler, Configuration.empty)
       Platform.registerDefaultSchedulers(b)
       b
     }
+
+    /** Creates a bundle with a custom configuration.
+     */
+    def default(defaultScheduler: Scheduler, config: Configuration): Bundle = {
+      val b = new Bundle(defaultScheduler, config)
+      Platform.registerDefaultSchedulers(b)
+      b
+    }
+
+    /** Creates a bundle with a custom configuration text.
+     */
+    def default(defaultScheduler: Scheduler, configText: String): Bundle =
+      default(defaultScheduler, Configuration.parse(configText))
   }
+
+  /** Default scheduler.
+   */
+  def defaultScheduler: Scheduler = Platform.defaultScheduler
 
   /** Default scheduler bundle.
    */
