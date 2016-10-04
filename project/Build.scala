@@ -43,7 +43,8 @@ object ReactorsBuild extends MechaRepoBuild {
         TestFrameworks.ScalaCheck,
         "-minSuccessfulTests", "200",
         "-workers", "1",
-        "-verbosity", "2"),
+        "-verbosity", "2"
+      ),
       resolvers ++= Seq(
         "Sonatype OSS Snapshots" at
           "https://oss.sonatype.org/content/repositories/snapshots",
