@@ -190,8 +190,7 @@ class ReactorsTopLevel extends FunSuite with Matchers {
     !*/
 
     /*!begin-code!*/
-    system.spawn(Proto[HelloReactor].withScheduler(
-      ReactorSystem.Bundle.schedulers.newThread))
+    system.spawn(Proto[HelloReactor].withScheduler(JvmScheduler.Key.newThread))
     /*!end-code!*/
     /*!include-code Java:reactors-java-reactors-with-scheduler.html!*/
 

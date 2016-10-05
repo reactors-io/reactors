@@ -93,8 +93,7 @@ class Schedulers extends FunSuite with Matchers {
     !*/
 
     /*!begin-code!*/
-    val proto = Proto[Logger].withScheduler(
-      ReactorSystem.Bundle.schedulers.globalExecutionContext)
+    val proto = Proto[Logger].withScheduler(JvmScheduler.Key.globalExecutionContext)
     val ch = system.spawn(proto)
     /*!end-code!*/
     /*!include-code Java:reactors-java-schedulers-global-ec.html!*/
