@@ -195,6 +195,17 @@ class ReactorsTopLevel extends FunSuite with Matchers {
     /*!include-code Java:reactors-java-reactors-with-scheduler.html!*/
 
     /*!md
+    Note that if you are running Reactors on Scala.js,
+    you will need to use Scala.js-specific scheduler.
+    The reason is that the JavaScript runtime is not multi-threaded.
+    Asynchronous executions are placed on a single queue,
+    and executed one after another.
+    On Scala.js, you will therefore need to use the `JsScheduler.Key.default` scheduler.
+    !*/
+
+    /*!include-code Scala.js:reactors-scala-js-custom-scheduler.html!*/
+
+    /*!md
     The call to `withScheduler` returns a new prototype that runs on a predefined
     scheduler called `ReactorSystem.Bundle.schedulers.newThread`. A reactor started like
     this is using this scheduler. Reactor systems allow registering custom schedulers.

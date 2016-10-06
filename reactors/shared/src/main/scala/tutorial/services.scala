@@ -12,6 +12,7 @@ pagetot: 40
 section: guide
 ---
 !*/
+package tutorial
 
 
 /*!md
@@ -33,6 +34,6 @@ every reactor system has a set of **services** --
 protocols that relate event streams to the outside world.
 
 In this section,
-we will take a closer look at various services that are available in a reactor system,
-and also show how to implement and plug-in custom services.
+we will take a closer look at various services that are available by default,
+and also show how to implement custom services and plug them into reactor systems.
 !*/

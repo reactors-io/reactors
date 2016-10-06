@@ -101,6 +101,14 @@ class Schedulers extends FunSuite with Matchers {
     assert(fakeSystem.out.queue.take() == "scheduled")
 
     /*!md
+    In Scala.js, there is no multi-threading - executions inside a single JavaScript
+    runtime must execute in a single thread. For this reason, you will need to use
+    a special `JsScheduler.Key.default` instance.
+    !*/
+
+    /*!include-code Scala.js:reactors-scala-js-custom-scheduler.html!*/
+
+    /*!md
     Running the snippet above should start the `Logger` reactor and print `scheduled`
     once, because starting a reactor schedules it even before any event arrives.
     If we now send an event to the main channel, we will see `scheduled` printed again,
