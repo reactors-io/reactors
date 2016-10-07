@@ -31,6 +31,22 @@ public class ReactorSystem {
     return new ChannelBuilder(self.channels());
   }
 
+  public <S extends Service> S service(Class<S> cls) {
+    try {
+      return cls.getConstructor(ReactorSystem.class).newInstance(this);
+    } catch (Throwable throwable) {
+      throw new RuntimeException(throwable);
+    }
+  }
+
+  public io.reactors.ReactorSystem rawSystem() {
+    return self;
+  }
+
+  public void shutdown() {
+    self.shutdown();
+  }
+
   public static ReactorSystem create(String name) {
     return new ReactorSystem(name);
   }

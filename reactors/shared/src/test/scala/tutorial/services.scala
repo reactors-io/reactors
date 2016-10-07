@@ -73,6 +73,7 @@ class ReactorSystemServices extends AsyncFunSuite {
     /*!begin-code!*/
     import io.reactors.services.Log
     /*!end-code!*/
+    /*!include-code Java:reactors-java-services-log-import.html!*/
   }
 
   /*!md
@@ -94,6 +95,7 @@ class ReactorSystemServices extends AsyncFunSuite {
       self.main.seal()
     })
     /*!end-code!*/
+    /*!include-code Java:reactors-java-services-log-example.html!*/
 
     /*!md
     Running the above snippet prints the timestamped message to the standard output.
