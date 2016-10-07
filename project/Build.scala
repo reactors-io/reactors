@@ -366,7 +366,16 @@ object ReactorsBuild extends MechaRepoBuild {
   lazy val reactors: CrossProject = crossProject
     .in(file("reactors"))
     .settings(
-      projectSettings(""): _*
+      projectSettings("") ++ Seq(
+        libraryDependencies ++= Seq(
+          "org.scalatest" %%% "scalatest" % "3.0.0" % "test",
+          "org.scalacheck" %%% "scalacheck" % "1.13.2" % "test"
+        ),
+        unmanagedSourceDirectories in Compile +=
+          baseDirectory.value.getParentFile / "shared" / "src" / "main" / "scala",
+        unmanagedSourceDirectories in Test +=
+          baseDirectory.value.getParentFile / "shared" / "src" / "test" / "scala"
+      ): _*
     )
     .jvmSettings(
       (test in Test) <<= (test in Test)

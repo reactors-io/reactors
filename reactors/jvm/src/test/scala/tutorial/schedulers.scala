@@ -93,13 +93,20 @@ class Schedulers extends FunSuite with Matchers {
     !*/
 
     /*!begin-code!*/
-    val proto = Proto[Logger].withScheduler(
-      ReactorSystem.Bundle.schedulers.globalExecutionContext)
+    val proto = Proto[Logger].withScheduler(JvmScheduler.Key.globalExecutionContext)
     val ch = system.spawn(proto)
     /*!end-code!*/
     /*!include-code Java:reactors-java-schedulers-global-ec.html!*/
 
     assert(fakeSystem.out.queue.take() == "scheduled")
+
+    /*!md
+    In Scala.js, there is no multi-threading - executions inside a single JavaScript
+    runtime must execute in a single thread. For this reason, you will need to use
+    a special `JsScheduler.Key.default` instance.
+    !*/
+
+    /*!include-code Scala.js:reactors-scala-js-custom-scheduler.html!*/
 
     /*!md
     Running the snippet above should start the `Logger` reactor and print `scheduled`

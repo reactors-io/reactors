@@ -94,7 +94,7 @@ public class schedulers {
         else if (x.isReactorPreempted()) {
           System.out.println("preempted");
           if (first) first = false;
-          else throw new RuntimeException();
+          else throw new RuntimeException("This exception is expected!");
         } else if (x.isReactorDied()) System.out.println("died");
         else if (x.isReactorTerminated()) System.out.println("terminated");
       });
