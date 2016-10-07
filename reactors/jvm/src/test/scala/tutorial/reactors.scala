@@ -216,7 +216,8 @@ class ReactorsTopLevel extends FunSuite with Matchers {
     /*!begin-code!*/
     system.bundle.registerScheduler("customTimer",
       new JvmScheduler.Timer(1000))
-    val periodic = system.spawn(Proto[HelloReactor].withScheduler("customTimer"))
+    val periodic = system.spawn(
+      Proto[HelloReactor].withScheduler("customTimer"))
     periodic ! "Ohayo!"
     /*!end-code!*/
     /*!include-code Java:reactors-java-reactors-custom-scheduler.html!*/
