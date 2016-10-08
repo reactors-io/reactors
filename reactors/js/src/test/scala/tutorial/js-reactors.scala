@@ -13,16 +13,17 @@ class JsReactors extends AsyncFunSuite {
 
   test("use JS scheduler") {
     val system = ReactorSystem.default("test")
-    /*!begin-include!*/
-    /*!begin-code!*/
     val done = Promise[Boolean]()
-    system.spawn(Reactor[Unit] { self =>
+    val proto = Reactor[Unit] { self =>
       self.sysEvents onMatch {
         case ReactorStarted =>
           done.success(true)
           self.main.seal()
       }
-    })
+    }
+    /*!begin-include!*/
+    /*!begin-code!*/
+    system.spawn(proto.withScheduler(JsScheduler.Key.default))
     /*!end-code!*/
     /*!end-include(reactors-scala-js-custom-scheduler.html)!*/
     done.future.map(t => assert(t))

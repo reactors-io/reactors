@@ -73,10 +73,8 @@ object Services {
   private[reactors] def loggingTag(): String = {
     val time = System.currentTimeMillis()
     val d = new Date(time)
-    val formattedDate = s"${d.getYear}/${d.getMonth}/${d.getDate}"
-    val formattedDaytime = s"${d.getHours}:${d.getMinutes}:${d.getSeconds}"
-    val formattedTime = s"$formattedDate-$formattedDaytime"
+    val formattedDate = d.toString
     val frame = Reactor.self[Nothing].frame
-    s"[$formattedTime | ${frame.name} (${frame.uid})] "
+    s"[$formattedDate | ${frame.name} <${frame.uid}>] "
   }
 }
