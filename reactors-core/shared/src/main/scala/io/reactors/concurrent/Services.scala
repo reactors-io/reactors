@@ -50,12 +50,15 @@ abstract class Services extends Platform.Reflectable {
 
   /** Arbitrary service. */
   def service[T <: Protocol.Service: ClassTag] = {
-    val tag = implicitly[ClassTag[T]]
-    if (!services.contains(tag)) {
-      services(tag) =
-        Platform.Reflect.instantiate(tag.runtimeClass, Seq(system)).asInstanceOf[AnyRef]
+    system.monitor.synchronized {
+      val tag = implicitly[ClassTag[T]]
+      if (!services.contains(tag)) {
+        services(tag) =
+          Platform.Reflect.instantiate(tag.runtimeClass, Seq(system))
+            .asInstanceOf[AnyRef]
+      }
+      services(tag).asInstanceOf[T]
     }
-    services(tag).asInstanceOf[T]
   }
 
   /** Shut down all services. */
