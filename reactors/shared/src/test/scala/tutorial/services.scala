@@ -17,8 +17,11 @@ package tutorial
 
 
 import io.reactors._
+import io.reactors.common.afterTime
 import org.scalatest._
-import scala.concurrent._
+import scala.collection._
+import scala.concurrent.Promise
+import scala.concurrent.ExecutionContext
 
 
 
@@ -263,6 +266,119 @@ class ReactorSystemServices extends AsyncFunSuite {
     !*/
 
     done.future.onComplete(_ => system.shutdown())
+    done.future.map(t => assert(t))
+  }
+}
+
+
+/*!md
+### Custom services
+
+Having seen a few existing services, we now show how to create a custom service.
+To do this, we must implement the `Protocol.Service` trait,
+which has the following members:
+!*/
+private object ReactorSystemServicesCustomServiceHelperObject {
+  /*!begin-code!*/
+  class CustomService(val system: ReactorSystem) extends Protocol.Service {
+    def shutdown(): Unit = ???
+  }
+  /*!end-code!*/
+}
+
+
+/*!md
+Note that every service needs to have a constructor with a single `ReactorSystem`
+parameter. The `shutdown` method is called when the corresponding reactor system
+gets shut down, and is used to free any resources that the resource potentially has.
+
+As noted before, a service is a mechanism that gives access to events that a reactor
+normally cannot obtain from other reactors. Let's implement a service that notifies
+a reactor when the enclosing reactor system gets shutdown. For this, we will need to
+keep a map of the channels that subscribed to the shutdown event.
+!*/
+/*!begin-code!*/
+class Shutdown(val system: ReactorSystem) extends Protocol.Service {
+  private val subscribers = mutable.Set[Channel[Boolean]]()
+  private val lock = new AnyRef
+
+  def state: Signal[Boolean] = {
+    val shut = system.channels.daemon.open[Boolean]
+    lock.synchronized {
+      subscribers += shut.channel
+    }
+    shut.events.toSignal(false).withSubscription(new Subscription {
+      def unsubscribe(): Unit = {
+        shut.seal()
+        lock.synchronized {
+          subscribers -= shut.channel
+        }
+      }
+    })
+  }
+
+  def shutdown() {
+    lock.synchronized {
+      for (ch <- subscribers) ch ! true
+    }
+  }
+}
+/*!end-code!*/
+
+
+class ReactorSystemServicesCustomService extends AsyncFunSuite {
+  implicit override def executionContext = ExecutionContext.Implicits.global
+
+  test("custom shutdown service") {
+    /*!md
+    The `Shutdown` service keeps the active shutdown notification channels in the
+    `subscribers` map. When a reactor requests its `state` signal, the service
+    creates a new connector `shut` for that reactor. The corresponding channel
+    `shut.channel` into the `subscribers` map. The correspnding `shut.events` event
+    stream is converted to a signal that is initially `false`, and will remove its
+    subscription if the reactor later decides to call `unsubscribe`.
+    Finally, when the system gets shut down, all the existing subscribers receive
+    a shutdown notification event.
+
+    We can now use the `Shutdown` service, for example, as follows:
+    !*/
+    /*!begin-code!*/
+    val done = Promise[Boolean]()
+    val system = ReactorSystem.default("test-shutdown-system")
+    system.spawn(Reactor[Unit] { self =>
+      system.service[Shutdown].state on {
+        println("hopla")
+        self.main.seal()
+        done.success(true)
+      }
+    })
+    /*!end-code!*/
+
+    /*!md
+    Later, when we shutdown the system, we expect that the code in the callback runs
+    and completes the promise:
+    !*/
+
+    import scala.concurrent.duration._
+    afterTime(2.seconds) {
+      /*!begin-code!*/
+      system.shutdown()
+      /*!end-code!*/
+    }
+
+    /*!md
+    Note that, when implementing a custom service, we are no longer in the same ballpark
+    as when writing normal reactor code. A service may be invoked by multiple reactors
+    concurrently, and this is why we had to synchronize access to the `subscribers` map
+    in the `Shutdown` implementation. In general, when implementing a custom service,
+    we have to take care to:
+
+    - Never block or acquire a lock in the service constructor.
+    - Ensure that access to shared state of the service is properly synchronized.
+
+    In conclusion, you should use custom services whenever you have a native
+    event-driven API that must deliver events to reactors in your program.
+    !*/
     done.future.map(t => assert(t))
   }
 }

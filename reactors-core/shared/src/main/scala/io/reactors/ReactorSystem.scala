@@ -23,15 +23,15 @@ import scala.collection._
 class ReactorSystem(
   val name: String,
   val bundle: ReactorSystem.Bundle = ReactorSystem.defaultBundle
-) extends Services {
+) extends {
+  /** Protects the internal state of the reactor system.
+   */
+  private[reactors] val monitor = new Monitor
+} with Services {
 
   def system = this
 
   private[reactors] val globalTimer = new Timer(s"reactors-io.$name.global-timer", true)
-
-  /** Protects the internal state of the reactor system.
-   */
-  private[reactors] val monitor = new Monitor
 
   /** Debugging API.
    */
