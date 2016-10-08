@@ -2,12 +2,16 @@ package io.reactors.japi;
 
 
 
-import java.util.function.BiFunction;
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.function.Predicate;
+import scala.reflect.ClassTag;
+import scala.reflect.ClassTag$;
 
 
 
 public class Service {
+  protected <S extends io.reactors.Protocol.Service> S getRawService(
+    ReactorSystem system, Class<S> cls
+  ) {
+    ClassTag<S> tag = ClassTag$.MODULE$.<S>apply(cls);
+    return system.rawSystem().<S>service(tag);
+  }
 }

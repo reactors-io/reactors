@@ -5,7 +5,7 @@ package io.reactors.japi;
 
 
 
-public class ReactorSystem {
+public class ReactorSystem extends Services {
   private io.reactors.ReactorSystem self;
 
   private ReactorSystem(io.reactors.ReactorSystem self) {
@@ -15,6 +15,7 @@ public class ReactorSystem {
   private ReactorSystem(String name) {
     this.self = new io.reactors.ReactorSystem(
       name, io.reactors.ReactorSystem.defaultBundle());
+    initServices();
   }
 
   public <T> Channel<T> spawn(Proto<T> proto) {
@@ -29,14 +30,6 @@ public class ReactorSystem {
 
   public ChannelBuilder channels() {
     return new ChannelBuilder(self.channels());
-  }
-
-  public <S extends Service> S service(Class<S> cls) {
-    try {
-      return cls.getConstructor(ReactorSystem.class).newInstance(this);
-    } catch (Throwable throwable) {
-      throw new RuntimeException(throwable);
-    }
   }
 
   public io.reactors.ReactorSystem rawSystem() {

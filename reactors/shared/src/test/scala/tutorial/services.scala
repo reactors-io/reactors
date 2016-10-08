@@ -86,16 +86,19 @@ class ReactorSystemServices extends AsyncFunSuite {
   test("logging service") {
     Log.example = Promise[String]()
 
-    /*!begin-code!*/
     val system = ReactorSystem.default("tutorial-system")
-
-    system.spawn(Reactor[String] { self =>
-      val log = system.service[Log]
-      log("Reactor started!")
-      self.main.seal()
-    })
-    /*!end-code!*/
-    /*!include-code Java:reactors-java-services-log-example.html!*/
+    try {
+      /*!begin-code!*/
+      system.spawn(Reactor[String] { self =>
+        val log = system.service[Log]
+        log("Test reactor started!")
+        self.main.seal()
+      })
+      /*!end-code!*/
+      /*!include-code Java:reactors-java-services-log-example.html!*/
+    } finally {
+      system.shutdown()
+    }
 
     /*!md
     Running the above snippet prints the timestamped message to the standard output.
@@ -113,16 +116,48 @@ class ReactorSystemServices extends AsyncFunSuite {
       the `Log` service.
     !*/
 
-    Log.example.future.map(s => assert(s.contains("Reactor started!")))
+    Log.example.future.map(s => assert(s.contains("Test ractor started!")))
   }
 
   /*!md
-  ## The clock service
+  ### The clock service
 
   Having seen a trivial service example,
   let's take a look at a more involved service that connects reactors with
   the outside world of events, namely, the `Clock` service.
   The `Clock` service is capable of producing time-driven events,
   for example, timeouts, countdowns or periodic counting.
+  This service is standard, so it is also available by calling `system.clock`.
   !*/
+
+  test("clock service") {
+    val system = ReactorSystem.default("tutorial-system")
+
+    /*!md
+    In the following, we create an anonymous reactor that uses the `Clock` service
+    to create a timeout event after 1 second. The `timeout` method of the clock service
+    returns an event stream of the `Unit` type
+    (more specifically, it returns an `IVar` event stream, i.e. a single-assignment
+    variable, which always produces at most one event).
+    We install a callback to the `timeout` event stream, which seals the main channel
+    channel of this reactor. When the main gets sealed, the reactor will terminate -
+    the `timeout` event stream creates a daemon channel under-the-hood.
+    !*/
+
+    /*!begin-code!*/
+    import scala.concurrent.duration._
+
+    val done = Promise[Boolean]()
+    system.spawn(Reactor[String] { self =>
+      system.clock.timeout(1.second) on {
+        done.success(true)
+        self.main.seal()
+      }
+    })
+    /*!end-code!*/
+    /*!include-code Java:reactors-java-services-timeout.html!*/
+
+    done.future.onComplete(_ => system.shutdown())
+    done.future.map(t => assert(t))
+  }
 }

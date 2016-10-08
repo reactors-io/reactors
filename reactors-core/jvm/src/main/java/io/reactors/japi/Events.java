@@ -12,7 +12,7 @@ import java.util.function.Predicate;
 public class Events<T> {
   io.reactors.Events<T> self;
 
-  Events(io.reactors.Events<T> self) {
+  public Events(io.reactors.Events<T> self) {
     this.self = self;
   }
 
