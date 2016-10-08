@@ -22,4 +22,14 @@ public class Clock extends Service {
     Duration delay = Duration.apply(millis, TimeUnit.MILLISECONDS);
     return (new Events(rawClock.timeout(delay))).map(u -> null);
   }
+
+  public Events<Void> periodic(long millis) {
+    Duration delay = Duration.apply(millis, TimeUnit.MILLISECONDS);
+    return (new Events(rawClock.periodic(delay))).map(u -> null);
+  }
+
+  public Events<Void> countdown(int n, long millis) {
+    Duration delay = Duration.apply(millis, TimeUnit.MILLISECONDS);
+    return (new Events(rawClock.countdown(n, delay))).map(u -> null);
+  }
 }

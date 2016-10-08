@@ -55,9 +55,44 @@ public class services {
       });
       system.spawn(proto);
       /*!end-code!*/
-      /*!end-include(reactors-java-services-log-example.html)!*/
+      /*!end-include(reactors-java-services-timeout.html)!*/
 
       Assert.assertEquals("Timeout!", System.out.queue.take());
+    } catch (Throwable t) {
+      throw new RuntimeException(t);
+    } finally {
+      system.shutdown();
+    }
+  }
+
+  @Test
+  public void useChannels() {
+    ReactorSystem system = ReactorSystem.create("test-system");
+    try {
+      /*!begin-include!*/
+      /*!begin-code!*/
+      Proto<String> proto = Reactor.apply(self -> {
+        system.clock().timeout(1000).onEvent(v -> {
+          Connector<Integer> c =
+            system.channels().daemon().named("lucky").<Integer>open();
+          c.events().onEvent(i -> {
+            System.out.println("Done!");
+            self.main().seal();
+          });
+        });
+      });
+      system.spawn(proto.withName("first"));
+
+      Reactor.apply(self -> {
+        system.channels().<Integer>await("first", "lucky").onEvent(ch -> {
+          ch.send(7);
+          self.main().seal();
+        });
+      });
+      /*!end-code!*/
+      /*!end-include(reactors-java-services-channels.html)!*/
+
+      Assert.assertEquals("Done!", System.out.queue.take());
     } catch (Throwable t) {
       throw new RuntimeException(t);
     } finally {
