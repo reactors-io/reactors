@@ -265,8 +265,4 @@ class ReactorSystemServices extends AsyncFunSuite {
     done.future.onComplete(_ => system.shutdown())
     done.future.map(t => assert(t))
   }
-
-  /*!md
-  ### Custom services
-  !*/
 }

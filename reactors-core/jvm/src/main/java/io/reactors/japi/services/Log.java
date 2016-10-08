@@ -7,7 +7,7 @@ import io.reactors.japi.Service;
 
 
 
-public class Log extends Service {
+public class Log implements Service {
   private io.reactors.services.Log rawLog;
 
   public Log(ReactorSystem system) {

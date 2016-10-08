@@ -2,18 +2,25 @@ package io.reactors.japi;
 
 
 
+import io.reactors.japi.services.Channels;
 import io.reactors.japi.services.Clock;
 import io.reactors.japi.services.Log;
 
 
 
 public abstract class Services {
+  private Channels channelsService;
   private Clock clockService;
   private Log logService;
 
   public void initServices() {
+    channelsService = service(Channels.class);
     clockService = service(Clock.class);
     logService = service(Log.class);
+  }
+
+  public Channels channels() {
+    return channelsService;
   }
 
   public Clock clock() {

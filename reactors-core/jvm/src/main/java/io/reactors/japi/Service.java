@@ -7,8 +7,8 @@ import scala.reflect.ClassTag$;
 
 
 
-public class Service {
-  protected <S extends io.reactors.Protocol.Service> S getRawService(
+public interface Service {
+  default <S extends io.reactors.Protocol.Service> S getRawService(
     ReactorSystem system, Class<S> cls
   ) {
     ClassTag<S> tag = ClassTag$.MODULE$.<S>apply(cls);

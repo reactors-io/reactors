@@ -28,10 +28,6 @@ public class ReactorSystem extends Services {
     return new Bundle(self.bundle());
   }
 
-  public ChannelBuilder channels() {
-    return new ChannelBuilder(self.channels());
-  }
-
   public io.reactors.ReactorSystem rawSystem() {
     return self;
   }

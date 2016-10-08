@@ -11,7 +11,7 @@ import scala.concurrent.duration.Duration;
 
 
 
-public class Clock extends Service {
+public class Clock implements Service {
   private io.reactors.services.Clock rawClock;
 
   public Clock(ReactorSystem system) {

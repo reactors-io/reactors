@@ -83,12 +83,12 @@ public class services {
       });
       system.spawn(proto.withName("first"));
 
-      Reactor.apply(self -> {
+      system.spawn(Reactor.apply(self -> {
         system.channels().<Integer>await("first", "lucky").onEvent(ch -> {
           ch.send(7);
           self.main().seal();
         });
-      });
+      }));
       /*!end-code!*/
       /*!end-include(reactors-java-services-channels.html)!*/
 
