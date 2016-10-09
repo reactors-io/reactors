@@ -347,7 +347,6 @@ class ReactorSystemServicesCustomService extends AsyncFunSuite {
     val system = ReactorSystem.default("test-shutdown-system")
     system.spawn(Reactor[Unit] { self =>
       system.service[Shutdown].state on {
-        println("hopla")
         self.main.seal()
         done.success(true)
       }

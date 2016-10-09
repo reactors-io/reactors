@@ -10,6 +10,7 @@ public class ReactorSystem extends Services {
 
   private ReactorSystem(io.reactors.ReactorSystem self) {
     this.self = self;
+    initServices();
   }
 
   private ReactorSystem(String name) {
