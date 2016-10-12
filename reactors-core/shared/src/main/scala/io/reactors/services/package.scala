@@ -217,7 +217,7 @@ extends ChannelBuilder(
     }
   }
 
-  /** Await for the channel with the specified name.
+  /** Await for the channel with the specified full name.
    *
    *  @param name         name of the reactor and the channel, delimited with a `#`
    *  @return             `Ivar` with the desired channel
@@ -229,7 +229,7 @@ extends ChannelBuilder(
     else await[T](parts(0), parts(1))
   }
 
-  /** Await for the channel with the specified name.
+  /** Await for the channel of the specific reactor, and a specific name.
    *
    *  @param reactorName  name of the reactor
    *  @param channelName  name of the channel
