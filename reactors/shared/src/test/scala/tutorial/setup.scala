@@ -17,6 +17,7 @@ package tutorial
 
 
 import io.reactors._
+import org.scalatest._
 import scala.concurrent.Promise
 import scala.concurrent.ExecutionContext
 
@@ -61,10 +62,8 @@ libraryDependencies ++= Seq(
 Alternatively, you can download these dependencies manually,
 and keep them in your folder for managed libraries.
 !*/
-class GettingStarted extends AsyncFunSuite {
+class Setup extends AsyncFunSuite {
 
   implicit override def executionContext = ExecutionContext.Implicits.global
-
-
 
 }

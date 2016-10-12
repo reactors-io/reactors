@@ -17,6 +17,7 @@ package tutorial
 
 
 import io.reactors._
+import org.scalatest._
 import scala.concurrent.Promise
 import scala.concurrent.ExecutionContext
 
@@ -47,7 +48,7 @@ class GettingStarted extends AsyncFunSuite {
     }
     val system = ReactorSystem.default("test-system")
     val ch = system.spawn(welcomeReactor)
-    ch ! "Leslie"
+    ch ! "Alan"
     /*!end-code!*/
 
     /*!md
@@ -61,6 +62,8 @@ class GettingStarted extends AsyncFunSuite {
     The subsequent sections explain the features used in this program
     in more detail.
     !*/
+
+    done.future.map(s => assert(s == "Welcome, Alan!"))
   }
 
 }
