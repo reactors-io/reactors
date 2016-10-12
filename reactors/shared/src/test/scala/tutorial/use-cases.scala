@@ -18,7 +18,7 @@ package tutorial
 
 import io.reactors._
 import org.scalatest._
-Oimport scala.concurrent.Promise
+import scala.concurrent.Promise
 import scala.concurrent.ExecutionContext
 
 
