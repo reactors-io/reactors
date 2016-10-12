@@ -1,7 +1,7 @@
 /*!md
 ---
 layout: tutorial
-title: What are Reactors and how are they useful?
+title: What are Reactors?
 topic: reactors
 logoname: reactress-mini-logo-flat.png
 projectname: Reactors.IO

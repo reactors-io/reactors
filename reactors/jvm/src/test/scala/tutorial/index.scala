@@ -53,7 +53,7 @@ and they can be found
 ### Reactors
 
 {% for pg in site.pages %}
-  {% if pg.topic == "reactors" and pg.section == "guide-reactors" and pg.pagetot %}
+  {% if pg.topic == "reactors" and pg.section == "guide-main" and pg.pagetot %}
     {% assign totalPages = pg.pagetot %}
   {% endif %}
 {% endfor %}
@@ -61,7 +61,7 @@ and they can be found
 <ul>
 {% for i in (1..totalPages) %}
   {% for pg in site.pages %}
-    {% if pg.topic == "reactors" and pg.section == "guide-reactors" %}
+    {% if pg.topic == "reactors" and pg.section == "guide-main" %}
       {% if pg.pagenum and pg.pagenum == i %}
         <li><a href="/tutorialdocs/{{ pg.url }}">{{ pg.title }}</a></li>
       {% endif %}
