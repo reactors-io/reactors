@@ -9,7 +9,7 @@ homepage: http://reactors.io
 permalink: /reactors/services/index.html
 pagenum: 4
 pagetot: 40
-section: guide
+section: guide-reactors
 ---
 !*/
 package tutorial

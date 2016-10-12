@@ -9,7 +9,7 @@ homepage: http://reactors.io
 permalink: /reactors/schedulers-and-lifecycle/index.html
 pagenum: 3
 pagetot: 40
-section: guide
+section: guide-reactors
 ---
 !*/
 package tutorial
