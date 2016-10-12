@@ -26,9 +26,12 @@ import scala.concurrent.ExecutionContext
 /*!md
 ## The Hello World Program
 
-This section contains a simple, working Hello World program,
-without getting into too much details - you can read more in the subsequent sections.
-The following is a minimal example of a working reactor program.
+This section contains a simple, working Hello World program.
+We won't get into too much details - you can find deeper information
+in the subsequent sections.
+We will define a reactor that waits for one incoming event,
+prints a message to the standard output,
+and then terminates.
 !*/
 class GettingStarted extends AsyncFunSuite {
 
@@ -59,8 +62,17 @@ class GettingStarted extends AsyncFunSuite {
     uses the reactor template to start a new running instance of the reactor,
     and sends an event to it.
 
-    The subsequent sections explain the features used in this program
-    in more detail.
+    Above, we note the following:
+
+    - A reactor is defined using the `Reactor[T]` constructor.
+    - A reactor reacts to incoming events as specified in the callback function passed
+      to the `onEvent` method.
+    - Calling `main.seal()` terminates the reactor.
+    - A reactor with a specific definition is started with the `spawn` method, which
+      returns the reactor's default channel.
+    - Events are sent to the reactor by calling the `!` operator on its channel.
+
+    The subsequent sections will explain these features in depth.
     !*/
 
     done.future.map(s => assert(s == "Welcome, Alan!"))
