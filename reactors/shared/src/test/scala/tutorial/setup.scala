@@ -59,8 +59,37 @@ libraryDependencies ++= Seq(
   "io.reactors" %%% "reactors" % "0.8-SNAPSHOT")
 ```
 
-Alternatively, you can download these dependencies manually,
+The dependency above includes all the Reactors modules.
+You can also depend on a specific module, for example, `reactors-core`,
+which includes only the core functionality:
+
+```
+libraryDependencies ++= Seq(
+  "io.reactors" %% "reactors-core" % "0.8-SNAPSHOT")
+```
+
+If you are using Scala.js:
+
+```
+libraryDependencies ++= Seq(
+  "io.reactors" %%% "reactors-core" % "0.8-SNAPSHOT")
+```
+
+Alternatively, you can download any of these dependencies manually,
 and keep them in your folder for managed libraries.
+
+
+### Maven
+
+If you are using Maven, you can use the following dependency:
+
+```
+<dependency>
+    <groupId>io.reactors</groupId>
+    <artifactId>reactors_2.11</artifactId>
+    <version>0.7</version>
+</dependency>
+```
 !*/
 class Setup extends AsyncFunSuite {
 
