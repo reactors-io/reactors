@@ -22,6 +22,7 @@ package object direct {
   implicit class ReactorCoroutineOps(val r: Reactor.type) extends AnyVal {
     def direct[T](body: Reactor[T] => Unit): Proto[Reactor[T]] =
       macro reactorCoroutine[T]
+
     def fromCoroutine[@spec(Int, Long, Double) T, R](
       c: Reactor[T] ~~> ((() => Unit) => Subscription, R)
     ): Proto[Reactor[T]] = {
@@ -71,7 +72,7 @@ package object direct {
     }
   }
 
-  def backpressureSend[T: c.WeakTypeTag](c: Context)(body: c.Tree): c.Tree = {
+  def backpressureSend[T: c.WeakTypeTag](c: Context)(x: c.Tree): c.Tree = {
     import c.universe._
     q"""
       ???
@@ -79,6 +80,6 @@ package object direct {
   }
 
   implicit class BackpressureLinkOps[T](val link: Backpressure.Link[T]) {
-    def !(x: T): Unit = ???
+    def !(x: T): Unit = macro backpressureSend[T]
   }
 }

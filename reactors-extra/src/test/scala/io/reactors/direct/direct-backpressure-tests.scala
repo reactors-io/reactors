@@ -3,7 +3,7 @@ package direct
 
 
 
-import org.coroutines._
+import io.reactors.protocol._
 import org.scalatest._
 import org.scalatest.concurrent.TimeLimitedTests
 import scala.collection._
@@ -17,14 +17,22 @@ class DirectBackpressureTest
 extends FunSuite with Matchers with BeforeAndAfterAll {
   val system = ReactorSystem.default("test-system")
 
-  test("start backpressure and send messages") {
-    // val worker = system.backpressure { (self: Reactor[String]) =>
-    // }
+  ignore("start backpressure and send messages") {
+    val worker = system.backpressurePerClient(50) { (events: Events[Int]) =>
+      var sum = 0
+      events onEvent {
+        sum += _
+      }
+    }
 
-    // val proto = Reactor.direct { (self: Reactor[String]) =>
-      // val link = (worker ? {}).receive()
-      // for (i <- 0 until 100) link ! job(i)
-    // }
+    val proto = Reactor.direct[Unit] { self =>
+      val link = worker.link.receive()
+      var i = 0
+      while (i < 100) {
+        link ! i
+        i += 1
+      }
+    }
   }
 
   override def afterAll() {

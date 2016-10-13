@@ -27,7 +27,8 @@ import scala.collection._
  *    backpressure links. The advantage is that the server cannot be overwhelmed,
  *    regardless of the number of clients. The disadvantage is that some clients can
  *    fail while holding some of the tokens, in which case tokens are lost. If failures
- *    are possible in the system, such scenarios can ultimately starve the protocol.
+ *    are possible in the system, such scenarios will ultimately starve the protocol.
+ *    **You should never use the for-all policy outside a single reactor system.**
  *  - The per-client backpressure policy maintains a fixed number of tokens per each
  *    backpressure link. The advantage is that the failure of any single client only
  *    obliviates the tokens from the client's own backpressure links, so other clients
@@ -46,6 +47,8 @@ trait BackpressureProtocols {
      *
      *  @tparam T       type of the events send over the backpressure link
      *  @param budget   the total number of events that can be in the queue
+     *  @param f        body of the backpressure reactor, taking backpressured events
+     *                  as the input
      *  @return         a backpressure server channel of the new reactor
      */
     def backpressureForAll[T: Arrayable](budget: Long)(
@@ -63,6 +66,8 @@ trait BackpressureProtocols {
      *
      *  @tparam T       type of the events send over the backpressure link
      *  @param budget   the total number of events that can be in the queue
+     *  @param f        body of the backpressure reactor, taking backpressured events
+     *                  as the input
      *  @return         a backpressure server channel of the new reactor
      */
     def backpressurePerClient[T: Arrayable](budget: Long)(
