@@ -182,7 +182,7 @@ trait BackpressureProtocols {
       val system = Reactor.self.system
       val tokens = system.channels.daemon.open[Long]
       val budget = RCell(0L)
-      tokens.events.onEvent(budget := budget() + _)
+      tokens.events.onEvent(x => budget := budget() + x)
       (server ? Backpressure.Open(tokens.channel)).map {
         case (uid, ch) =>
           Reactor.self.sysEvents onMatch {

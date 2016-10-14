@@ -16,22 +16,18 @@ import scala.concurrent.duration._
 class DirectReactorTest extends FunSuite with Matchers with BeforeAndAfterAll {
   val system = ReactorSystem.default("test-system")
 
-  test("reactor defined from a coroutine") {
-    val proto = Reactor.fromCoroutine(coroutine { (self: Reactor[String]) =>
-      val x = self.main.events.receive()
-    })
-  }
-
   test("reactor defined with direct") {
-    val proto = Reactor.direct { (self: Reactor[String]) =>
-      val x = self.main.events.receive()
+    val proto = Reactor.direct[String] {
+      val self = Reactor.self[String]
+      val x = receive(self.main.events)
     }
   }
 
   test("reactor terminate after first message") {
     val done = Promise[Boolean]()
-    val ch = system.spawn(Reactor.direct { (self: Reactor[String]) =>
-      val x = self.main.events.receive()
+    val ch = system.spawn(Reactor.direct[String] {
+      val self = Reactor.self[String]
+      val x = receive(self.main.events)
       if (x == "terminate") {
         done.success(true)
         self.main.seal()
@@ -44,11 +40,12 @@ class DirectReactorTest extends FunSuite with Matchers with BeforeAndAfterAll {
   test("reactor terminate after n messages") {
     val n = 50
     val done = Promise[Seq[String]]()
-    val ch = system.spawn(Reactor.direct { (self: Reactor[String]) =>
+    val ch = system.spawn(Reactor.direct[String] {
+      val self = Reactor.self[String]
       val seen = mutable.Buffer[String]()
       var left = n
       while (left > 0) {
-        seen += self.main.events.receive()
+        seen += receive(self.main.events)
         left -= 1
       }
       done.success(seen)
@@ -63,24 +60,24 @@ class DirectReactorTest extends FunSuite with Matchers with BeforeAndAfterAll {
     val done = Promise[Boolean]()
 
     class PingPong {
-      val ping: Channel[String] = system.spawn(Reactor.direct {
-        (self: Reactor[String]) =>
-        val pong = system.spawn(Reactor.direct {
-          (self: Reactor[String]) =>
+      val ping: Channel[String] = system.spawn(Reactor.direct[String] {
+        val self = Reactor.self[String]
+        val pong = system.spawn(Reactor.direct[String] {
+          val self = Reactor.self[String]
           var left = n
           while (left > 0) {
-            val x = self.main.events.receive()
+            val x = receive(self.main.events)
             ping ! "pong"
             left -= 1
           }
           self.main.seal()
         })
-        val start = self.main.events.receive()
+        val start = receive(self.main.events)
         assert(start == "start")
         var left = n
         while (left > 0) {
           pong ! "ping"
-          val x = self.main.events.receive()
+          val x = receive(self.main.events)
           left -= 1
         }
         done.success(true)
