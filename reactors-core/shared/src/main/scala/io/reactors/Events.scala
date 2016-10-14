@@ -1068,6 +1068,7 @@ object Events {
    *  @tparam T       type of the events in this event stream value
    */
   trait Push[@spec(Int, Long, Double) T] extends Events[T] {
+    private[reactors] var traversing = false
     private[reactors] var demux: AnyRef = null
     private[reactors] var eventsUnreacted: Boolean = false
     def onReaction(observer: Observer[T]): Subscription = {
@@ -1115,46 +1116,64 @@ object Events {
       }
     }
     protected[reactors] def reactAll(value: T, hint: Any) {
-      demux match {
-        case null =>
-          // no need to inform anybody
-        case w: Ref[Observer[T] @unchecked] =>
-          val r = w.get
-          if (r != null) r.react(value, hint)
-          else demux = null
-        case wb: FastBuffer[Observer[T] @unchecked] =>
-          bufferReactAll(wb, value, hint)
-        case wht: FastHashTable[Observer[T] @unchecked] =>
-          tableReactAll(wht, value, hint)
+      assert(!traversing)
+      traversing = true
+      try {
+        demux match {
+          case null =>
+            // no need to inform anybody
+          case w: Ref[Observer[T] @unchecked] =>
+            val r = w.get
+            if (r != null) r.react(value, hint)
+            else demux = null
+          case wb: FastBuffer[Observer[T] @unchecked] =>
+            bufferReactAll(wb, value, hint)
+          case wht: FastHashTable[Observer[T] @unchecked] =>
+            tableReactAll(wht, value, hint)
+        }
+      } finally {
+        traversing = false
       }
     }
     protected[reactors] def exceptAll(t: Throwable) {
-      demux match {
-        case null =>
-          // no need to inform anybody
-        case w: Ref[Observer[T] @unchecked] =>
-          val r = w.get
-          if (r != null) r.except(t)
-          else demux = null
-        case wb: FastBuffer[Observer[T] @unchecked] =>
-          bufferExceptAll(wb, t)
-        case wht: FastHashTable[Observer[T] @unchecked] =>
-          tableExceptAll(wht, t)
+      assert(!traversing)
+      traversing = true
+      try {
+        demux match {
+          case null =>
+            // no need to inform anybody
+          case w: Ref[Observer[T] @unchecked] =>
+            val r = w.get
+            if (r != null) r.except(t)
+            else demux = null
+          case wb: FastBuffer[Observer[T] @unchecked] =>
+            bufferExceptAll(wb, t)
+          case wht: FastHashTable[Observer[T] @unchecked] =>
+            tableExceptAll(wht, t)
+        }
+      } finally {
+        traversing = false
       }
     }
     protected[reactors] def unreactAll() {
-      eventsUnreacted = true
-      demux match {
-        case null =>
-          // no need to inform anybody
-        case w: Ref[Observer[T] @unchecked] =>
-          val r = w.get
-          if (r != null) r.unreact()
-          else demux = null
-        case wb: FastBuffer[Observer[T] @unchecked] =>
-          bufferUnreactAll(wb)
-        case wht: FastHashTable[Observer[T] @unchecked] =>
-          tableUnreactAll(wht)
+      assert(!traversing)
+      traversing = true
+      try {
+        eventsUnreacted = true
+        demux match {
+          case null =>
+            // no need to inform anybody
+          case w: Ref[Observer[T] @unchecked] =>
+            val r = w.get
+            if (r != null) r.unreact()
+            else demux = null
+          case wb: FastBuffer[Observer[T] @unchecked] =>
+            bufferUnreactAll(wb)
+          case wht: FastHashTable[Observer[T] @unchecked] =>
+            tableUnreactAll(wht)
+        }
+      } finally {
+        traversing = false
       }
     }
     private[reactors] def hasSubscriptions: Boolean = {
