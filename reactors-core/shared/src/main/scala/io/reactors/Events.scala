@@ -1068,7 +1068,7 @@ object Events {
    *  @tparam T       type of the events in this event stream value
    */
   trait Push[@spec(Int, Long, Double) T] extends Events[T] {
-    private[reactors] var traversing = false
+    private[reactors] var propagationDepth = 0
     private[reactors] var demux: AnyRef = null
     private[reactors] var eventsUnreacted: Boolean = false
     def onReaction(observer: Observer[T]): Subscription = {
@@ -1116,8 +1116,7 @@ object Events {
       }
     }
     protected[reactors] def reactAll(value: T, hint: Any) {
-      assert(!traversing)
-      traversing = true
+      propagationDepth += 1
       try {
         demux match {
           case null =>
@@ -1132,12 +1131,11 @@ object Events {
             tableReactAll(wht, value, hint)
         }
       } finally {
-        traversing = false
+        propagationDepth -= 1
       }
     }
     protected[reactors] def exceptAll(t: Throwable) {
-      assert(!traversing)
-      traversing = true
+      propagationDepth += 1
       try {
         demux match {
           case null =>
@@ -1152,12 +1150,11 @@ object Events {
             tableExceptAll(wht, t)
         }
       } finally {
-        traversing = false
+        propagationDepth -= 1
       }
     }
     protected[reactors] def unreactAll() {
-      assert(!traversing)
-      traversing = true
+      propagationDepth += 1
       try {
         eventsUnreacted = true
         demux match {
@@ -1173,7 +1170,7 @@ object Events {
             tableUnreactAll(wht)
         }
       } finally {
-        traversing = false
+        propagationDepth -= 1
       }
     }
     private[reactors] def hasSubscriptions: Boolean = {
@@ -1199,12 +1196,12 @@ object Events {
         if (r ne null) {
           r.react(value, hint)
           i += 1
-        } else {
+        } else if (propagationDepth == 1) {
           wb.removeEntryAt(i)
           until -= 1
         }
       }
-      checkBuffer(wb)
+      if (propagationDepth == 1) checkBuffer(wb)
     }
     private def bufferExceptAll(wb: FastBuffer[Observer[T]], t: Throwable) {
       val array = wb.array
@@ -1216,12 +1213,12 @@ object Events {
         if (r ne null) {
           r.except(t)
           i += 1
-        } else {
+        } else if (propagationDepth == 1) {
           wb.removeEntryAt(i)
           until -= 1
         }
       }
-      checkBuffer(wb)
+      if (propagationDepth == 1) checkBuffer(wb)
     }
     private def bufferUnreactAll(wb: FastBuffer[Observer[T]]) {
       val array = wb.array
@@ -1233,12 +1230,12 @@ object Events {
         if (r ne null) {
           r.unreact()
           i += 1
-        } else {
+        } else if (propagationDepth == 1) {
           wb.removeEntryAt(i)
           until -= 1
         }
       }
-      checkBuffer(wb)
+      if (propagationDepth == 1) checkBuffer(wb)
     }
     private def toHashTable(wb: FastBuffer[Observer[T]]) = {
       val wht = new FastHashTable[Observer[T]]
@@ -1293,8 +1290,10 @@ object Events {
         }
         i += 1
       }
-      cleanHashTable(wht)
-      checkHashTable(wht)
+      if (propagationDepth == 1) {
+        cleanHashTable(wht)
+        checkHashTable(wht)
+      }
     }
     private def tableExceptAll(wht: FastHashTable[Observer[T]], t: Throwable) {
       val table = wht.table
@@ -1307,8 +1306,10 @@ object Events {
         }
         i += 1
       }
-      cleanHashTable(wht)
-      checkHashTable(wht)
+      if (propagationDepth == 1) {
+        cleanHashTable(wht)
+        checkHashTable(wht)
+      }
     }
     private def tableUnreactAll(wht: FastHashTable[Observer[T]]) {
       val table = wht.table
@@ -1321,8 +1322,10 @@ object Events {
         }
         i += 1
       }
-      cleanHashTable(wht)
-      checkHashTable(wht)
+      if (propagationDepth == 1) {
+        cleanHashTable(wht)
+        checkHashTable(wht)
+      }
     }
   }
 
