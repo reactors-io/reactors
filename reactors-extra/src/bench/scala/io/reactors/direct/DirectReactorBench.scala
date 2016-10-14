@@ -38,13 +38,13 @@ class DirectReactorBench extends JBench.OfflineReport {
     val done = Promise[Boolean]()
 
     class PingPong {
-      val ping: Channel[String] = system.spawn(Reactor.direct {
-        (self: Reactor[String]) =>
-        val pong = system.spawn(Reactor.direct {
-          (self: Reactor[String]) =>
+      val ping: Channel[String] = system.spawn(Reactor.direct[String] {
+        val self = Reactor.self[String]
+        val pong = system.spawn(Reactor.direct[String] {
+          val self = Reactor.self[String]
           var left = sz
           while (left > 0) {
-            val x = self.main.events.receive()
+            val x = receive(self.main.events)
             ping ! "pong"
             left -= 1
           }
@@ -53,7 +53,7 @@ class DirectReactorBench extends JBench.OfflineReport {
         var left = sz
         while (left > 0) {
           pong ! "ping"
-          val x = self.main.events.receive()
+          val x = receive(self.main.events)
           left -= 1
         }
         done.success(true)
