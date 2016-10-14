@@ -1233,6 +1233,8 @@ object Events {
         } else if (propagationDepth == 1) {
           wb.removeEntryAt(i)
           until -= 1
+        } else {
+          i += 1
         }
       }
       if (propagationDepth == 1) checkBuffer(wb)
