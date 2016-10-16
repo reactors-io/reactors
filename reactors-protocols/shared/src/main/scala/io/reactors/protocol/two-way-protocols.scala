@@ -10,9 +10,9 @@ trait TwoWayProtocols {
   type TwoWay[I, O] = (Channel[I], Events[O])
 
   object TwoWay {
-    type Server[I, O] = io.reactors.protocol.Server[Channel[O], TwoWay[I, O]]
+    type Server[I, O] = io.reactors.protocol.Server[Channel[O], Channel[I]]
 
-    type Req[I, O] = io.reactors.protocol.Server.Req[Channel[O], TwoWay[I, O]]
+    type Req[I, O] = io.reactors.protocol.Server.Req[Channel[O], Channel[I]]
   }
 
   implicit class TwoWayChannelBuilderOps(val builder: ChannelBuilder) {
@@ -20,7 +20,7 @@ trait TwoWayProtocols {
       @spec(Int, Long, Double) I,
       @spec(Int, Long, Double) O
     ]: Connector[TwoWay.Req[I, O]] = {
-      ???
+      builder.open[TwoWay.Req[I, O]]
     }
   }
 
@@ -28,8 +28,32 @@ trait TwoWayProtocols {
     @spec(Int, Long, Double) I,
     @spec(Int, Long, Double) O
   ](val conn: Connector[TwoWay.Req[I, O]]) {
-    def serve(f: TwoWay[O, I] => Unit): TwoWay.Server[I, O] = {
-      ???
+    def serve(f: TwoWay[O, I] => Unit)(
+      implicit i: Arrayable[I]
+    ): TwoWay.Server[I, O] = {
+      conn.events onEvent {
+        case (outputChannel, reply) =>
+          val system = Reactor.self.system
+          val input = system.channels.daemon.open[I]
+          reply ! input.channel
+          val outIn = (outputChannel, input.events)
+          f(outIn)
+      }
+      conn.channel
+    }
+  }
+
+  implicit class TwoWayServerOps[
+    @spec(Int, Long, Double) I,
+    @spec(Int, Long, Double) O
+  ](val twoWayServer: TwoWay.Server[I, O]) {
+    def connect(implicit a: Arrayable[O]): IVar[TwoWay[I, O]] = {
+      val system = Reactor.self.system
+      val output = system.channels.daemon.open[O]
+      val result = (twoWayServer ? output.channel) map {
+        inputChannel => (inputChannel, output.events)
+      }
+      result.toIVar
     }
   }
 }

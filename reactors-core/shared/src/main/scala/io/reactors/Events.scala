@@ -123,7 +123,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  {{{
    *  def onMatch(reactor: PartialFunction[T, Unit]): Subscription
    *  }}}
-   *  
+   *
    *  @param observer    the callback for those events for which it is defined
    *  @return            a subscription for unsubscribing from reactions
    */
