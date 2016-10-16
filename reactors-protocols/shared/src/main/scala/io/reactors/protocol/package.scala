@@ -14,4 +14,5 @@ with ServerProtocols
 with RouterProtocols
 with TwoWayProtocols
 with ReliableProtocols
+with LinkProtocols
 with BackpressureProtocols
