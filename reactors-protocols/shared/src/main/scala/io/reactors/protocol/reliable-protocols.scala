@@ -99,8 +99,7 @@ trait ReliableProtocols {
   //   @spec(Int, Long, Double) I,
   //   @spec(Int, Long, Double) O
   // ](val connector: Connector[Reliable.TwoWay.Req[I, O]]) {
-  //   def rely(window: Int, f: Reliable.TwoWay[O, I] => Unit): Reliable.TwoWay[I, O] = {
+  //   def rely(window: Int, f: Reliable.TwoWay[O, I] => Unit): Reliable.TwoWay[I, O] =
   //     ???
-  //   }
   // }
 }
