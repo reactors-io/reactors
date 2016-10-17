@@ -1,3 +1,5 @@
+image: stormenroute/storm-enroute-build:0.14
+
 before_script:
   - |
     eval `ssh-agent -s`
@@ -17,3 +19,8 @@ before_script:
 gate:
   script:
     - ~/.super-storm-enroute/tools/ci reactors $(pwd)
+
+
+bench:
+  script:
+    - ~/.super-storm-enroute/tools/ci --bench=True . $(pwd)

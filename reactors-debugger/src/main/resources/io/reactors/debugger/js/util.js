@@ -28,4 +28,14 @@ class UidGenerator {
 }
 
 
+class Dict {
+  static ensure(obj, k, v) {
+    if (!(k in obj)) {
+      obj[k] = v;
+    }
+    return obj[k];
+  }
+}
+
+
 var Uid = new UidGenerator();

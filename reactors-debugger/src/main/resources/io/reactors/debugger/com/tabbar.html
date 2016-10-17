@@ -98,6 +98,14 @@
         if (prev) prev.onClose(prev.content);
         this.selectedComponents.splice(index, 1);
         this.selected = Math.min(this.selected, this.selectedComponents.length - 1);
+      },
+      onSelected: function() {
+        var prev = this.selectedComponents[this.selected];
+        if (prev) prev.onFocus(prev.content);
+      },
+      onDeselected: function() {
+        var prev = this.selectedComponents[this.selected];
+        if (prev) prev.onBlur(prev.content);
       }
     }
   });

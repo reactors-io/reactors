@@ -44,6 +44,27 @@
       });
     }
 
+    breakpointAdd(suid, pattern, tpe) {
+      return this.request("breakpoint/add", {
+        suid: suid,
+        pattern: pattern,
+        tpe: tpe
+      });
+    }
+
+    breakpointList(suid) {
+      return this.request("breakpoint/list", {
+        suid: suid
+      });
+    }
+
+    breakpointRemove(suid, bid) {
+      return this.request("breakpoint/remove", {
+        suid: suid,
+        bid: bid
+      });
+    }
+
     replGet(repluid, tpe) {
       return this.request("repl/get", {
         repluid: repluid,

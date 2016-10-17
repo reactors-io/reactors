@@ -4,6 +4,7 @@ package debugger
 
 
 import io.reactors.common.Uid
+import io.reactors.concurrent.Frame
 import java.util.TimerTask
 import org.json4s._
 import org.json4s.JsonDSL._
@@ -16,13 +17,16 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 class WebDebugger(val system: ReactorSystem)
 extends DebugApi with Protocol.Service with WebApi {
-  private val expirationSeconds = 240
-  private val expirationCheckSeconds = 150
+  private val expirationSeconds =
+    system.bundle.config.int("debug-api.session.expiration")
+  private val expirationCheckSeconds =
+    system.bundle.config.int("debug-api.session.expiration-check-period")
   private val server: WebServer = new WebServer(system, this)
   private val monitor = system.monitor
   private val startTime = System.currentTimeMillis()
   private var lastActivityTime = System.currentTimeMillis()
   private val replManager = new ReplManager(system)
+  @volatile private var sessionUid: String = null
   @volatile private var deltaDebugger: DeltaDebugger = null
   @volatile private var breakpointDebugger: BreakpointDebugger = null
 
@@ -37,7 +41,7 @@ extends DebugApi with Protocol.Service with WebApi {
 
   private def uniqueId(): String = Uid.string(startTime)
 
-  def isEnabled = deltaDebugger != null
+  def isEnabled = sessionUid != null
 
   def eventSent[@spec(Int, Long, Double) T](c: Channel[T], x: T) {
     if (deltaDebugger != null) monitor.synchronized {
@@ -57,11 +61,11 @@ extends DebugApi with Protocol.Service with WebApi {
     }
   }
 
-  def reactorStarted(r: Reactor[_]) {
+  def reactorStarted(f: Frame) {
     if (deltaDebugger != null) monitor.synchronized {
       if (deltaDebugger != null) {
-        deltaDebugger.reactorStarted(r)
-        breakpointDebugger.reactorStarted(r)
+        deltaDebugger.reactorStarted(f)
+        breakpointDebugger.reactorStarted(f)
       }
     }
   }
@@ -136,8 +140,9 @@ extends DebugApi with Protocol.Service with WebApi {
 
   private def ensureLive() {
     monitor.synchronized {
-      if (deltaDebugger == null) {
-        deltaDebugger = new DeltaDebugger(system, uniqueId())
+      if (sessionUid == null) {
+        sessionUid = uniqueId()
+        deltaDebugger = new DeltaDebugger(system, sessionUid)
         breakpointDebugger = new BreakpointDebugger(system, deltaDebugger)
       }
       lastActivityTime = System.currentTimeMillis()
@@ -148,6 +153,7 @@ extends DebugApi with Protocol.Service with WebApi {
     monitor.synchronized {
       val now = System.currentTimeMillis()
       if (algebra.time.diff(now, lastActivityTime) > expirationSeconds * 1000) {
+        sessionUid = null
         deltaDebugger = null
         breakpointDebugger = null
         monitor.notifyAll()
@@ -162,6 +168,48 @@ extends DebugApi with Protocol.Service with WebApi {
       JObject(
         ("pending-output" -> JObject(replouts)) :: deltaDebugger.state(suid, ts).obj)
     }
+
+  private def validateSessionUid(suid: String): Option[JObject] = {
+    if (sessionUid != suid)
+      Some(("error" -> "Invalid session UID.") ~ ("suid" -> sessionUid))
+    else None
+  }
+
+  def breakpointAdd(suid: String, pattern: String, tpe: String): JObject = {
+    monitor.synchronized {
+      ensureLive()
+      validateSessionUid(suid).getOrElse {
+        val bid = breakpointDebugger.breakpointAdd(pattern, tpe)
+        ("bid" -> bid)
+      }
+    }
+  }
+
+  def breakpointList(suid: String): JObject = {
+    monitor.synchronized {
+      ensureLive()
+      validateSessionUid(suid).getOrElse {
+        val breakpoints = for (b <- breakpointDebugger.breakpointList()) yield {
+          ("bid" -> b.bid) ~ ("pattern" -> b.pattern) ~ ("tpe" -> b.tpe)
+        }
+        ("breakpoints" -> breakpoints)
+      }
+    }
+  }
+
+  def breakpointRemove(suid: String, bid: Long): JObject = {
+    monitor.synchronized {
+      ensureLive()
+      validateSessionUid(suid).getOrElse {
+        breakpointDebugger.breakpointRemove(bid) match {
+          case Some(b) =>
+            ("bid" -> b.bid) ~ ("pattern" -> b.pattern) ~ ("tpe" -> b.tpe)
+          case None =>
+            ("bid" -> bid) ~ ("error" -> "Cannot remove non-existing breakpoint.")
+        }
+      }
+    }
+  }
 
   def replGet(tpe: String): Future[JValue] =
     monitor.synchronized {
@@ -201,7 +249,7 @@ object WebDebugger {
         name = "io.reactors.debugger.WebDebugger"
       }
     """)
-    val bundle = new ReactorSystem.Bundle(Scheduler.default, config)
+    val bundle = new ReactorSystem.Bundle(JvmScheduler.default, config)
     val system = new ReactorSystem("web-debugger", bundle)
     system.names.resolve
   }

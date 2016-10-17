@@ -103,6 +103,7 @@ class ScalaRepl(val system: ReactorSystem) extends Repl {
     }
   }
   private val replThread = new Thread(s"reactors-io.${system.name}.repl-thread") {
+    setDaemon(true)
     override def run() {
       try {
         val settings = new Settings

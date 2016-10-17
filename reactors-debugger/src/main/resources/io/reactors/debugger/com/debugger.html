@@ -2,6 +2,7 @@
 @@style(io/reactors/debugger/css/main.css)
 @@style(io/reactors/debugger/css/reactor-icons.css)
 @@library(io/reactors/debugger/js/util.js)
+@@library(io/reactors/debugger/js/ctx.js)
 @@library(io/reactors/debugger/lib/jquery/jquery-1.12.4.min.js)
 @@component(io/reactors/debugger/com/config.html)
 @@component(io/reactors/debugger/com/api.html)
@@ -23,14 +24,16 @@
       :config="$refs.config.state">
     </x-api>
     <x-model v-ref:model
+      :ctx="ctx"
       :config="$refs.config.state"
       :api="$refs.api.adapter"
       @critical-error="onCriticalError">
     </x-model>
     <x-graph v-ref:graph
+      :ctx="ctx"
       :config="$refs.config.state"
       :model="$refs.model.state"
-      :event-bus="$refs.model.eventBus"
+      :events="$refs.model.events"
       :canvas-class="'x-debugger-graph'">
     </x-graph>
     <div class="x-debugger-panel-container">
@@ -46,9 +49,12 @@
             <x-log-window v-ref:log-window
               slot="0"
               :config="$refs.config.state"
-              :model="$refs.model.history">
+              :history="$refs.model.history"
+              :model="$refs.model.state"
+              :graph="$refs.graph">
             </x-log-window>
-            <x-tabbar slot="1"
+            <x-tabbar v-ref:shell-tabbar
+              slot="1"
               :tab-factories="shellFactories"
               :initial-selection="shellFactories[0]">
             </x-tabbar>
@@ -65,6 +71,7 @@
     template: "#x-debugger",
     data: function() {
       return {
+        ctx: new Ctx(),
         errors: [],
         leftPanelInfo: [
           {
@@ -81,32 +88,44 @@
           {
             icon: "<span class='glyphicon glyphicon-list-alt'></span>",
             text: "Log",
-            onSelected: () => { this.$refs.logWindow.onSelected() }
+            id: "x-debugger-button-log",
+            onSelected: () => this.$refs.logWindow.onSelected(),
+            onDeselected: () => {}
           },
           {
             icon: "<span class='glyphicon glyphicon-console'></span>",
             text: "Shell",
-            onSelected: () => {}
+            id: "x-debugger-button-shell",
+            onSelected: () => this.$refs.shellTabbar.onSelected(),
+            onDeselected: () => this.$refs.shellTabbar.onDeselected()
           },
           {
             icon: "<span class='glyphicon glyphicon-record'></span>",
             text: "Breakpoints",
-            onSelected: () => {}
+            id: "x-debugger-button-breakpoints",
+            onSelected: () => {},
+            onDeselected: () => {}
           },
           {
             icon: "<i class='reactor-icons reactor-icons-timeline'></i>",
             text: "Timeline",
-            onSelected: () => {}
+            id: "x-debugger-button-timeline",
+            onSelected: () => {},
+            onDeselected: () => {}
           },
           {
             icon: "<i class='fa fa-line-chart' aria-hidden='true'></i>",
             text: "Metrics",
-            onSelected: () => {}
+            id: "x-debugger-button-metrics",
+            onSelected: () => {},
+            onDeselected: () => {}
           },
           {
             icon: "<i class='icon ion-settings'></i>",
             text: "Tools",
-            onSelected: () => {}
+            id: "x-debugger-button-tools",
+            onSelected: () => {},
+            onDeselected: () => {}
           }
         ],
         shellFactories: [

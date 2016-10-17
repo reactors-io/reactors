@@ -4,21 +4,23 @@ package debugger
 
 
 import io.reactors.common.UnrolledRing
+import io.reactors.concurrent.Frame
 import org.json4s._
 import org.json4s.JsonDSL._
 import scala.collection._
 
 
 
-class DeltaDebugger(val system: ReactorSystem, val sessionuid: String)
-extends DebugApi {
+class DeltaDebugger(val system: ReactorSystem, val sessionuid: String) {
   private val monitor = system.monitor
-  private val windowSize = 128
   private val oldstate = new DeltaDebugger.State()
   private var oldtimestamp = 0L
   private var curstate: DeltaDebugger.State = null
   private var curtimestamp = 0L
   private val deltas = new UnrolledRing[DeltaDebugger.Delta]
+  private var pendingSends = mutable.Map[(Long, Long), Long]()
+  private val windowSize =
+    system.bundle.config.int("debug-api.delta-debugger.window-size")
 
   {
     monitor.synchronized {
@@ -29,12 +31,23 @@ extends DebugApi {
     curstate = oldstate.copy()
   }
 
-  private def enqueue(delta: DeltaDebugger.Delta) {
-    monitor.synchronized {
+  private def commitPendingSends() = monitor.synchronized {
+    if (pendingSends.nonEmpty) {
+      val delta = DeltaDebugger.EventsSent(pendingSends.toList.toMap)
       deltas.enqueue(delta)
       delta.apply(curstate)
       curtimestamp += 1
-      if (deltas.size > windowSize) {
+      pendingSends.clear()
+    }
+  }
+
+  private def enqueue(delta: DeltaDebugger.Delta) {
+    monitor.synchronized {
+      commitPendingSends()
+      deltas.enqueue(delta)
+      delta.apply(curstate)
+      curtimestamp += 1
+      while (deltas.size > windowSize) {
         val oldestdelta = deltas.dequeue()
         oldestdelta.apply(oldstate)
         oldtimestamp += 1
@@ -44,6 +57,7 @@ extends DebugApi {
 
   def state(suid: String, reqts: Long): JObject = {
     monitor.synchronized {
+      commitPendingSends()
       if (suid != sessionuid || reqts < oldtimestamp) {
         DeltaDebugger.toJson(sessionuid, curtimestamp, Some(curstate.copy()), None)
       } else {
@@ -60,11 +74,26 @@ extends DebugApi {
 
   def isEnabled = true
 
-  def eventSent[@spec(Int, Long, Double) T](c: Channel[T], x: T) {}
+  def eventSent[@spec(Int, Long, Double) T](c: Channel[T], x: T) {
+    monitor.synchronized {
+      val f = Reactor.currentFrame
+      val cuid = c match {
+        case c: Channel.Local[_] => Some(c.frame.uid)
+        case _ => None
+      }
+      if (f != null && cuid.nonEmpty) {
+        val senderUid = f.uid
+        val targetUid = cuid.get
+        val pair = (senderUid, targetUid)
+        val count = pendingSends.getOrElse(pair, 0L)
+        pendingSends(pair) = count + 1
+      }
+    }
+  }
 
   def eventDelivered[@spec(Int, Long, Double) T](c: Channel[T], x: T) {}
 
-  def reactorStarted(r: Reactor[_]) = enqueue(DeltaDebugger.ReactorStarted(r))
+  def reactorStarted(f: Frame) = enqueue(DeltaDebugger.ReactorStarted(f))
 
   def reactorScheduled(r: Reactor[_]) {}
 
@@ -92,19 +121,25 @@ object DeltaDebugger {
     ("deltas" -> deltas.map(_.map(_.toJson)))
   )
 
+  private def sendsToArray(sends: Map[(Long, Long), Long]): JArray =
+    JArray(sends.map {
+      case (pair, count) => JArray(List(pair._1, pair._2, count))
+    } toList)
+
   class State() {
     val reactors = mutable.Map[Long, String]()
+    val sends = mutable.Map[(Long, Long), Long]()
     def copy(): State = {
       val s = new State()
       for ((id, name) <- reactors) s.reactors(id) = name
+      for ((pair, count) <- sends) s.sends(pair) = count
       s
     }
     def toJson: JValue = {
       val rs = for ((uid, r) <- reactors) yield
-        JField(uid.toString, JObject("name" -> JString(r)))
-      (
-        ("reactors" -> JObject(rs.toList))
-      )
+        JField(uid.toString, JObject("uid" -> uid, "name" -> JString(r)))
+      ("reactors" -> JObject(rs.toList)) ~
+      ("sends" -> sendsToArray(sends))
     }
   }
 
@@ -113,10 +148,10 @@ object DeltaDebugger {
     def apply(s: State): Unit
   }
 
-  case class ReactorStarted(r: Reactor[_]) extends Delta {
-    def toJson = JArray(List("start", r.uid, r.frame.name))
+  case class ReactorStarted(f: Frame) extends Delta {
+    def toJson = JArray(List("start", f.uid, f.name))
     def apply(s: State) {
-      s.reactors(r.uid) = r.frame.name
+      s.reactors(f.uid) = f.name
     }
   }
 
@@ -142,6 +177,19 @@ object DeltaDebugger {
   case class ConnectorSealed(c: Connector[_]) extends Delta {
     def toJson = JArray(List("seal", c.uid))
     def apply(s: State) {
+    }
+  }
+
+  case class EventsSent(sends: Map[(Long, Long), Long]) extends Delta {
+    def toJson = {
+      val sendsArray = sendsToArray(sends)
+      JArray(List("sent", sendsArray))
+    }
+    def apply(s: State) {
+      for ((pair, count) <- sends) {
+        val current = s.sends.getOrElse(pair, 0L)
+        s.sends(pair) = current + count
+      }
     }
   }
 }

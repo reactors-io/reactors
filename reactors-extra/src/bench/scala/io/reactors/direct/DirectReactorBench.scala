@@ -1,0 +1,155 @@
+package io.reactors
+package direct
+
+
+
+import akka.actor._
+import java.util.concurrent.ForkJoinPool
+import java.util.concurrent.atomic._
+import org.scalameter.api._
+import org.scalameter.japi.JBench
+import scala.collection._
+import scala.concurrent.Await
+import scala.concurrent.Promise
+import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.util.Success
+import scala.util.Failure
+
+
+
+class DirectReactorBench extends JBench.OfflineReport {
+  override def defaultConfig = Context(
+    exec.minWarmupRuns -> 80,
+    exec.maxWarmupRuns -> 120,
+    exec.benchRuns -> 36,
+    exec.independentSamples -> 4,
+    verbose -> true
+  )
+
+  val sizes = Gen.range("size")(5000, 25000, 5000)
+
+  @transient lazy val system = new ReactorSystem("reactor-bench")
+
+  @gen("sizes")
+  @benchmark("io.reactors.direct.ping-pong")
+  @curve("direct")
+  def reactorDirectPingPong(sz: Int) = {
+    val done = Promise[Boolean]()
+
+    class PingPong {
+      val ping: Channel[String] = system.spawn(Reactor.direct[String] {
+        val self = Reactor.self[String]
+        val pong = system.spawn(Reactor.direct[String] {
+          val self = Reactor.self[String]
+          var left = sz
+          while (left > 0) {
+            val x = receive(self.main.events)
+            ping ! "pong"
+            left -= 1
+          }
+          self.main.seal()
+        })
+        var left = sz
+        while (left > 0) {
+          pong ! "ping"
+          val x = receive(self.main.events)
+          left -= 1
+        }
+        done.success(true)
+        self.main.seal()
+      })
+    }
+    new PingPong
+
+    assert(Await.result(done.future, 10.seconds))
+  }
+
+  @gen("sizes")
+  @benchmark("io.reactors.direct.ping-pong")
+  @curve("onEvent")
+  def reactorOnEventPingPong(sz: Int) = {
+    val done = Promise[Boolean]()
+
+    class PingPong {
+      val ping: Channel[String] = system.spawn(Reactor { (self: Reactor[String]) =>
+        val pong = system.spawn(Reactor { (self: Reactor[String]) =>
+          var left = sz
+          self.main.events onEvent { x =>
+            ping ! "pong"
+            left -= 1
+            if (left == 0) self.main.seal()
+          }
+        })
+        var left = sz
+        pong ! "ping"
+        self.main.events onEvent { x =>
+          left -= 1
+          if (left > 0) {
+            pong ! "ping"
+          } else {
+            done.success(true)
+            self.main.seal()
+          }
+        }
+      })
+    }
+    new PingPong
+
+    assert(Await.result(done.future, 10.seconds))
+  }
+
+  var actorSystem: ActorSystem = _
+
+  def akkaPingPongSetup() {
+    actorSystem = ActorSystem("actor-bench")
+  }
+
+  def akkaPingPongTeardown() {
+    actorSystem.shutdown()
+  }
+
+  @gen("sizes")
+  @benchmark("io.reactors.direct.ping-pong")
+  @curve("akka")
+  @setupBeforeAll("akkaPingPongSetup")
+  @teardownAfterAll("akkaPingPongTeardown")
+  def akkaPingPong(sz: Int) = {
+    val done = Promise[Boolean]()
+    val pong = actorSystem.actorOf(
+      Props.create(classOf[DirectReactorBench.Pong], new Integer(sz)))
+    val ping = actorSystem.actorOf(
+      Props.create(classOf[DirectReactorBench.Ping], pong, new Integer(sz), done))
+
+    assert(Await.result(done.future, 10.seconds))
+  }
+}
+
+
+object DirectReactorBench {
+  class Pong(val sz: Integer) extends Actor {
+    var left = sz.intValue
+    def receive = {
+      case _ =>
+        left -= 1
+        sender ! "pong"
+        if (left == 0) context.stop(self)
+    }
+  }
+
+  class Ping(val pong: ActorRef, val sz: Integer, val done: Promise[Boolean])
+  extends Actor {
+    var left = sz.intValue
+    pong ! "ping"
+    def receive = {
+      case _ =>
+        left -= 1
+        if (left > 0) {
+          sender ! "ping"
+        } else {
+          done.success(true)
+          context.stop(self)
+        }
+    }
+  }
+}

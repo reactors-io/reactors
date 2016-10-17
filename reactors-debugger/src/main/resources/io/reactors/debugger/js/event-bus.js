@@ -3,31 +3,36 @@
 
 class EventBus {
   constructor() {
+    this.observers = {}
     this.uidCount = 0;
-    this.observers = {};
   }
 
-  observe(key, f) {
-    if (!(key in this.observers)) {
-      this.observers[key] = {};
-    }
-
-    var obs = this.observers[key];
-    var uid = this.uidCount++;
-    obs[uid] = f;
-
-    return () => {
-      delete obs[uid];
-    }
-  }
-
-  post(key, event) {
-    if (key in this.observers) {
-      var obs = this.observers[key];
-      for (var uid in obs) {
-        var f = obs[uid];
-        f(event);
+  emit() {
+    var tpe = arguments[0];
+    var rest = Array.prototype.slice.call(arguments, 1);
+    if (this.observers[tpe]) {
+      var tpeObservers = this.observers[tpe];
+      for (var uid in tpeObservers) {
+        var obs = tpeObservers[uid];
+        obs.apply(null, rest);
       }
     }
   }
+
+  generateUid() {
+    return this.uidCount++;
+  }
+
+  observe(tpe, f) {
+    if (!(tpe in this.observers)) {
+      this.observers[tpe] = {};
+    }
+    var uid = this.generateUid();
+    this.observers[tpe][uid] = f;
+
+    () => delete this.observers[tpe][uid];
+  }
 }
+
+
+var eventBus = new EventBus();

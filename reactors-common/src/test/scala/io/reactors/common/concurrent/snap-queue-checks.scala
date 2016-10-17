@@ -24,7 +24,7 @@ object SegmentCheck extends Properties("Segment") with ExtendedProperties {
 
   val maxSegmentSize = 9000
 
-  val sizes = detOneOf(value(0), value(1), detChoose(0, maxSegmentSize))
+  val sizes = detOneOf(const(0), const(1), detChoose(0, maxSegmentSize))
 
   val dummySnapQueue = new SnapQueue[String]
 
@@ -369,7 +369,7 @@ object SnapQueueCheck extends Properties("SnapQueue") with ExtendedProperties {
 
   val lengths = detChoose(1, 512)
 
-  val delays = detOneOf(value(1), detChoose(0, 16))
+  val delays = detOneOf(const(1), detChoose(0, 16))
 
   val numThreads = detChoose(1, 8)
 

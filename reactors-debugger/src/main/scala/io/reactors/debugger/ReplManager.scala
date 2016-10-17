@@ -16,8 +16,10 @@ import scala.tools.nsc.interpreter._
 
 
 class ReplManager(val system: ReactorSystem) {
-  val expirationCheckSeconds = 60
-  val expirationSeconds = system.bundle.config.getInt("debug-api.repl.expiration")
+  val expirationCheckSeconds =
+    system.bundle.config.int("debug-api.repl.expiration-check-period")
+  val expirationSeconds =
+    system.bundle.config.int("debug-api.repl.expiration")
   val monitor = system.monitor
   val uidCount = new AtomicLong
   val repls = mutable.Map[String, ReplManager.Session]()

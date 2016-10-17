@@ -1,5 +1,6 @@
 "use strict";
 
+
 class ShellAdapter {
   constructor(uid) {
     this.uid = uid;
