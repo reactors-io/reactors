@@ -56,4 +56,14 @@ trait TwoWayProtocols {
       result.toIVar
     }
   }
+
+  implicit class TwoWaySystemOps(val system: ReactorSystem) {
+    def twoWayServer[@spec(Int, Long, Double) I, @spec(Int, Long, Double) O](
+      f: TwoWay[O, I] => Unit
+    )(implicit i: Arrayable[I]): Channel[TwoWay.Req[I, O]] = {
+      system.spawn(Reactor[TwoWay.Req[I, O]] { self =>
+        self.main.twoWayServe(f)
+      })
+    }
+  }
 }
