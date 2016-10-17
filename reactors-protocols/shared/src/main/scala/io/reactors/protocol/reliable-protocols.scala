@@ -8,8 +8,6 @@ import io.reactors.common.BinaryHeap
 
 
 trait ReliableProtocols {
-  type Reliable[T] = Channel[(T, Long)]
-
   object Reliable {
     type Server[T] = io.reactors.protocol.TwoWay.Server[(T, Long), Long]
 
