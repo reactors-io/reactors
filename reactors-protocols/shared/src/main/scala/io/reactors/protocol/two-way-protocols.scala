@@ -7,7 +7,9 @@ package protocol
 
 
 trait TwoWayProtocols {
-  type TwoWay[I, O] = (Channel[I], Events[O], Subscription)
+  case class TwoWay[I, O](
+    input: Channel[I], output: Events[O], subscription: Subscription
+  )
 
   object TwoWay {
     type Server[I, O] = io.reactors.protocol.Server[Channel[O], Channel[I]]
@@ -36,7 +38,7 @@ trait TwoWayProtocols {
           val system = Reactor.self.system
           val input = system.channels.daemon.open[I]
           reply ! input.channel
-          val outIn = (outputChannel, input.events, Subscription(input.seal()))
+          val outIn = TwoWay(outputChannel, input.events, Subscription(input.seal()))
           f(outIn)
       }
       conn
@@ -51,7 +53,8 @@ trait TwoWayProtocols {
       val system = Reactor.self.system
       val output = system.channels.daemon.open[O]
       val result: Events[TwoWay[I, O]] = (twoWayServer ? output.channel) map {
-        inputChannel => (inputChannel, output.events, Subscription(output.seal()))
+        inputChannel =>
+        TwoWay(inputChannel, output.events, Subscription(output.seal()))
       }
       result.toIVar
     }

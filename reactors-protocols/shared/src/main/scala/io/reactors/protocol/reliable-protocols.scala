@@ -26,7 +26,7 @@ trait ReliableProtocols {
        *  and that it does not create duplicates.
        */
       def nonOrdered[T]: io.reactors.protocol.TwoWay[Long, (T, Long)] => Policy[T] = {
-        case (acks, events, subscription) =>
+        case TwoWay(acks, events, subscription) =>
           var latest = 0L
           val queue = new BinaryHeap[(T, Long)]()(
             implicitly,
@@ -48,15 +48,15 @@ trait ReliableProtocols {
       }
     }
 
-    type TwoWay[I, O] = io.reactors.protocol.TwoWay[(I, Long), (O, Long)]
+    // type TwoWay[I, O] = io.reactors.protocol.TwoWay[(I, Long), (O, Long)]
 
-    object TwoWay {
-      type Server[I, O] =
-        io.reactors.protocol.Server[Reliable.Server[I], Reliable.Server[O]]
+    // object TwoWay {
+    //   type Server[I, O] =
+    //     io.reactors.protocol.Server[Reliable.Server[I], Reliable.Server[O]]
 
-      type Req[I, O] =
-        io.reactors.protocol.Server.Req[Reliable.Server[I], Reliable.Server[O]]
-    }
+    //   type Req[I, O] =
+    //     io.reactors.protocol.Server.Req[Reliable.Server[I], Reliable.Server[O]]
+    // }
   }
 
   implicit class ReliableChannelBuilderOps(val builder: ChannelBuilder) {
@@ -70,14 +70,14 @@ trait ReliableProtocols {
   ) {
     def rely(
       f: (Events[T], Subscription) => Unit,
-      newPolicy: io.reactors.protocol.TwoWay[Long, (T, Long)] => Reliable.Policy[T] =
+      newPolicy: TwoWay[Long, (T, Long)] => Reliable.Policy[T] =
         Reliable.Policy.nonOrdered[T]
     )(implicit a: Arrayable[T]): Subscription = {
       val system = Reactor.self.system
       connector.twoWayServe {
-        case req @ (acks, events, subscription) =>
+        case twoWay @ TwoWay(acks, events, subscription) =>
           val reliable = system.channels.daemon.shortcut.open[T]
-          val policy = newPolicy(req)
+          val policy = newPolicy(twoWay)
           events onEvent { timestamped =>
             policy.deliver(timestamped, reliable.channel)
           }
@@ -91,18 +91,18 @@ trait ReliableProtocols {
     }
   }
 
-  implicit class ReliableTwoWayChannelBuilderOps(val builder: ChannelBuilder) {
-    def reliableTwoWayServer[I, O]: Connector[Reliable.TwoWay.Req[I, O]] = {
-      ???
-    }
-  }
+  // implicit class ReliableTwoWayChannelBuilderOps(val builder: ChannelBuilder) {
+  //   def reliableTwoWayServer[I, O]: Connector[Reliable.TwoWay.Req[I, O]] = {
+  //     ???
+  //   }
+  // }
 
-  implicit class ReliableTwoWayConnectorOps[
-    @spec(Int, Long, Double) I,
-    @spec(Int, Long, Double) O
-  ](val connector: Connector[Reliable.TwoWay.Req[I, O]]) {
-    def rely(window: Int, f: Reliable.TwoWay[O, I] => Unit): Reliable.TwoWay[I, O] = {
-      ???
-    }
-  }
+  // implicit class ReliableTwoWayConnectorOps[
+  //   @spec(Int, Long, Double) I,
+  //   @spec(Int, Long, Double) O
+  // ](val connector: Connector[Reliable.TwoWay.Req[I, O]]) {
+  //   def rely(window: Int, f: Reliable.TwoWay[O, I] => Unit): Reliable.TwoWay[I, O] = {
+  //     ???
+  //   }
+  // }
 }
