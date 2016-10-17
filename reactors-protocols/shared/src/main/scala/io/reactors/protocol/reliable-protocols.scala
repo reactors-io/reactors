@@ -3,18 +3,53 @@ package protocol
 
 
 
+import io.reactors.common.BinaryHeap
 
 
 
 trait ReliableProtocols {
-  type Reliable[T] = (Channel[T], Subscription)
+  type Reliable[T] = Channel[(T, Long)]
 
   object Reliable {
-    type Server[T] = io.reactors.protocol.TwoWay.Server[T, Int]
+    type Server[T] = io.reactors.protocol.TwoWay.Server[(T, Long), Long]
 
-    type Req[T] = io.reactors.protocol.TwoWay.Req[T, Int]
+    type Req[T] = io.reactors.protocol.TwoWay.Req[(T, Long), Long]
 
-    type TwoWay[I, O] = (Channel[I], Events[O], Subscription)
+    case class Policy[T](
+      deliver: ((T, Long), Channel[T]) => Unit, resources: Subscription
+    )
+
+    object Policy {
+      /** Assumes that the underlying medium may reorder events.
+       *
+       *  Furthermore, the requirement is that the underlying medium is not lossy,
+       *  and that it does not create duplicates.
+       */
+      def nonOrdered[T]: io.reactors.protocol.TwoWay[Long, (T, Long)] => Policy[T] = {
+        case (acks, events, subscription) =>
+          var latest = 0L
+          val queue = new BinaryHeap[(T, Long)]()(
+            implicitly[Arrayable[(T, Long)]],
+            new Order[(T, Long)] {
+              def compare(x: (T, Long), y: (T, Long)) = (x._2 - y._2).toInt
+            })
+          Policy((timestamped, reliableChannel) => {
+            val (x, timestamp) = timestamped
+            if (timestamp == latest) {
+              acks ! latest
+              latest += 1
+              reliableChannel ! x
+              while (queue.nonEmpty && queue.head._2 == latest) {
+                latest += 1
+                val (x, _) = queue.dequeue()
+                reliableChannel ! x
+              }
+            }
+          }, Subscription.empty)
+      }
+    }
+
+    type TwoWay[I, O] = io.reactors.protocol.TwoWay[(I, Long), (O, Long)]
 
     object TwoWay {
       type Server[I, O] =
@@ -34,11 +69,26 @@ trait ReliableProtocols {
   implicit class ReliableConnectorOps[@spec(Int, Long, Double) T](
     val connector: Connector[Reliable.Req[T]]
   ) {
-    def rely(window: Int)(implicit a: Arrayable[T]): Connector[Reliable.Req[T]] = {
-      connector.twoWayServe { outIn =>
-        ???
+    def rely(
+      f: (Events[T], Subscription) => Unit,
+      newPolicy: io.reactors.protocol.TwoWay[Long, (T, Long)] => Reliable.Policy[T] =
+        Reliable.Policy.nonOrdered[T]
+    )(implicit a: Arrayable[T]): Subscription = {
+      val system = Reactor.self.system
+      connector.twoWayServe {
+        case req @ (acks, events, subscription) =>
+          val reliable = system.channels.daemon.shortcut.open[T]
+          val policy = newPolicy(req)
+          events onEvent { timestamped =>
+            policy.deliver(timestamped, reliable.channel)
+          }
+          val close = Subscription(acks ! -1)
+            .and(reliable.seal())
+            .chain(policy.resources)
+            .chain(subscription)
+          f(reliable.events, close)
       }
-      connector
+      Subscription(connector.seal())
     }
   }
 

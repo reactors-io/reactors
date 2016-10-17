@@ -47,7 +47,7 @@ trait TwoWayProtocols {
     @spec(Int, Long, Double) I,
     @spec(Int, Long, Double) O
   ](val twoWayServer: TwoWay.Server[I, O]) {
-    def connect(implicit a: Arrayable[O]): IVar[TwoWay[I, O]] = {
+    def connect()(implicit a: Arrayable[O]): IVar[TwoWay[I, O]] = {
       val system = Reactor.self.system
       val output = system.channels.daemon.open[O]
       val result: Events[TwoWay[I, O]] = (twoWayServer ? output.channel) map {

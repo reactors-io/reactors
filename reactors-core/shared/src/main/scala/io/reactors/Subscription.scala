@@ -20,7 +20,7 @@ trait Subscription {
    */
   def unsubscribe(): Unit
 
-  /** Returns a new subscription that unsubscribes using this, and executes an action.
+  /** Returns a new subscription that unsubscribes this, and then executes an action.
    */
   def and(action: =>Unit): Subscription = new Subscription {
     def unsubscribe() {
@@ -29,6 +29,14 @@ trait Subscription {
     }
   }
 
+  /** Returns a new subscription that unsubscribes this subscription, and then another.
+   */
+  def chain(other: Subscription): Subscription = new Subscription {
+    def unsubscribe() {
+      self.unsubscribe()
+      other.unsubscribe()
+    }
+  }
 }
 
 
