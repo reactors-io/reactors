@@ -28,9 +28,9 @@ trait TwoWayProtocols {
     @spec(Int, Long, Double) I,
     @spec(Int, Long, Double) O
   ](val conn: Connector[TwoWay.Req[I, O]]) {
-    def serve(f: TwoWay[O, I] => Unit)(
+    def twoWayServe(f: TwoWay[O, I] => Unit)(
       implicit i: Arrayable[I]
-    ): TwoWay.Server[I, O] = {
+    ): Connector[TwoWay.Req[I, O]] = {
       conn.events onEvent {
         case (outputChannel, reply) =>
           val system = Reactor.self.system
@@ -39,7 +39,7 @@ trait TwoWayProtocols {
           val outIn = (outputChannel, input.events, Subscription(input.seal()))
           f(outIn)
       }
-      conn.channel
+      conn
     }
   }
 
