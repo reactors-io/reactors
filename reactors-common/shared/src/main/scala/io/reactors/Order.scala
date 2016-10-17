@@ -28,6 +28,11 @@ trait Order[@specialized(Short, Int, Long, Float, Double) T] {
  */
 object Order {
 
+  def apply[@specialized(Short, Int, Long, Float, Double) T](f: (T, T) => Int) =
+    new Order[T] {
+      def compare(x: T, y: T): Int = f(x, y)
+    }
+
   implicit object ShortOrder extends Order[Short] {
     def compare(x: Short, y: Short) =
       if (x < y) -1

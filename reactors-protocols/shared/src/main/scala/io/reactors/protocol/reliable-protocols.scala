@@ -29,10 +29,9 @@ trait ReliableProtocols {
         case (acks, events, subscription) =>
           var latest = 0L
           val queue = new BinaryHeap[(T, Long)]()(
-            implicitly[Arrayable[(T, Long)]],
-            new Order[(T, Long)] {
-              def compare(x: (T, Long), y: (T, Long)) = (x._2 - y._2).toInt
-            })
+            implicitly,
+            Order((x: (T, Long), y: (T, Long)) => (x._2 - y._2).toInt)
+          )
           Policy((timestamped, reliableChannel) => {
             val (x, timestamp) = timestamped
             if (timestamp == latest) {
