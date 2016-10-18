@@ -34,7 +34,7 @@ trait ReliableProtocols {
           var lastAck = 0L
           var latest = 0L
           val queue = new UnrolledRing[T]
-          val TwoWay(channel, acks, subscription) = twoWay
+          val io.reactors.protocol.TwoWay(channel, acks, subscription) = twoWay
           sends onEvent { x =>
             if ((latest - lastAck) < window) {
               channel ! Stamp.Some(x, latest)
@@ -52,7 +52,7 @@ trait ReliableProtocols {
           } and (channel ! Stamp.None())
         },
         (twoWay, deliver) => {
-          val TwoWay(acks, events, subscription) = twoWay
+          val io.reactors.protocol.TwoWay(acks, events, subscription) = twoWay
           var latest = 0L
           val queue = new BinaryHeap[Stamp[T]]()(
             implicitly,
@@ -76,7 +76,9 @@ trait ReliableProtocols {
       )
     }
 
-    // type TwoWay[I, O] = io.reactors.protocol.TwoWay[(I, Long), (O, Long)]
+    case class TwoWay[I, O](
+      channel: Channel[I], events: Events[O], subscription: Subscription
+    )
 
     // object TwoWay {
     //   type Server[I, O] =
