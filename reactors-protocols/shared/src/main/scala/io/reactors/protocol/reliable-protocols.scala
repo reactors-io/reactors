@@ -76,17 +76,13 @@ trait ReliableProtocols {
       )
     }
 
-    case class TwoWay[I, O](
-      channel: Channel[I], events: Events[O], subscription: Subscription
-    )
+    object TwoWay {
+      type Server[I, O] =
+        io.reactors.protocol.Server[Reliable.Server[I], Reliable.Server[O]]
 
-    // object TwoWay {
-    //   type Server[I, O] =
-    //     io.reactors.protocol.Server[Reliable.Server[I], Reliable.Server[O]]
-
-    //   type Req[I, O] =
-    //     io.reactors.protocol.Server.Req[Reliable.Server[I], Reliable.Server[O]]
-    // }
+      type Req[I, O] =
+        io.reactors.protocol.Server.Req[Reliable.Server[I], Reliable.Server[O]]
+    }
   }
 
   implicit class ReliableChannelBuilderOps(val builder: ChannelBuilder) {
@@ -135,6 +131,17 @@ trait ReliableProtocols {
           acks.filter(_ == -1).toIVar.on(connection.unsubscribe())
           Reliable(reliable.channel, connection)
       } toIVar
+    }
+  }
+
+  implicit class ReliableSystemOps[T: Arrayable](val system: ReactorSystem) {
+    def reliableServer(
+      f: (Events[T], Subscription) => Unit,
+      policy: Reliable.Policy[T] = Reliable.Policy.ordered[T](128)
+    ): Channel[Reliable.Req[T]] = {
+      system.spawn(Reactor[Reliable.Req[T]] { self =>
+        self.main.reliableServe(f, policy)
+      })
     }
   }
 
