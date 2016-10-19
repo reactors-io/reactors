@@ -18,7 +18,7 @@ trait ReliableProtocols {
 
     case class Server[T](
       channel: Channel[io.reactors.protocol.TwoWay.Req[Stamp[T], Long]],
-      requests: Events[Reliable.Connection[T]],
+      connections: Events[Reliable.Connection[T]],
       subscription: Subscription
     )
 
@@ -83,8 +83,11 @@ trait ReliableProtocols {
     }
 
     object TwoWay {
-      type Server[I, O] =
-        io.reactors.protocol.Server[Reliable.Server[O], Reliable.Server[I]]
+      case class Server[I, O](
+        channel: io.reactors.protocol.Server[Reliable.Server[O], Reliable.Server[I]],
+        connections: Events[Nothing],
+        subscription: Subscription
+      )
 
       type Req[I, O] =
         io.reactors.protocol.Server.Req[Reliable.Server[O], Reliable.Server[I]]
@@ -107,7 +110,7 @@ trait ReliableProtocols {
     ): Reliable.Server[T] = {
       val system = Reactor.self.system
       val twoWayServer = connector.twoWayServe
-      val connections = twoWayServer.requests map {
+      val connections = twoWayServer.connections map {
         case twoWay @ TwoWay(_, events, _) =>
           val reliable = system.channels.daemon.shortcut.open[T]
           val resources = policy.server(twoWay, reliable.channel)
@@ -154,18 +157,18 @@ trait ReliableProtocols {
     ): Channel[Reliable.Req[T]] = {
       system.spawn(Reactor[Reliable.Req[T]] { self =>
         val server = self.main.reliableServe(policy)
-        server.requests.onEvent(connection => f(server, connection))
+        server.connections.onEvent(connection => f(server, connection))
       })
     }
   }
 
   /* Two-way reliable protocols */
 
-  // implicit class ReliableTwoWayChannelBuilderOps(val builder: ChannelBuilder) {
-  //   def reliableTwoWayServer[I, O]: Connector[Reliable.TwoWay.Req[I, O]] = {
-  //     builder.open[Reliable.TwoWay.Req[I, O]]
-  //   }
-  // }
+  implicit class ReliableTwoWayChannelBuilderOps(val builder: ChannelBuilder) {
+    def reliableTwoWayServer[I, O]: Connector[Reliable.TwoWay.Req[I, O]] = {
+      builder.open[Reliable.TwoWay.Req[I, O]]
+    }
+  }
 
   // implicit class ReliableTwoWayConnectorOps[I, O](
   //   val connector: Connector[Reliable.TwoWay.Req[I, O]]

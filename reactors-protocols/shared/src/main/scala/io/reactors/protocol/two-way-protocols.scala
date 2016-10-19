@@ -14,7 +14,7 @@ trait TwoWayProtocols {
   object TwoWay {
     case class Server[I, O](
       channel: io.reactors.protocol.Server[Channel[O], Channel[I]],
-      requests: Events[TwoWay[O, I]],
+      connections: Events[TwoWay[O, I]],
       subscription: Subscription
     )
 
@@ -70,7 +70,7 @@ trait TwoWayProtocols {
     )(implicit i: Arrayable[I]): Channel[TwoWay.Req[I, O]] = {
       system.spawn(Reactor[TwoWay.Req[I, O]] { self =>
         val server = self.main.twoWayServe
-        server.requests.onEvent(twoWay => f(server, twoWay))
+        server.connections.onEvent(twoWay => f(server, twoWay))
       })
     }
   }
