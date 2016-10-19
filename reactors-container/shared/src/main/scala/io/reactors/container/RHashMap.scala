@@ -349,7 +349,7 @@ object RHashMap {
     override def onReaction(obs: Observer[V]): Subscription = {
       val sub = super.onReaction(obs)
       obs.react(value, null)
-      sub.and(if (!hasSubscriptions) outer.clean(this))
+      sub.andThen(if (!hasSubscriptions) outer.clean(this))
     }
     override def toString = s"Entry($key, $value)"
   }

@@ -49,7 +49,7 @@ trait ReliableProtocols {
               channel ! Stamp.Some(queue.dequeue(), latest)
               latest += 1
             }
-          } and (channel ! Stamp.None())
+          } andThen (channel ! Stamp.None())
         },
         (twoWay, deliver) => {
           val io.reactors.protocol.TwoWay(acks, events, subscription) = twoWay
@@ -71,7 +71,7 @@ trait ReliableProtocols {
                   deliver ! y
                 }
               }
-          } and (acks ! -1)
+          } andThen (acks ! -1)
         }
       )
     }

@@ -1709,7 +1709,7 @@ object Events {
           selfSubscription = self.onReaction(new ToColdSelfObserver(this))
         }
         val savedsub = subscriptions.addAndGet(sub)
-        savedsub.and(checkUnsubscribe())
+        savedsub.andThen(checkUnsubscribe())
       } else Subscription.empty
     }
     def checkUnsubscribe() {

@@ -22,7 +22,7 @@ trait Subscription {
 
   /** Returns a new subscription that unsubscribes this, and then executes an action.
    */
-  def and(action: =>Unit): Subscription = new Subscription {
+  def andThen(action: =>Unit): Subscription = new Subscription {
     def unsubscribe() {
       self.unsubscribe()
       action
