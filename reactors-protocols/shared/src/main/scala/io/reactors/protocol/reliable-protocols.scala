@@ -78,12 +78,14 @@ trait ReliableProtocols {
 
     object TwoWay {
       type Server[I, O] =
-        io.reactors.protocol.Server[Reliable.Server[I], Reliable.Server[O]]
+        io.reactors.protocol.Server[Reliable.Server[O], Reliable.Server[I]]
 
       type Req[I, O] =
-        io.reactors.protocol.Server.Req[Reliable.Server[I], Reliable.Server[O]]
+        io.reactors.protocol.Server.Req[Reliable.Server[O], Reliable.Server[I]]
     }
   }
+
+  /* One-way reliable protocols */
 
   implicit class ReliableChannelBuilderOps(val builder: ChannelBuilder) {
     def reliableServer[T]: Connector[Reliable.Req[T]] = {
@@ -97,7 +99,7 @@ trait ReliableProtocols {
     def reliableServe(
       f: (Events[T], Subscription) => Unit,
       policy: Reliable.Policy[T] = Reliable.Policy.ordered[T](128)
-    ): Subscription = {
+    ): Connector[Reliable.Req[T]] = {
       val system = Reactor.self.system
       connector.twoWayServe {
         case twoWay @ TwoWay(_, events, subscription) =>
@@ -110,7 +112,7 @@ trait ReliableProtocols {
             .toIVar.on(connection.unsubscribe())
           f(reliable.events, connection)
       }
-      Subscription(connector.seal())
+      connector
     }
   }
 
@@ -145,17 +147,33 @@ trait ReliableProtocols {
     }
   }
 
+  /* Two-way reliable protocols */
+
   // implicit class ReliableTwoWayChannelBuilderOps(val builder: ChannelBuilder) {
   //   def reliableTwoWayServer[I, O]: Connector[Reliable.TwoWay.Req[I, O]] = {
-  //     ???
+  //     builder.open[Reliable.TwoWay.Req[I, O]]
   //   }
   // }
 
-  // implicit class ReliableTwoWayConnectorOps[
-  //   @spec(Int, Long, Double) I,
-  //   @spec(Int, Long, Double) O
-  // ](val connector: Connector[Reliable.TwoWay.Req[I, O]]) {
-  //   def rely(window: Int, f: Reliable.TwoWay[O, I] => Unit): Reliable.TwoWay[I, O] =
-  //     ???
+  // implicit class ReliableTwoWayConnectorOps[I, O](
+  //   val connector: Connector[Reliable.TwoWay.Req[I, O]]
+  // ) {
+  //   def reliableTwoWayServe(
+  //     f: TwoWay[O, I] => Unit,
+  //     inputPolicy: Reliable.Policy[I] = Reliable.Policy.ordered[I],
+  //     outputPolicy: Reliable.Policy[O] = Reliable.Policy.ordered[O]
+  //   ): Connector[Reliable.TwoWay.Req[I, O]] = {
+  //     val system = Reactor.self.system
+  //     connector.events onEvent {
+  //       case (outServer, reply) =>
+  //         reply ! inServer
+  //         val output = outServer.openReliable(outputPolicy)
+  //         val input = out
+  //         (output zip input) { (o, i) =>
+  //           f(TwoWay(o, i))
+  //         }
+  //     }
+  //     connector
+  //   }
   // }
 }

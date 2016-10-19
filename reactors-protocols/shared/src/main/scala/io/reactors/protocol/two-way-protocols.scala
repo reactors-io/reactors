@@ -29,11 +29,11 @@ trait TwoWayProtocols {
   implicit class TwoWayConnectorOps[
     @spec(Int, Long, Double) I,
     @spec(Int, Long, Double) O
-  ](val conn: Connector[TwoWay.Req[I, O]]) {
+  ](val connector: Connector[TwoWay.Req[I, O]]) {
     def twoWayServe(f: TwoWay[O, I] => Unit)(
       implicit i: Arrayable[I]
     ): Connector[TwoWay.Req[I, O]] = {
-      conn.events onEvent {
+      connector.events onEvent {
         case (outputChannel, reply) =>
           val system = Reactor.self.system
           val input = system.channels.daemon.open[I]
@@ -41,7 +41,7 @@ trait TwoWayProtocols {
           val outIn = TwoWay(outputChannel, input.events, Subscription(input.seal()))
           f(outIn)
       }
-      conn
+      connector
     }
   }
 
