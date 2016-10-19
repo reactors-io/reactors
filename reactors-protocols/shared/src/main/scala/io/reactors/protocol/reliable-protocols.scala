@@ -84,13 +84,18 @@ trait ReliableProtocols {
 
     object TwoWay {
       case class Server[I, O](
-        channel: io.reactors.protocol.Server[Reliable.Server[O], Reliable.Server[I]],
-        connections: Events[Nothing],
+        channel: io.reactors.protocol.Server[
+          Channel[Reliable.Req[O]],
+          Channel[Reliable.Req[I]]
+        ],
+        connections: Events[TwoWay[O, I]],
         subscription: Subscription
       )
 
-      type Req[I, O] =
-        io.reactors.protocol.Server.Req[Reliable.Server[O], Reliable.Server[I]]
+      type Req[I, O] = io.reactors.protocol.Server.Req[
+        Channel[Reliable.Req[O]],
+        Channel[Reliable.Req[I]]
+      ]
     }
   }
 
@@ -170,25 +175,34 @@ trait ReliableProtocols {
     }
   }
 
-  // implicit class ReliableTwoWayConnectorOps[I, O](
-  //   val connector: Connector[Reliable.TwoWay.Req[I, O]]
-  // ) {
-  //   def reliableTwoWayServe(
-  //     f: TwoWay[O, I] => Unit,
-  //     inputPolicy: Reliable.Policy[I] = Reliable.Policy.ordered[I],
-  //     outputPolicy: Reliable.Policy[O] = Reliable.Policy.ordered[O]
-  //   ): Connector[Reliable.TwoWay.Req[I, O]] = {
-  //     val system = Reactor.self.system
-  //     connector.events onEvent {
-  //       case (outServer, reply) =>
-  //         reply ! inServer
-  //         val output = outServer.openReliable(outputPolicy)
-  //         val input = out
-  //         (output zip input) { (o, i) =>
-  //           f(TwoWay(o, i))
-  //         }
-  //     }
-  //     connector
-  //   }
-  // }
+  implicit class ReliableTwoWayConnectorOps[I: Arrayable, O: Arrayable](
+    val connector: Connector[Reliable.TwoWay.Req[I, O]]
+  ) {
+    def reliableTwoWayServe(
+      inputPolicy: Reliable.Policy[I] = Reliable.Policy.ordered[I](128),
+      outputPolicy: Reliable.Policy[O] = Reliable.Policy.ordered[O](128)
+    ): Reliable.TwoWay.Server[I, O] = {
+      val system = Reactor.self.system
+      val connections = connector.events.map {
+        case req @ (outServer, reply) =>
+          val inServer = system.channels.daemon.shortcut.reliableServer[I]
+            .reliableServe(inputPolicy)
+          reply ! inServer.channel
+          inServer.connections.on(inServer.subscription.unsubscribe())
+          // TODO: See how we can close this channel earlier if necessary.
+
+          val outReliable = outServer.openReliable(outputPolicy)
+
+          (inServer.connections sync outReliable) { (in, out) =>
+            TwoWay(out.channel, in.events, out.subscription.chain(in.subscription))
+          } toIVar
+      }.union.toEmpty
+
+      Reliable.TwoWay.Server(
+        connector.channel,
+        connections,
+        connections.andThen(connector.seal())
+      )
+    }
+  }
 }

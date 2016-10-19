@@ -38,8 +38,7 @@ trait TwoWayProtocols {
           val system = Reactor.self.system
           val input = system.channels.daemon.open[I]
           reply ! input.channel
-          val outIn = TwoWay(outputChannel, input.events, Subscription(input.seal()))
-          outIn
+          TwoWay(outputChannel, input.events, Subscription(input.seal()))
       } toEmpty
 
       TwoWay.Server(
