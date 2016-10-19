@@ -14,7 +14,13 @@ trait ReliableProtocols {
   case class Reliable[T](channel: Channel[T], subscription: Subscription)
 
   object Reliable {
-    type Server[T] = Channel[io.reactors.protocol.TwoWay.Req[Stamp[T], Long]]
+    case class Connection[T](events: Events[T], subscription: Subscription)
+
+    case class Server[T](
+      channel: Channel[io.reactors.protocol.TwoWay.Req[Stamp[T], Long]],
+      requests: Events[Reliable.Connection[T]],
+      subscription: Subscription
+    )
 
     type Req[T] = io.reactors.protocol.TwoWay.Req[Stamp[T], Long]
 
@@ -97,53 +103,58 @@ trait ReliableProtocols {
     val connector: Connector[Reliable.Req[T]]
   ) {
     def reliableServe(
-      f: (Events[T], Subscription) => Unit,
       policy: Reliable.Policy[T] = Reliable.Policy.ordered[T](128)
-    ): Connector[Reliable.Req[T]] = {
+    ): Reliable.Server[T] = {
       val system = Reactor.self.system
       val twoWayServer = connector.twoWayServe
-      twoWayServer.requests onEvent {
-        case twoWay @ TwoWay(_, events, subscription) =>
+      val connections = twoWayServer.requests map {
+        case twoWay @ TwoWay(_, events, _) =>
           val reliable = system.channels.daemon.shortcut.open[T]
           val resources = policy.server(twoWay, reliable.channel)
-          val connection = Subscription(reliable.seal())
+          val subscription = Subscription(reliable.seal())
             .chain(resources)
-            .chain(subscription)
+            .chain(twoWay.subscription)
           events.collect({ case s @ Stamp.None() => s })
-            .toIVar.on(connection.unsubscribe())
-          f(reliable.events, connection)
-      }
-      connector
+            .toIVar.on(subscription.unsubscribe())
+          Reliable.Connection(reliable.events, subscription)
+      } toEmpty
+
+      Reliable.Server(
+        connector.channel,
+        connections,
+        connections.chain(twoWayServer.subscription).andThen(connector.seal())
+      )
     }
   }
 
   implicit class ReliableServerOps[T: Arrayable](
-    val server: Reliable.Server[T]
+    val server: Channel[Reliable.Req[T]]
   ) {
     def openReliable(
       policy: Reliable.Policy[T] = Reliable.Policy.ordered[T](128)
     ): IVar[Reliable[T]] = {
       val system = Reactor.self.system
       server.connect() map {
-        case twoWay @ TwoWay(_, acks, subscription) =>
+        case twoWay @ TwoWay(_, acks, _) =>
           val reliable = system.channels.daemon.shortcut.open[T]
           val resources = policy.client(reliable.events, twoWay)
-          val connection = Subscription(reliable.seal())
+          val subscription = Subscription(reliable.seal())
             .chain(resources)
-            .chain(subscription)
-          acks.filter(_ == -1).toIVar.on(connection.unsubscribe())
-          Reliable(reliable.channel, connection)
+            .chain(twoWay.subscription)
+          acks.filter(_ == -1).toIVar.on(subscription.unsubscribe())
+          Reliable(reliable.channel, subscription)
       } toIVar
     }
   }
 
   implicit class ReliableSystemOps[T: Arrayable](val system: ReactorSystem) {
     def reliableServer(
-      f: (Events[T], Subscription) => Unit,
+      f: (Reliable.Server[T], Reliable.Connection[T]) => Unit,
       policy: Reliable.Policy[T] = Reliable.Policy.ordered[T](128)
     ): Channel[Reliable.Req[T]] = {
       system.spawn(Reactor[Reliable.Req[T]] { self =>
-        self.main.reliableServe(f, policy)
+        val server = self.main.reliableServe(policy)
+        server.requests.onEvent(connection => f(server, connection))
       })
     }
   }
