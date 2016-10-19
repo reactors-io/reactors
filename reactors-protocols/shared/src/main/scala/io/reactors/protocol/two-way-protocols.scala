@@ -12,43 +12,47 @@ trait TwoWayProtocols {
   )
 
   object TwoWay {
-    type Server[I, O] = io.reactors.protocol.Server[Channel[O], Channel[I]]
+    case class Server[I, O](
+      channel: io.reactors.protocol.Server[Channel[O], Channel[I]],
+      requests: Events[TwoWay[O, I]],
+      subscription: Subscription
+    )
 
     type Req[I, O] = io.reactors.protocol.Server.Req[Channel[O], Channel[I]]
   }
 
   implicit class TwoWayChannelBuilderOps(val builder: ChannelBuilder) {
     def twoWayServer[
-      @spec(Int, Long, Double) I,
-      @spec(Int, Long, Double) O
+      @spec(Int, Long, Double) I, @spec(Int, Long, Double) O
     ]: Connector[TwoWay.Req[I, O]] = {
       builder.open[TwoWay.Req[I, O]]
     }
   }
 
   implicit class TwoWayConnectorOps[
-    @spec(Int, Long, Double) I,
-    @spec(Int, Long, Double) O
+    @spec(Int, Long, Double) I, @spec(Int, Long, Double) O
   ](val connector: Connector[TwoWay.Req[I, O]]) {
-    def twoWayServe(f: TwoWay[O, I] => Unit)(
-      implicit i: Arrayable[I]
-    ): Connector[TwoWay.Req[I, O]] = {
-      connector.events onEvent {
+    def twoWayServe()(implicit i: Arrayable[I]): TwoWay.Server[I, O] = {
+      val connections = connector.events map {
         case (outputChannel, reply) =>
           val system = Reactor.self.system
           val input = system.channels.daemon.open[I]
           reply ! input.channel
           val outIn = TwoWay(outputChannel, input.events, Subscription(input.seal()))
-          f(outIn)
-      }
-      connector
+          outIn
+      } toEmpty
+
+      TwoWay.Server(
+        connector.channel,
+        connections,
+        connections.chain(Subscription(connector.seal()))
+      )
     }
   }
 
   implicit class TwoWayServerOps[
-    @spec(Int, Long, Double) I,
-    @spec(Int, Long, Double) O
-  ](val twoWayServer: TwoWay.Server[I, O]) {
+    @spec(Int, Long, Double) I, @spec(Int, Long, Double) O
+  ](val twoWayServer: Channel[TwoWay.Req[I, O]]) {
     def connect()(implicit a: Arrayable[O]): IVar[TwoWay[I, O]] = {
       val system = Reactor.self.system
       val output = system.channels.daemon.open[O]
@@ -62,10 +66,11 @@ trait TwoWayProtocols {
 
   implicit class TwoWaySystemOps(val system: ReactorSystem) {
     def twoWayServer[@spec(Int, Long, Double) I, @spec(Int, Long, Double) O](
-      f: TwoWay[O, I] => Unit
+      f: (TwoWay.Server[I, O], TwoWay[O, I]) => Unit
     )(implicit i: Arrayable[I]): Channel[TwoWay.Req[I, O]] = {
       system.spawn(Reactor[TwoWay.Req[I, O]] { self =>
-        self.main.twoWayServe(f)
+        val server = self.main.twoWayServe
+        server.requests.onEvent(twoWay => f(server, twoWay))
       })
     }
   }

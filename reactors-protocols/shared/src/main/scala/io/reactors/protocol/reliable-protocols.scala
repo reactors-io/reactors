@@ -14,7 +14,7 @@ trait ReliableProtocols {
   case class Reliable[T](channel: Channel[T], subscription: Subscription)
 
   object Reliable {
-    type Server[T] = io.reactors.protocol.TwoWay.Server[Stamp[T], Long]
+    type Server[T] = Channel[io.reactors.protocol.TwoWay.Req[Stamp[T], Long]]
 
     type Req[T] = io.reactors.protocol.TwoWay.Req[Stamp[T], Long]
 
@@ -101,7 +101,8 @@ trait ReliableProtocols {
       policy: Reliable.Policy[T] = Reliable.Policy.ordered[T](128)
     ): Connector[Reliable.Req[T]] = {
       val system = Reactor.self.system
-      connector.twoWayServe {
+      val twoWayServer = connector.twoWayServe
+      twoWayServer.requests onEvent {
         case twoWay @ TwoWay(_, events, subscription) =>
           val reliable = system.channels.daemon.shortcut.open[T]
           val resources = policy.server(twoWay, reliable.channel)
