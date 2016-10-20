@@ -221,4 +221,25 @@ trait ReliableProtocols {
       )
     }
   }
+
+  implicit class ReliableTwoWayServerOps[I: Arrayable, O: Arrayable](
+    val reliable: Channel[Reliable.TwoWay.Req[I, O]]
+  ) {
+    def connectReliable(
+      policy: Reliable.TwoWay.Policy[I, O] = Reliable.TwoWay.Policy.ordered[I, O](128)
+    ): IVar[TwoWay[I, O]] = {
+      val system = Reactor.self.system
+      val outServer = system.channels.daemon.shortcut.reliableServer[O]
+        .reliableServe(policy.output)
+      policy.outputGuard(outServer)
+
+      (reliable ? outServer.channel) map { inServer =>
+        inServer.openReliable(policy.input)
+
+        ???
+      }
+
+      ???
+    }
+  }
 }
