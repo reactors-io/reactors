@@ -7,11 +7,8 @@ package protocol
 
 
 trait LinkProtocols {
-  type Link[I, O] = (Channel[I], Events[Boolean])
+  case class Link[T](channel: Channel[T], available: Signal[Boolean])
 
   object Link {
-    type Server[R, I, O] = io.reactors.protocol.Server[R, Link[I, O]]
-
-    type Req[R, I, O] = io.reactors.protocol.Server.Req[R, Link[I, O]]
-  }
+  } 
 }
