@@ -203,9 +203,9 @@ trait ReliableProtocols {
         case req @ (outServer, reply) =>
           val inServer = system.channels.daemon.shortcut.reliableServer[I]
             .reliableServe(policy.input)
-          reply ! inServer.channel
           inServer.connections.on(inServer.subscription.unsubscribe())
           policy.inputGuard(inServer)
+          reply ! inServer.channel
 
           val outReliable = outServer.openReliable(policy.output)
 
@@ -223,7 +223,7 @@ trait ReliableProtocols {
   }
 
   implicit class ReliableTwoWayServerOps[I: Arrayable, O: Arrayable](
-    val reliable: Channel[Reliable.TwoWay.Req[I, O]]
+    val reliableServer: Channel[Reliable.TwoWay.Req[I, O]]
   ) {
     def connectReliable(
       policy: Reliable.TwoWay.Policy[I, O] = Reliable.TwoWay.Policy.ordered[I, O](128)
@@ -232,14 +232,15 @@ trait ReliableProtocols {
       val outServer = system.channels.daemon.shortcut.reliableServer[O]
         .reliableServe(policy.output)
       policy.outputGuard(outServer)
+      outServer.connections.on(outServer.subscription.unsubscribe())
 
-      (reliable ? outServer.channel) map { inServer =>
-        inServer.openReliable(policy.input)
+      (reliableServer ? outServer.channel).map { inServer =>
+        val inReliable = inServer.openReliable(policy.input)
 
-        ???
-      }
-
-      ???
+        (inReliable sync outServer.connections) { (in, out) =>
+          TwoWay(in.channel, out.events, in.subscription.chain(out.subscription))
+        }
+      }.union.toIVar
     }
   }
 }
