@@ -243,4 +243,19 @@ trait ReliableProtocols {
       }.union.toIVar
     }
   }
+
+  implicit class ReliableTwoWaySystemOps[I: Arrayable, O: Arrayable](
+    val system: ReactorSystem
+  ) {
+    def reliableTwoWayServer(
+      f: (Reliable.TwoWay.Server[I, O], TwoWay[O, I]) => Unit,
+      policy: Reliable.TwoWay.Policy[I, O] = Reliable.TwoWay.Policy.ordered[I, O](128)
+    ): Channel[Reliable.TwoWay.Req[I, O]] = {
+      val proto = Reactor[Reliable.TwoWay.Req[I, O]] { self =>
+        val server = self.main.reliableTwoWayServe(policy)
+        server.connections.onEvent(twoWay => f(server, twoWay))
+      }
+      system.spawn(proto)
+    }
+  }
 }
