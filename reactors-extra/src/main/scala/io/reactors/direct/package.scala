@@ -76,6 +76,7 @@ package object direct {
    */
   def receive[T] = receiveInstance.asInstanceOf[Coroutine._1[Events[T], IVar[T], T]]
 
+  /*
   def backpressureSend[T: c.WeakTypeTag](c: Context)(x: c.Tree): c.Tree = {
     import c.universe._
     val q"direct.this.`package`.BackpressureLinkOps[$_](${link: Tree})" = c.prefix.tree
@@ -99,4 +100,5 @@ package object direct {
   implicit class BackpressureLinkOps[T](val link: Backpressure.Link[T]) {
     def !(x: T): Unit = macro backpressureSend[T]
   }
+  */
 }
