@@ -39,7 +39,9 @@ trait BackpressureProtocols {
           val available = (increments union decrements).scanPast(0) {
             (acc, v) => acc + v
           }.map(_ > 0).toSignal(false)
-          val forwarding = frontend.events.onEvent(x => twoWay.input ! x)
+          val forwarding = frontend.events.onEvent { x =>
+            if (available()) twoWay.input ! x
+          }
           Link(
             frontend.channel,
             available,
