@@ -274,7 +274,7 @@ trait Events[@spec(Int, Long, Double) T] {
 
   /** Emits the total number of events produced by this event stream.
    *
-   *  The returned value is a [[scala.reactive.Signal]] that holds the total number of
+   *  The returned value is a [[io.reactors.Signal]] that holds the total number of
    *  emitted events.
    *
    *  {{{
@@ -1382,7 +1382,7 @@ object Events {
    *
    *  Note that mutable event stream never unreacts.
    *
-   *  @see [[scala.reactive.Events]]
+   *  @see [[io.reactors.Events]]
    *  @tparam M          the type of the underlying mutable object
    *  @param content     the mutable object
    */

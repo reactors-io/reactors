@@ -21,7 +21,7 @@ object ReactorsBuild extends MechaRepoBuild {
   def projectSettings(
     suffix: String
   ) = {
-    MechaRepoPlugin.defaultSettings ++ Seq(
+    Seq(
       name := s"reactors$suffix",
       organization := "io.reactors",
       scalaVersion := reactorsScalaVersion,
