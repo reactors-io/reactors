@@ -32,7 +32,7 @@ trait TwoWayProtocols {
   implicit class TwoWayConnectorOps[
     @spec(Int, Long, Double) I, @spec(Int, Long, Double) O
   ](val connector: Connector[TwoWay.Req[I, O]]) {
-    def twoWayServe()(implicit i: Arrayable[I]): TwoWay.Server[I, O] = {
+    def serveTwoWay()(implicit i: Arrayable[I]): TwoWay.Server[I, O] = {
       val connections = connector.events map {
         case (outputChannel, reply) =>
           val system = Reactor.self.system
@@ -68,7 +68,7 @@ trait TwoWayProtocols {
       f: (TwoWay.Server[I, O], TwoWay[O, I]) => Unit
     )(implicit i: Arrayable[I]): Channel[TwoWay.Req[I, O]] = {
       system.spawn(Reactor[TwoWay.Req[I, O]] { self =>
-        val server = self.main.twoWayServe
+        val server = self.main.serveTwoWay()
         server.connections.onEvent(twoWay => f(server, twoWay))
       })
     }

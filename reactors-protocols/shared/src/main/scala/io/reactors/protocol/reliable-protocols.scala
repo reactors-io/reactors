@@ -127,11 +127,11 @@ trait ReliableProtocols {
   implicit class ReliableConnectorOps[T: Arrayable](
     val connector: Connector[Reliable.Req[T]]
   ) {
-    def reliableServe(
+    def serveReliable(
       policy: Reliable.Policy[T] = Reliable.Policy.ordered[T](128)
     ): Reliable.Server[T] = {
       val system = Reactor.self.system
-      val twoWayServer = connector.twoWayServe
+      val twoWayServer = connector.serveTwoWay()
       val connections = twoWayServer.connections map {
         case twoWay @ TwoWay(_, events, _) =>
           val reliable = system.channels.daemon.shortcut.open[T]
@@ -178,7 +178,7 @@ trait ReliableProtocols {
       policy: Reliable.Policy[T] = Reliable.Policy.ordered[T](128)
     ): Channel[Reliable.Req[T]] = {
       system.spawn(Reactor[Reliable.Req[T]] { self =>
-        val server = self.main.reliableServe(policy)
+        val server = self.main.serveReliable(policy)
         server.connections.onEvent(connection => f(server, connection))
       })
     }
@@ -195,14 +195,14 @@ trait ReliableProtocols {
   implicit class ReliableTwoWayConnectorOps[I: Arrayable, O: Arrayable](
     val connector: Connector[Reliable.TwoWay.Req[I, O]]
   ) {
-    def reliableTwoWayServe(
+    def serveTwoWayReliable(
       policy: Reliable.TwoWay.Policy[I, O] = Reliable.TwoWay.Policy.ordered[I, O](128)
     ): Reliable.TwoWay.Server[I, O] = {
       val system = Reactor.self.system
       val connections = connector.events.map {
         case req @ (outServer, reply) =>
           val inServer = system.channels.daemon.shortcut.reliableServer[I]
-            .reliableServe(policy.input)
+            .serveReliable(policy.input)
           inServer.connections.on(inServer.subscription.unsubscribe())
           policy.inputGuard(inServer)
           reply ! inServer.channel
@@ -230,7 +230,7 @@ trait ReliableProtocols {
     ): IVar[TwoWay[I, O]] = {
       val system = Reactor.self.system
       val outServer = system.channels.daemon.shortcut.reliableServer[O]
-        .reliableServe(policy.output)
+        .serveReliable(policy.output)
       policy.outputGuard(outServer)
       outServer.connections.on(outServer.subscription.unsubscribe())
 
@@ -252,7 +252,7 @@ trait ReliableProtocols {
       policy: Reliable.TwoWay.Policy[I, O] = Reliable.TwoWay.Policy.ordered[I, O](128)
     ): Channel[Reliable.TwoWay.Req[I, O]] = {
       val proto = Reactor[Reliable.TwoWay.Req[I, O]] { self =>
-        val server = self.main.reliableTwoWayServe(policy)
+        val server = self.main.serveTwoWayReliable(policy)
         server.connections.onEvent(twoWay => f(server, twoWay))
       }
       system.spawn(proto)
