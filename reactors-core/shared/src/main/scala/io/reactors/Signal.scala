@@ -52,7 +52,6 @@ trait Signal[@spec(Int, Long, Double) T] extends Events[T] with Subscription {
    *  }}}
    *  
    *  @tparam S       the type of the difference event
-   *  @param z        the initial value for the difference
    *  @param op       the operator that computes the difference between
    *                  consecutive events
    *  @return         a subscription and a signal with the difference value

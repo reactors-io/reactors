@@ -71,7 +71,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  terminated. After the event stream terminates, no events or exceptions are
    *  propagated on this event stream any more.
    *
-   *  @param ovserver    the observer for `react`, `except` and `unreact` events
+   *  @param observer    the observer for `react`, `except` and `unreact` events
    *  @return            a subscription for unsubscribing from reactions
    */
   def onReaction(observer: Observer[T]): Subscription
