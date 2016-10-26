@@ -10,10 +10,6 @@ trait BackpressureProtocols {
   self: LinkProtocols =>
 
   object Backpressure {
-    case class Server[T]()
-
-    type Req[T] = io.reactors.protocol.Server.Req[TwoWay[Int, T], Unit]
-
     case class Connection[T](events: Events[T], subscription: Subscription)
 
     case class Policy[T](
@@ -76,11 +72,19 @@ trait BackpressureProtocols {
     }
   }
 
-  implicit class BackpressureTwoWayOps[T: Arrayable](val twoWay: TwoWay[Int, T]) {
-    def backpressure(
+  implicit class BackpressureTwoWayServerOps[T: Arrayable](val twoWay: TwoWay[Int, T]) {
+    def toBackpressureConnection(
       policy: Backpressure.Policy[T] = Backpressure.Policy.sliding[T](128)
     ): Backpressure.Connection[T] = {
       policy.server(twoWay)
+    }
+  }
+
+  implicit class BackpressureTwoWayClientOps[T: Arrayable](val twoWay: TwoWay[T, Int]) {
+    def toBackpressureLink(
+      policy: Backpressure.Policy[T] = Backpressure.Policy.sliding[T](128)
+    ): Link[T] = {
+      policy.client(twoWay)
     }
   }
 
