@@ -87,22 +87,4 @@ trait BackpressureProtocols {
       policy.client(twoWay)
     }
   }
-
-  implicit class BackpressureChannelBuilderOps[T: Arrayable](
-    val builder: ChannelBuilder
-  ) {
-    def backpressureServer(
-      policy: Backpressure.Policy[T] = Backpressure.Policy.sliding[T](128)
-    ): Connector[Backpressure.Req[T]] = {
-      builder.open[Backpressure.Req[T]]
-    }
-  }
-
-  implicit class BackpressureConnectorOps[T](
-    val connector: Connector[Backpressure.Req[T]]
-  ) {
-    def serveBackpressure(): Backpressure.Server[T] = {
-      ???
-    }
-  }
 }
