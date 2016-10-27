@@ -9,7 +9,11 @@ package protocol
 trait BackpressureProtocols {
   self: LinkProtocols =>
 
+  case class Backpressure[T]()
+
   object Backpressure {
+    type Req = Nothing
+
     case class Connection[T](events: Events[T], subscription: Subscription)
 
     case class Policy[T](
@@ -87,4 +91,25 @@ trait BackpressureProtocols {
       policy.client(twoWay)
     }
   }
+
+  implicit class BackpressureChannelBuilderOps(val builder: ChannelBuilder) {
+    def backpressureServer[T: Arrayable]: Connector[Backpressure.Req] = {
+      ???
+    }
+  }
+
+  implicit class BackpressureConnectorOps[T](
+    val connector: Connector[Backpressure.Req]
+  ) {
+    def serveBackpressure(): Events[Backpressure.Connection[T]] = {
+      ???
+    }
+  }
+
+  implicit class BackpressureServerOps[T](val server: AnyRef) {
+    def openBackpressure[T]: Backpressure[T] = {
+      ???
+    }
+  }
+
 }
