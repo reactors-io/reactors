@@ -5,7 +5,7 @@ package io.reactors
 
 
 
-package object protocol extends StandardProtocols
+package object protocol extends StandardAbstractions
 with ChannelProtocols
 with Patterns
 with Conversions
@@ -14,5 +14,5 @@ with ServerProtocols
 with RouterProtocols
 with TwoWayProtocols
 with ReliableProtocols
-with LinkProtocols
+with CommunicationAbstractions
 with BackpressureProtocols

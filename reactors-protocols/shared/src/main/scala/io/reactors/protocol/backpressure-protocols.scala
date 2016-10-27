@@ -7,14 +7,18 @@ package protocol
 
 
 trait BackpressureProtocols {
-  self: LinkProtocols =>
+  self: CommunicationAbstractions =>
 
   case class Backpressure[T]()
 
   object Backpressure {
-    type Req = Nothing
-
     case class Connection[T](events: Events[T], subscription: Subscription)
+    extends io.reactors.protocol.Connection[T]
+
+    case class Server[T](
+      connections: Events[Connection[T]],
+      subscription: Subscription
+    ) extends ServerSide[Connection[T]]
 
     case class Policy[T](
       server: TwoWay[Int, T] => Backpressure.Connection[T],
@@ -92,26 +96,25 @@ trait BackpressureProtocols {
     }
   }
 
-  implicit class BackpressureChannelBuilderOps(val builder: ChannelBuilder) {
-    def backpressureServer[T: Arrayable]: Connector[Backpressure.Req] = {
-      ???
-    }
-  }
-
-  implicit class BackpressureConnectorOps[T](
-    val connector: Connector[Backpressure.Req]
+  implicit class BackpressureConnectionOps[T: Arrayable](
+    val serverSide: ServerSide[TwoWay[Int, T]]
   ) {
-    def serveBackpressure(
-      policy: Backpressure.Policy[T]
-    ): Events[Backpressure.Connection[T]] = {
-      ???
+    def toBackpressure(
+      policy: Backpressure.Policy[T] = Backpressure.Policy.sliding[T](128)
+    ): Backpressure.Server[T] = {
+      val backpressureConnections =
+        serverSide.connections.map(_.toBackpressureConnection(policy))
+      Backpressure.Server(backpressureConnections, serverSide.subscription)
     }
   }
 
-  implicit class BackpressureServerOps[T](val server: Nothing) {
-    def openBackpressure[T](policy: Backpressure.Policy[T]): IVar[Backpressure[T]] = {
-      ???
+  implicit class BackpressureTwoWayIVarOps[T: Arrayable](
+    val connections: IVar[TwoWay[T, Int]]
+  ) {
+    def toBackpressure(
+      policy: Backpressure.Policy[T] = Backpressure.Policy.sliding[T](128)
+    ): IVar[Link[T]] = {
+      connections.map(_.toBackpressureLink(policy)).toIVar
     }
   }
-
 }

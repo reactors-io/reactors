@@ -6,7 +6,7 @@ package protocol
 
 
 
-trait StandardProtocols {
+trait StandardAbstractions {
   sealed trait Stamp[T] {
     def isEmpty: Boolean
     def nonEmpty: Boolean

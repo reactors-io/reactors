@@ -9,18 +9,19 @@ import io.reactors.common.UnrolledRing
 
 
 trait ReliableProtocols {
-  self: StandardProtocols =>
+  self: StandardAbstractions =>
 
   case class Reliable[T](channel: Channel[T], subscription: Subscription)
 
   object Reliable {
     case class Connection[T](events: Events[T], subscription: Subscription)
+    extends io.reactors.protocol.Connection[T]
 
     case class Server[T](
       channel: Channel[io.reactors.protocol.TwoWay.Req[Stamp[T], Long]],
       connections: Events[Reliable.Connection[T]],
       subscription: Subscription
-    )
+    ) extends ServerSide[Reliable.Connection[T]]
 
     type Req[T] = io.reactors.protocol.TwoWay.Req[Stamp[T], Long]
 
@@ -90,7 +91,7 @@ trait ReliableProtocols {
         ],
         connections: Events[TwoWay[O, I]],
         subscription: Subscription
-      )
+      ) extends ServerSide[TwoWay[O, I]]
 
       type Req[I, O] = io.reactors.protocol.Server.Req[
         Channel[Reliable.Req[O]],

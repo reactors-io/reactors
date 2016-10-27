@@ -9,14 +9,18 @@ package protocol
 trait TwoWayProtocols {
   case class TwoWay[I, O](
     input: Channel[I], output: Events[O], subscription: Subscription
-  )
+  ) extends Connection[O] {
+    /** Same value as `output`, events provided by this connection.
+     */
+    def events = output
+  }
 
   object TwoWay {
     case class Server[I, O](
       channel: io.reactors.protocol.Server[Channel[O], Channel[I]],
       connections: Events[TwoWay[O, I]],
       subscription: Subscription
-    )
+    ) extends ServerSide[TwoWay[O, I]]
 
     type Req[I, O] = io.reactors.protocol.Server.Req[Channel[O], Channel[I]]
   }
