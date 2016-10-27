@@ -101,13 +101,15 @@ trait BackpressureProtocols {
   implicit class BackpressureConnectorOps[T](
     val connector: Connector[Backpressure.Req]
   ) {
-    def serveBackpressure(): Events[Backpressure.Connection[T]] = {
+    def serveBackpressure(
+      policy: Backpressure.Policy[T]
+    ): Events[Backpressure.Connection[T]] = {
       ???
     }
   }
 
-  implicit class BackpressureServerOps[T](val server: AnyRef) {
-    def openBackpressure[T]: Backpressure[T] = {
+  implicit class BackpressureServerOps[T](val server: Nothing) {
+    def openBackpressure[T](policy: Backpressure.Policy[T]): IVar[Backpressure[T]] = {
       ???
     }
   }
