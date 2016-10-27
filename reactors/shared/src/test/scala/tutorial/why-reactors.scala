@@ -30,9 +30,13 @@ import scala.concurrent.ExecutionContext
 It allows creating concurrent and distributed applications more easily,
 by providing correct, robust and composable programming abstractions.
 Based on the *reactor model* for distributed programming,
-Reactors provide means to write location-transparent programs,
+Reactors provide means to write distributed and concurrent programs
 that can be subdivided into modular components.
-At the same time, Reactors 
+These modular components can be fused together
+in a way that is not possible with standard actors.
+At the same time,
+Reactors retains the advantages of the actor model,
+such as location-transparency.
 
 You can download Reactors from
 [http://reactors.io/download/](http://reactors.io/download/).
