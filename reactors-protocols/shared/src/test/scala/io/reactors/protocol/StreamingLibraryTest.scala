@@ -27,7 +27,30 @@ class StreamingLibraryTest extends AsyncFunSuite with AsyncTimeLimitedTests {
 
 object StreamingLibraryTest {
   trait Stream[T] {
-    def map[S](f: T => S): Unit
-    def filter(p: T => Boolean): Unit
+    def map[S](f: T => S): Mapped[S] = ???
+    def flatMap[S](f: T => Seq[S]): FlatMapped[S] = ???
+    def filter(p: T => Boolean): Filtered[T] = ???
+    def scanPast[S](op: (S, T) => S): ScannedPast[T] = ???
+    def batch(sz: Int): Batched[T] = ???
+    def sync[S](that: Stream[S]): Synced[T, S] = ???
+
+  }
+
+  class Mapped[T] extends Stream[T] {
+  }
+
+  class Filtered[T] extends Stream[T] {
+  }
+
+  class FlatMapped[T] extends Stream[T] {
+  }
+
+  class ScannedPast[T] extends Stream[T] {
+  }
+
+  class Batched[T] extends Stream[Seq[T]] {
+  }
+
+  class Synced[T, S] extends Stream[(T, S)] {
   }
 }
