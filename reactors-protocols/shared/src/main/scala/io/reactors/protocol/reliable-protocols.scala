@@ -9,8 +9,6 @@ import io.reactors.common.UnrolledRing
 
 
 trait ReliableProtocols {
-  self: StandardAbstractions =>
-
   case class Reliable[T](channel: Channel[T], subscription: Subscription)
 
   object Reliable {
@@ -18,10 +16,10 @@ trait ReliableProtocols {
     extends io.reactors.protocol.Connection[T]
 
     case class Server[T](
-      channel: Channel[io.reactors.protocol.TwoWay.Req[Stamp[T], Long]],
+      channel: Channel[Req[T]],
       connections: Events[Reliable.Connection[T]],
       subscription: Subscription
-    ) extends ServerSide[Reliable.Connection[T]]
+    ) extends ServerSide[Req[T], Reliable.Connection[T]]
 
     type Req[T] = io.reactors.protocol.TwoWay.Req[Stamp[T], Long]
 
@@ -91,7 +89,7 @@ trait ReliableProtocols {
         ],
         connections: Events[TwoWay[O, I]],
         subscription: Subscription
-      ) extends ServerSide[TwoWay[O, I]]
+      ) extends ServerSide[TwoWay.Req[I, O], TwoWay[O, I]]
 
       type Req[I, O] = io.reactors.protocol.Server.Req[
         Channel[Reliable.Req[O]],
@@ -224,7 +222,7 @@ trait ReliableProtocols {
   }
 
   implicit class ReliableTwoWayServerOps[I: Arrayable, O: Arrayable](
-    val reliableServer: Channel[Reliable.TwoWay.Req[I, O]]
+    val reliableServer: Channel[io.reactors.protocol.Reliable.TwoWay.Req[I, O]]
   ) {
     def connectReliable(
       policy: Reliable.TwoWay.Policy[I, O] = Reliable.TwoWay.Policy.ordered[I, O](128)

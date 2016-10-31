@@ -7,18 +7,34 @@ package protocol
 
 
 trait BackpressureProtocols {
-  self: CommunicationAbstractions =>
-
   case class Backpressure[T]()
 
   object Backpressure {
     case class Connection[T](events: Events[T], subscription: Subscription)
     extends io.reactors.protocol.Connection[T]
 
-    case class Server[T](
+    case class Server[T, R](
+      channel: Channel[R],
       connections: Events[Connection[T]],
       subscription: Subscription
-    ) extends ServerSide[Connection[T]]
+    ) extends ServerSide[R, Connection[T]]
+
+    case class Medium[R, T](
+      openServer: ChannelBuilder => ServerSide[R, TwoWay[Int, T]],
+      openClient: Channel[R] => IVar[TwoWay[T, Int]]
+    )
+
+    object Medium {
+      def default[T: Arrayable] = Backpressure.Medium[TwoWay.Req[T, Int], T](
+        builder => builder.twoWayServer[T, Int].serveTwoWay(),
+        channel => channel.connect()
+      )
+
+      def reliable[T: Arrayable] = Backpressure.Medium[Reliable.TwoWay.Req[T, Int], T](
+        builder => builder.reliableTwoWayServer[T, Int].serveTwoWayReliable(),
+        channel => channel.connectReliable()
+      )
+    }
 
     case class Policy[T](
       server: TwoWay[Int, T] => Backpressure.Connection[T],
@@ -96,25 +112,30 @@ trait BackpressureProtocols {
     }
   }
 
-  implicit class BackpressureConnectionOps[T: Arrayable](
-    val serverSide: ServerSide[TwoWay[Int, T]]
+  implicit class BackpressureChannelBuilderOps[T: Arrayable](
+    val builder: ChannelBuilder
   ) {
-    def toBackpressure(
+    def serveBackpressure[R](
+      medium: Backpressure.Medium[R, T],
       policy: Backpressure.Policy[T] = Backpressure.Policy.sliding[T](128)
-    ): Backpressure.Server[T] = {
-      val backpressureConnections =
-        serverSide.connections.map(_.toBackpressureConnection(policy))
-      Backpressure.Server(backpressureConnections, serverSide.subscription)
+    ): Backpressure.Server[T, R] = {
+      val twoWayServer = medium.openServer(builder)
+      Backpressure.Server(
+        twoWayServer.channel,
+        twoWayServer.connections.map(_.toBackpressureConnection(policy)),
+        twoWayServer.subscription
+      )
     }
   }
 
-  implicit class BackpressureTwoWayIVarOps[T: Arrayable](
-    val connections: IVar[TwoWay[T, Int]]
+  implicit class BackpressureServerOps[R, T: Arrayable](
+    val server: Channel[R]
   ) {
-    def toBackpressure(
+    def connectBackpressure(
+      medium: Backpressure.Medium[R, T],
       policy: Backpressure.Policy[T] = Backpressure.Policy.sliding[T](128)
-    ): IVar[Link[T]] = {
-      connections.map(_.toBackpressureLink(policy)).toIVar
+    ): Unit = {
+      medium.openClient(server).map(_.toBackpressureLink(policy))
     }
   }
 }

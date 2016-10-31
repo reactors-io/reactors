@@ -20,7 +20,7 @@ trait TwoWayProtocols {
       channel: io.reactors.protocol.Server[Channel[O], Channel[I]],
       connections: Events[TwoWay[O, I]],
       subscription: Subscription
-    ) extends ServerSide[TwoWay[O, I]]
+    ) extends ServerSide[Req[I, O], TwoWay[O, I]]
 
     type Req[I, O] = io.reactors.protocol.Server.Req[Channel[O], Channel[I]]
   }
