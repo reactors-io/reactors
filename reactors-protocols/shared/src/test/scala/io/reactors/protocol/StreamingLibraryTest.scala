@@ -34,6 +34,7 @@ object StreamingLibraryTest {
     def batch(sz: Int): Batched[T] = ???
     def sync[S](that: Stream[S]): Synced[T, S] = ???
 
+    def output: Channel[Reliable.TwoWay.Req[T, Int]] = ???
   }
 
   class Mapped[T] extends Stream[T] {
