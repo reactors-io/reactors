@@ -27,31 +27,41 @@ class StreamingLibraryTest extends AsyncFunSuite with AsyncTimeLimitedTests {
 
 object StreamingLibraryTest {
   trait Stream[T] {
-    def map[S](f: T => S): Mapped[S] = ???
-    def flatMap[S](f: T => Seq[S]): FlatMapped[S] = ???
-    def filter(p: T => Boolean): Filtered[T] = ???
-    def scanPast[S](op: (S, T) => S): ScannedPast[T] = ???
-    def batch(sz: Int): Batched[T] = ???
-    def sync[S](that: Stream[S]): Synced[T, S] = ???
+    def map[S](f: T => S): Mapped[T, S] = new Mapped(this, f)
+    def flatMap[S](f: T => Seq[S]): FlatMapped[T, S] = new FlatMapped(this, f)
+    def filter(p: T => Boolean): Filtered[T] = new Filtered(this, p)
+    def scanPast[S](op: (S, T) => S): ScannedPast[T, S] = new ScannedPast(this, op)
+    def batch(size: Int): Batched[T] = new Batched(this, size)
+    def sync[S](that: Stream[S]): Synced[T, S] = new Synced(this, that)
 
     def output: Channel[Reliable.TwoWay.Req[T, Int]] = ???
+
+    def sink[U](f: T => U): Subscription = {
+      ???
+    }
   }
 
-  class Mapped[T] extends Stream[T] {
+  class Mapped[T, S](val source: Stream[T], val f: T => S)
+  extends Stream[S] {
   }
 
-  class Filtered[T] extends Stream[T] {
+  class FlatMapped[T, S](val source: Stream[T], val f: T => Seq[S])
+  extends Stream[S] {
   }
 
-  class FlatMapped[T] extends Stream[T] {
+  class Filtered[T](val source: Stream[T], val p: T => Boolean)
+  extends Stream[T] {
   }
 
-  class ScannedPast[T] extends Stream[T] {
+  class ScannedPast[T, S](val source: Stream[T], val op: (S, T) => S)
+  extends Stream[S] {
   }
 
-  class Batched[T] extends Stream[Seq[T]] {
+  class Batched[T](val source: Stream[T], val size: Int)
+  extends Stream[Seq[T]] {
   }
 
-  class Synced[T, S] extends Stream[(T, S)] {
+  class Synced[T, S](val source: Stream[T], val that: Stream[S])
+  extends Stream[(T, S)] {
   }
 }
