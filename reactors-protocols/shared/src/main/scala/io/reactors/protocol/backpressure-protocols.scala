@@ -13,25 +13,28 @@ trait BackpressureProtocols {
     case class Connection[T](events: Events[T], subscription: Subscription)
     extends io.reactors.protocol.Connection[T]
 
-    case class Server[T, R](
+    case class Server[R, T](
       channel: Channel[R],
       connections: Events[Connection[T]],
       subscription: Subscription
     ) extends ServerSide[R, Connection[T]]
 
     case class Medium[R, T](
-      openServer: ChannelBuilder => ServerSide[R, TwoWay[Int, T]],
-      openClient: Channel[R] => IVar[TwoWay[T, Int]]
+      openServer: ChannelBuilder => Connector[R],
+      serve: Connector[R] => ServerSide[R, TwoWay[Int, T]],
+      connect: Channel[R] => IVar[TwoWay[T, Int]]
     )
 
     object Medium {
       def default[T: Arrayable] = Backpressure.Medium[TwoWay.Req[T, Int], T](
-        builder => builder.twoWayServer[T, Int].serveTwoWay(),
+        builder => builder.twoWayServer[T, Int],
+        connector => connector.serveTwoWay(),
         channel => channel.connect()
       )
 
       def reliable[T: Arrayable] = Backpressure.Medium[Reliable.TwoWay.Req[T, Int], T](
-        builder => builder.reliableTwoWayServer[T, Int].serveTwoWayReliable(),
+        builder => builder.reliableTwoWayServer[T, Int],
+        connector => connector.serveTwoWayReliable(),
         channel => channel.connectReliable()
       )
     }
@@ -96,56 +99,48 @@ trait BackpressureProtocols {
     }
   }
 
-  implicit class BackpressureTwoWayServerOps[T: Arrayable](val twoWay: TwoWay[Int, T]) {
-    def toBackpressureConnection(
-      policy: Backpressure.Policy[T] = Backpressure.Policy.sliding[T](128)
-    ): Backpressure.Connection[T] = {
-      policy.server(twoWay)
+  implicit class BackpressureChannelBuilderOps[R, T](val builder: ChannelBuilder) {
+    def backpressureServer(medium: Backpressure.Medium[R, T]): Connector[R] = {
+      medium.openServer(builder)
     }
   }
 
-  implicit class BackpressureTwoWayClientOps[T: Arrayable](val twoWay: TwoWay[T, Int]) {
-    def toBackpressureLink(
-      policy: Backpressure.Policy[T] = Backpressure.Policy.sliding[T](128)
-    ): Link[T] = {
-      policy.client(twoWay)
-    }
-  }
-
-  implicit class BackpressureChannelBuilderOps[T: Arrayable](
-    val builder: ChannelBuilder
+  implicit class BackpressureConnectorOps[R, T](
+    val connector: Connector[R]
   ) {
-    def serveBackpressure[R](
+    def serveBackpressure(
       medium: Backpressure.Medium[R, T],
-      policy: Backpressure.Policy[T] = Backpressure.Policy.sliding[T](128)
-    ): Backpressure.Server[T, R] = {
-      val twoWayServer = medium.openServer(builder)
+      policy: Backpressure.Policy[T]
+    )(implicit a: Arrayable[T]): Backpressure.Server[R, T] = {
+      val twoWayServer = medium.serve(connector)
       Backpressure.Server(
         twoWayServer.channel,
-        twoWayServer.connections.map(_.toBackpressureConnection(policy)),
+        twoWayServer.connections.map(policy.server),
         twoWayServer.subscription
       )
     }
   }
 
-  implicit class BackpressureServerOps[R, T: Arrayable](
+  implicit class BackpressureServerOps[R, T](
     val server: Channel[R]
   ) {
     def connectBackpressure(
       medium: Backpressure.Medium[R, T],
-      policy: Backpressure.Policy[T] = Backpressure.Policy.sliding[T](128)
-    ): Unit = {
-      medium.openClient(server).map(_.toBackpressureLink(policy))
+      policy: Backpressure.Policy[T]
+    ): IVar[Link[T]] = {
+      medium.connect(server).map(policy.client).toIVar
     }
   }
 
-  implicit class BackpressureSystemOps(val system: ReactorSystem) {
-    def backpressureServer[R, T: Arrayable](
+  implicit class BackpressureSystemOps(
+    val system: ReactorSystem
+  ) {
+    def backpressureServer[R: Arrayable, T: Arrayable](
       medium: Backpressure.Medium[R, T],
-      policy: Backpressure.Policy[T] = Backpressure.Policy.sliding[T](128)
-    ): Backpressure.Server[T, R] = {
+      policy: Backpressure.Policy[T]
+    )(f: Backpressure.Server[R, T] => Unit): Channel[R] = {
       val proto = Reactor[R] { self =>
-        ???
+        f(self.main.serveBackpressure(medium, policy))
       }
       system.spawn(proto)
     }

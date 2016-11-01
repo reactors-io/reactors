@@ -73,7 +73,6 @@ class ReactorSystem(
    *
    *  @tparam T         the type of the events for the reactor
    *  @param p          the prototype for the reactor
-   *  @param scheduler  the scheduler used to scheduler the reactor
    *  @return           the channel for this reactor
    */
   def spawn[@spec(Int, Long, Double) T: Arrayable](p: Proto[Reactor[T]]): Channel[T] = {
@@ -258,8 +257,8 @@ object ReactorSystem {
      *  The method fails if this specific scheduler instance was not previously
      *  registered with the reactor system.
      *
-     *  @param scheduler           scheduler that was previously registered
-     *  @return                    name of the previously registered scheduler
+     *  @param s          scheduler that was previously registered
+     *  @return           name of the previously registered scheduler
      */
     def schedulerName(s: Scheduler): String = {
       schedulers.find(_._2 eq s).get._1
