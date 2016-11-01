@@ -36,6 +36,8 @@ object StreamingLibraryTest {
 
     def output: Channel[Reliable.TwoWay.Req[T, Int]] = ???
 
+    protected def instantiate(): Channel[Reliable.TwoWay.Req[T, Int]] = ???
+
     def sink[U](f: T => U): Subscription = {
       ???
     }

@@ -138,4 +138,16 @@ trait BackpressureProtocols {
       medium.openClient(server).map(_.toBackpressureLink(policy))
     }
   }
+
+  implicit class BackpressureSystemOps(val system: ReactorSystem) {
+    def backpressureServer[R, T: Arrayable](
+      medium: Backpressure.Medium[R, T],
+      policy: Backpressure.Policy[T] = Backpressure.Policy.sliding[T](128)
+    ): Backpressure.Server[T, R] = {
+      val proto = Reactor[R] { self =>
+        ???
+      }
+      system.spawn(proto)
+    }
+  }
 }
