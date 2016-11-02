@@ -66,22 +66,20 @@ object StreamingLibraryTest {
     def run(system: ReactorSystem): StreamServer[S] = {
       val streamServer = source.run(system)
       val proto = Reactor[StreamReq[S]] { self =>
-        system.backpressureServer(inMedium, inPolicy) { server =>
-          streamServer ! server.channel
-          server.connections.once.onEvent { connection =>
-            connection.events onEvent { x =>
-              val y = f(x)
-              ???
+        self.main.events onEvent { outServer =>
+          outServer.connectBackpressure(outMedium, outPolicy) onEvent { link =>
+            val inServer = system.channels.daemon.backpressureServer(inMedium)
+              .serveBackpressure(inMedium, inPolicy)
+            streamServer ! inServer.channel
+
+            inServer.connections.once onEvent { connection =>
+              val incoming = connection.events.map(f)
+              // TODO: Use the link to forward incoming events
             }
           }
         }
-        self.main.events onEvent { backpressureServer =>
-          backpressureServer.connectBackpressure(outMedium, outPolicy) onEvent { link =>
-            ???
-          }
-        }
       }
-      ???
+      system.spawn(proto)
     }
   }
 

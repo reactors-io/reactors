@@ -728,7 +728,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  @return          the event stream with unified events from `this` and `that`
    */
   def union(that: Events[T]): Events[T] = new Events.Union(this, that)
-  
+
   /** Unifies the events produced by all the event streams emitted by `this`.
    *
    *  This operation is only available for event stream values that emit
@@ -766,6 +766,13 @@ trait Events[@spec(Int, Long, Double) T] {
     implicit evidence: T <:< Events[S], ds: Spec[S]
   ): Events[S] =
     new Events.PostfixUnion[T, S](this, evidence)
+
+  /** Alias for `union`.
+   */
+  def flatten[@spec(Int, Long, Double) S](
+    implicit evidence: T <:< Events[S], ds: Spec[S]
+  ): Events[S] =
+    union[S]
 
   /** Creates a concatenation of `this` and `that` event stream.
    *
