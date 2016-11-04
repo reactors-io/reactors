@@ -41,7 +41,7 @@ trait BackpressureProtocols {
 
     case class Policy[T](
       server: TwoWay[Int, T] => Backpressure.Connection[T],
-      client: TwoWay[T, Int] => Link[T]
+      client: TwoWay[T, Int] => Valve[T]
     )
 
     object Policy {
@@ -67,7 +67,7 @@ trait BackpressureProtocols {
           val forwarding = frontend.events.onEvent { x =>
             if (available()) twoWay.input ! x
           }
-          Link(
+          Valve(
             frontend.channel,
             available,
             forwarding.chain(available).chain(twoWay.subscription)
@@ -127,7 +127,7 @@ trait BackpressureProtocols {
     def connectBackpressure(
       medium: Backpressure.Medium[R, T],
       policy: Backpressure.Policy[T]
-    ): IVar[Link[T]] = {
+    ): IVar[Valve[T]] = {
       medium.connect(server).map(policy.client).toIVar
     }
   }
