@@ -28,7 +28,7 @@ trait EventQueue[@spec(Int, Long, Double) T] {
    *
    *  @param x   the event to emit
    */
-  def bypass(x: T): Unit
+  private[reactors] def bypass(x: T): Unit
 
   /** Atomically dequeues an event from the queue, and emits it on the event stream.
    *

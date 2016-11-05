@@ -10,14 +10,11 @@ trait BackpressureProtocols {
   case class Backpressure[T]()
 
   object Backpressure {
-    case class Connection[T](events: Events[T], subscription: Subscription)
-    extends io.reactors.protocol.Connection[T]
-
     case class Server[R, T](
       channel: Channel[R],
-      connections: Events[Connection[T]],
+      connections: Events[Pump[T]],
       subscription: Subscription
-    ) extends ServerSide[R, Connection[T]]
+    ) extends ServerSide[R, Pump[T]]
 
     case class Medium[R, T](
       openServer: ChannelBuilder => Connector[R],
@@ -40,7 +37,7 @@ trait BackpressureProtocols {
     }
 
     case class Policy[T](
-      server: TwoWay[Int, T] => Backpressure.Connection[T],
+      server: TwoWay[Int, T] => Pump[T],
       client: TwoWay[T, Int] => Valve[T]
     )
 
@@ -48,12 +45,13 @@ trait BackpressureProtocols {
       def sliding[T: Arrayable](size: Int) = Backpressure.Policy[T](
         server = twoWay => {
           twoWay.input ! size
-          val tokenSubscription = twoWay.output on {
+          val buffer = twoWay.output.toEventBuffer
+          val tokenSubscription = buffer on {
             twoWay.input ! 1
           }
-          Backpressure.Connection(
-            twoWay.output,
-            tokenSubscription.chain(twoWay.subscription)
+          Pump(
+            buffer,
+            tokenSubscription.chain(twoWay.subscription).chain(buffer)
           )
         },
         client = twoWay => {
@@ -79,8 +77,9 @@ trait BackpressureProtocols {
         Backpressure.Policy[T](
           server = twoWay => {
             twoWay.input ! size
+            val buffer = twoWay.output.toEventBuffer
             val tokens = RCell(0)
-            val tokenSubscription = twoWay.output on {
+            val tokenSubscription = buffer on {
               tokens := tokens() + 1
             }
             val flushSubscription = Reactor.self.sysEvents onMatch {
@@ -88,9 +87,12 @@ trait BackpressureProtocols {
                 twoWay.input ! tokens()
                 tokens := 0
             }
-            Backpressure.Connection(
-              twoWay.output,
-              tokenSubscription.chain(flushSubscription).chain(twoWay.subscription)
+            Pump(
+              buffer,
+              tokenSubscription
+                .chain(flushSubscription)
+                .chain(twoWay.subscription)
+                .chain(buffer)
             )
           },
           client = slidingPolicy.client

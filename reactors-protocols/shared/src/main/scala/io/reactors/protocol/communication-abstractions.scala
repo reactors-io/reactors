@@ -3,7 +3,6 @@ package protocol
 
 
 
-import io.reactors.common.UnrolledRing
 
 
 
@@ -26,29 +25,28 @@ trait CommunicationAbstractions {
   )
 
   case class Pump[T](
-    events: Events[T],
-    channel: Channel[Int],
+    buffer: EventBuffer[T],
     subscription: Subscription
   ) {
     def plug(valve: Valve[T])(implicit a: Arrayable[T]): Subscription = {
-      val pump = this
-      val buffer = new UnrolledRing[T]
-
-      pump.events onEvent { x =>
-        if (valve.available()) {
-          valve.channel ! x
-          pump.channel ! 1
-        } else {
-          buffer.enqueue(x)
-        }
-      }
-
-      valve.available.filter(_ == true).onEvent { x =>
-        while (valve.available() && buffer.nonEmpty) {
-          valve.channel ! buffer.dequeue()
-          pump.channel ! 1
-        }
-      }
+      ???
+//      val pump = this
+//
+//      pump.buffer onEvent { x =>
+//        if (valve.available()) {
+//          valve.channel ! x
+//          pump.channel ! 1
+//        } else {
+//          buffer.enqueue(x)
+//        }
+//      }
+//
+//      valve.available.filter(_ == true).onEvent { x =>
+//        while (valve.available() && buffer.nonEmpty) {
+//          valve.channel ! buffer.dequeue()
+//          pump.channel ! 1
+//        }
+//      }
     }
   }
 }

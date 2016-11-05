@@ -63,7 +63,6 @@ import scala.util.Try
  *  @tparam T      type of the events in this event stream
  */
 trait Events[@spec(Int, Long, Double) T] {
-
   /** Registers a new `observer` to this event stream.
    *
    *  The `observer` argument may be invoked multiple times -- whenever an event is
@@ -1005,6 +1004,21 @@ trait Events[@spec(Int, Long, Double) T] {
    *  the source event stream unreacts.
    */
   def toCold(init: T): Signal[T] = new Events.ToColdSignal(this, init)
+
+  /** Streams events from this event stream into an event buffer.
+   *
+   *  Clients must manually call `dequeue` on the resulting event buffer when they
+   *  are ready to release events.
+   *
+   *  @return          a new event buffer with all the events from this event stream
+   */
+  def toEventBuffer(implicit a: Arrayable[T]): EventBuffer[T] = {
+    val buffer = new EventBuffer[T]
+    buffer.innerSubscription = this onEvent { x =>
+      buffer.enqueue(x)
+    }
+    buffer
+  }
 
   /** Returns the first event emitted by this event stream.
    *

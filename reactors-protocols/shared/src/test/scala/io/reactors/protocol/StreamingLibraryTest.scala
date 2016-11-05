@@ -51,7 +51,12 @@ object StreamingLibraryTest {
       val policy = Backpressure.Policy.sliding[T](128)
       system.backpressureServer(medium, policy) { server =>
         streamServer ! server.channel
-        server.connections.once.onEvent(_.events.onEvent(f))
+        server.connections.once onEvent { pump =>
+          pump.buffer.onEvent(f)
+          pump.buffer.available.filter(_ == true) on {
+            while (pump.buffer.nonEmpty) pump.buffer.dequeue()
+          }
+        }
       }
     }
   }
@@ -64,22 +69,23 @@ object StreamingLibraryTest {
     val outPolicy = Backpressure.Policy.sliding[S](128)
 
     def run(system: ReactorSystem): StreamServer[S] = {
-      val streamServer = source.run(system)
-      val proto = Reactor[StreamReq[S]] { self =>
-        self.main.events onEvent { outServer =>
-          outServer.connectBackpressure(outMedium, outPolicy) onEvent { link =>
-            val inServer = system.channels.daemon.backpressureServer(inMedium)
-              .serveBackpressure(inMedium, inPolicy)
-            streamServer ! inServer.channel
-
-            inServer.connections.once onEvent { connection =>
-              val incoming = connection.events.map(f)
-              // TODO: Use the link to forward incoming events
-            }
-          }
-        }
-      }
-      system.spawn(proto)
+//      val streamServer = source.run(system)
+//      val proto = Reactor[StreamReq[S]] { self =>
+//        self.main.events onEvent { outServer =>
+//          outServer.connectBackpressure(outMedium, outPolicy) onEvent { link =>
+//            val inServer = system.channels.daemon.backpressureServer(inMedium)
+//              .serveBackpressure(inMedium, inPolicy)
+//            streamServer ! inServer.channel
+//
+//            inServer.connections.once onEvent { connection =>
+//              val incoming = connection.events.map(f)
+//              // TODO: Use the link to forward incoming events
+//            }
+//          }
+//        }
+//      }
+//      system.spawn(proto)
+      ???
     }
   }
 
