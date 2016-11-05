@@ -151,7 +151,7 @@ abstract class BaseJvmReactorSystemCheck(name: String) extends Properties(name) 
 abstract class JvmReactorSystemCheck(name: String)
 extends BaseJvmReactorSystemCheck(name) with ExtendedProperties {
 
-  property("should receive many events") = forAllNoShrink(choose(1, 1024)) { num =>
+  property("should receive many events") = forAllNoShrink(detChoose(1, 1024)) { num =>
     val p = Promise[Boolean]()
     var n = num
     val proto = Reactor[String] { self =>
@@ -169,7 +169,7 @@ extends BaseJvmReactorSystemCheck(name) with ExtendedProperties {
   }
 
   property("be executed by at most one thread at a time") =
-    forAllNoShrink(choose(1, 32000)) { n =>
+    forAllNoShrink(detChoose(1, 32000)) { n =>
       val count = Promise[Int]()
       val done = Promise[Boolean]()
       val proto = Reactor[String] { self =>
