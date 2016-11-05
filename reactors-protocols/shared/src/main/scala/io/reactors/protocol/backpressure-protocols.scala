@@ -42,19 +42,8 @@ trait BackpressureProtocols {
     )
 
     object Policy {
-      def sliding[T: Arrayable](size: Int) = Backpressure.Policy[T](
-        server = twoWay => {
-          twoWay.input ! size
-          val buffer = twoWay.output.toEventBuffer
-          val tokenSubscription = buffer on {
-            twoWay.input ! 1
-          }
-          Pump(
-            buffer,
-            tokenSubscription.chain(twoWay.subscription).chain(buffer)
-          )
-        },
-        client = twoWay => {
+      def defaultClient[T: Arrayable](size: Int): TwoWay[T, Int] => Valve[T] = {
+        twoWay => {
           val system = Reactor.self.system
           val frontend = system.channels.daemon.shortcut.open[T]
           val increments = twoWay.output
@@ -71,9 +60,25 @@ trait BackpressureProtocols {
             forwarding.chain(available).chain(twoWay.subscription)
           )
         }
+      }
+
+      def sliding[T: Arrayable](size: Int) = Backpressure.Policy[T](
+        server = twoWay => {
+          twoWay.input ! size
+          val buffer = twoWay.output.toEventBuffer
+          val tokenSubscription = buffer on {
+            twoWay.input ! 1
+          }
+          Pump(
+            buffer,
+            twoWay.input,
+            tokenSubscription.chain(twoWay.subscription).chain(buffer)
+          )
+        },
+        client = defaultClient[T](size)
       )
+
       def batch[T: Arrayable](size: Int): Backpressure.Policy[T] = {
-        val slidingPolicy = sliding[T](size)
         Backpressure.Policy[T](
           server = twoWay => {
             twoWay.input ! size
@@ -89,13 +94,29 @@ trait BackpressureProtocols {
             }
             Pump(
               buffer,
+              twoWay.input,
               tokenSubscription
                 .chain(flushSubscription)
                 .chain(twoWay.subscription)
                 .chain(buffer)
             )
           },
-          client = slidingPolicy.client
+          client = defaultClient[T](size)
+        )
+      }
+
+      def user[T: Arrayable](size: Int): Backpressure.Policy[T] = {
+        Backpressure.Policy[T](
+          server = twoWay => {
+            twoWay.input ! size
+            val buffer = twoWay.output.toEventBuffer
+            Pump(
+              buffer,
+              twoWay.input,
+              twoWay.subscription.chain(buffer)
+            )
+          },
+          client = defaultClient[T](size)
         )
       }
     }

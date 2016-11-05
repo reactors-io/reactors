@@ -26,27 +26,29 @@ trait CommunicationAbstractions {
 
   case class Pump[T](
     buffer: EventBuffer[T],
+    pressure: Channel[Int],
     subscription: Subscription
   ) {
     def plug(valve: Valve[T])(implicit a: Arrayable[T]): Subscription = {
-      ???
-//      val pump = this
-//
-//      pump.buffer onEvent { x =>
-//        if (valve.available()) {
-//          valve.channel ! x
-//          pump.channel ! 1
-//        } else {
-//          buffer.enqueue(x)
-//        }
-//      }
-//
-//      valve.available.filter(_ == true).onEvent { x =>
-//        while (valve.available() && buffer.nonEmpty) {
-//          valve.channel ! buffer.dequeue()
-//          pump.channel ! 1
-//        }
-//      }
+      val pump = this
+
+      val forwardSub = pump.buffer.onEvent(x => valve.channel ! x)
+
+      def flush(): Unit = {
+        while (pump.buffer.nonEmpty && valve.available()) {
+          pump.buffer.dequeue()
+        }
+      }
+
+      val valveSub = valve.available.filter(_ == true) on {
+        flush()
+      }
+
+      val pumpSub = pump.buffer.available.filter(_ == true) on {
+        flush()
+      }
+
+      new Subscription.Composite(forwardSub, valveSub, pumpSub)
     }
   }
 }
