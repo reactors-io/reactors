@@ -72,8 +72,7 @@ class UdpTransport(val system: ReactorSystem) extends Remote.Transport {
     t
   }
 
-  def newChannel[@spec(Int, Long, Double) T: Arrayable]
-    (url: ChannelUrl): Channel[T] = {
+  def newChannel[@spec(Int, Long, Double) T: Arrayable](url: ChannelUrl): Channel[T] = {
     new UdpTransport.UdpChannel[T](implicitly[UdpTransport.Sender[T]], url)
   }
 
