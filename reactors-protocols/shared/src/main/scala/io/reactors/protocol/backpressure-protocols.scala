@@ -170,6 +170,16 @@ trait BackpressureProtocols {
   implicit class BackpressureSystemOps(
     val system: ReactorSystem
   ) {
+    def genericBackpressureServer[R: Arrayable, T: Arrayable](
+      medium: Backpressure.Medium[R, T],
+      policy: Backpressure.Policy[T]
+    )(f: Backpressure.Server[R, T] => Unit): Channel[R] = {
+      val proto = Reactor[R] { self =>
+        f(self.main.serveGenericBackpressure(medium, policy))
+      }
+      system.spawn(proto)
+    }
+
     def backpressureServer[R: Arrayable, T: Arrayable](
       medium: Backpressure.Medium[R, T],
       policy: Backpressure.Policy[T]

@@ -9,7 +9,7 @@ import io.reactors.common.UnrolledRing
 /** An event buffer that is simultaneously an event stream.
  *
  *  Events are stored into the buffer with the `enqueue` method.
- *  Events are dequeued and emitted with the `dequeue` method.
+ *  Events are dequeued and simultaneously emitted with the `dequeue` method.
  *  Calling `unsubscribe` unreacts.
  *
  *  '''Note:''' this class can only be used inside a single reactor, and is not meant
@@ -41,12 +41,13 @@ extends Events.Push[T] with Events[T] with Subscription.Proxy {
 
   /** Dequeues a previously enqueued event.
    */
-  def dequeue(): Unit = {
+  def dequeue(): T = {
     val x = buffer.dequeue()
     try reactAll(x, null)
     finally if (buffer.isEmpty) {
       availabilityCell := false
     }
+    x
   }
 
   /** A signal that designates whether the event buffer has events to dequeue.
