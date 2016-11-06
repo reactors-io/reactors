@@ -818,7 +818,7 @@ class EventsSpec extends FunSuite {
   test("unreacted") {
     var count = 0
     val emitter = new Events.Emitter[Int]
-    emitter.unreacted.on(count += 1)
+    emitter.done.on(count += 1)
 
     emitter.react(5)
     assert(count == 0)
@@ -828,7 +828,7 @@ class EventsSpec extends FunSuite {
 
   test("unreacted unsubscribes early") {
     val emitter = new TestEmitter[Int]
-    emitter.unreacted.on({})
+    emitter.done.on({})
     emitter.unreact()
     assert(emitter.unsubscriptionCount == 1)
   }
@@ -1697,7 +1697,7 @@ class RCellSpec extends FunSuite with Matchers {
 
   test("react to unreactions") {
     val e = new Events.Emitter[Int]
-    val unreacted = e.unreacted
+    val unreacted = e.done
     var events = 0
     var excepts = 0
     var unreactions = 0

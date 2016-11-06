@@ -715,7 +715,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *
    *  @return           the unreaction event stream and subscription
    */
-  def unreacted(implicit ds: Spec[T]): Events[Unit] = new Events.Unreacted(this)
+  def done(implicit ds: Spec[T]): Events[Unit] = new Events.Unreacted(this)
 
   /** Creates a union of `this` and `that` event stream.
    *  
@@ -1004,6 +1004,10 @@ trait Events[@spec(Int, Long, Double) T] {
    *  the source event stream unreacts.
    */
   def toCold(init: T): Signal[T] = new Events.ToColdSignal(this, init)
+
+  /** Returns a signal that becomes `true` when this event stream is done.
+   */
+  def toDoneSignal: Signal[Boolean] = this.done.map(_ => true).toSignal(false)
 
   /** Streams events from this event stream into an event buffer.
    *
@@ -1411,6 +1415,8 @@ object Events {
   extends Push[M] with Events[M]
 
   /** A class for event streams that never emit events.
+   *
+   *  Subscribers immediately unreact.
    *
    *  @tparam T         type of events never emitted by this event stream
    */

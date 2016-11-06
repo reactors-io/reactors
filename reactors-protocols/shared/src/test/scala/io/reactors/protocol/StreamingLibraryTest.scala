@@ -80,18 +80,40 @@ object StreamingLibraryTest {
         source.streamServer ! server.channel
 
         server.connections.once onEvent { connection =>
-          def process(): Unit = {
-            connection.buffer.available.filter(_ == true).once on {
+          // flow {
+          //   while (true) {
+          //     await(connection.buffer.available)
+          //     val x = connection.buffer.dequeue()
+          //     val y = f(x)
+          //     val pushes = for (v <- valves.toEvents) yield flow {
+          //       await(v.available)
+          //       v.channel ! y
+          //     }
+          //     await(pushes.union.toDoneSignal)
+          //     connection.channel ! 1
+          //   }
+          // }
+          def loop(): Unit = {
+            if (connection.buffer.available()) {
               val x = connection.buffer.dequeue()
               val y = f(x)
-              valves.toEvents.map { v =>
-                v.available.filter(_ == true).once.map(_ => v.channel ! y)
-              }.concat onDone {
-                connection.channel ! 1
-                process()
+              val pushes = for (v <- valves.toEvents) yield {
+                if (v.available()) {
+                  v.channel ! y
+                  new Events.Never[Unit]
+                } else {
+                  v.available.filter(_ == true).once.map(_ => v.channel ! y)
+                }
               }
+              pushes.union onDone {
+                connection.channel ! 1
+                loop()
+              }
+            } else connection.buffer.available.filter(_ == true).once on {
+              loop()
             }
           }
+          loop()
         }
       })
     }

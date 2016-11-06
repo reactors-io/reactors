@@ -149,7 +149,7 @@ class EventBoxingBench extends Bench.Forked[Long] {
 
       // unreacted
       var unreactCount = 0
-      emitter.unreacted.onDone(unreactCount += 1)
+      emitter.done.onDone(unreactCount += 1)
 
       // union
       var unionCount = 0
