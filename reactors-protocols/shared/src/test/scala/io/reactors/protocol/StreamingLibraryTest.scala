@@ -43,22 +43,22 @@ object StreamingLibraryTest {
 
     def run(system: ReactorSystem): StreamServer[T]
 
-    def consume(system: ReactorSystem, f: T => Unit)(
-      implicit a: Arrayable[T]
-    ): Unit = {
-      val streamServer = run(system)
-      val medium = Backpressure.Medium.reliable[T]
-      val policy = Backpressure.Policy.sliding[T](128)
-      system.backpressureServer(medium, policy) { server =>
-        streamServer ! server.channel
-        server.connections.once onEvent { pump =>
-          pump.buffer.onEvent(f)
-          pump.buffer.available.filter(_ == true) on {
-            while (pump.buffer.nonEmpty) pump.buffer.dequeue()
-          }
-        }
-      }
-    }
+//    def consume(system: ReactorSystem, f: T => Unit)(
+//      implicit a: Arrayable[T]
+//    ): Unit = {
+//      val streamServer = run(system)
+//      val medium = Backpressure.Medium.reliable[T]
+//      val policy = Backpressure.Policy.sliding[T](128)
+//      system.backpressureServer(medium, policy) { server =>
+//        streamServer ! server.channel
+//        server.connections.once onEvent { pump =>
+//          pump.buffer.onEvent(f)
+//          pump.buffer.available.filter(_ == true) on {
+//            while (pump.buffer.nonEmpty) pump.buffer.dequeue()
+//          }
+//        }
+//      }
+//    }
   }
 
   class Mapped[T: Arrayable, S: Arrayable](val source: Stream[T], val f: T => S)

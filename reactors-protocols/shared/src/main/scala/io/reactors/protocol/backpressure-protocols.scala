@@ -10,7 +10,35 @@ trait BackpressureProtocols {
   case class Backpressure[T]()
 
   object Backpressure {
+    case class Connection[T](
+      channel: Channel[Int],
+      buffer: EventBuffer[T],
+      subscription: Subscription
+    ) {
+      def toPump: Pump[T] = {
+        val pressureSubscription = buffer.on(channel ! 1)
+        Pump(
+          buffer,
+          pressureSubscription.chain(subscription)
+        )
+      }
+    }
+
     case class Server[R, T](
+      channel: Channel[R],
+      connections: Events[Connection[T]],
+      subscription: Subscription
+    ) extends ServerSide[R, Connection[T]] {
+      def toPumpServer: PumpServer[R, T] = {
+        Backpressure.PumpServer(
+          channel,
+          connections.map(_.toPump),
+          subscription
+        )
+      }
+    }
+
+    case class PumpServer[R, T](
       channel: Channel[R],
       connections: Events[Pump[T]],
       subscription: Subscription
@@ -37,7 +65,7 @@ trait BackpressureProtocols {
     }
 
     case class Policy[T](
-      server: TwoWay[Int, T] => Pump[T],
+      server: (Events[Int], Channel[Int]) => Subscription,
       client: TwoWay[T, Int] => Valve[T]
     )
 
@@ -63,58 +91,29 @@ trait BackpressureProtocols {
       }
 
       def sliding[T: Arrayable](size: Int) = Backpressure.Policy[T](
-        server = twoWay => {
-          twoWay.input ! size
-          val buffer = twoWay.output.toEventBuffer
-          val tokenSubscription = buffer on {
-            twoWay.input ! 1
+        server = (inputPressure, outputPressure) => {
+          outputPressure ! size
+          inputPressure onEvent { n =>
+            outputPressure ! n
           }
-          Pump(
-            buffer,
-            twoWay.input,
-            tokenSubscription.chain(twoWay.subscription).chain(buffer)
-          )
         },
         client = defaultClient[T](size)
       )
 
       def batch[T: Arrayable](size: Int): Backpressure.Policy[T] = {
         Backpressure.Policy[T](
-          server = twoWay => {
-            twoWay.input ! size
-            val buffer = twoWay.output.toEventBuffer
+          server = (inputPressure, outputPressure) => {
+            outputPressure ! size
             val tokens = RCell(0)
-            val tokenSubscription = buffer on {
-              tokens := tokens() + 1
+            val tokenSubscription = inputPressure onEvent { n =>
+              tokens := tokens() + n
             }
             val flushSubscription = Reactor.self.sysEvents onMatch {
               case ReactorPreempted =>
-                twoWay.input ! tokens()
+                outputPressure ! tokens()
                 tokens := 0
             }
-            Pump(
-              buffer,
-              twoWay.input,
-              tokenSubscription
-                .chain(flushSubscription)
-                .chain(twoWay.subscription)
-                .chain(buffer)
-            )
-          },
-          client = defaultClient[T](size)
-        )
-      }
-
-      def user[T: Arrayable](size: Int): Backpressure.Policy[T] = {
-        Backpressure.Policy[T](
-          server = twoWay => {
-            twoWay.input ! size
-            val buffer = twoWay.output.toEventBuffer
-            Pump(
-              buffer,
-              twoWay.input,
-              twoWay.subscription.chain(buffer)
-            )
+            tokenSubscription.chain(flushSubscription)
           },
           client = defaultClient[T](size)
         )
@@ -131,16 +130,29 @@ trait BackpressureProtocols {
   implicit class BackpressureConnectorOps[R, T](
     val connector: Connector[R]
   ) {
-    def serveBackpressure(
+    def serveGenericBackpressure(
       medium: Backpressure.Medium[R, T],
       policy: Backpressure.Policy[T]
     )(implicit a: Arrayable[T]): Backpressure.Server[R, T] = {
       val twoWayServer = medium.serve(connector)
       Backpressure.Server(
         twoWayServer.channel,
-        twoWayServer.connections.map(policy.server),
+        twoWayServer.connections.map {
+          case TwoWay(channel, events, twoWaySub) =>
+            val system = Reactor.self.system
+            val pressure = system.channels.daemon.shortcut.open[Int]
+            val sub = policy.server(pressure.events, channel).chain(twoWaySub)
+            Backpressure.Connection(pressure.channel, events.toEventBuffer, sub)
+        },
         twoWayServer.subscription
       )
+    }
+
+    def serveBackpressure(
+      medium: Backpressure.Medium[R, T],
+      policy: Backpressure.Policy[T]
+    )(implicit a: Arrayable[T]): Backpressure.PumpServer[R, T] = {
+      serveGenericBackpressure(medium, policy).toPumpServer
     }
   }
 
@@ -161,7 +173,7 @@ trait BackpressureProtocols {
     def backpressureServer[R: Arrayable, T: Arrayable](
       medium: Backpressure.Medium[R, T],
       policy: Backpressure.Policy[T]
-    )(f: Backpressure.Server[R, T] => Unit): Channel[R] = {
+    )(f: Backpressure.PumpServer[R, T] => Unit): Channel[R] = {
       val proto = Reactor[R] { self =>
         f(self.main.serveBackpressure(medium, policy))
       }

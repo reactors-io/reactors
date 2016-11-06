@@ -26,7 +26,6 @@ trait CommunicationAbstractions {
 
   case class Pump[T](
     buffer: EventBuffer[T],
-    pressure: Channel[Int],
     subscription: Subscription
   ) {
     def plug(valve: Valve[T])(implicit a: Arrayable[T]): Subscription = {
