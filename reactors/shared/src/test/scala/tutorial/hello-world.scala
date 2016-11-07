@@ -16,7 +16,6 @@ package tutorial
 
 
 
-import io.reactors._
 import org.scalatest._
 import scala.concurrent.Promise
 import scala.concurrent.ExecutionContext
@@ -42,17 +41,25 @@ class GettingStarted extends AsyncFunSuite {
     def println(s: String) = done.success(s)
 
     /*!begin-code!*/
-    val welcomeReactor = Reactor[String] {
-      self =>
-      self.main.events onEvent { name =>
-        println(s"Welcome, $name!")
-        self.main.seal()
+    import io.reactors._
+
+    object HelloWorld {
+      def main(args: Array[String]) {
+        val welcomeReactor = Reactor[String] {
+          self =>
+            self.main.events onEvent { name =>
+              println(s"Welcome, $name!")
+              self.main.seal()
+            }
+        }
+        val system = ReactorSystem.default("test-system")
+        val ch = system.spawn(welcomeReactor)
+        ch ! "Alan"
       }
     }
-    val system = ReactorSystem.default("test-system")
-    val ch = system.spawn(welcomeReactor)
-    ch ! "Alan"
     /*!end-code!*/
+
+    HelloWorld.main(Array())
 
     /*!md
     The program above declares an anonymous reactor called `welcomeReactor`,
