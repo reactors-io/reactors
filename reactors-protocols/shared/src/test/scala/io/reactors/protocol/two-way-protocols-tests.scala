@@ -89,4 +89,26 @@ class TwoWayProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
     system.spawn(proto)
     done.future.map(n => assert(n == 55))
   }
+
+  test("open a two-way server reactor and connect to it from another reactor") {
+    val done = Promise[String]
+
+    val server = system.twoWayServer[String, Int] { (server, twoWay) =>
+      twoWay.input onEvent { n =>
+        twoWay.output ! n.toString
+      }
+    }
+
+    system.spawnLocal[Unit] { self =>
+      server.connect() onEvent { twoWay =>
+        twoWay.output ! 7
+        twoWay.input onEvent { s =>
+          done.success(s)
+          self.main.seal()
+        }
+      }
+    }
+
+    done.future.map(s => assert(s == "7"))
+  }
 }
