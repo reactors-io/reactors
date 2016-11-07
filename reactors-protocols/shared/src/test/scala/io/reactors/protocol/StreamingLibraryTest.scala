@@ -27,7 +27,7 @@ class StreamingLibraryTest extends AsyncFunSuite with AsyncTimeLimitedTests {
 
 
 object StreamingLibraryTest {
-  type StreamReq[T] = Channel[Reliable.TwoWay.Req[T, Int]]
+  type StreamReq[T] = Channel[Reliable.TwoWay.Req[Int, T]]
 
   type StreamServer[T] = Channel[StreamReq[T]]
 

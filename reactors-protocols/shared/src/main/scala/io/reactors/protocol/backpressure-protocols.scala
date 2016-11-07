@@ -46,19 +46,19 @@ trait BackpressureProtocols {
 
     case class Medium[R, T](
       openServer: ChannelBuilder => Connector[R],
-      serve: Connector[R] => ServerSide[R, TwoWay[Int, T]],
-      connect: Channel[R] => IVar[TwoWay[T, Int]]
+      serve: Connector[R] => ServerSide[R, TwoWay[T, Int]],
+      connect: Channel[R] => IVar[TwoWay[Int, T]]
     )
 
     object Medium {
-      def default[T: Arrayable] = Backpressure.Medium[TwoWay.Req[T, Int], T](
-        builder => builder.twoWayServer[T, Int],
+      def default[T: Arrayable] = Backpressure.Medium[TwoWay.Req[Int, T], T](
+        builder => builder.twoWayServer[Int, T],
         connector => connector.serveTwoWay(),
         channel => channel.connect()
       )
 
-      def reliable[T: Arrayable] = Backpressure.Medium[Reliable.TwoWay.Req[T, Int], T](
-        builder => builder.reliableTwoWayServer[T, Int],
+      def reliable[T: Arrayable] = Backpressure.Medium[Reliable.TwoWay.Req[Int, T], T](
+        builder => builder.reliableTwoWayServer[Int, T],
         connector => connector.serveTwoWayReliable(),
         channel => channel.connectReliable()
       )
@@ -66,21 +66,21 @@ trait BackpressureProtocols {
 
     case class Policy[T](
       server: (Events[Int], Channel[Int]) => Subscription,
-      client: TwoWay[T, Int] => Valve[T]
+      client: TwoWay[Int, T] => Valve[T]
     )
 
     object Policy {
-      def defaultClient[T: Arrayable](size: Int): TwoWay[T, Int] => Valve[T] = {
+      def defaultClient[T: Arrayable](size: Int): TwoWay[Int, T] => Valve[T] = {
         twoWay => {
           val system = Reactor.self.system
           val frontend = system.channels.daemon.shortcut.open[T]
-          val increments = twoWay.output
+          val increments = twoWay.input
           val decrements = frontend.events.map(x => -1)
           val available = (increments union decrements).scanPast(0) {
             (acc, v) => acc + v
           }.map(_ > 0).toSignal(false)
           val forwarding = frontend.events.onEvent { x =>
-            if (available()) twoWay.input ! x
+            if (available()) twoWay.output ! x
           }
           Valve(
             frontend.channel,
