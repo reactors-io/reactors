@@ -54,7 +54,11 @@ package object test {
     }
   }
 
-  val osName = System.getProperty("os.name").toLowerCase
+  val osName = {
+    val osName = System.getProperty("os.name")
+    if (osName == null) ""
+    else osName.toLowerCase
+  }
 
   def isLinuxOs: Boolean = osName.contains("nux")
 
