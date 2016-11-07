@@ -32,7 +32,7 @@ We will define a reactor that waits for one incoming event,
 prints a message to the standard output,
 and then terminates.
 !*/
-class GettingStarted extends AsyncFunSuite {
+class HelloWorld extends AsyncFunSuite {
 
   implicit override def executionContext = ExecutionContext.Implicits.global
 
