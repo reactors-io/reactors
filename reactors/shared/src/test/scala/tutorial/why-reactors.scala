@@ -32,7 +32,9 @@ by providing correct, robust and composable programming abstractions.
 Based on the *reactor model* for distributed programming,
 Reactors provide means to write location-transparent programs,
 that can be subdivided into modular components.
-At the same time, Reactors 
+At the same time, sequential semantics are ensured inside
+each separable unit of concurrency (called a reactor),
+which makes it easier to reason about programs.
 
 You can download Reactors from
 [http://reactors.io/download/](http://reactors.io/download/).
