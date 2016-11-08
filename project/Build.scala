@@ -13,7 +13,6 @@ import org.scalajs.sbtplugin.cross.CrossProject
 
 
 object ReactorsBuild extends MechaRepoBuild {
-
   def repoName = "reactors"
 
   val reactorsScalaVersion = "2.11.8"
@@ -30,7 +29,11 @@ object ReactorsBuild extends MechaRepoBuild {
       cancelable in Global := true,
       fork in Test := true,
       fork in run := true,
-      javaOptions in test += "-Xmx2G -XX:MaxPermSize=384m",
+      javaOptions in Test ++= Seq(
+        "-Xmx2G",
+        "-XX:MaxPermSize=384m",
+        "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005"
+      ),
       scalacOptions ++= Seq(
         "-deprecation"
       ),
