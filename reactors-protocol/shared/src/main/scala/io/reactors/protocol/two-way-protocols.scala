@@ -7,13 +7,15 @@ package protocol
 
 
 trait TwoWayProtocols {
-  /** Represents the state of an established two-way connection.
+  /** Represents the state of an established 2-way channel.
    *
-   * @tparam I              type of the incoming events
-   * @tparam O              type of the outgoing events
-   * @param output          the output channel, for outgoing events
-   * @param input           the input event stream, for incoming events
-   * @param subscription    subscription associated with this 2-way connection
+   *  To close the 2-way channel, use the associated `Subscription` object.
+   *
+   *  @tparam I              type of the incoming events
+   *  @tparam O              type of the outgoing events
+   *  @param output          the output channel, for outgoing events
+   *  @param input           the input event stream, for incoming events
+   *  @param subscription    subscription associated with this 2-way connection
    */
   case class TwoWay[I, O](
     output: Channel[O], input: Events[I], subscription: Subscription
@@ -71,6 +73,8 @@ trait TwoWayProtocols {
   implicit class TwoWayConnectorOps[
     @spec(Int, Long, Double) I, @spec(Int, Long, Double) O
   ](val connector: Connector[TwoWay.Req[I, O]]) {
+    /** Starts a 2-way server protocol.
+     */
     def serveTwoWay()(implicit a: Arrayable[O]): TwoWay.Server[I, O] = {
       val connections = connector.events map {
         case (outputChannel, reply) =>
@@ -91,6 +95,10 @@ trait TwoWayProtocols {
   implicit class TwoWayServerOps[
     @spec(Int, Long, Double) I, @spec(Int, Long, Double) O
   ](val twoWayServer: Channel[TwoWay.Req[I, O]]) {
+    /** Connects to a 2-way protocol server.
+     *
+     *  A successful connection yields a 2-way channel object of type `TwoWay[I, O]`.
+     */
     def connect()(implicit a: Arrayable[I]): IVar[TwoWay[I, O]] = {
       val system = Reactor.self.system
       val output = system.channels.daemon.open[I]
@@ -103,6 +111,13 @@ trait TwoWayProtocols {
   }
 
   implicit class TwoWayReactorCompanionOps(val reactor: Reactor.type) {
+    /** Create a `Proto` object for a 2-way server reactor.
+     *
+     *  @tparam I       type of the server-side input events
+     *  @tparam O       type of the server-side output events
+     *  @param f        callback function for a successful incoming connection
+     *  @return         a `Proto` object
+     */
     def twoWayServer[@spec(Int, Long, Double) I, @spec(Int, Long, Double) O](
       f: (TwoWay.Server[I, O], TwoWay[O, I]) => Unit
     )(implicit ai: Arrayable[I], ao: Arrayable[O]): Proto[Reactor[TwoWay.Req[I, O]]] = {
@@ -114,6 +129,13 @@ trait TwoWayProtocols {
   }
 
   implicit class TwoWaySystemOps(val system: ReactorSystem) {
+    /** Create a `Proto` object for a 2-way server reactor.
+     *
+     *  @tparam I       type of the server-side input events
+     *  @tparam O       type of the server-side output events
+     *  @param f        callback function for a successful incoming connection
+     *  @return         a channel of the 2-way server
+     */
     def twoWayServer[@spec(Int, Long, Double) I, @spec(Int, Long, Double) O](
       f: (TwoWay.Server[I, O], TwoWay[O, I]) => Unit
     )(implicit ai: Arrayable[I], ao: Arrayable[O]): Channel[TwoWay.Req[I, O]] = {
