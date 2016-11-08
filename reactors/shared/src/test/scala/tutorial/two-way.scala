@@ -86,4 +86,47 @@ class TwoWay extends AsyncFunSuite {
     done.future.map(s => assert(s == "received correct reply"))
   }
 
+  /*!md
+  TODO: Explain.
+  !*/
+
+  import io.reactors._
+  import io.reactors.protocol._
+
+  val system = ReactorSystem.default("test-system")
+
+  test("two-way reactor server") {
+    val done = Promise[Double]()
+    def println(s: Double) = done.success(s)
+
+    /*!begin-code!*/
+    val seriesCalculator = Reactor.twoWayServer[Double, Int] {
+      (server, twoWay) =>
+      twoWay.input onEvent { n =>
+        for (i <- 1 until n) {
+          twoWay.output ! (1.0 / i)
+        }
+      }
+    }
+    val server = system.spawn(seriesCalculator)
+    /*!end-code!*/
+
+    /*!md
+    TODO: Explain.
+    !*/
+
+    /*!begin-code!*/
+    system.spawnLocal[Unit] { self =>
+      server.connect() onEvent { twoWay =>
+        twoWay.output ! 2
+        twoWay.input onEvent { x =>
+          println(x)
+          twoWay.subscription.unsubscribe()
+        }
+      }
+    }
+    /*!end-code!*/
+
+    done.future.map(t => assert(t == 1.0))
+  }
 }

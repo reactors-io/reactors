@@ -74,6 +74,9 @@ trait TwoWayProtocols {
     @spec(Int, Long, Double) I, @spec(Int, Long, Double) O
   ](val connector: Connector[TwoWay.Req[I, O]]) {
     /** Starts a 2-way server protocol.
+     *
+     *  This method can be called on a previously created 2-way server connector
+     *  (see `twoWayServer`).
      */
     def serveTwoWay()(implicit a: Arrayable[O]): TwoWay.Server[I, O] = {
       val connections = connector.events map {
