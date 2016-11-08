@@ -44,7 +44,6 @@ package test {
 
 
 package object test {
-
   def stackTraced[T](p: =>T): T = {
     try {
       p
@@ -55,4 +54,15 @@ package object test {
     }
   }
 
+  val osName = {
+    val osName = System.getProperty("os.name")
+    if (osName == null) ""
+    else osName.toLowerCase
+  }
+
+  def isLinuxOs: Boolean = osName.contains("nux")
+
+  def isMacOs: Boolean = osName.contains("mac")
+
+  def isWinOs: Boolean = osName.contains("win")
 }

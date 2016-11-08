@@ -3,6 +3,7 @@ package debugger
 
 
 
+import io.reactors.test._
 import java.io.File
 import org.openqa.selenium._
 import org.openqa.selenium.chrome._
@@ -16,12 +17,14 @@ import scala.sys.process._
 
 class DebuggerTest extends FunSuite {
   test("test basic debugger scenarios") {
-    val classpath = System.getProperty("java.class.path")
-    val cmd = Seq(
-      "xvfb-run", "java", "-cp", classpath, "io.reactors.debugger.DebuggerTest")
-    val cwd = new File("../")
-    if (!sys.env.contains("TRAVIS")) assert(Process(cmd, cwd).! == 0)
-    else println("Skipping UI test in Travis!")
+    if (isLinuxOs) {
+      val classpath = System.getProperty("java.class.path")
+      val cmd = Seq(
+        "xvfb-run", "java", "-cp", classpath, "io.reactors.debugger.DebuggerTest")
+      val cwd = new File("../")
+      if (!sys.env.contains("TRAVIS")) assert(Process(cmd, cwd).! == 0)
+      else println("Skipping UI test in Travis!")
+    }
   }
 }
 
