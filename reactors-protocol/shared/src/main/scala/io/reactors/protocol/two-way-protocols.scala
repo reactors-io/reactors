@@ -28,16 +28,39 @@ trait TwoWayProtocols {
   }
 
   object TwoWay {
+    /** Two-way server object.
+     *
+     *  @tparam I            type of the server-side input events
+     *  @tparam O            type of the server-side output events
+     *  @param channel       request channel for establishing 2-way connections
+     *  @param connections   event stream that emits established connections
+     *  @param subscription  subscription for the server and its resources
+     */
     case class Server[I, O](
       channel: io.reactors.protocol.Server[Channel[I], Channel[O]],
       connections: Events[TwoWay[O, I]],
       subscription: Subscription
     ) extends ServerSide[Req[I, O], TwoWay[O, I]]
 
+    /** Request object for 2-way server channels.
+     *
+     *  @tparam I            type of the server-side input events
+     *  @tparam O            type of the server-side output events
+     */
     type Req[I, O] = io.reactors.protocol.Server.Req[Channel[I], Channel[O]]
   }
 
   implicit class TwoWayChannelBuilderOps(val builder: ChannelBuilder) {
+    /** Creates a connector for a 2-way server.
+     *
+     *  The connector is just a placeholder, but creating it does not yet run the
+     *  2-way protocol. To start the 2-way protocol, users must call the `serverTwoWay`
+     *  method.
+     *
+     *  @tparam I            type of the server-side input events
+     *  @tparam O            type of the server-side output events
+     *  @return              the server connector
+     */
     def twoWayServer[
       @spec(Int, Long, Double) I, @spec(Int, Long, Double) O
     ]: Connector[TwoWay.Req[I, O]] = {

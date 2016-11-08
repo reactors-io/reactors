@@ -7,7 +7,7 @@ logoname: reactress-mini-logo-flat.png
 projectname: Reactors.IO
 homepage: http://reactors.io
 permalink: /reactors/two-way/index.html
-pagenum: 2
+pagenum: 3
 pagetot: 40
 section: guide-protocol
 ---

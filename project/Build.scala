@@ -29,11 +29,6 @@ object ReactorsBuild extends MechaRepoBuild {
       cancelable in Global := true,
       fork in Test := true,
       fork in run := true,
-      javaOptions in Test ++= Seq(
-        "-Xmx2G",
-        "-XX:MaxPermSize=384m",
-        "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005"
-      ),
       scalacOptions ++= Seq(
         "-deprecation"
       ),
@@ -94,6 +89,15 @@ object ReactorsBuild extends MechaRepoBuild {
     )
   }
 
+  def jvmProjectSettings(suffix: String) =
+    Seq(
+      javaOptions in Test ++= Seq(
+        "-Xmx2G",
+        "-XX:MaxPermSize=384m",
+        "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005"
+      )
+    )
+
   def gitPropsContents(dir: File, baseDir: File): Seq[File] = {
     def run(cmd: String*): String = Process(cmd, Some(baseDir)).!!
     val branch = run("git", "rev-parse", "--abbrev-ref", "HEAD").trim
@@ -130,10 +134,12 @@ object ReactorsBuild extends MechaRepoBuild {
     .configs(Benchmark)
     .settings(inConfig(Benchmark)(Defaults.testSettings): _*)
     .jvmSettings(
-      libraryDependencies ++= Seq(
-        "com.typesafe.akka" %% "akka-actor" % "2.3.15" % "test;bench"
-      ),
-      libraryDependencies ++= superRepoDependencies(s"reactors-common-jvm")
+      jvmProjectSettings("-common") ++ Seq(
+        libraryDependencies ++= Seq(
+          "com.typesafe.akka" %% "akka-actor" % "2.3.15" % "test;bench"
+        ),
+        libraryDependencies ++= superRepoDependencies(s"reactors-common-jvm")
+      ): _*
     )
     .jvmConfigure(_.copy(id = "reactors-common-jvm").dependsOnSuperRepo)
     .jsSettings(
@@ -168,12 +174,14 @@ object ReactorsBuild extends MechaRepoBuild {
     .configs(Benchmark)
     .settings(inConfig(Benchmark)(Defaults.testSettings): _*)
     .jvmSettings(
-      (test in Test) <<= (test in Test).dependsOn(test in (reactorsCommon.jvm, Test)),
-      publish <<= publish.dependsOn(publish in reactorsCommon.jvm),
-      libraryDependencies ++= Seq(
-        "com.typesafe" % "config" % "1.2.1",
-        "com.typesafe.akka" %% "akka-actor" % "2.3.15" % "test;bench"
-      )
+      jvmProjectSettings("-core") ++ Seq(
+        (test in Test) <<= (test in Test).dependsOn(test in (reactorsCommon.jvm, Test)),
+        publish <<= publish.dependsOn(publish in reactorsCommon.jvm),
+        libraryDependencies ++= Seq(
+          "com.typesafe" % "config" % "1.2.1",
+          "com.typesafe.akka" %% "akka-actor" % "2.3.15" % "test;bench"
+        )
+      ): _*
     )
     .jvmConfigure(_.copy(id = "reactors-core-jvm").dependsOnSuperRepo)
     .jsSettings(
@@ -212,8 +220,10 @@ object ReactorsBuild extends MechaRepoBuild {
     .configs(Benchmark)
     .settings(inConfig(Benchmark)(Defaults.testSettings): _*)
     .jvmSettings(
-      (test in Test) <<= (test in Test).dependsOn(test in (reactorsCore.jvm, Test)),
-      publish <<= publish.dependsOn(publish in reactorsCore.jvm)
+      jvmProjectSettings("-container") ++ Seq(
+        (test in Test) <<= (test in Test).dependsOn(test in (reactorsCore.jvm, Test)),
+        publish <<= publish.dependsOn(publish in reactorsCore.jvm)
+      ): _*
     )
     .jvmConfigure(_.copy(id = "reactors-container-jvm").dependsOnSuperRepo)
     .jsSettings(
@@ -249,8 +259,10 @@ object ReactorsBuild extends MechaRepoBuild {
     .configs(Benchmark)
     .settings(inConfig(Benchmark)(Defaults.testSettings): _*)
     .jvmSettings(
-      (test in Test) <<= (test in Test).dependsOn(test in (reactorsCore.jvm, Test)),
-      publish <<= publish.dependsOn(publish in reactorsCore.jvm)
+      jvmProjectSettings("-protocol") ++ Seq(
+        (test in Test) <<= (test in Test).dependsOn(test in (reactorsCore.jvm, Test)),
+        publish <<= publish.dependsOn(publish in reactorsCore.jvm)
+      ): _*
     )
     .jvmConfigure(_.copy(id = "reactors-protocol-jvm").dependsOnSuperRepo)
     .jsSettings(
@@ -288,8 +300,10 @@ object ReactorsBuild extends MechaRepoBuild {
     .configs(Benchmark)
     .settings(inConfig(Benchmark)(Defaults.testSettings): _*)
     .jvmSettings(
-      (test in Test) <<= (test in Test).dependsOn(test in (reactorsCore.jvm, Test)),
-      publish <<= publish.dependsOn(publish in reactorsCore.jvm)
+      jvmProjectSettings("-remote") ++ Seq(
+        (test in Test) <<= (test in Test).dependsOn(test in (reactorsCore.jvm, Test)),
+        publish <<= publish.dependsOn(publish in reactorsCore.jvm)
+      ): _*
     )
     .jvmConfigure(_.copy(id = "reactors-remote-jvm").dependsOnSuperRepo)
     .jsSettings(
