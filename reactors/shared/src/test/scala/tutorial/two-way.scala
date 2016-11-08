@@ -23,14 +23,10 @@ import scala.concurrent.Promise
 
 
 /*!md
-## The Hello World Program
+## 2-Way Communication Protocol
 
-This section contains a simple, working Hello World program.
-We won't get into too much details - you can find deeper information
-in the subsequent sections.
-We will define a reactor that waits for one incoming event,
-prints a message to the standard output,
-and then terminates.
+In this section, we will inspect a 2-way communication protocol
+that is a part of the `reactors-protocol` module.
 !*/
 class TwoWay extends AsyncFunSuite {
 
