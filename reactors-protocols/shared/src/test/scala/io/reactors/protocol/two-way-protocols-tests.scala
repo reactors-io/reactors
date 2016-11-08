@@ -151,13 +151,14 @@ class TwoWayProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
   test("client unsubscribes after the first event, does not receive the second") {
     val done = Promise[String]
 
-    val server = system.twoWayServer[String, Int] { (server, twoWay) =>
+    val serverProto = Reactor.twoWayServer[String, Int] { (server, twoWay) =>
       twoWay.input onEvent { x =>
         twoWay.output ! x.toString
         twoWay.output ! "second event that you should not see"
         server.subscription.unsubscribe()
       }
     }
+    val server = system.spawn(serverProto)
 
     system.spawnLocal[Unit] { self =>
       var reply = ""

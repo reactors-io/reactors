@@ -79,14 +79,23 @@ trait TwoWayProtocols {
     }
   }
 
+  implicit class TwoWayReactorCompanionOps(val reactor: Reactor.type) {
+    def twoWayServer[@spec(Int, Long, Double) I, @spec(Int, Long, Double) O](
+      f: (TwoWay.Server[I, O], TwoWay[O, I]) => Unit
+    )(implicit ai: Arrayable[I], ao: Arrayable[O]): Proto[Reactor[TwoWay.Req[I, O]]] = {
+      Reactor[TwoWay.Req[I, O]] { self =>
+        val server = self.main.serveTwoWay()
+        server.connections.onEvent(twoWay => f(server, twoWay))
+      }
+    }
+  }
+
   implicit class TwoWaySystemOps(val system: ReactorSystem) {
     def twoWayServer[@spec(Int, Long, Double) I, @spec(Int, Long, Double) O](
       f: (TwoWay.Server[I, O], TwoWay[O, I]) => Unit
-    )(implicit a: Arrayable[O]): Channel[TwoWay.Req[I, O]] = {
-      system.spawn(Reactor[TwoWay.Req[I, O]] { self =>
-        val server = self.main.serveTwoWay()
-        server.connections.onEvent(twoWay => f(server, twoWay))
-      })
+    )(implicit ai: Arrayable[I], ao: Arrayable[O]): Channel[TwoWay.Req[I, O]] = {
+      val proto = Reactor.twoWayServer(f)
+      system.spawn(proto)
     }
   }
 }
