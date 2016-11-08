@@ -3,11 +3,8 @@ package protocol
 
 
 
-import java.lang.management.ManagementFactory
-
 import org.scalatest._
 import org.scalatest.concurrent.AsyncTimeLimitedTests
-
 import scala.concurrent.Promise
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
@@ -172,8 +169,7 @@ class TwoWayProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
       }
 
       self.sysEvents onMatch {
-        case ReactorTerminated =>
-          done.success(reply)
+        case ReactorTerminated => done.success(reply)
       }
     }
 

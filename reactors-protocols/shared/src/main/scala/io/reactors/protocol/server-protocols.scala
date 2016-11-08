@@ -51,19 +51,27 @@ trait ServerProtocols {
     }
   }
 
+  implicit class ServerReactorCompanionOps(val system: Reactor.type) {
+    /** Creates a `Proto` object for a server reactor.
+     *
+     *  The behavior of the server reactor is specified by the function `f`, which maps
+     *  input requests to responses.
+     */
+    def server[T, S](f: T => S)(
+      implicit stop: T => Boolean = (req: T) => false
+    ): Proto[Reactor[Server.Req[T, S]]] = {
+      Reactor[Server.Req[T, S]](_.main.serve(f))
+    }
+  }
+
   implicit class ServerSystemOps(val system: ReactorSystem) {
     /** Creates a server reactor.
      *
      *  This reactor always responds by mapping the request of type `T` into a response
      *  of type `S`, with the specified function `f`.
-     *
-     *  If the optional `stop` predicate returns `true` for some request, the reactor's
-     *  main channel gets sealed.
      */
-    def server[T, S](f: T => S)(
-      implicit stop: T => Boolean = (req: T) => false
-    ): Server[T, S] = {
-      system.spawn(Reactor[Server.Req[T, S]](_.main.serve(f)))
+    def server[T, S](f: T => S): Server[T, S] = {
+      system.spawn(Reactor.server(f))
     }
 
     /** Creates a server reactor that optionally responds to requests.
