@@ -58,11 +58,11 @@ class TwoWayProtocol extends AsyncFunSuite {
   The type of the client-side 2-way connection is:
   !*/
 
-  {
+  trait Foo {
     import io.reactors.protocol._
 
     /*!begin-code!*/
-    val clientTwoWay: TwoWay[In, Out] = _
+    val clientTwoWay: TwoWay[In, Out]
     /*!end-code!*/
 
     /*!md
@@ -70,7 +70,7 @@ class TwoWayProtocol extends AsyncFunSuite {
     !*/
 
     /*!begin-code!*/
-    val serverTwoWay: TwoWay[Out, In] = _
+    val serverTwoWay: TwoWay[Out, In]
     /*!end-code!*/
 
     /*!md
