@@ -91,9 +91,8 @@ class RemoteTest extends FunSuite with Matchers {
       // start receiving reactor
       val started = Promise[Boolean]()
       val received = Promise[Boolean]()
-      val receiverProto =
-        Proto[RemoteTest.UdpReceiver](started, received)
-          .withName("test-reactor").withChannelName("test-anchor")
+      val receiverProto = Proto[RemoteTest.UdpReceiver](started, received)
+        .withName("test-reactor").withChannelName("test-anchor")
       recvSys.spawn(receiverProto)
       assert(Await.result(started.future, 10.seconds))
       

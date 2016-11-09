@@ -9,6 +9,19 @@ import io.reactors.common.UnrolledRing
 
 
 trait ReliableProtocols {
+  /** Represents a connected reliable channel.
+   *
+   *  When using a reliable channel to send events, clients have some level of guarantee
+   *  that their events will not be impaired in some way. The exact guarantees are
+   *  detailed in the `Policy` object which must be specified when establishing a
+   *  reliable connection.
+   *
+   *  To close this reliable connection, clients must use the associated subscription.
+   *
+   *  @tparam T                 type of the events sent by this reliable channel
+   *  @param channel            channel underlying the reliable connection
+   *  @param subscription       subscription associated with the reliable connection
+   */
   case class Reliable[T](channel: Channel[T], subscription: Subscription)
 
   object Reliable {
