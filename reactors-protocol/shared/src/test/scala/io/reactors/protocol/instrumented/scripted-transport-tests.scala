@@ -17,7 +17,7 @@ import scala.concurrent.duration._
 class ScriptedTransportTests extends AsyncFunSuite with AsyncTimeLimitedTests {
   val system = ReactorSystem.default("conversions", Bundle.default(
     """
-    system.channels.create-as-local = false
+    system.channels.create-as-local = "false"
     """.stripMargin))
 
   def timeLimit = 10.seconds

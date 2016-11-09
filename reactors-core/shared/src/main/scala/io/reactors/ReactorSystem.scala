@@ -200,7 +200,7 @@ object ReactorSystem {
   private val multiplatformConfig = Configuration.parse("""
     system = {
       channels = {
-        create-as-local = true
+        create-as-local = "true"
       }
     }
   """.stripMargin)
