@@ -201,7 +201,8 @@ public class reactors {
         if (x.equals("start")) {
           Connector<String[]> reply = self.system().channels().<String[]>open();
           mapper.send(new Get("dns-main", reply.channel()));
-          reply.events().onEvent(url -> System.out.println(url[0] + "." + url[1]));
+          reply.events().onEvent(
+            url -> System.out.println(url[0] + "." + url[1]));
         } else if (x.equals("end")) {
           self.main().seal();
         }
