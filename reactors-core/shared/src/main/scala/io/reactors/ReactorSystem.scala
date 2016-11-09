@@ -51,6 +51,13 @@ class ReactorSystem(
    */
   private[reactors] val frames = new ScalableUniqueStore[Frame.Info]("reactor", 512)
 
+  /** Whether channels should be created with local underlying channels, which bypass
+   *  the network stack.
+   */
+  private[reactors] val usingLocalChannels: Boolean = {
+    bundle.config.string("system.channels.create-as-local").toBoolean
+  }
+
   /** Shuts down services. */
   def shutdown() {
     debugApi.shutdown()
@@ -118,7 +125,7 @@ class ReactorSystem(
     }
 
     try {
-      // 3. Allocate the standard connectors.
+      // 3. Set name.
       frame.name = uname
       frame.url = ReactorUrl(bundle.urlMap(proto.transportOrDefault(this)).url, uname)
 
@@ -190,13 +197,23 @@ object ReactorSystem {
    */
   private val machineConfig = Configuration.parse(Platform.machineConfiguration)
 
+  private val multiplatformConfig = Configuration.parse("""
+    system = {
+      channels = {
+        create-as-local = true
+      }
+    }
+  """.stripMargin)
+
   /** Retrieves the default bundle config object.
    *
    *  This configuration is merged with any custom configurations that are provided to
    *  the reactor system bundle.
    */
   val defaultConfig =
-    Configuration.parse(Platform.defaultConfiguration).withFallback(machineConfig)
+    Configuration.parse(Platform.defaultConfiguration)
+      .withFallback(machineConfig)
+      .withFallback(multiplatformConfig)
 
   /** Convert the configuration string to a `Configuration` object.
    */
@@ -286,23 +303,28 @@ object ReactorSystem {
      *  
      *  @return           the default scheduler bundle
      */
-    def default(defaultScheduler: Scheduler): Bundle = {
-      val b = new Bundle(defaultScheduler, Configuration.empty)
+    def default(ds: Scheduler): Bundle = {
+      val b = new Bundle(ds, Configuration.empty)
       Platform.registerDefaultSchedulers(b)
       b
     }
 
-    /** Creates a bundle with a custom configuration.
+    /** Creates a bundle with a custom default scheduler and configuration.
      */
-    def default(defaultScheduler: Scheduler, config: Configuration): Bundle = {
-      val b = new Bundle(defaultScheduler, config)
+    def default(ds: Scheduler, config: Configuration): Bundle = {
+      val b = new Bundle(ds, config)
       Platform.registerDefaultSchedulers(b)
       b
     }
 
-    /** Creates a bundle with a custom configuration text.
+    /** Creates a bundle with a custom default scheduler and configuration text.
      */
-    def default(defaultScheduler: Scheduler, configText: String): Bundle =
+    def default(ds: Scheduler, configText: String): Bundle =
+      default(ds, Configuration.parse(configText))
+
+    /** Creates a bundle with a default scheduler and custom configuration text.
+     */
+    def default(configText: String): Bundle =
       default(defaultScheduler, Configuration.parse(configText))
   }
 

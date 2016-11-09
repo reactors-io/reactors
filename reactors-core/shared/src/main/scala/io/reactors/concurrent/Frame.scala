@@ -79,9 +79,12 @@ final class Frame(
       val queue = factory.newInstance[Q]
       val chanUrl = ChannelUrl(url, uname)
       val localChan = new Channel.Local[Q](reactorSystem, uid, this, shortcut)
-      val chan = new Channel.Shared(chanUrl, localChan)
+      val chan = {
+        if (reactorSystem.usingLocalChannels) new Channel.Shared(chanUrl, localChan)
+        else new Channel.Shared(chanUrl, null)
+      }
       val conn = new Connector(
-        chan, queue, this, mutable.Map(extras.toSeq: _*), isDaemon)
+        chan, localChan, queue, this, mutable.Map(extras.toSeq: _*), isDaemon)
       val ninfo = Frame.Info(this, info.connectors + (uname -> conn))
       localChan.connector = conn
 
@@ -236,7 +239,7 @@ final class Frame(
       val remaining = c.dequeue()
       if (schedulerState.onBatchEvent(this)) {
         // Need to consume some more.
-        if (remaining > 0 && !c.sharedChannel.asLocal.isSealed) {
+        if (remaining > 0 && !c.localChannel.isSealed) {
           drain(c)
         } else {
           val nc = popNextPending()
@@ -245,7 +248,7 @@ final class Frame(
         }
       } else {
         // Done consuming -- see if the connector needs to be enqueued.
-        if (remaining > 0 && !c.sharedChannel.asLocal.isSealed) monitor.synchronized {
+        if (remaining > 0 && !c.localChannel.isSealed) monitor.synchronized {
           pendingQueues.enqueue(c)
         }
         false
@@ -356,7 +359,7 @@ final class Frame(
 
   def sealConnector(connector: Connector[_]): Unit = {
     monitor.synchronized {
-      connector.sharedChannel.asLocal.isOpen = false
+      connector.localChannel.isOpen = false
       if (!connector.isDaemon) nonDaemonCount -= 1
 
       // Try to remove the connector.

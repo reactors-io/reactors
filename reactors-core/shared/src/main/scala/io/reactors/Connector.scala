@@ -14,18 +14,21 @@ import scala.reflect.ClassTag
  */
 class Connector[@spec(Int, Long, Double) T](
   private[reactors] val sharedChannel: Channel.Shared[T],
+  private[reactors] val localChannel: Channel.Local[T],
   private[reactors] val queue: EventQueue[T],
   private[reactors] val frame: Frame,
   private[reactors] val extras: mutable.Map[Class[_], Any],
   val isDaemon: Boolean
 ) extends Identifiable {
+  // Note: the `localChannel` reference should never be used for message forwarding.
+
   /** Retrieves the name of this connector.
    */
   def name = sharedChannel.url.anchor
 
   /** Returns the unique identifier of the channel.
    */
-  def uid = sharedChannel.asLocal.uid
+  def uid = localChannel.uid
 
   /** Returns the channel.
    */
@@ -38,7 +41,7 @@ class Connector[@spec(Int, Long, Double) T](
   /** Seals the channel, preventing it from delivering additional events.
    */
   def seal(): Boolean = {
-    if (sharedChannel.asLocal.isOpen) {
+    if (localChannel.isOpen) {
       frame.sealConnector(this)
       true
     } else false

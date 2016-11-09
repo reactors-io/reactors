@@ -33,9 +33,24 @@ class Remote(val system: ReactorSystem) extends Protocol.Service {
 }
 
 
+/** Types and methods related to the `Remote` service.
+ */
 object Remote {
+  /** Interface for the transport API.
+   *
+   *  Concrete implementations of this interface represent different transports.
+   */
   trait Transport extends Platform.Reflectable {
+    /** Creates a new channel for this transport.
+     *
+     *  @tparam T       type of the events for the new channel
+     *  @param url      url of the newly created channel
+     *  @return         a new channel associated with this transport
+     */
     def newChannel[@spec(Int, Long, Double) T: Arrayable](url: ChannelUrl): Channel[T]
+
+    /** Shuts down the transport, and releases the associated resources.
+     */
     def shutdown(): Unit
   }
 }

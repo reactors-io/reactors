@@ -33,17 +33,13 @@ object Channel {
   ) extends Channel[T] with Serializable {
     private def resolve(): Unit = {
       val system = Reactor.self.system
-      underlying = system.service[Remote].resolve[T](url)
+      underlying = system.remote.resolve[T](url)
     }
 
     def !(x: T): Unit = {
       // TODO: Make initialization thread-safe.
       if (underlying == null) resolve()
       underlying ! x
-    }
-
-    private[reactors] def asLocal: Channel.Local[T] = {
-      underlying.asInstanceOf[Channel.Local[T]]
     }
   }
 

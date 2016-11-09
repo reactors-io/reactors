@@ -9,8 +9,6 @@ package protocol
 /** Communication patterns based on request-reply.
  */
 trait ServerProtocols {
-  self: Patterns =>
-
   /** A server channel accepts tuples with the request event and channel to reply on.
    */
   type Server[T, S] = Channel[Server.Req[T, S]]
