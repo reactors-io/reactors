@@ -5,7 +5,6 @@ package instrumented
 
 import io.reactors.ReactorSystem
 import io.reactors.ReactorSystem.Bundle
-import io.reactors.ReactorTerminated
 import org.scalatest._
 import org.scalatest.concurrent.AsyncTimeLimitedTests
 import scala.concurrent.ExecutionContext
