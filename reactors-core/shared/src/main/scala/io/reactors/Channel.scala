@@ -31,14 +31,15 @@ object Channel {
     val url: ChannelUrl,
     @transient var underlying: Channel[T]
   ) extends Channel[T] with Serializable {
-    private def resolve(): Unit = {
-      val system = Reactor.self.system
+    private[reactors] def resolve(system: ReactorSystem): Unit = {
       underlying = system.remote.resolve[T](url)
     }
 
     def !(x: T): Unit = {
       // TODO: Make initialization thread-safe.
-      if (underlying == null) resolve()
+      if (underlying == null) {
+        resolve(Reactor.self.system)
+      }
       underlying ! x
     }
   }

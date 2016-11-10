@@ -18,6 +18,10 @@ class Remote(val system: ReactorSystem) extends Protocol.Service {
   for ((tp, t) <- system.bundle.urlMap) {
     val transport = Platform.Reflect.instantiate(t.transportName, Seq(system))
       .asInstanceOf[Remote.Transport]
+    if (transport.schema != t.url.schema) exception.illegalArg(
+      s"Transport with schema '${transport.schema}' must have the same schema in " +
+      s"the reactor system configuration."
+    )
     transports(t.url.schema) = transport
   }
 
@@ -48,6 +52,10 @@ object Remote {
      *  @return         a new channel associated with this transport
      */
     def newChannel[@spec(Int, Long, Double) T: Arrayable](url: ChannelUrl): Channel[T]
+
+    /** The schema string that this transport must be registered with.
+     */
+    def schema: String
 
     /** Shuts down the transport, and releases the associated resources.
      */

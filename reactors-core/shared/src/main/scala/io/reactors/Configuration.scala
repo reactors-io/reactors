@@ -9,6 +9,7 @@ trait Configuration {
   def int(path: String): Int
   def string(path: String): String
   def double(path: String): Double
+  def list(path: String): Seq[Configuration]
   def children(path: String): Seq[Configuration]
   def withFallback(other: Configuration): Configuration
 }

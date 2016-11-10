@@ -190,6 +190,25 @@ extends ChannelBuilder(
   def shutdown() {
   }
 
+  private[reactors] def getConnector[T](
+    reactorName: String, channelName: String
+  ): Option[Connector[T]] = {
+    val info = system.frames.forName(reactorName)
+    if (info == null) None
+    else {
+      info.connectors.get(channelName) match {
+        case Some(conn: Connector[T] @unchecked) => Some(conn)
+        case _ => None
+      }
+    }
+  }
+
+  private[reactors] def getLocal[T](
+    reactorName: String, channelName: String
+  ): Option[Channel[T]] = {
+    getConnector[T](reactorName, channelName).map(_.localChannel)
+  }
+
   /** Optionally returns the channel with the given name, if it exists.
    *
    *  @param name      names of the reactor and the channel, separated with a `#`
@@ -207,14 +226,7 @@ extends ChannelBuilder(
    *  @param channelName  name of the channel
    */
   def get[T](reactorName: String, channelName: String): Option[Channel[T]] = {
-    val info = system.frames.forName(reactorName)
-    if (info == null) None
-    else {
-      info.connectors.get(channelName) match {
-        case Some(conn: Connector[T] @unchecked) => Some(conn.channel)
-        case _ => None
-      }
-    }
+    getConnector[T](reactorName, channelName).map(_.channel)
   }
 
   /** Await for the channel with the specified full name.

@@ -21,6 +21,10 @@ object Platform {
     def int(path: String): Int = config.getInt(path)
     def string(path: String): String = config.getString(path)
     def double(path: String): Double = config.getDouble(path)
+    def list(path: String): Seq[Configuration] = {
+      val elems = config.getObjectList(path).iterator().asScala.toSeq
+      elems.map(c => new HoconConfiguration(c.toConfig))
+    }
     def children(path: String): Seq[Configuration] = {
       config.getConfig("remote").root.values.asScala.collect {
         case c: ConfigObject => c.toConfig
@@ -45,15 +49,15 @@ object Platform {
 
   private[reactors] val defaultConfiguration = """
     pickler = "io.reactors.pickle.JavaSerializationPickler"
-    remote = {
-      udp = {
-        schema = "reactor.udp"
+    remote = [
+      {
+        schema = "udp"
         transport = "io.reactors.remote.UdpTransport"
         host = "localhost"
         port = 17771
       }
-    }
-    remote-default-schema = "reactor.udp"
+    ]
+    remote-default-schema = "udp"
     debug-api = {
       name = "io.reactors.debugger.ZeroDebugApi"
       port = 9500

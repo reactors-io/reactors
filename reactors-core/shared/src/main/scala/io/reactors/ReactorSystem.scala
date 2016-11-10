@@ -65,6 +65,7 @@ class ReactorSystem(
   /** Creates a new reactor instance in this reactor system.
    *
    *  '''Use case:'''
+   *
    *  {{{
    *  def spawn(proto: Proto[Reactor[T]]): Channel[T]
    *  }}}
@@ -246,7 +247,7 @@ object ReactorSystem {
       val spindownTestIterations = config.int("scheduler.spindown.test-iterations")
     }
 
-    val urlMap = config.children("remote").map { c =>
+    val urlMap = config.list("remote").map { c =>
       val schema = c.string("schema")
       val url = SystemUrl(c.string("schema"), c.string("host"), c.int("port"))
       val transportName = c.string("transport")

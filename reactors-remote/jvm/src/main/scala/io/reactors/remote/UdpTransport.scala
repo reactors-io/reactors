@@ -76,6 +76,8 @@ class UdpTransport(val system: ReactorSystem) extends Remote.Transport {
     new UdpTransport.UdpChannel[T](implicitly[UdpTransport.Sender[T]], url)
   }
 
+  def schema = "udp"
+
   def shutdown() {
     datagramChannel.socket.close()
     refSender.notifyEnd()
@@ -159,7 +161,7 @@ object UdpTransport {
       val isoName = pickler.depickle[String](buffer)
       val channelName = pickler.depickle[String](buffer)
       val event = pickler.depickle[AnyRef](buffer)
-      udpTransport.system.channels.get[AnyRef](isoName, channelName) match {
+      udpTransport.system.channels.getLocal[AnyRef](isoName, channelName) match {
         case Some(ch) => ch ! event
         case None => // drop event -- no such channel here
       }

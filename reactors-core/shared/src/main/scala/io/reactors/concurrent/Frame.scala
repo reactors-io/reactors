@@ -81,7 +81,11 @@ final class Frame(
       val localChan = new Channel.Local[Q](reactorSystem, uid, this, shortcut)
       val chan = {
         if (reactorSystem.usingLocalChannels) new Channel.Shared(chanUrl, localChan)
-        else new Channel.Shared(chanUrl, null)
+        else {
+          val ch = new Channel.Shared(chanUrl, null)
+          ch.resolve(reactorSystem)
+          ch
+        }
       }
       val conn = new Connector(
         chan, localChan, queue, this, mutable.Map(extras.toSeq: _*), isDaemon)
