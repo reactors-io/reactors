@@ -23,13 +23,16 @@ object Platform {
         Map(name -> v)
     }
     def keyName = regex("[a-zA-Z][a-zA-Z0-9_\\-]*".r)
-    def value: Parser[Any] = string | double | int | dictionary
+    def value: Parser[Any] = string | double | int | list | dictionary
     def string: Parser[String] =
       "\"" ~ regex("[ -!#-~]*".r) ~ "\"" ^^ {
         case _ ~ content ~ _ => content
       }
     def int: Parser[Int] = wholeNumber ^^ { _.toInt }
     def double: Parser[Double] = decimalNumber ^^ { _.toDouble }
+    def list: Parser[Seq[Any]] = "[" ~ repsep(value, ",") ~ "]" ^^ {
+      case _ ~ values ~ _ => values
+    }
     def dictionary: Parser[Map[String, Any]] = "{" ~ configuration ~ "}" ^^ {
       case _ ~ config ~ _ => config
     }
@@ -47,6 +50,10 @@ object Platform {
     def int(path: String): Int = paths(path).asInstanceOf[Int]
     def string(path: String): String = paths(path).asInstanceOf[String]
     def double(path: String): Double = paths(path).asInstanceOf[Double]
+    def list(path: String): Seq[Configuration] = {
+      val values = paths(path).asInstanceOf[Seq[Map[String, Any]]]
+      values.map(v => new SimpleConfiguration(v))
+    }
     def children(path: String): Seq[Configuration] = {
       val prefix = path + "."
       def isDict(p: String): Boolean = {
