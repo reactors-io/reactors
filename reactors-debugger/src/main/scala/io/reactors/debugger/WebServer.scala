@@ -60,7 +60,7 @@ object WebServer {
       def interpolate(n: Node): String = {
         val scopes = new HashMap[String, Object]
         scopes.put("reactor-system.url",
-          s"${system.bundle.urlMap("reactor.udp").url.host}:$port")
+          s"${system.bundle.urlMap("udp").url.host}:$port")
         scopes.put("reactor-system.version", "0.7")
         scopes.put("debugger-ui.configuration", "{}")
         scopes.put("debugger-ui.plugins", "<!-- No plugins -->")
