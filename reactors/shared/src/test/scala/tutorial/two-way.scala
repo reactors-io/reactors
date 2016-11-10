@@ -192,6 +192,16 @@ class TwoWayProtocol extends AsyncFunSuite {
     (only the `channel` must be shared, not the complete `lengthServer` object).
     To make things simple, we will instantiate the client-side part of the protocol
     in the same reactor as the server-side part.
+
+    To connect to the server, the client must invoke the `connectTwoWay` extension
+    method on the `channel`. This method is only available when the
+    package `io.reactors.protocol` is imported, and works on 2-way server channels.
+    The `connect` method returns an `IVar` (single element event stream),
+    which is completed with a `TwoWay` object once the connection is established.
+
+    In the following, we connect to the server,
+    and use the `TwoWay[Int, String]` object to send a string event,
+    and then print the length event that we get back:
     !*/
 
     /*!begin-code!*/
