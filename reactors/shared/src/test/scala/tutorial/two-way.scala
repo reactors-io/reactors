@@ -158,7 +158,8 @@ class TwoWayProtocol extends AsyncFunSuite {
 
     /*!md
     So far, so good - we have a working instance of the 2-way connection server.
-    The current state of the reactor can be illustrated with the following figure:
+    The current state of the reactor can be illustrated with the following figure,
+    where our new channel appears alongside standard reactor channels:
 
     ```
     Channel[TwoWay.Req[Int, String]]
@@ -168,6 +169,8 @@ class TwoWayProtocol extends AsyncFunSuite {
          \------o--> connections        |
                 |                       |
                 o--> main channel       |
+                |                       |
+                o--> sys channel        |
                 |                       |
                 #-----------------------#
 
