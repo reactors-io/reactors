@@ -93,14 +93,16 @@ object Platform {
   private[reactors] val defaultConfiguration = """
     pickler = "io.reactors.pickle.NoPickler"
     remote = {
-      dgram = {
-        schema = "reactor.dgram"
-        transport = "io.reactors.remote.NodeJSDatagramTransport"
-        host = "localhost"
-        port = 17771
-      }
+      transports = [
+        {
+          schema = "datagram"
+          transport = "io.reactors.remote.NodeJSDatagramTransport"
+          host = "localhost"
+          port = 17771
+        }
+      ]
     }
-    remote-default-schema = "reactor.dgram"
+    remote-default-schema = "datagram"
     debug-api = {
       name = "io.reactors.debugger.ZeroDebugApi"
     }
