@@ -178,10 +178,17 @@ class TwoWayProtocol extends AsyncFunSuite {
     If you would like to know what `TwoWay.Req[Int, String]]` type exactly is,
     you can study the implementation source code.
     However, if you only want to use the 2-way protocol,
-    then understanding the internals is required,
+    then understanding the implementation internals is not required,
     so we will skip that part.
 
     Next, let's start the client-side part of the protocol.
+    The client must use the 2-way server channel to request a connection.
+    The `lengthServer` object that we saw earlier has a field `channel`
+    that must be used for this purpose.
+    Generally, this channel must be known to the client
+    (only the `channel` must be shared, not the complete `lengthServer` object).
+    To make things simple, we will instantiate the client-side part of the protocol
+    in the same reactor as the server-side part.
     !*/
 
     /*!begin-code!*/

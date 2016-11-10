@@ -32,7 +32,7 @@ class ScriptedTransportTests extends AsyncFunSuite with AsyncTimeLimitedTests {
     val done = Promise[Boolean]
 
     system.spawnLocal[Unit] { self =>
-      // TODO: Use a scenario that relies on scripted testing.
+      // TODO: Use a scenario that relies on scripted transports.
       done.success(true)
     }
 
