@@ -149,9 +149,9 @@ class TwoWayProtocol extends AsyncFunSuite {
     !*/
 
     /*!begin-code!*/
-      lengthServer.connections.onEvent { twoWay =>
-        twoWay.input.onEvent { s =>
-          twoWay.output ! s.length
+      lengthServer.connections.onEvent { serverTwoWay =>
+        serverTwoWay.input.onEvent { s =>
+          serverTwoWay.output ! s.length
         }
       }
     /*!end-code!*/
@@ -199,15 +199,16 @@ class TwoWayProtocol extends AsyncFunSuite {
     The `connect` method returns an `IVar` (single element event stream),
     which is completed with a `TwoWay` object once the connection is established.
 
-    In the following, we connect to the server,
-    and use the `TwoWay[Int, String]` object to send a string event,
+    In the following, we connect to the server.
+    Once the server responds,
+    we use the `TwoWay[Int, String]` object to send a string event.
     and then print the length event that we get back:
     !*/
 
     /*!begin-code!*/
-      lengthServer.channel.connect() onEvent { twoWay =>
-        twoWay.output ! "What's my length?"
-        twoWay.input onEvent { len =>
+      lengthServer.channel.connect() onEvent { clientTwoWay =>
+        clientTwoWay.output ! "What's my length?"
+        clientTwoWay.input onEvent { len =>
           if (len == 17) println("received correct reply")
           else println("reply incorrect: " + len)
         }
@@ -218,14 +219,62 @@ class TwoWayProtocol extends AsyncFunSuite {
     /*!end-code!*/
 
     /*!md
-    TODO: Explain.
+    After the connection is established,
+    the state of the reactor and its connectors is as shown in the following diagram:
+
+    ```
+                 #-----------------------#
+                 |                       |
+                 o--> connections        |
+                 |                       |
+                 |                       |
+          /---->[ ]-->                   |
+          |     [ ]    serverTwoWay      |
+          | /---[ ]<--                   |
+          | |    |                       |
+          | |    |                       |
+          | \-->[ ]-->                   |
+          |     [ ]    clientTwoWay      |
+          \-----[ ]<--                   |
+                 |                       |
+                 o--> main channel       |
+                 |                       |
+                 o--> sys channel        |
+                 |                       |
+                 #-----------------------#
+    ```
+
+    Note that, in this case, the two-way channel has both endpoints in the same reactor.
+    This is because we called `twoWayServe` and `connect` in the same reactor,
+    for the purposes of demonstration.
+    In real scenarios, we would typically invoke these two operations on separate
+    reactors.
     !*/
 
     done.future.map(s => assert(s == "received correct reply"))
   }
 
   /*!md
-  TODO: Explain.
+  ### Two-Way Server Reactors
+
+  In the next example, we instantiate the two-way protocol between two reactors.
+  Furthermore, we use the short-hand version that both declares a reactor,
+  and uses its *main channel* as the 2-way connection server.
+  We call this reactor a *2-way server*.
+
+  To create a `Proto` object of a 2-way server,
+  we use the `twoWayServer` extension method on `Reactor`.
+  This method takes a lambda with two parameters --
+  the `server` state, which we saw earlier,
+  and a newly established `twoWay` connection.
+  The lambda is invoked each time when a connection is established.
+
+  In the following, we create a reactor `seriesCalculator`,
+  which emits elements of the series `1.0 / i`.
+  For each `twoWay` connection that is established,
+  it responds to each integer `n` that it receives
+  with a stream of events `1.0 / i`,
+  where `i` ranges from `1` to `n`:
   !*/
 
   import io.reactors._
@@ -250,7 +299,17 @@ class TwoWayProtocol extends AsyncFunSuite {
     /*!end-code!*/
 
     /*!md
-    TODO: Explain.
+    ### Two-Way Connection Subscriptions
+
+    We mentioned before that the 2-way server object has a `subscription` that can be
+    used to stop the server and prevent establishing new connections.
+    However, existing connections are not closed when the server is stopped.
+    To close the existing connections, each `TwoWay` object has its own `subscription`
+    value.
+
+    Let's write a client for the `seriesCalculator` reactor that we started previously.
+    We request `2` series elements from the server,
+    but unsubscribe immediately after receiving the first element:
     !*/
 
     /*!begin-code!*/
@@ -264,6 +323,25 @@ class TwoWayProtocol extends AsyncFunSuite {
       }
     }
     /*!end-code!*/
+
+    /*!md
+    By running the client reactor,
+    we can see that the second event from the server is never printed
+    to the standard output.
+
+    Note that the server-side `TwoWay` object is not closed in the previous example.
+    In real scenarios,
+    you should take care to additionally call `unsubscribe`
+    on the server side `TwoWay` object.
+    How the server decides that it is time to close the connection is up to you - for
+    example, the server could close the connection when it receives a negative `n`.
+
+    The `TwoWay` protocol is relatively low-level.
+    It does not itself close its connections,
+    and delegates the task of doing so to its users.
+    As such, its purpose is mainly to serve as a building block
+    for higher-level protocols.
+    !*/
 
     done.future.map(t => assert(t == 1.0))
   }
