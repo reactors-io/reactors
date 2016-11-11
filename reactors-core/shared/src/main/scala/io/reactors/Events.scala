@@ -893,7 +893,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  def sync[S, R](that: Events[S])(f: (T, S) => R): Events[R]
    *  }}}
    *
-   *  '''Note:''' This operation potentially caches events from `this` and `that`.
+   *  '''Note:''' This operation potentially buffers events from `this` and `that`.
    *  Unless certain that both `this` produces a bounded number of events
    *  before the `that` produces an event, and vice versa, this operation
    *  should not be called.
@@ -910,6 +910,26 @@ trait Events[@spec(Int, Long, Double) T] {
     f: (T, S) => R
   )(implicit at: Arrayable[T], as: Arrayable[S]): Events[R] =
     new Events.Sync[T, S, R](this, that, f)
+
+  /** Reverses the events of this event stream.
+   *
+   *  The events are emitted in the opposite order from what they are emitted on `this`
+   *  event stream. Exceptions are simply piped through in the order in which they
+   *  come in.
+   *
+   *  {{{
+   *  time      ------------------------->
+   *  this      ------1----2-3---|
+   *  reverse   -----------------3-2-1-|
+   *  }}}
+   *
+   *  '''Note:''' This operation buffers events from `this` event stream until `this`
+   *  event stream unreacts. No events are emitted before `this` unreacts. Consequently,
+   *  the resulting event stream may buffer events indefinitely, resulting in a memory
+   *  leak. Use this operation **only if you can guarantee that the current event
+   *  stream is finite**.
+   */
+  def reverse(implicit a: Arrayable[T]): Events[T] = new Events.Reverse[T](this)
 
   /** Forwards an event from this event stream with some probability.
    *
@@ -2560,6 +2580,46 @@ object Events {
     }
     def except(t: Throwable) = target.except(t)
     def unreact() = state.unreactBoth(target)
+  }
+
+  private[reactors] class Reverse[@spec(Int, Long, Double) T](
+    val self: Events[T]
+  )(implicit val a: Arrayable[T]) extends Events[T] {
+    def onReaction(observer: Observer[T]): Subscription = {
+      val reverseObserver = new ReverseObserver(observer)
+      self.onReaction(reverseObserver)
+    }
+  }
+
+  private[reactors] class ReverseObserver[@spec(Int, Long, Double) T](
+    val target: Observer[T]
+  )(implicit val a: Arrayable[T]) extends Observer[T] {
+    var stack: Stack[T] = _
+    var hintstack: Stack[Any] = _
+
+    def init(implicit a: Arrayable[T]): Unit = {
+      stack = new Stack[T]
+      hintstack = new Stack[Any]
+    }
+    init(a)
+
+    def react(value: T, hint: Any): Unit = {
+      stack.push(value)
+      hintstack.push(hint)
+    }
+
+    def except(t: Throwable): Unit = target.except(t)
+
+    private def flush(a: Arrayable[T]): Unit = {
+      while (stack.nonEmpty) {
+        target.react(stack.pop(), hintstack.pop())
+      }
+    }
+
+    def unreact(): Unit = {
+      flush(a)
+      target.unreact()
+    }
   }
 
   private[reactors] class PostfixUnion[T, @spec(Int, Long, Double) S: Spec](

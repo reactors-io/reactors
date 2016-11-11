@@ -904,6 +904,28 @@ class EventsSpec extends FunSuite {
     assert(done)
   }
 
+  test("reverse") {
+    var done = false
+    val seen = mutable.Buffer[Int]()
+    val e = new Events.Emitter[Int]
+    val reversed = e.reverse
+    reversed.onEvent(seen += _)
+    reversed.onDone(done = true)
+
+    e.react(11)
+    assert(seen == Seq())
+    assert(!done)
+    e.react(17)
+    assert(seen == Seq())
+    assert(!done)
+    e.react(19)
+    assert(seen == Seq())
+    assert(!done)
+    e.unreact()
+    assert(seen == Seq(19, 17, 11))
+    assert(done)
+  }
+
   test("postfix union") {
     var done = false
     val buffer = mutable.Buffer[Int]()
