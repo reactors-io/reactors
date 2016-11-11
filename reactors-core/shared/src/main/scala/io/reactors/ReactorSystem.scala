@@ -247,7 +247,7 @@ object ReactorSystem {
       val spindownTestIterations = config.int("scheduler.spindown.test-iterations")
     }
 
-    val urlMap = config.list("remote").map { c =>
+    val urlMap = config.list("remote.transports").map { c =>
       val schema = c.string("schema")
       val url = SystemUrl(c.string("schema"), c.string("host"), c.int("port"))
       val transportName = c.string("transport")

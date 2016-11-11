@@ -164,21 +164,25 @@ class EventBoxingBench extends Bench.Forked[Long] {
       val syncEmitter = new Events.Emitter[Int]
       emitter.sync(syncEmitter)(_ + _).on(syncCount += 1)
 
+      // reverse
+      var reverseSum = 0
+      emitter.reverse.onEvent(reverseSum += _)
+
       // postfix union
       var postfixUnionCount = 0
-      var postfixUnionEmitter = new Events.Emitter[Events.Emitter[Int]]
+      val postfixUnionEmitter = new Events.Emitter[Events.Emitter[Int]]
       postfixUnionEmitter.union.on(postfixUnionCount += 1)
       postfixUnionEmitter.react(emitter)
 
       // postfix concat
       var postfixConcatCount = 0
-      var postfixConcatEmitter = new Events.Emitter[Events.Emitter[Int]]
+      val postfixConcatEmitter = new Events.Emitter[Events.Emitter[Int]]
       postfixConcatEmitter.concat.on(postfixConcatCount += 1)
       postfixConcatEmitter.react(emitter)
 
       // postfix first
       var postfixFirstEmitterCount = 0
-      var postfixFirstEmitter = new Events.Emitter[Events.Emitter[Int]]
+      val postfixFirstEmitter = new Events.Emitter[Events.Emitter[Int]]
       postfixFirstEmitter.first.on(postfixFirstEmitterCount += 1)
       postfixFirstEmitter.react(emitter)
 

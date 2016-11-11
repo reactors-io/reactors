@@ -49,14 +49,16 @@ object Platform {
 
   private[reactors] val defaultConfiguration = """
     pickler = "io.reactors.pickle.JavaSerializationPickler"
-    remote = [
-      {
-        schema = "udp"
-        transport = "io.reactors.remote.UdpTransport"
-        host = "localhost"
-        port = 17771
-      }
-    ]
+    remote = {
+      transports = [
+        {
+          schema = "udp"
+          transport = "io.reactors.remote.UdpTransport"
+          host = "localhost"
+          port = 17771
+        }
+      ]
+    }
     remote-default-schema = "udp"
     debug-api = {
       name = "io.reactors.debugger.ZeroDebugApi"

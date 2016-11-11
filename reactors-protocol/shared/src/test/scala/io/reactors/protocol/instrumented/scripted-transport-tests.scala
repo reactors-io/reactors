@@ -17,14 +17,16 @@ import scala.concurrent.duration._
 
 class ScriptedTransportTests extends AsyncFunSuite with AsyncTimeLimitedTests {
   val system = ReactorSystem.default("conversions", Bundle.default("""
-    remote = [
-      {
-        schema = "scripted"
-        transport = "io.reactors.protocol.instrument.ScriptedTransport"
-        host = ""
-        port = 0
-      }
-    ]
+    remote = {
+      transports = [
+        {
+          schema = "scripted"
+          transport = "io.reactors.protocol.instrument.ScriptedTransport"
+          host = ""
+          port = 0
+        }
+      ]
+    }
     system = {
       channels = {
         create-as-local = "false"

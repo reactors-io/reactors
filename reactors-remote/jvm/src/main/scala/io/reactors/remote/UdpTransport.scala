@@ -15,7 +15,7 @@ import scala.collection._
 
 class UdpTransport(val system: ReactorSystem) extends Remote.Transport {
   private[remote] val datagramChannel = {
-    val url = system.bundle.urlMap("reactor.udp").url
+    val url = system.bundle.urlMap("udp").url
     val ch = DatagramChannel.open()
     ch.bind(url.inetSocketAddress)
     ch
