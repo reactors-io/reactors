@@ -33,3 +33,25 @@ class Scripted(val system: ReactorSystem) extends Protocol.Service {
   override def shutdown(): Unit = {
   }
 }
+
+
+object Scripted {
+  val defaultBundle: ReactorSystem.Bundle = ReactorSystem.Bundle.default("""
+    remote = {
+      default-schema = "scripted"
+      transports = [
+        {
+          schema = "scripted"
+          transport = "io.reactors.protocol.instrument.ScriptedTransport"
+          host = ""
+          port = 0
+        }
+      ]
+    }
+    system = {
+      channels = {
+        create-as-local = "false"
+      }
+    }
+  """.stripMargin)
+}

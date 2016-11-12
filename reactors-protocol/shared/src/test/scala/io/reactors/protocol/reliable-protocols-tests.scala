@@ -14,24 +14,7 @@ import scala.concurrent.duration._
 
 
 class ReliableProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
-  val system = ReactorSystem.default("conversions", Bundle.default("""
-    remote = {
-      default-schema = "scripted"
-      transports = [
-        {
-          schema = "scripted"
-          transport = "io.reactors.protocol.instrument.ScriptedTransport"
-          host = ""
-          port = 0
-        }
-      ]
-    }
-    system = {
-      channels = {
-        create-as-local = "false"
-      }
-    }
-  """.stripMargin))
+  val system = ReactorSystem.default("conversions", Scripted.defaultBundle)
 
   def timeLimit = 10.seconds
 
