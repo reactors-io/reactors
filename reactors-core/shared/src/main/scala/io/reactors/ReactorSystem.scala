@@ -62,6 +62,7 @@ class ReactorSystem(
   /** Shuts down services. */
   def shutdown() {
     debugApi.shutdown()
+    globalTimer.cancel()
     shutdownServices()
   }
 

@@ -73,24 +73,28 @@ object ChannelsCheck extends Properties("ChannelsCheck") with ExtendedProperties
     forAllNoShrink(detChoose(0, 50)) { n =>
       stackTraced {
         for (i <- 0 until repetitions) {
-          val checkReactorName = "check-reactor-" + nameCounter.getAndIncrement()
           val system = ReactorSystem.default("check-system")
-          val done = Promise[Boolean]()
-          system.spawn(Reactor[Unit] { self =>
-            system.channels.await[String](checkReactorName + "#main").onEvent { ch =>
-              ch ! "done"
-              self.main.seal()
-            }
-          })
-          Thread.sleep(n)
-          system.spawn(Reactor[String] { self =>
-            self.main.events onMatch {
-              case "done" =>
-                done.success(true)
+          try {
+            val checkReactorName = "check-reactor-" + nameCounter.getAndIncrement()
+            val done = Promise[Boolean]()
+            system.spawn(Reactor[Unit] { self =>
+              system.channels.await[String](checkReactorName + "#main").onEvent { ch =>
+                ch ! "done"
                 self.main.seal()
-            }
-          } withName(checkReactorName))
-          assert(Await.result(done.future, 10.seconds))
+              }
+            })
+            Thread.sleep(n)
+            system.spawn(Reactor[String] { self =>
+              self.main.events onMatch {
+                case "done" =>
+                  done.success(true)
+                  self.main.seal()
+              }
+            } withName (checkReactorName))
+            assert(Await.result(done.future, 10.seconds))
+          } finally {
+            system.shutdown()
+          }
         }
         true
       }
