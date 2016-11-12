@@ -3,6 +3,7 @@ package services
 
 
 
+import io.reactors.common.IndexMap
 import io.reactors.concurrent.Frame
 import io.reactors.concurrent.Services
 import java.util.Timer
@@ -12,6 +13,7 @@ import scala.annotation.tailrec
 import scala.annotation.unchecked
 import scala.collection._
 import scala.concurrent.duration._
+import scala.reflect.ClassTag
 
 
 
@@ -187,6 +189,8 @@ class Channels(val system: ReactorSystem)
 extends ChannelBuilder(
   null, false, EventQueue.UnrolledRing.Factory, false, immutable.Map()
 ) with Protocol.Service {
+  private val tagMap = new IndexMap[Channels.Tag, ChannelBuilder]
+
   def shutdown() {
   }
 
@@ -207,6 +211,28 @@ extends ChannelBuilder(
     reactorName: String, channelName: String
   ): Option[Channel[T]] = {
     getConnector[T](reactorName, channelName).map(_.localChannel)
+  }
+
+  /** Registers a channel builder template under a specific tag.
+   *
+   *  Specific protocols use channel builder templates to instantiate their components,
+   *  and overriding a template in some cases allows to inject custom behavior (for
+   *  example, for testing purposes).
+   *  Removes previous registrations, if any.
+   */
+  def registerTemplate(tag: Channels.Tag, template: ChannelBuilder): Unit =
+    system.monitor.synchronized {
+      tagMap(tag) = template
+    }
+
+  /** Returns a channel builder template that had been previously registered for a tag.
+   *
+   *  If no template was registered with the specified tag, method returns `this`.
+   */
+  def template(tag: Channels.Tag): ChannelBuilder = system.monitor.synchronized {
+    val v = tagMap(tag)
+    if (v != null) v
+    else this
   }
 
   /** Optionally returns the channel with the given name, if it exists.
@@ -281,4 +307,9 @@ extends ChannelBuilder(
 
     ivar
   }
+}
+
+
+object Channels {
+  abstract class Tag extends IndexMap.Key
 }

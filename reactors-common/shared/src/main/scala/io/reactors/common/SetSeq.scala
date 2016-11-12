@@ -10,7 +10,7 @@ import scala.reflect.ClassTag
 
 /** A collection that is a set and a sequence.
  */
-class IndexedSet[T >: Null <: AnyRef] extends Seq[T] {
+class SetSeq[T >: Null <: AnyRef] extends Seq[T] {
   private val buffer = mutable.ArrayBuffer[T]()
   private val index = mutable.Map[T, Int]()
 

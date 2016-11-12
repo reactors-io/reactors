@@ -3,6 +3,8 @@ package protocol
 
 
 
+import io.reactors.services.Channels
+import io.reactors.services.Channels.Tag
 
 
 
@@ -30,6 +32,14 @@ trait TwoWayProtocols {
   }
 
   object TwoWay {
+    /** Tag for the server-side outgoing channels of the `TwoWay` object.
+     */
+    object InputTag extends Channels.Tag
+
+    /** Tag for the client-side outgoing channels of the `TwoWay` object.
+     */
+    object OutputTag extends Channels.Tag
+
     /** Two-way server object.
      *
      *  @tparam I            type of the server-side input events
@@ -82,7 +92,7 @@ trait TwoWayProtocols {
       val connections = connector.events map {
         case (outputChannel, reply) =>
           val system = Reactor.self.system
-          val output = system.channels.daemon.open[O]
+          val output = system.channels.template(TwoWay.InputTag).daemon.open[O]
           reply ! output.channel
           TwoWay(outputChannel, output.events, Subscription(output.seal()))
       } toEmpty
@@ -102,9 +112,11 @@ trait TwoWayProtocols {
      *
      *  A successful connection yields a 2-way channel object of type `TwoWay[I, O]`.
      */
-    def connect()(implicit a: Arrayable[I]): IVar[TwoWay[I, O]] = {
+    def connect()(
+      implicit a: Arrayable[I]
+    ): IVar[TwoWay[I, O]] = {
       val system = Reactor.self.system
-      val output = system.channels.daemon.open[I]
+      val output = system.channels.template(TwoWay.OutputTag).daemon.open[I]
       val result: Events[TwoWay[I, O]] = (twoWayServer ? output.channel) map {
         inputChannel =>
         TwoWay(inputChannel, output.events, Subscription(output.seal()))

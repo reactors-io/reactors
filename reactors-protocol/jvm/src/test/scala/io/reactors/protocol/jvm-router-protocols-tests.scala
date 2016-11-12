@@ -3,7 +3,7 @@ package protocol
 
 
 
-import io.reactors.common.IndexedSet
+import io.reactors.common.SetSeq
 import io.reactors.test._
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit

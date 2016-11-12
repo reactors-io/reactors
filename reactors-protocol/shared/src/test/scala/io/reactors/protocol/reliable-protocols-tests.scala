@@ -65,7 +65,9 @@ class ReliableProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
     val event2 = Promise[String]
 
     val policy = Reliable.Policy.ordered[String](128)
-    val server = system.reliableServer(policy) {
+    system.channels.registerTemplate(TwoWay.InputTag, system.channels.named("two-way"))
+
+    val proto = Reactor.reliableServer(policy) {
       (server, connection) =>
       connection.events onEvent { x =>
         if (!event1.trySuccess(x)) {
@@ -74,10 +76,12 @@ class ReliableProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
         }
       }
     }
+    val server = system.spawn(proto.withName("server"))
 
     system.spawnLocal[Unit] { self =>
       server.openReliable(policy) onEvent { r =>
-        self.system.service[Scripted].behavior(r.underlyingTwoWay.output) {
+        val twoWay = system.channels.get[Stamp[String]]("server", "two-way").get
+        self.system.service[Scripted].behavior(twoWay) {
           _.take(2).reverse
         }
         r.channel ! "first"

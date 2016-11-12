@@ -3,7 +3,7 @@ package protocol
 
 
 
-import io.reactors.common.IndexedSet
+import io.reactors.common.SetSeq
 import io.reactors.test._
 import org.scalatest._
 import org.scalatest.concurrent.AsyncTimeLimitedTests
@@ -46,7 +46,7 @@ extends AsyncFunSuite with AsyncTimeLimitedTests {
       val seen = mutable.Buffer[Int]()
       val c1 = system.channels.open[Int]
       val c2 = system.channels.open[Int]
-      val routees = new IndexedSet[Channel[Int]]
+      val routees = new SetSeq[Channel[Int]]
       routees += self.main.channel
       val rc = system.channels.daemon.router[Int].route(Router.roundRobin(routees))
       rc.channel ! 17

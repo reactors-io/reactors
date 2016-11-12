@@ -5,6 +5,7 @@ package protocol
 
 import io.reactors.common.BinaryHeap
 import io.reactors.common.UnrolledRing
+import io.reactors.services.Channels
 
 
 
@@ -22,9 +23,7 @@ trait ReliableProtocols {
    *  @param channel            channel underlying the reliable connection
    *  @param subscription       subscription associated with the reliable connection
    */
-  case class Reliable[T](channel: Channel[T], subscription: Subscription)(
-    private[protocol] val underlyingTwoWay: TwoWay[Long, Stamp[T]]
-  )
+  case class Reliable[T](channel: Channel[T], subscription: Subscription)
 
   object Reliable {
     case class Connection[T](events: Events[T], subscription: Subscription)
@@ -130,6 +129,10 @@ trait ReliableProtocols {
           )
       }
     }
+
+    /** Represents the channel of the `Reliable` object.
+     */
+    object ChannelTag extends Channels.Tag
   }
 
   /* One-way reliable protocols */
@@ -150,7 +153,8 @@ trait ReliableProtocols {
       val twoWayServer = connector.serveTwoWay()
       val connections = twoWayServer.connections map {
         case twoWay @ TwoWay(_, events, _) =>
-          val reliable = system.channels.daemon.shortcut.open[T]
+          val reliable =
+            system.channels.template(Reliable.ChannelTag).daemon.shortcut.open[T]
           val resources = policy.server(twoWay, reliable.channel)
           val subscription = Subscription(reliable.seal())
             .chain(resources)
@@ -183,8 +187,19 @@ trait ReliableProtocols {
             .chain(resources)
             .chain(twoWay.subscription)
           acks.filter(_ == -1).toIVar.on(subscription.unsubscribe())
-          Reliable(reliable.channel, subscription)(twoWay)
+          Reliable(reliable.channel, subscription)
       } toIVar
+    }
+  }
+
+  implicit class ReliableReactorCompanionOps(val reactor: Reactor.type) {
+    def reliableServer[T: Arrayable](policy: Reliable.Policy[T])(
+      f: (Reliable.Server[T], Reliable.Connection[T]) => Unit
+    ): Proto[Reactor[Reliable.Req[T]]] = {
+      Reactor[Reliable.Req[T]] { self =>
+        val server = self.main.serveReliable(policy)
+        server.connections.onEvent(connection => f(server, connection))
+      }
     }
   }
 
@@ -192,10 +207,7 @@ trait ReliableProtocols {
     def reliableServer[T: Arrayable](policy: Reliable.Policy[T])(
       f: (Reliable.Server[T], Reliable.Connection[T]) => Unit
     ): Channel[Reliable.Req[T]] = {
-      system.spawn(Reactor[Reliable.Req[T]] { self =>
-        val server = self.main.serveReliable(policy)
-        server.connections.onEvent(connection => f(server, connection))
-      })
+      system.spawn(Reactor.reliableServer[T](policy)(f))
     }
   }
 
