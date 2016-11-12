@@ -78,6 +78,7 @@ class RemoteTest extends FunSuite with Matchers {
       "test-send-sys",
       new ReactorSystem.Bundle(JvmScheduler.default, """
         remote = {
+          default-schema = "udp"
           transports = [
             {
               schema = "udp"
@@ -92,6 +93,7 @@ class RemoteTest extends FunSuite with Matchers {
       "test-recv-sys",
       new ReactorSystem.Bundle(JvmScheduler.default, """
         remote = {
+          default-schema = "udp"
           transports = [
             {
               schema = "udp"
