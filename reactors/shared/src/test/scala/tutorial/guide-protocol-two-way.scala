@@ -6,7 +6,7 @@ topic: reactors
 logoname: reactress-mini-logo-flat.png
 projectname: Reactors.IO
 homepage: http://reactors.io
-permalink: /reactors/two-way/index.html
+permalink: /reactors/protocol-two-way/index.html
 pagenum: 3
 pagetot: 40
 section: guide-protocol
@@ -86,7 +86,7 @@ class TwoWayProtocol extends AsyncFunSuite {
     def println(s: String) = done.success(s)
 
     /*!md
-    Let's start instantiate the 2-way channel protocol.
+    Let's instantiate the 2-way channel protocol.
     We start by importing the contents of the `io.reactors`
     and the `io.reactors.protocol` packages,
     and then instantiating a default reactor system.

@@ -27,7 +27,6 @@ trait RouterProtocols {
      *  The router channel routes incoming events to some channel, defined by the
      *  `selector` function.
      *
-     *  @tparam T        the type of the routed events
      *  @param selector  function that selects a channel for the given event
      *  @return          a connector for the router channel
      */
