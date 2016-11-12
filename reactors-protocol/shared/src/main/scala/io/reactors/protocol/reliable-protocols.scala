@@ -22,7 +22,9 @@ trait ReliableProtocols {
    *  @param channel            channel underlying the reliable connection
    *  @param subscription       subscription associated with the reliable connection
    */
-  case class Reliable[T](channel: Channel[T], subscription: Subscription)
+  case class Reliable[T](channel: Channel[T], subscription: Subscription)(
+    private[protocol] val underlyingTwoWay: TwoWay[Long, Stamp[T]]
+  )
 
   object Reliable {
     case class Connection[T](events: Events[T], subscription: Subscription)
@@ -77,7 +79,7 @@ trait ReliableProtocols {
             Order((x, y) => (x.stamp - y.stamp).toInt)
           )
           events onMatch {
-            case Stamp.Some(x, timestamp) =>
+            case stamp @ Stamp.Some(x, timestamp) =>
               if (timestamp == latest) {
                 acks ! latest
                 latest += 1
@@ -88,6 +90,8 @@ trait ReliableProtocols {
                   latest += 1
                   deliver ! y
                 }
+              } else {
+                queue.enqueue(stamp)
               }
           } andThen (acks ! -1)
         }
@@ -179,15 +183,14 @@ trait ReliableProtocols {
             .chain(resources)
             .chain(twoWay.subscription)
           acks.filter(_ == -1).toIVar.on(subscription.unsubscribe())
-          Reliable(reliable.channel, subscription)
+          Reliable(reliable.channel, subscription)(twoWay)
       } toIVar
     }
   }
 
-  implicit class ReliableSystemOps[T: Arrayable](val system: ReactorSystem) {
-    def reliableServer(
-      f: (Reliable.Server[T], Reliable.Connection[T]) => Unit,
-      policy: Reliable.Policy[T] = Reliable.Policy.ordered[T](128)
+  implicit class ReliableSystemOps(val system: ReactorSystem) {
+    def reliableServer[T: Arrayable](policy: Reliable.Policy[T])(
+      f: (Reliable.Server[T], Reliable.Connection[T]) => Unit
     ): Channel[Reliable.Req[T]] = {
       system.spawn(Reactor[Reliable.Req[T]] { self =>
         val server = self.main.serveReliable(policy)

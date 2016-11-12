@@ -59,7 +59,7 @@ class ScriptedTransportTests extends AsyncFunSuite with AsyncTimeLimitedTests {
 
     val proto = Reactor[Unit] { self =>
       val perfect = system.channels.daemon.open[String]
-      system.service[Scripted].withChannel(perfect.channel) { inputs =>
+      system.service[Scripted].behavior(perfect.channel) { inputs =>
         inputs.drop(1)
       }
 
@@ -81,7 +81,7 @@ class ScriptedTransportTests extends AsyncFunSuite with AsyncTimeLimitedTests {
 
     val proto = Reactor[Unit] { self =>
       val perfect = system.channels.daemon.open[String]
-      system.service[Scripted].withChannel(perfect.channel) { inputs =>
+      system.service[Scripted].behavior(perfect.channel) { inputs =>
         inputs.take(1)
       }
 

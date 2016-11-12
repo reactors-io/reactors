@@ -25,7 +25,7 @@ class Scripted(val system: ReactorSystem) extends Protocol.Service {
    *                     emitted on this channel must be altered into another event
    *                     stream to simulate some sort of special behavior
    */
-  def withChannel[T](ch: Channel[T])(behavior: Events[T] => Events[T]): Unit = {
+  def behavior[T](ch: Channel[T])(behavior: Events[T] => Events[T]): Unit = {
     val transport = system.remote.transport("scripted").asInstanceOf[ScriptedTransport]
     transport.withChannel(ch, behavior)
   }

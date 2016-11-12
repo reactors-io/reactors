@@ -31,6 +31,9 @@ class ReactorSystem(
 
   private[reactors] val globalTimer = new Timer(s"reactors-io.$name.global-timer", true)
 
+  private[reactors] val defaultTransportSchema: String =
+   system.bundle.config.string("remote.default-schema")
+
   /** Debugging API.
    */
   private[reactors] val debugApi: DebugApi = {
