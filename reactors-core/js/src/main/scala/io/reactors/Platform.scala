@@ -97,7 +97,7 @@ object Platform {
       transports = [
         {
           schema = "local"
-          transport = "io.reactors.remote.LocalTransport"
+          transport = "io.reactors.transport.LocalTransport"
           host = ""
           port = 0
         },
