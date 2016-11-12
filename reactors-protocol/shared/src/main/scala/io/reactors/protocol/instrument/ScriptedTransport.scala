@@ -35,7 +35,11 @@ class ScriptedTransport(val system: ReactorSystem) extends Remote.Transport {
     val isoName = sharedChannel.url.reactorUrl.name
     val channelName = sharedChannel.url.anchor
     val localChannel = system.channels.getLocal[T](isoName, channelName).get
-    val subscription = deliveries.onEvent(x => localChannel ! x)
+    val subscription = deliveries.onEventOrDone {
+      x => localChannel ! x
+    } {
+      channelBehaviors.remove(scriptedChannel)
+    }
 
     channelBehaviors(scriptedChannel) =
       Behavior(emits.asInstanceOf[Events.Emitter[Any]], subscription)
