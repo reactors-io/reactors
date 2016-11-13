@@ -43,7 +43,7 @@ trait ReliableProtocols {
     )
 
     object Policy {
-      /** Assumes that the underlying medium may reorder events.
+      /** Assumes that the transport may reorder and indefinitely delay some events.
        *
        *  Furthermore, the requirement is that the underlying medium is not lossy,
        *  and that it does not create duplicates.
@@ -51,42 +51,42 @@ trait ReliableProtocols {
       def ordered[T: Arrayable](window: Int) = Policy[T](
         (sends, twoWay) => {
           var lastAck = 0L
-          var latest = 0L
+          var lastStamp = 0L
           val queue = new UnrolledRing[T]
           val io.reactors.protocol.TwoWay(channel, acks, subscription) = twoWay
           sends onEvent { x =>
-            if ((latest - lastAck) < window) {
-              channel ! Stamp.Some(x, latest)
-              latest += 1
+            if ((lastStamp - lastAck) < window) {
+              lastStamp += 1
+              channel ! Stamp.Some(x, lastStamp)
             } else {
               queue.enqueue(x)
             }
           }
           acks onEvent { stamp =>
             lastAck = math.max(lastAck, stamp)
-            while (queue.nonEmpty && (latest - lastAck) < window) {
-              channel ! Stamp.Some(queue.dequeue(), latest)
-              latest += 1
+            while (queue.nonEmpty && (lastStamp - lastAck) < window) {
+              lastStamp += 1
+              channel ! Stamp.Some(queue.dequeue(), lastStamp)
             }
           } andThen (channel ! Stamp.None())
         },
         (twoWay, deliver) => {
           val io.reactors.protocol.TwoWay(acks, events, subscription) = twoWay
-          var latest = 0L
+          var nextStamp = 1L
           val queue = new BinaryHeap[Stamp[T]]()(
             implicitly,
             Order((x, y) => (x.stamp - y.stamp).toInt)
           )
           events onMatch {
             case stamp @ Stamp.Some(x, timestamp) =>
-              if (timestamp == latest) {
-                acks ! latest
-                latest += 1
+              if (timestamp == nextStamp) {
+                acks ! nextStamp
+                nextStamp += 1
                 deliver ! x
-                while (queue.nonEmpty && queue.head.stamp == latest) {
+                while (queue.nonEmpty && queue.head.stamp == nextStamp) {
                   val Stamp.Some(y, _) = queue.dequeue()
-                  acks ! latest
-                  latest += 1
+                  acks ! nextStamp
+                  nextStamp += 1
                   deliver ! y
                 }
               } else {
