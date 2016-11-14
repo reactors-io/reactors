@@ -11,8 +11,6 @@ import scala.util.Random
 /** Communication patterns for routing.
  */
 trait RouterProtocols {
-  self: Patterns =>
-
   implicit class RouterChannelBuilderOps(val builder: ChannelBuilder) {
     /** Creates a new channel with the router signature.
      */
@@ -30,9 +28,9 @@ trait RouterProtocols {
      *  @param selector  function that selects a channel for the given event
      *  @return          a connector for the router channel
      */
-    def route(selector: T => Channel[T]): Connector[T] = {
+    def route(selector: Router.Policy[T]): Connector[T] = {
       conn.events.onEvent { x =>
-        selector(x) ! x
+        selector.routee(x) ! x
       }
       conn
     }
@@ -45,14 +43,14 @@ trait RouterProtocols {
 object Router {
   /** Type of a function that selects a channel given an event.
    */
-  type Selector[T] = T => Channel[T]
+  case class Policy[T](routee: T => Channel[T])
 
   /** Always returns a zero channel, which loses all the events sent to it.
    *
    *  @tparam T       type of the events to route
    *  @return         a selector function that drops events
    */
-  def zeroSelector[T]: Selector[T] = (x: T) => new Channel.Zero[T]
+  def zeroSelector[T]: Policy[T] = Policy((x: T) => new Channel.Zero[T])
 
   /** Picks channels in a Round Robin manner.
    *
@@ -60,15 +58,15 @@ object Router {
    *  @param targets  the channels to route the events to
    *  @return         a selector function that chooses a channel
    */
-  def roundRobin[T](targets: Seq[Channel[T]]): Selector[T] = {
+  def roundRobin[T](targets: Seq[Channel[T]]): Policy[T] = {
     var i = -1
-    (x: T) => {
+    Policy((x: T) => {
       if (targets.nonEmpty) {
         i = (i + 1) % targets.length
         val ch = targets(i)
         ch
       } else new Channel.Zero[T]
-    }
+    })
   }
 
   /** Picks a channel from a random distribution.
@@ -84,11 +82,11 @@ object Router {
       val r = new Random
       (n: Int) => r.nextInt(n)
     }
-  ): Selector[T] = {
-    (x: T) => {
+  ): Policy[T] = {
+    Policy((x: T) => {
       if (targets.nonEmpty) targets(randfun(targets.length))
       else new Channel.Zero[T]
-    }
+    })
   }
 
   /** Consistently picks a channel using a hashing function on the event.
@@ -106,11 +104,11 @@ object Router {
   def hash[T](
     targets: Seq[Channel[T]],
     hashing: T => Int = (x: T) => x.##
-  ): Selector[T] = {
-    (x: T) => {
+  ): Policy[T] = {
+    Policy((x: T) => {
       if (targets.nonEmpty) targets(hashing(x) % targets.length)
       else new Channel.Zero[T]
-    }
+    })
   }
 
   /** Picks the next channel according to the Deficit Round Robin routing algorithm.
@@ -130,7 +128,7 @@ object Router {
    *
    *  @tparam T       type of routed events
    *  @param targets  sequence of target channels
-   *  @param quantum  the base cost quantum used to increase 
+   *  @param quantum  the base cost quantum used to increase
    *  @param cost     function from an event to its cost
    *  @return         a selector
    */
@@ -138,12 +136,12 @@ object Router {
     targets: immutable.Seq[Channel[T]],
     quantum: Int,
     cost: T => Int
-  ): Selector[T] = {
+  ): Policy[T] = {
     if (targets.isEmpty) zeroSelector
     else {
       val deficits = new Array[Int](targets.length)
       var i = targets.length - 1
-      (x: T) => {
+      Policy((x: T) => {
         val c = cost(x)
         var found = false
         while (!found) {
@@ -155,7 +153,7 @@ object Router {
         }
         deficits(i) -= c
         targets(i)
-      }
+      })
     }
   }
 }

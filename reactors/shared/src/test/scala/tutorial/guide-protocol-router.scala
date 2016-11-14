@@ -28,7 +28,7 @@ import scala.concurrent.Promise
 In this section,
 we take a look at a simple router protocol.
 Here, events coming to a specific channel are routed between a set of target channels,
-according to some user-specified strategy.
+according to some user-specified policy.
 In practice, there are a number of applications of this protocol,
 ranging from data replication and sharding, to load-balancing and multicasting.
 In our first example,
@@ -91,7 +91,11 @@ class RouterProtocol extends AsyncFunSuite {
     Just calling the `router` method does not start the protocol - we need to call
     `route` on the connector to actually start routing.
 
-    // TODO: Complete description of round robin.
+    The `route` method expects a `Router.Policy` object as an argument.
+    The policy object contains the routing logic for the router protocol.
+    We will use the simple round-robin policy in this example.
+    The `Router.roundRobin` factory method expects a list of channels
+    for the round-robin policy, so we will pass a list with `worker1` and `worker2`:
     */
 
     /*!begin-code!*/
@@ -104,6 +108,9 @@ class RouterProtocol extends AsyncFunSuite {
     /*!end-code!*/
 
     /*!md
+    Having instantiated the `router` protocol, we use the input `channel`
+    associated with the router to send two events to the workers.
+
     After starting the router protocol and sending the events `"one"` and `"two"`
     to the router channel, the two strings are delivered to the two different
     workers. The `roundRobin` policy does not specify which of the target channels
@@ -121,21 +128,24 @@ class RouterProtocol extends AsyncFunSuite {
     2: one
     ```
 
-    The round-robin routing strategy does not have any knowledge about the two target
+    The round-robin routing policy does not have any knowledge about the two target
     channels, so it just picks one after another in succession, and then the first one
-    again when it reaches the end of the target list. Effectively, this strategy is
-    a very simple form of load-balancing.
+    again when it reaches the end of the target list. Effectively, this policy
+    constitutes a very simple form of load-balancing.
     */
 
     val done = for {
       x <- done1.future
       y <- done2.future
     } yield (x, y)
-    done.map(t => assert(t == ("1: one", "2: two") || t == ("1: two", "2: one")))
+    done.map(t => assert(
+      t == ("1: one", "2: two") || t == ("2: two", "1: one") ||
+      t == ("1: two", "2: one") || t == ("2: one", "1: two")
+    ))
   }
 
   /*!md
-  There are other strategies to pick when starting the router protocol.
+  There are other predefined policies that can be used with the router protocol.
 
   // TODO: Complete.
   */
