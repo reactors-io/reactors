@@ -23,19 +23,42 @@ trait RouterProtocols {
     /** Installs routing logic to the router connector.
      *
      *  The router channel routes incoming events to some channel, defined by the
-     *  `selector` function.
+     *  `policy`.
      *
-     *  @param selector  function that selects a channel for the given event
-     *  @return          a connector for the router channel
+     *  @param policy    function that selects a channel for the given event
+     *  @return          a router protocol instance
      */
-    def route(selector: Router.Policy[T]): Connector[T] = {
+    def route(policy: Router.Policy[T]): Router[T] = {
       conn.events.onEvent { x =>
-        selector.routee(x) ! x
+        policy.routee(x) ! x
       }
-      conn
+      Router(conn.channel, Subscription(conn.seal()))
+    }
+  }
+
+  implicit class RouterReactorCompanionOps(val companion: Reactor.type) {
+    /** Creates a `Proto` configuration object for a router reactor.
+     */
+    def router[@spec(Int, Long, Double) T](
+      policy: Router.Policy[T]
+    ): Proto[Reactor[T]] = {
+      Reactor[T](self => self.main.route(policy))
+    }
+  }
+
+  implicit class RouterSystemOps(val system: ReactorSystem) {
+    /** Starts a new instance of a router reactor.
+     */
+    def router[@spec(Int, Long, Double) T: Arrayable](
+      policy: Router.Policy[T]
+    ): Channel[T] = {
+      system.spawn(Reactor.router(policy))
     }
   }
 }
+
+
+case class Router[T](channel: Channel[T], subscription: Subscription)
 
 
 /** Contains types and factory functions for router protocols.
