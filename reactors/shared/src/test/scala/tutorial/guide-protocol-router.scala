@@ -146,6 +146,17 @@ class RouterProtocol extends AsyncFunSuite {
 
   /*!md
   There are other predefined policies that can be used with the router protocol.
+  For example, the `Router.random` policy uses a random number generator to route events
+  to different channels, which is more robust in scenarios when a high-load event
+  gets sent periodically. Another policy is `Router.hash`, which computes the hash code
+  of the event, and uses it to find the target channel. If either of these are not
+  satisfactory, `deficitRoundRobin` strategy tracks the expected cost of each event,
+  and biases its routing decisions to balance the total cost sent to each target.
+
+  The above-mentioned policies are mainly used in load-balancing.
+  In addition, users can define their own custom policies for their use-cases.
+  For example, if the router has some information about the current target availability,
+  it can take that into account when making routing decisions.
 
   // TODO: Complete.
   */
