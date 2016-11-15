@@ -16,7 +16,16 @@ before_script:
   - git clone git@ci.storm-enroute.com:storm-enroute/super-storm-enroute.git ~/.super-storm-enroute
 
 
-gate:
+gate-ubuntu:
+  tags:
+    - ubuntu
+  script:
+    - ~/.super-storm-enroute/tools/ci reactors $(pwd)
+
+
+gate-osx:
+  tags:
+    - osx
   script:
     - ~/.super-storm-enroute/tools/ci reactors $(pwd)
 
