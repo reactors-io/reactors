@@ -31,5 +31,7 @@ gate-osx:
 
 
 bench:
+  tags:
+    - ubuntu
   script:
     - ~/.super-storm-enroute/tools/ci --bench=True . $(pwd)
