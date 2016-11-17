@@ -32,6 +32,20 @@ Here, events coming to a specific channel are routed between a set of target cha
 according to some user-specified policy.
 In practice, there are a number of applications of this protocol,
 ranging from data replication and sharding, to load-balancing and multicasting.
+The protocol is illustrated in the following figure:
+
+```
+           #----------------#
+           |                |
+           |              /-+-- channel 1
+           |             /  |
+router  ---o--> router -----+-- channel 2
+channel    |             \  |
+           |              \-+-- channel 3
+           |                |
+           #----------------#
+```
+
 In our first example,
 we will instantiate a master reactor that will route the incoming requests
 between two workers.
@@ -73,7 +87,7 @@ class RouterProtocol extends AsyncFunSuite {
     We can now use the reactor system to start two workers, `worker1` and `worker2`.
     We use a shorthand method `spawnLocal`, to concisely start the reactors
     without first creating the `Proto` object:
-    */
+    !*/
 
     /*!begin-code!*/
     val worker1 = system.spawnLocal[String] { self =>
@@ -97,7 +111,7 @@ class RouterProtocol extends AsyncFunSuite {
     We will use the simple round-robin policy in this example.
     The `Router.roundRobin` factory method expects a list of channels
     for the round-robin policy, so we will pass a list with `worker1` and `worker2`:
-    */
+    !*/
 
     /*!begin-code!*/
     system.spawnLocal[Unit] { self =>
@@ -133,7 +147,7 @@ class RouterProtocol extends AsyncFunSuite {
     channels, so it just picks one after another in succession, and then the first one
     again when it reaches the end of the target list. Effectively, this policy
     constitutes a very simple form of load-balancing.
-    */
+    !*/
 
     val done = for {
       x <- done1.future
@@ -169,34 +183,106 @@ class RouterProtocol extends AsyncFunSuite {
 
   In the following, we use a router reactor to implement simple sharding for key-value
   pairs, which is typically done in distributed hash-tables.
+  Here, the data contained in a distributed hash table is spread across some number
+  of computing nodes called *shards*. Each shard will be represented by a separate
+  reactor, which will have two basic operations - `Put` and `Get`, used to add entries
+  to the distributed hash table, and to remove them, respectively.
+  !*/
 
-  // TODO: Describe further.
-  */
+  import io.reactors._
+  import io.reactors.protocol._
+
+  /*!begin-code!*/
+  sealed trait Op[K, V]
+
+  case class Put[K, V](key: K, value: V)
+  extends Op[K, V]
+
+  case class Get[K, V](key: K)
+  extends Op[K, V]
+  /*!end-code!*/
 
   test("router reactors") {
-    import io.reactors._
-    import io.reactors.protocol._
-
     val system = ReactorSystem.default("test-system")
     val done = Promise[String]()
+    def println(s: String) = done.success(s)
+
+    /*!md
+    The `Put` operation holds information about the key-value pair,
+    while the `Get` operation contains the desired key.
+    We implement the distributed hash table functionality in a method
+    called `distributedHashTable`. This method instantiates the shards,
+    and then starts the main router reactor.
+
+    We will use the following convention - if the key has some hash code `h`,
+    then its shard is `h % numShards`, where `numShards` is the number of
+    different shards. Incidentally, this is exactly how the router policy
+    `Router.hash` behaves.
+    The distributed hash table implementation is then shown in the following:
+    !*/
 
     /*!begin-code!*/
-    val numShards = 32
-    val shards = for (i <- 0 until numShards) yield {
-      system.spawnLocal[(String, String)] { self =>
-        val data = mutable.Map[String, String]
-        self.main.events onMatch  {
-          case (key, value) => data(key) = value
+    def distributedHashTable[K, V](
+      numShards: Int
+    ): Server[Op[K, V], Option[V]] = {
+      // Create the shard reactors, used to hold the key-value pairs.
+      val shards = for (i <- 0 until numShards) yield {
+        system.spawnLocal[Server.Req[Op[K, V], Option[V]]] { self =>
+          val data = mutable.Map[K, V]()
+          self.main.events onMatch {
+            case (Put(key, value), reply) =>
+              reply ! data.get(key)
+              data(key) = value
+            case (Get(key), reply) =>
+              reply ! data.get(key)
+          }
+        }
+      }
+
+      // Return the router reactor, which forwards requests
+      // to the appropriate shard reactor.
+      system.router(Router.hash(shards))
+    }
+    /*!end-code!*/
+
+    /*!md
+    Note that, in our implementation, the distributed hash table's channel type
+    is a server. Clients must always pass a reply channel on which they
+    receive the `Option[V]` object - the value that was previously in the hash table.
+    This will mean that we will be able to use the `?` operator
+    on the distributed hash table, which was explained in the previous
+    section on the *server* protocol.
+
+    Next, we instantiate the distributed hash table for string key-value pairs,
+    and specify `32` shards:
+    !*/
+
+    /*!begin-code!*/
+    val dht = distributedHashTable[String, String](32)
+    /*!end-code!*/
+
+    /*!md
+    We can now create a client of our distributed hash table,
+    which inserts one entry into the hash table, and then asks to get it back.
+    !*/
+
+    /*!begin-code!*/
+    system.spawnLocal[Option[String]] { self =>
+      (dht ? Put("key", "value")) onEvent { prevOpt =>
+        assert(prevOpt == None)
+        (dht ? Get("key")) onMatch {
+          case Some(prev) => println(prev)
+          case None => println("unexpected - empty!")
         }
       }
     }
     /*!end-code!*/
 
-    /*!begin-code!*/
-    system.router(Router.hash(shards))
-    /*!end-code!*/
+    /*!md
+    After the reactor above starts, we should soon see `"value"` printed on the
+    standard output.
+    !*/
 
-    done.success("")
-    done.future.map(s => assert(s == ""))
+    done.future.map(s => assert(s == "value"))
   }
 }

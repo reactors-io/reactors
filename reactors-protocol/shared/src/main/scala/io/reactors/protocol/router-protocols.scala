@@ -129,7 +129,7 @@ object Router {
     hashing: T => Int = (x: T) => x.##
   ): Policy[T] = {
     Policy((x: T) => {
-      if (targets.nonEmpty) targets(hashing(x) % targets.length)
+      if (targets.nonEmpty) targets(math.abs(hashing(x)) % targets.length)
       else new Channel.Zero[T]
     })
   }
