@@ -95,7 +95,6 @@ object Proto {
    *
    *  @tparam I         type of the reactor, must be a concrete type, or its class tag
    *                    must be in scope
-   *  @param clazz      class that describes the reactor
    *  @param params     parameters for instantiating the prototype
    *  @return           a new prototype of a reactor of type `I` with the specified
    *                    parameters
