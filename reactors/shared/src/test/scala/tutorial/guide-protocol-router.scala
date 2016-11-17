@@ -17,6 +17,7 @@ package tutorial
 
 
 import org.scalatest._
+import scala.collection._
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Promise
 
@@ -155,9 +156,47 @@ class RouterProtocol extends AsyncFunSuite {
 
   The above-mentioned policies are mainly used in load-balancing.
   In addition, users can define their own custom policies for their use-cases.
-  For example, if the router has some information about the current target availability,
-  it can take that into account when making routing decisions.
+  For example, if the router has some information about the load and availability
+  of the targets, it could take that into account when making routing decisions.
 
-  // TODO: Complete.
+
+  ### Router Reactors
+
+  In the previous example, we instantiated the router protocol inside an existing
+  reactor. Sometimes we want to completely dedicate the reactor to routing incoming
+  events, so it is useful to have a shorthand notation for starting such
+  *router reactors*.
+
+  In the following, we use a router reactor to implement simple sharding for key-value
+  pairs, which is typically done in distributed hash-tables.
+
+  // TODO: Describe further.
   */
+
+  test("router reactors") {
+    import io.reactors._
+    import io.reactors.protocol._
+
+    val system = ReactorSystem.default("test-system")
+    val done = Promise[String]()
+
+    /*!begin-code!*/
+    val numShards = 32
+    val shards = for (i <- 0 until numShards) yield {
+      system.spawnLocal[(String, String)] { self =>
+        val data = mutable.Map[String, String]
+        self.main.events onMatch  {
+          case (key, value) => data(key) = value
+        }
+      }
+    }
+    /*!end-code!*/
+
+    /*!begin-code!*/
+    system.router(Router.hash(shards))
+    /*!end-code!*/
+
+    done.success("")
+    done.future.map(s => assert(s == ""))
+  }
 }
