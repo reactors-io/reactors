@@ -14,6 +14,8 @@ section: guide-protocol
 !*/
 package tutorial
 
+
+
 import org.scalatest._
 import scala.collection._
 import scala.concurrent.ExecutionContext
@@ -22,33 +24,65 @@ import scala.concurrent.Promise
 
 
 /*!md
-## Introduction to Protocols
+## Protocols in the Reactor Model
 
-// TODO
+The basic primitives of the reactor model - reactors, event streams and channels - allow
+composing powerful communication abstractions.
+In the following sections, we will go through some of the basic communication protocols
+that the Reactors framework supports.
+What these protocols have in common is
+that they are not artificial extensions of the basic model.
+Rather, they are composed from basic abstractions and simpler protocols.
+
+In this section, we go through one of the simplest protocols,
+namely the **server-client** protocol.
+We first show how to implement a simple server-client protocol.
+After that, we show how to use the standard server-client implementation
+provided by the Reactors framework.
 !*/
 class GuideServerProtocol extends AsyncFunSuite {
 
   implicit override def executionContext = ExecutionContext.Implicits.global
 
-  test("router master-workers") {
+  test("custom server-client implementation") {
     val done = Promise[String]()
     def println(x: String) = done.success(x)
 
     /*!md
-    Before we start, we import the contents of the `io.reactors` and the
-    `io.reactors.protocol` packages.
+    ### Custom Server-Client Protocol
+
+    Before we start, we import the contents of the `io.reactors`.
     We then create a default reactor system:
     !*/
 
     /*!begin-code!*/
     import io.reactors._
-    import io.reactors.protocol._
 
     val system = ReactorSystem.default("test-system")
     /*!end-code!*/
 
-    //val server =
+    /*!md
+    ### Custom Server-Client Protocol
 
+    Before we start, we import the contents of the `io.reactors`.
+    We then create a default reactor system:
+    !*/
+
+    /*!begin-code!*/
+    type Req[T, S] = (T, Channel[S])
+
+    type Server[T, S] = Channel[Req[T, S]]
+
+    def server[T, S](f: T => S): Server[T, S] = {
+      val c = system.channels.open[Req[T, S]]
+      c.events onMatch {
+        case (x, reply) => reply ! f(x)
+      }
+      c.channel
+    }
+    /*!end-code!*/
+
+    done.success("HELLO")
     done.future.map(t => assert(t == "HELLO"))
   }
 }
