@@ -48,7 +48,7 @@ trait ReliableProtocols {
        *  Furthermore, the requirement is that the underlying medium is not lossy,
        *  and that it does not create duplicates.
        */
-      def ordered[T: Arrayable](window: Int) = Policy[T](
+      def reorder[T: Arrayable](window: Int) = Policy[T](
         (sends, twoWay) => {
           var lastAck = 0L
           var lastStamp = 0L
@@ -120,10 +120,10 @@ trait ReliableProtocols {
       )
 
       object Policy {
-        def ordered[I: Arrayable, O: Arrayable](window: Int) =
+        def reorder[I: Arrayable, O: Arrayable](window: Int) =
           Reliable.TwoWay.Policy[I, O](
-            Reliable.Policy.ordered[I](window),
-            Reliable.Policy.ordered[O](window),
+            Reliable.Policy.reorder[I](window),
+            Reliable.Policy.reorder[O](window),
             server => {},
             server => {}
           )
@@ -147,7 +147,7 @@ trait ReliableProtocols {
     val connector: Connector[Reliable.Req[T]]
   ) {
     def serveReliable(
-      policy: Reliable.Policy[T] = Reliable.Policy.ordered[T](128)
+      policy: Reliable.Policy[T] = Reliable.Policy.reorder[T](128)
     ): Reliable.Server[T] = {
       val system = Reactor.self.system
       val twoWayServer = connector.serveTwoWay()
@@ -176,7 +176,7 @@ trait ReliableProtocols {
     val server: Channel[Reliable.Req[T]]
   ) {
     def openReliable(
-      policy: Reliable.Policy[T] = Reliable.Policy.ordered[T](128)
+      policy: Reliable.Policy[T] = Reliable.Policy.reorder[T](128)
     ): IVar[Reliable[T]] = {
       val system = Reactor.self.system
       server.connect() map {
@@ -223,7 +223,7 @@ trait ReliableProtocols {
     val connector: Connector[Reliable.TwoWay.Req[I, O]]
   ) {
     def serveTwoWayReliable(
-      policy: Reliable.TwoWay.Policy[I, O] = Reliable.TwoWay.Policy.ordered[I, O](128)
+      policy: Reliable.TwoWay.Policy[I, O] = Reliable.TwoWay.Policy.reorder[I, O](128)
     ): Reliable.TwoWay.Server[I, O] = {
       val system = Reactor.self.system
       val connections = connector.events.map {
@@ -234,10 +234,10 @@ trait ReliableProtocols {
           policy.outputGuard(outServer)
           reply ! outServer.channel
 
-          val outReliable = inServer.openReliable(policy.input)
+          val inReliable = inServer.openReliable(policy.input)
 
-          (outServer.connections sync outReliable) { (in, out) =>
-            TwoWay(out.channel, in.events, out.subscription.chain(in.subscription))
+          (outServer.connections sync inReliable) { (out, in) =>
+            TwoWay(in.channel, out.events, in.subscription.chain(out.subscription))
           } toIVar
       }.union.toEmpty
 
@@ -253,7 +253,7 @@ trait ReliableProtocols {
     val reliableServer: Channel[io.reactors.protocol.Reliable.TwoWay.Req[I, O]]
   ) {
     def connectReliable(
-      policy: Reliable.TwoWay.Policy[I, O] = Reliable.TwoWay.Policy.ordered[I, O](128)
+      policy: Reliable.TwoWay.Policy[I, O] = Reliable.TwoWay.Policy.reorder[I, O](128)
     ): IVar[TwoWay[I, O]] = {
       val system = Reactor.self.system
       val inServer = system.channels.daemon.shortcut.reliableServer[I]
@@ -262,10 +262,10 @@ trait ReliableProtocols {
       inServer.connections.on(inServer.subscription.unsubscribe())
 
       (reliableServer ? inServer.channel).map { outServer =>
-        val inReliable = outServer.openReliable(policy.output)
+        val outReliable = outServer.openReliable(policy.output)
 
-        (inReliable sync inServer.connections) { (in, out) =>
-          TwoWay(in.channel, out.events, in.subscription.chain(out.subscription))
+        (outReliable sync inServer.connections) { (out, in) =>
+          TwoWay(out.channel, in.events, out.subscription.chain(in.subscription))
         }
       }.union.toIVar
     }
@@ -276,7 +276,7 @@ trait ReliableProtocols {
   ) {
     def reliableTwoWayServer(
       f: (Reliable.TwoWay.Server[I, O], TwoWay[O, I]) => Unit,
-      policy: Reliable.TwoWay.Policy[I, O] = Reliable.TwoWay.Policy.ordered[I, O](128)
+      policy: Reliable.TwoWay.Policy[I, O] = Reliable.TwoWay.Policy.reorder[I, O](128)
     ): Channel[Reliable.TwoWay.Req[I, O]] = {
       val proto = Reactor[Reliable.TwoWay.Req[I, O]] { self =>
         val server = self.main.serveTwoWayReliable(policy)
