@@ -52,7 +52,7 @@ between two workers.
 For simplicity, requests will be just strings,
 and the workers will just print those strings to the standard output.
 !*/
-class RouterProtocol extends AsyncFunSuite {
+class GuideRouterProtocol extends AsyncFunSuite {
 
   implicit override def executionContext = ExecutionContext.Implicits.global
 

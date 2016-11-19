@@ -146,6 +146,6 @@ for building powerful distributed computing abstractions.
 Most other utilities in the Reactors framework are built in terms of reactors,
 channels and event streams.
 !*/
-class WhyReactors extends AsyncFunSuite {
+class GuideWhyReactors extends AsyncFunSuite {
   implicit override def executionContext = ExecutionContext.Implicits.global
 }

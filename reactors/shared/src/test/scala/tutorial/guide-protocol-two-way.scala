@@ -32,7 +32,7 @@ both the server and the client obtain a connection handle of type `TwoWay`,
 which allows them to send and receive an unlimited number of events,
 until they decide to close this connection.
 !*/
-class TwoWayProtocol extends AsyncFunSuite {
+class GuideTwoWayProtocol extends AsyncFunSuite {
 
   implicit override def executionContext = ExecutionContext.Implicits.global
 
