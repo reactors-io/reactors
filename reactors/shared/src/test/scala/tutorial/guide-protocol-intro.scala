@@ -397,7 +397,8 @@ class GuideServerProtocol extends AsyncFunSuite {
     #### Spawning a Reactor for a Specific Protocol
 
     Finally, we can immediately start a server reactor, without any customization.
-    This is simply done as follows:
+    This is done by passing a server function to the `server` method on the
+    `ReactorSystem`, as follows:
     !*/
 
     /*!begin-code!*/
