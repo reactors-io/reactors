@@ -44,7 +44,7 @@ we will not dive into the implementation,
 but instead immediately show how to use the already implemented protocol
 provided by the framework.
 
-This approach will server several purposes.
+This will serve several purposes.
 First, you should get an idea of how to implement a communication pattern
 using event streams and channels.
 Second, you should get a feel for the fact that there is more than one way
@@ -62,6 +62,7 @@ class GuideServerProtocol extends AsyncFunSuite {
     /*!md
     ### Custom Server-Client Protocol
 
+    Let's implement the server-client protocol ourselves.
     Before we start, we import the contents of the `io.reactors` package.
     We then create a default reactor system:
     !*/
@@ -211,8 +212,209 @@ class GuideServerProtocol extends AsyncFunSuite {
 
   In this section, we take a close look at how the server-client protocol is exposed
   in the Reactors framework, and explain how some of the above concerns are addressed.
+  Most predefined protocols can be instantiated in several ways:
 
-  // TODO: Complete.
+  - By installing the protocol to the existing connector inside an existing reactor,
+    which has an appropriate type for that protocol. This has the benefit that you
+    can install the protocol to, for example, the main channel of a reactor. This makes
+    the protocol accessible to other reactors that are aware of that respective channel.
+  - By creating a new connector for the protocol, and then installing the protocol
+    to that connector. This has the benefit that you can fully customize the protocol's
+    connector (for example, name it), but you will need to find some way of sharing
+    the protocol's channel with other reactors - for example, by relying on the name
+    service, or by sending it to specific reactors.
+  - By creating a new `Proto` object for a reactor that exclusively runs a specific
+    protocol. This has the benefit of being able to fully configure both the reactor
+    that you wish to start (e.g. specify a scheduler, reactor name or transport).
+  - By immediately spawning a reactor that runs a specific protocol. This has the
+    benefit of being concise.
+
+  In essence, these approaches are mostly equivalent, but they offer different
+  tradeoffs between convenience and customization.
+  Let's take a look at the predefined server-client protocol to study these approaches
+  in turn.
   !*/
 
+  test("standard server-client protocol - existing connector") {
+    val done = Promise[Int]()
+    def println(x: Int) = done.success(x)
+
+    /*!md
+    #### Adding a Protocol with an Existing Connector
+
+    We first import the `io.reactors` and `io.reactors.protocol` packages,
+    and then instantiate the default reactor system:
+    !*/
+
+    /*!begin-code!*/
+    import io.reactors._
+    import io.reactors.protocol._
+
+    val system = ReactorSystem.default("test-system")
+    /*!end-code!*/
+
+    /*!md
+    When using an existing connector, we need to ensure that the connector's type
+    matches the type needed by the protocol. In the case of a server, the connector's
+    event type must be `Server.Req`. In the following, we define a server prototype
+    that multiplies the request integer by `2`. To install the server-client protocol,
+    we call the `serve` method on the connector:
+    !*/
+
+    /*!begin-code!*/
+    val proto = Reactor[Server.Req[Int, Int]] { self =>
+      self.main.serve(x => x * 2)
+    }
+    val server = system.spawn(proto)
+    /*!end-code!*/
+
+    /*!md
+    The client can then query the server in the standard way, using the `?` operator:
+    !*/
+
+    /*!begin-code!*/
+    system.spawnLocal[Unit] { self =>
+      (server ? 7) onEvent { response =>
+        println(response)
+      }
+    }
+    /*!end-code!*/
+
+    done.future.map(t => assert(t == 14))
+  }
+
+  test("standard server-client protocol - new connector") {
+    import io.reactors._
+    import io.reactors.protocol._
+
+    val system = ReactorSystem.default("test-system")
+    val done = Promise[Int]()
+    def println(x: Int) = done.success(x)
+
+    /*!md
+    #### Adding a Protocol to a New Connector
+
+    Let's say that the main channel is already used for something else - for example,
+    the main channel could be accepting termination requests. Here, the main
+    channel cannot be shared with the server protocol - protocols usually need exclusive
+    ownership of the respective channel.
+    In this case, we want to create a new connector for the protocol.
+
+    This approach is very similar to using an existing connector.
+    The only difference is that we must first create the connector itself,
+    which gives us an opportunity to customize it.
+    In particular, we will make the server a `daemon` channel,
+    and we will assign it a specific name `"server"`,
+    so that other reactors can find it.
+    We will name the reactor itself `"Multiplier"`.
+    To create a server connector, we use the convenience method called `server`
+    on the channel builder object:
+    !*/
+
+    /*!begin-code!*/
+    val proto = Reactor[String] { self =>
+      self.main.events onMatch {
+        case "terminate" => self.main.seal()
+      }
+
+      self.system.channels.daemon.named("server").server[Int, Int].serve(_ * 2)
+    }
+    system.spawn(proto.withName("Multiplier"))
+    /*!end-code!*/
+
+    /*!md
+    The client must now query the name service to find the server channel,
+    and from there on it proceeds as before:
+    !*/
+
+    /*!begin-code!*/
+    system.spawnLocal[Unit] { self =>
+      self.system.channels.await[Server.Req[Int, Int]](
+        "Multiplier", "server"
+      ) onEvent { server =>
+        (server ? 7) onEvent { response =>
+          println(response)
+        }
+      }
+    }
+    /*!end-code!*/
+
+    done.future.map(t => assert(t == 14))
+  }
+
+  test("standard server-client protocol - prototype") {
+    import io.reactors._
+    import io.reactors.protocol._
+
+    val system = ReactorSystem.default("test-system")
+    val done = Promise[Int]()
+    def println(x: Int) = done.success(x)
+
+    /*!md
+    #### Creating a Reactor Prototype for a Specific Protocol
+
+    When we are sure that the reactor will exist only, or mainly,
+    for the purposes of the server protocol,
+    we can directly create a reactor server.
+    To do this, we use the `server` method on the `Reactor` companion object.
+    The `server` method returns the `Proto` object for the server,
+    which can then be further customized before spawning the reactor.
+    The `server` method takes a user function that is invoked each time a request
+    arrives. This user function takes the state of the server and the request event,
+    and returns the response event.
+
+    Here is an example:
+    !*/
+
+    /*!begin-code!*/
+    val proto = Reactor.server[Int, Int]((state, x) => x * 2)
+    val server = system.spawn(proto)
+
+    system.spawnLocal[Unit] { self =>
+      (server ? 7) onEvent { response =>
+        println(response)
+      }
+    }
+    /*!end-code!*/
+
+    /*!md
+    The state object for the server contains the `Subscription` object,
+    which allows the users to stop the server if an unexpected event arrives.
+    !*/
+
+    done.future.map(t => assert(t == 14))
+  }
+
+  test("standard server-client protocol - spawn") {
+    import io.reactors._
+    import io.reactors.protocol._
+
+    val system = ReactorSystem.default("test-system")
+    val done = Promise[Int]()
+    def println(x: Int) = done.success(x)
+
+    /*!md
+    #### Spawning a Reactor for a Specific Protocol
+
+    Finally, we can immediately start a server reactor, without any customization.
+    This is simply done as follows:
+    !*/
+
+    /*!begin-code!*/
+    val server = system.server[Int, Int]((state, x) => x * 2)
+
+    system.spawnLocal[Unit] { self =>
+      (server ? 7) onEvent { response =>
+        println(response)
+      }
+    }
+    /*!end-code!*/
+
+    /*!md
+    In the following sections, we will take a look at some other predefined protocols.
+    Generally, these protocols will have a similar usage structure.
+    !*/
+
+    done.future.map(t => assert(t == 14))
+  }
 }

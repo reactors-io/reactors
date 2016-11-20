@@ -17,6 +17,8 @@ trait ServerProtocols {
    */
   object Server {
     type Req[T, S] = (T, Channel[S])
+
+    case class State[T, S](channel: Server[T, S], subscription: Subscription)
   }
 
   implicit class ServerChannelBuilderOps(val builder: ChannelBuilder) {
@@ -30,22 +32,12 @@ trait ServerProtocols {
 
   implicit class ServerConnectorOps[T, S](val conn: Connector[Server.Req[T, S]]) {
     /** Installs a serving function to the specified connector.
-     *
-     *  Takes an optional stopping predicate that must return `true` for requests that
-     *  seal the connector.
      */
-    def serve(f: T => S)(
-      implicit stop: T => Boolean = (req: T) => false
-    ): Connector[Server.Req[T, S]] = {
-      conn.events onMatch {
-        case (x, ch) =>
-          if (stop(x)) {
-            conn.seal()
-          } else {
-            ch ! f(x)
-          }
+    def serve(f: T => S): Server.State[T, S] = {
+      val subscription = conn.events onMatch {
+        case (x, ch) => ch ! f(x)
       }
-      conn
+      Server.State(conn.channel, subscription.andThen(conn.seal()))
     }
   }
 
@@ -55,10 +47,13 @@ trait ServerProtocols {
      *  The behavior of the server reactor is specified by the function `f`, which maps
      *  input requests to responses.
      */
-    def server[T, S](f: T => S)(
-      implicit stop: T => Boolean = (req: T) => false
+    def server[T, S](
+      f: (Server.State[T, S], T) => S
     ): Proto[Reactor[Server.Req[T, S]]] = {
-      Reactor[Server.Req[T, S]](_.main.serve(f))
+      Reactor[Server.Req[T, S]] { self =>
+        var server: Server.State[T, S] = null
+        server = self.main.serve(x => f(server, x))
+      }
     }
   }
 
@@ -68,7 +63,7 @@ trait ServerProtocols {
      *  This reactor always responds by mapping the request of type `T` into a response
      *  of type `S`, with the specified function `f`.
      */
-    def server[T, S](f: T => S): Server[T, S] = {
+    def server[T, S](f: (Server.State[T, S], T) => S): Server[T, S] = {
       system.spawn(Reactor.server(f))
     }
 
@@ -77,22 +72,13 @@ trait ServerProtocols {
      *  This reactor uses the function `f` to create a response of type `S` from the
      *  request type `T`. If the value obtained this way is not `nil`, the server
      *  responds.
-     *
-     *  If the optional `stop` predicate returns `true` for some request, the reactor's
-     *  main channel gets sealed.
      */
-    def maybeServer[T, S](f: T => S, nil: S)(
-      implicit stop: T => Boolean = (req: T) => false
-    ): Server[T, S] = {
+    def maybeServer[T, S](f: T => S, nil: S): Server[T, S] = {
       system.spawn(Reactor[Server.Req[T, S]] { self =>
         self.main.events onMatch {
           case (x, ch) =>
-            if (stop(x)) {
-              self.main.seal()
-            } else {
-              val resp = f(x)
-              if (resp != nil) ch ! resp
-            }
+            val resp = f(x)
+            if (resp != nil) ch ! resp
         }
       })
     }
