@@ -7,6 +7,7 @@ import io.reactors._
 import io.reactors.protocol.instrument.Scripted
 import org.scalatest._
 import org.scalatest.concurrent.AsyncTimeLimitedTests
+import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Promise
 import scala.concurrent.duration._
@@ -48,7 +49,7 @@ class ReliableProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
     val event2 = Promise[String]
 
     val policy = Reliable.Policy.ordered[String](128)
-    system.channels.registerTemplate(TwoWay.InputTag, system.channels.named("two-way"))
+    system.channels.registerTemplate(TwoWay.InputTag, system.channels.named("incoming"))
 
     val proto = Reactor.reliableServer(policy) {
       (server, connection) =>
@@ -63,7 +64,7 @@ class ReliableProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
 
     system.spawnLocal[Unit] { self =>
       server.openReliable(policy) onEvent { r =>
-        val twoWay = system.channels.get[Stamp[String]]("server", "two-way").get
+        val twoWay = self.system.channels.get[Stamp[String]]("server", "incoming").get
         self.system.service[Scripted].behavior(twoWay) {
           _.take(2).reverse
         }
@@ -77,5 +78,39 @@ class ReliableProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
       y <- event2.future
     } yield (x, y)
     done.map(t => assert(t == ("first", "second")))
+  }
+
+  test("restore proper order when acknowledgements are delayed") {
+    val done = Promise[Seq[Int]]()
+
+    val total = 256
+    val window = total / 2
+    val policy = Reliable.Policy.ordered[Int](window)
+    system.channels.registerTemplate(TwoWay.OutputTag, system.channels.named("acks"))
+
+    val server = system.reliableServer(policy) { (server, connection) =>
+      val seen = mutable.Buffer[Int]()
+      connection.events onEvent { x =>
+        seen += x
+        if (x == total - 1) {
+          done.success(seen)
+        }
+      }
+    }
+
+    val proto = Reactor[Unit] { self =>
+      server.openReliable(policy) onEvent { r =>
+        val acks = self.system.channels.get[Long]("client", "acks").get
+        self.system.service[Scripted].behavior(acks) {
+          _.take(window).reverse
+        }
+        for (i <- 0 until total) {
+          r.channel ! i
+        }
+      }
+    }
+    system.spawn(proto.withName("client"))
+
+    done.future.map(t => assert(t == (0 until total)))
   }
 }
