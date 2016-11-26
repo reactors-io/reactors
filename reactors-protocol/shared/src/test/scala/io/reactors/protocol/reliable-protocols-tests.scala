@@ -26,7 +26,7 @@ class ReliableProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
 
     system.spawnLocal[Unit] { self =>
       val server = system.channels.daemon.reliableServer[String]
-        .serveReliable(Reliable.Policy.ordered(128))
+        .serveReliable(Reliable.Policy.reorder(128))
 
       server.connections onEvent { connection =>
         connection.events onMatch {
@@ -36,7 +36,7 @@ class ReliableProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
         }
       }
 
-      server.channel.openReliable(Reliable.Policy.ordered(128)) onEvent { reliable =>
+      server.channel.openReliable(Reliable.Policy.reorder(128)) onEvent { reliable =>
         reliable.channel ! "finish"
       }
     }
@@ -48,7 +48,7 @@ class ReliableProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
     val event1 = Promise[String]
     val event2 = Promise[String]
 
-    val policy = Reliable.Policy.ordered[String](128)
+    val policy = Reliable.Policy.reorder[String](128)
     system.channels.registerTemplate(TwoWay.InputTag, system.channels.named("incoming"))
 
     val proto = Reactor.reliableServer(policy) {
@@ -85,7 +85,7 @@ class ReliableProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
 
     val total = 256
     val window = total / 2
-    val policy = Reliable.Policy.ordered[Int](window)
+    val policy = Reliable.Policy.reorder[Int](window)
     system.channels.registerTemplate(TwoWay.OutputTag, system.channels.named("acks"))
 
     val server = system.reliableServer(policy) { (server, connection) =>

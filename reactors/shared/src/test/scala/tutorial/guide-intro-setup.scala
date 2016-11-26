@@ -91,7 +91,7 @@ If you are using Maven, you can use the following dependency:
 </dependency>
 ```
 !*/
-class Setup extends AsyncFunSuite {
+class GuideSetup extends AsyncFunSuite {
 
   implicit override def executionContext = ExecutionContext.Implicits.global
 

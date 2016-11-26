@@ -44,7 +44,7 @@ extends AsyncFunSuite with AsyncTimeLimitedTests {
 
   test("request a reply from a server reactor") {
     val p = Promise[Int]()
-    val server = system.server((x: Int) => x + 17)
+    val server = system.server[Int, Int]((s, x) => x + 17)
     val client = system.spawn(Reactor[Int] { self =>
       (server ? 11) onEvent { y =>
         p.success(y)

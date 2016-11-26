@@ -163,7 +163,7 @@ object UdpTransport {
       val event = pickler.depickle[AnyRef](buffer)
       udpTransport.system.channels.getLocal[AnyRef](isoName, channelName) match {
         case Some(ch) => ch ! event
-        case None => // drop event -- no such channel here
+        case None => // Drop event -- no such channel here.
       }
     }
 
@@ -175,7 +175,7 @@ object UdpTransport {
         receive()
         success = true
       } catch {
-        case e: Exception => // not ok
+        case e: Exception => // Not ok.
       }
       if (success) run()
     }

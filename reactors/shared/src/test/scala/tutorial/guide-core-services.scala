@@ -278,7 +278,7 @@ Having seen a few existing services, we now show how to create a custom service.
 To do this, we must implement the `Protocol.Service` trait,
 which has the following members:
 !*/
-private object ReactorSystemServicesCustomServiceHelperObject {
+private object GuideReactorSystemServicesCustomServiceHelperObject {
   /*!begin-code!*/
   class CustomService(val system: ReactorSystem) extends Protocol.Service {
     def shutdown(): Unit = ???
@@ -326,7 +326,7 @@ class Shutdown(val system: ReactorSystem) extends Protocol.Service {
 /*!end-code!*/
 
 
-class ReactorSystemServicesCustomService extends AsyncFunSuite {
+class GuideReactorSystemServicesCustomService extends AsyncFunSuite {
   implicit override def executionContext = ExecutionContext.Implicits.global
 
   test("custom shutdown service") {

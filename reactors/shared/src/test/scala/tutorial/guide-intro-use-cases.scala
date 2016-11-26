@@ -28,7 +28,7 @@ import scala.concurrent.ExecutionContext
 
 TODO Complete this section.
 !*/
-class UseCases extends AsyncFunSuite {
+class GuideUseCases extends AsyncFunSuite {
 
   implicit override def executionContext = ExecutionContext.Implicits.global
 
