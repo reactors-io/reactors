@@ -213,6 +213,10 @@ extends ChannelBuilder(
     getConnector[T](reactorName, channelName).map(_.localChannel)
   }
 
+  private[reactors] def getLocal[T](url: ChannelUrl): Option[Channel[T]] = {
+    getLocal[T](url.reactorUrl.name, url.anchor)
+  }
+
   /** Registers a channel builder template under a specific tag.
    *
    *  Specific protocols use channel builder templates to instantiate their components,
