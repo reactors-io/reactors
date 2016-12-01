@@ -47,7 +47,7 @@ provided by the framework.
 This will serve several purposes.
 First, you should get an idea of how to implement a communication pattern
 using event streams and channels.
-Second, you should get a feel for the fact that there is more than one way
+Second, you will see that there is more than one way
 to implement a protocol and expose it to clients.
 Finally, you will see how protocols are structured in the Reactors framework.
 !*/
