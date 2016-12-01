@@ -77,7 +77,7 @@ class GuideHelloWorld extends AsyncFunSuite {
     - Calling `main.seal()` terminates the reactor.
     - A reactor with a specific definition is started with the `spawn` method, which
       returns the reactor's default channel.
-    - Events are sent to the reactor by calling the `!` operator on its channel.
+    - Events are sent to the reactor by calling the `!` operator on its channels.
 
     The subsequent sections will explain these features in depth.
     !*/
