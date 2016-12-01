@@ -74,8 +74,8 @@ class GuideServerProtocol extends AsyncFunSuite {
     /*!end-code!*/
 
     /*!md
-    Let's now consider take a look at the server-client protocol more closely.
-    The protocol proceeds as follows: first, the client sends a request value to the
+    Let's now consider the server-client protocol more closely.
+    This protocol proceeds as follows: first, the client sends a request value to the
     server. Then, the server uses the request to compute a response value and send
     it to the client. But to do that, the server needs a response channel to send the
     value along. This means that the client must not only send the request value to
@@ -98,12 +98,12 @@ class GuideServerProtocol extends AsyncFunSuite {
     the reply channel for responses `S`.
     The `Server` type is then just a channel that accepts request objects.
 
-    Question poses itself then - how can we create a `Server` channel?
+    Question arises - how can we create a `Server` channel?
     There are several requirements that a factory method for the `Server` channel
     should satisfy.
-    First, it should be generic in the input and the output type.
-    Second, it should be generic in how the input type is mapped to the output type.
-    Third, when a request is sent to the server, the mapped output should be sent
+    First, it should be generic in the request and the response type.
+    Second, it should be generic in how the request type is mapped to the response type.
+    Third, when a request is sent to the server, the mapped response should be sent
     back to the server.
     Putting these requirements together, we arrive at the following implementation
     of the `server` method, which instantiates a new server:
@@ -139,13 +139,13 @@ class GuideServerProtocol extends AsyncFunSuite {
     /*!end-code!*/
 
     /*!md
-    Next, we should implement the client protocol.
+    Next, we will implement the client protocol.
     We will define a new method `?` on the `Channel` type,
     which sends the request to the server.
     This method cannot immediately return the server's response, because the response
-    arrives asynchronously. Instead, `?` must return an event stream with the reply
-    that is sent by the server.
-    In conclusion, the `?` method must create a reply channel,
+    arrives asynchronously. Instead, `?` must return an event stream with the
+    server's reply.
+    So, the `?` method must create a reply channel,
     send the `Req` object to the server, and then return the event stream associated
     with the reply channel.
     This is shown in the following:
@@ -204,7 +204,7 @@ class GuideServerProtocol extends AsyncFunSuite {
   We have just seen an example implementation of the server-client protocol,
   which relies solely on the basic primitives provided by the Reactors framework.
   However, the implementation that was presented is very simplistic,
-  and it disregards several important concerns.
+  and it ignores several important concerns.
   For example, how do we stop the server protocol?
   Then, in our toy example,
   we instantiated the server-client protocol in a single reactor,
@@ -214,22 +214,23 @@ class GuideServerProtocol extends AsyncFunSuite {
   in the Reactors framework, and explain how some of the above concerns are addressed.
   Most predefined protocols can be instantiated in several ways:
 
-  - By installing the protocol to the existing connector inside an existing reactor,
+  - By installing the protocol on the existing connector inside an existing reactor,
     which has an appropriate type for that protocol. This has the benefit that you
-    can install the protocol to, for example, the main channel of a reactor. This makes
-    the protocol accessible to other reactors that are aware of that respective channel.
+    can install the protocol on, for example, the main channel of a reactor. It also
+    makes the protocol accessible to other reactors that are aware of that respective
+    channel.
   - By creating a new connector for the protocol, and then installing the protocol
     to that connector. This has the benefit that you can fully customize the protocol's
     connector (for example, name it), but you will need to find some way of sharing
-    the protocol's channel with other reactors - for example, by relying on the name
-    service, or by sending it to specific reactors.
+    the protocol's channel with other reactors - for example, by relying on the
+    `Channels` service, or by sending the channel to specific reactors.
   - By creating a new `Proto` object for a reactor that exclusively runs a specific
     protocol. This has the benefit of being able to fully configure both the reactor
     that you wish to start (e.g. specify a scheduler, reactor name or transport).
-  - By immediately spawning a reactor that runs a specific protocol. This has the
-    benefit of being concise.
+  - By immediately spawning a reactor that runs a specific protocol. This is the most
+    concise option.
 
-  In essence, these approaches are mostly equivalent, but they offer different
+  These approaches are mostly equivalent, but they offer different
   tradeoffs between convenience and customization.
   Let's take a look at the predefined server-client protocol to study these approaches
   in turn.
