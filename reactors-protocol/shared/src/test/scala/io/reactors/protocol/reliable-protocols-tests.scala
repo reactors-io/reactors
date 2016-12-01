@@ -14,13 +14,12 @@ import scala.concurrent.duration._
 
 
 class ReliableProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
-  val system = ReactorSystem.default("conversions", Scripted.defaultBundle)
-
   def timeLimit = 10.seconds
 
   implicit override def executionContext = ExecutionContext.Implicits.global
 
   test("open a reliable channel and receive an event") {
+    val system = ReactorSystem.default("conversions", Scripted.defaultBundle)
     val done = Promise[Boolean]
 
     system.spawnLocal[Unit] { self =>
@@ -44,6 +43,7 @@ class ReliableProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
   }
 
   test("restore proper order when the underlying channel reorders events") {
+    val system = ReactorSystem.default("conversions", Scripted.defaultBundle)
     val event1 = Promise[String]
     val event2 = Promise[String]
 
@@ -80,6 +80,7 @@ class ReliableProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
   }
 
   test("restore proper order when acknowledgements are delayed") {
+    val system = ReactorSystem.default("conversions", Scripted.defaultBundle)
     val done = Promise[Seq[Int]]()
 
     val total = 256
@@ -114,6 +115,7 @@ class ReliableProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
   }
 
   test("restore proper order when second event is delayed for a long amount of time") {
+    val system = ReactorSystem.default("conversions", Scripted.defaultBundle)
     val done = Promise[Seq[Int]]()
     val total = 16
     val policy = Reliable.Policy.reorder[Int](4)
@@ -142,5 +144,35 @@ class ReliableProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
     }
 
     done.future.map(t => assert(t == (0 until total)))
+  }
+
+  test("restore proper order in a two way reliable channel") {
+    val system = ReactorSystem.default("conversions", Scripted.defaultBundle)
+    val done = Promise[Seq[String]]()
+    val total = 64
+    val policy = Reliable.TwoWay.Policy.reorder[String, Int](16)
+
+    val serverProto = Reactor.reliableTwoWayServer(policy) { (server, twoWay) =>
+      twoWay.input onEvent { n =>
+        twoWay.output ! n.toString
+      }
+    }
+    val server = system.spawn(serverProto.withName("server"))
+
+    val clientProto = Reactor[Unit] { self =>
+      server.connectReliable(policy) onEvent { twoWay =>
+        for (i <- 0 until total) twoWay.output ! i
+        val seen = mutable.Buffer[String]()
+        twoWay.input onEvent { s =>
+          seen += s
+          if (s == (total - 1).toString) {
+            done.success(seen)
+          }
+        }
+      }
+    }
+    system.spawn(clientProto.withName("client"))
+
+    done.future.map(t => assert(t == (0 until total).map(_.toString)))
   }
 }

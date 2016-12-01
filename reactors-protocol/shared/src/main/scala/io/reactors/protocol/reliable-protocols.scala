@@ -193,7 +193,9 @@ trait ReliableProtocols {
   }
 
   implicit class ReliableReactorCompanionOps(val reactor: Reactor.type) {
-    def reliableServer[T: Arrayable](policy: Reliable.Policy[T])(
+    def reliableServer[T: Arrayable](
+      policy: Reliable.Policy[T]
+    )(
       f: (Reliable.Server[T], Reliable.Connection[T]) => Unit
     ): Proto[Reactor[Reliable.Req[T]]] = {
       Reactor[Reliable.Req[T]] { self =>
@@ -204,7 +206,9 @@ trait ReliableProtocols {
   }
 
   implicit class ReliableSystemOps(val system: ReactorSystem) {
-    def reliableServer[T: Arrayable](policy: Reliable.Policy[T])(
+    def reliableServer[T: Arrayable](
+      policy: Reliable.Policy[T]
+    )(
       f: (Reliable.Server[T], Reliable.Connection[T]) => Unit
     ): Channel[Reliable.Req[T]] = {
       system.spawn(Reactor.reliableServer[T](policy)(f))
@@ -271,17 +275,28 @@ trait ReliableProtocols {
     }
   }
 
+  implicit class ReliableTwoWayReactorCompanionOps(val reactor: Reactor.type) {
+    def reliableTwoWayServer[I: Arrayable, O: Arrayable](
+      policy: Reliable.TwoWay.Policy[I, O]
+    )(
+      f: (Reliable.TwoWay.Server[I, O], TwoWay[O, I]) => Unit
+    ): Proto[Reactor[Reliable.TwoWay.Req[I, O]]] = {
+      Reactor[Reliable.TwoWay.Req[I, O]] { self =>
+        val server = self.main.serveTwoWayReliable(policy)
+        server.connections.onEvent(twoWay => f(server, twoWay))
+      }
+    }
+  }
+
   implicit class ReliableTwoWaySystemOps[I: Arrayable, O: Arrayable](
     val system: ReactorSystem
   ) {
     def reliableTwoWayServer(
-      f: (Reliable.TwoWay.Server[I, O], TwoWay[O, I]) => Unit,
-      policy: Reliable.TwoWay.Policy[I, O] = Reliable.TwoWay.Policy.reorder[I, O](128)
+      policy: Reliable.TwoWay.Policy[I, O]
+    )(
+      f: (Reliable.TwoWay.Server[I, O], TwoWay[O, I]) => Unit
     ): Channel[Reliable.TwoWay.Req[I, O]] = {
-      val proto = Reactor[Reliable.TwoWay.Req[I, O]] { self =>
-        val server = self.main.serveTwoWayReliable(policy)
-        server.connections.onEvent(twoWay => f(server, twoWay))
-      }
+      val proto = Reactor.reliableTwoWayServer(policy)(f)
       system.spawn(proto)
     }
   }
