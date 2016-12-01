@@ -43,7 +43,7 @@ extends Properties("BackpressureProtocolsCheck") with ExtendedProperties {
       system.spawnLocal[Unit] { self =>
         server.openReliable(policy) onEvent { r =>
           val twoWayOut = self.system.channels.get[Stamp[String]]("server", "out").get
-          self.system.service[Scripted].behavior(twoWayOut) {
+          self.system.service[Scripted].instrument(twoWayOut) {
             _.take(delayCount).reverse
           }
           for (i <- 0 until total) r.channel ! i

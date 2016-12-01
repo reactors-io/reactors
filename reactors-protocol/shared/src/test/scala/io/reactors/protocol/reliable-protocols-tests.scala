@@ -2,7 +2,6 @@ package io.reactors.protocol
 
 
 
-import io.reactors.ReactorSystem.Bundle
 import io.reactors._
 import io.reactors.protocol.instrument.Scripted
 import org.scalatest._
@@ -65,7 +64,7 @@ class ReliableProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
     system.spawnLocal[Unit] { self =>
       server.openReliable(policy) onEvent { r =>
         val twoWayOut = self.system.channels.get[Stamp[String]]("server", "out").get
-        self.system.service[Scripted].behavior(twoWayOut) {
+        self.system.service[Scripted].instrument(twoWayOut) {
           _.take(2).reverse
         }
         r.channel ! "first"
@@ -101,7 +100,7 @@ class ReliableProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
     val proto = Reactor[Unit] { self =>
       server.openReliable(policy) onEvent { r =>
         val acks = self.system.channels.get[Long]("client", "acks").get
-        self.system.service[Scripted].behavior(acks) {
+        self.system.service[Scripted].instrument(acks) {
           _.take(window).reverse
         }
         for (i <- 0 until total) {
@@ -110,6 +109,37 @@ class ReliableProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
       }
     }
     system.spawn(proto.withName("client"))
+
+    done.future.map(t => assert(t == (0 until total)))
+  }
+
+  test("restore proper order when second event is delayed for a long amount of time") {
+    val done = Promise[Seq[Int]]()
+    val total = 16
+    val policy = Reliable.Policy.reorder[Int](4)
+    system.channels.registerTemplate(TwoWay.OutputTag, system.channels.named("out"))
+
+    val proto = Reactor.reliableServer(policy) { (server, connection) =>
+      val seen = mutable.Buffer[Int]()
+      connection.events onEvent { x =>
+        seen += x
+        if (x == total - 1) {
+          done.success(seen)
+        }
+      }
+    }
+    val server = system.spawn(proto.withName("server"))
+
+    system.spawnLocal[Unit] { self =>
+      server.openReliable(policy) onEvent { r =>
+        val out = system.channels.get[Stamp[Int]]("server", "out").get
+        system.service[Scripted].instrument(out) {
+          events => events.take(2).throttle(_ => 2.seconds)
+        }
+
+        for (i <- 0 until total) r.channel ! i
+      }
+    }
 
     done.future.map(t => assert(t == (0 until total)))
   }

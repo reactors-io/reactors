@@ -4,7 +4,6 @@ package protocol
 
 
 import io.reactors.common.SetSeq
-import io.reactors.test._
 import org.scalatest._
 import org.scalatest.concurrent.AsyncTimeLimitedTests
 import scala.collection._
