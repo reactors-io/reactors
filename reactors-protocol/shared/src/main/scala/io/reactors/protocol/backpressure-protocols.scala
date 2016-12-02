@@ -101,7 +101,7 @@ trait BackpressureProtocols {
         client = defaultClient[T](size)
       )
 
-      def batch[T: Arrayable](size: Int): Backpressure.Policy[T] = {
+      def batching[T: Arrayable](size: Int): Backpressure.Policy[T] = {
         Backpressure.Policy[T](
           server = (inputPressure, outputPressure) => {
             outputPressure ! size
