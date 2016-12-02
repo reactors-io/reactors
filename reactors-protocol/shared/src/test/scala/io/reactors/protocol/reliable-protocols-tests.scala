@@ -165,10 +165,10 @@ class ReliableProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
         val clientOut = system.channels.get[Stamp[Int]]("client", "out").get
         val serverOut = system.channels.get[Stamp[Int]]("server", "out").get
         system.service[Scripted].instrument(clientOut) {
-          events => events.take(3).throttle(_ => 1.second)
+          events => events.take(3).reverse.throttle(_ => 1.second)
         }
         system.service[Scripted].instrument(serverOut) {
-          events => events.take(4).throttle(_ => 1.second)
+          events => events.take(4).reverse.throttle(_ => 1.second)
         }
 
         for (i <- 0 until total) twoWay.output ! i

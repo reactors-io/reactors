@@ -435,6 +435,10 @@ trait Events[@spec(Int, Long, Double) T] {
    */
   def once: Events[T] = new Events.Once[T](this)
 
+  /** Emits the first event that is `true`.
+   */
+  def onceTrue(implicit evid: T =:= Boolean): Events[T] = this.filter(x => evid(x)).once
+
   /** Filters events from `this` event stream value using a specified predicate `p`.
    *
    *  Only events from `this` for which `p` returns `true` are emitted on the
