@@ -6,8 +6,6 @@ package protocol
 import io.reactors.test._
 import org.scalacheck._
 import org.scalacheck.Prop.forAllNoShrink
-import org.scalacheck.Gen.choose
-import org.scalatest._
 import scala.collection._
 import scala.concurrent.Await
 import scala.concurrent.Promise
@@ -17,40 +15,48 @@ import scala.concurrent.duration._
 
 class BackpressureProtocolsCheck
 extends Properties("BackpressureProtocolsCheck") with ExtendedProperties {
-  val system = ReactorSystem.default("check-system")
+  val sizes = detChoose(1, 256)
 
-  val sizes = detChoose(1, 5)
+  property("batching backpressure on two-way channel") = forAllNoShrink(sizes, sizes) {
+    (total, window) =>
+    stackTraced {
+      val done = Promise[Seq[Int]]()
+      val system = ReactorSystem.default("check-system")
+      val medium = Backpressure.Medium.default[Int]
+      val policy = Backpressure.Policy.batching[Int](window)
 
-  // property("backpressure for all") = forAllNoShrink(sizes) {
-  //   num =>
-  //   stackTraced {
-  //     val done = Promise[Seq[String]]()
-  //     val server = system.backpressureForAll[String](3) { events =>
-  //       val seen = mutable.Buffer[String]()
-  //       events onEvent { s =>
-  //         seen += s
-  //         if (seen.length == num * 5) {
-  //           done.success(seen)
-  //           Reactor.self.main.seal()
-  //         }
-  //       }
-  //     }
-  //     for (j <- 0 until num) system.spawnLocal[Long] { self =>
-  //       server.link onEvent { link =>
-  //         def traverse(i: Int) {
-  //           if (i == 5) {
-  //             self.main.seal()
-  //           } else {
-  //             val x = j * 5 + i
-  //             if (link.trySend(x.toString)) traverse(i + 1)
-  //             else link.available.once.on(traverse(i))
-  //           }
-  //         }
-  //         traverse(0)
-  //       }
-  //     }
-  //     val result = Await.result(done.future, 10.seconds).toSet
-  //     result == (0 until (num * 5)).map(_.toString).toSet
-  //   }
-  // }
+      val server = system.spawnLocal[TwoWay.Req[Int, Int]] { self =>
+        val pumpServer = self.main.serveBackpressure(medium, policy)
+        pumpServer.connections onEvent { pump =>
+          val seen = mutable.Buffer[Int]()
+          pump.buffer.available.filter(_ == true) on {
+            while (pump.buffer.available()) {
+              val x = pump.buffer.dequeue()
+              seen += x
+              if (x == (total - 1)) {
+                done.success(seen)
+                pumpServer.subscription.unsubscribe()
+              }
+            }
+          }
+        }
+      }
+
+      system.spawnLocal[Unit] { self =>
+        server.connectBackpressure(medium, policy) onEvent { valve =>
+          valve.available.filter(_ == true) on {
+            var i = 0
+            while (valve.available() && i < total) {
+              valve.channel ! i
+              i += 1
+            }
+          }
+        }
+      }
+
+      assert(Await.result(done.future, 5.seconds) == (0 until total))
+      system.shutdown()
+      true
+    }
+  }
 }
