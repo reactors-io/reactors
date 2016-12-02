@@ -151,6 +151,7 @@ class ReliableProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
     val done = Promise[Seq[String]]()
     val total = 64
     val policy = Reliable.TwoWay.Policy.reorder[String, Int](16)
+    system.channels.registerTemplate(TwoWay.OutputTag, system.channels.named("out"))
 
     val serverProto = Reactor.reliableTwoWayServer(policy) { (server, twoWay) =>
       twoWay.input onEvent { n =>
@@ -161,6 +162,15 @@ class ReliableProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
 
     val clientProto = Reactor[Unit] { self =>
       server.connectReliable(policy) onEvent { twoWay =>
+        val clientOut = system.channels.get[Stamp[Int]]("client", "out").get
+        val serverOut = system.channels.get[Stamp[Int]]("server", "out").get
+        system.service[Scripted].instrument(clientOut) {
+          events => events.take(3).throttle(_ => 1.second)
+        }
+        system.service[Scripted].instrument(serverOut) {
+          events => events.take(4).throttle(_ => 1.second)
+        }
+
         for (i <- 0 until total) twoWay.output ! i
         val seen = mutable.Buffer[String]()
         twoWay.input onEvent { s =>
