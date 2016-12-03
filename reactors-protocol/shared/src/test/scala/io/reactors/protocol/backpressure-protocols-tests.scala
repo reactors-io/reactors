@@ -125,7 +125,7 @@ extends AsyncFunSuite with AsyncTimeLimitedTests {
             seen += x
             if (x == (total - 1)) {
               done.success(seen)
-              s.subscription.unsubscribe()5
+              s.subscription.unsubscribe()
             }
           }
         }
