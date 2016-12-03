@@ -108,7 +108,7 @@ object StreamingLibraryTest {
                 }
               }
               pushes.union onDone {
-                connection.channel ! 1
+                connection.pressure ! 1
                 loop()
               }
             } else connection.buffer.available.filter(_ == true).once on {

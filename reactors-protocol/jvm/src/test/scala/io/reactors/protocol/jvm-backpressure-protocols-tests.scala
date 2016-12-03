@@ -30,7 +30,7 @@ extends Properties("BackpressureProtocolsCheck") with ExtendedProperties {
       val pumpServer = self.main.serveBackpressure(medium, policy)
       pumpServer.connections onEvent { pump =>
         val seen = mutable.Buffer[Int]()
-        pump.buffer.available.becomes(true) on {
+        pump.buffer.available.is(true) on {
           assert(pump.buffer.size <= window)
           while (pump.buffer.available()) {
             val x = pump.buffer.dequeue()
@@ -47,7 +47,7 @@ extends Properties("BackpressureProtocolsCheck") with ExtendedProperties {
     system.spawnLocal[Unit] { self =>
       server.connectBackpressure(medium, policy) onEvent { valve =>
         var i = 0
-        valve.available.becomes(true) on {
+        valve.available.is(true) on {
           while (valve.available() && i < total) {
             valve.channel ! i
             i += 1
@@ -92,17 +92,17 @@ extends Properties("BackpressureProtocolsCheck") with ExtendedProperties {
 
   property("sliding backpressure on reliable medium") = forAllNoShrink(sizes, sizes) {
     (total, window) =>
-      stackTraced {
-        val system = ReactorSystem.default("test system")
-        val medium =
-          Backpressure.Medium.reliable[Int](Reliable.TwoWay.Policy.reorder(window))
-        val policy = Backpressure.Policy.sliding[Int](window)
+    stackTraced {
+      val system = ReactorSystem.default("test system")
+      val medium =
+        Backpressure.Medium.reliable[Int](Reliable.TwoWay.Policy.reorder(window))
+      val policy = Backpressure.Policy.sliding[Int](window)
 
-        val done = producerConsumer(total, window, system, medium, policy)
+      val done = producerConsumer(total, window, system, medium, policy)
 
-        assert(Await.result(done.future, 5.seconds) == (0 until total))
-        system.shutdown()
-        true
-      }
+      assert(Await.result(done.future, 5.seconds) == (0 until total))
+      system.shutdown()
+      true
+    }
   }
 }

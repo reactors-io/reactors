@@ -18,7 +18,7 @@ extends AsyncFunSuite with AsyncTimeLimitedTests {
 
   implicit override def executionContext = ExecutionContext.Implicits.global
 
-  test("open a simple sliding backpressure channel and send events") {
+  test("sliding backpressure channel") {
     val done = Promise[Seq[Int]]()
     val total = 256
     val maxBudget = 16
@@ -39,7 +39,7 @@ extends AsyncFunSuite with AsyncTimeLimitedTests {
               pumpServer.subscription.unsubscribe()
             }
           }
-          pump.buffer.available.becomes(true).once.on(consume())
+          pump.buffer.available.is(true).once.on(consume())
         }
         consume()
       }
@@ -53,7 +53,7 @@ extends AsyncFunSuite with AsyncTimeLimitedTests {
             valve.channel ! i
             i += 1
           }
-          valve.available.becomes(true).once.on(produce(i))
+          valve.available.is(true).once.on(produce(i))
         }
         produce(0)
       }
@@ -62,7 +62,7 @@ extends AsyncFunSuite with AsyncTimeLimitedTests {
     done.future.map(t => assert(t == (0 until total)))
   }
 
-  test("open a simple batching backpressure channel and send events") {
+  test("batching backpressure channel") {
     val done = Promise[Seq[Int]]()
     val total = 256
     val maxBudget = 32
@@ -83,7 +83,7 @@ extends AsyncFunSuite with AsyncTimeLimitedTests {
               pumpServer.subscription.unsubscribe()
             }
           }
-          pump.buffer.available.becomes(true).once.on(consume())
+          pump.buffer.available.is(true).once.on(consume())
         }
         consume()
       }
@@ -97,9 +97,50 @@ extends AsyncFunSuite with AsyncTimeLimitedTests {
             valve.channel ! i
             i += 1
           }
-          valve.available.becomes(true).once.on(produce(i))
+          valve.available.is(true).once.on(produce(i))
         }
         produce(0)
+      }
+    }
+
+    done.future.map(t => assert(t == (0 until total)))
+  }
+
+  test("generic batching backpressure channel on reliable medium") {
+    val done = Promise[Seq[Int]]()
+    val total = 1024
+    val maxBudget = 128
+    val system = ReactorSystem.default("backpressure-protocols")
+    val medium = Backpressure.Medium.reliable[Int](Reliable.TwoWay.Policy.reorder(128))
+    val policy = Backpressure.Policy.batching[Int](maxBudget)
+
+    val server = system.genericBackpressureServer(medium, policy) { s =>
+      val seen = mutable.Buffer[Int]()
+      s.connections onEvent { connection =>
+        connection.buffer.available.is(true) on {
+          while (connection.buffer.available()) {
+            assert(connection.buffer.size < maxBudget)
+            connection.pressure ! 1
+            val x = connection.buffer.dequeue()
+            seen += x
+            if (x == (total - 1)) {
+              done.success(seen)
+              s.subscription.unsubscribe()5
+            }
+          }
+        }
+      }
+    }
+
+    system.spawnLocal[Unit] { self =>
+      server.connectBackpressure(medium, policy) onEvent { valve =>
+        var i = 0
+        valve.available.is(true) on {
+          while (valve.available()) {
+            valve.channel ! i
+            i += 1
+          }
+        }
       }
     }
 

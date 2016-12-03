@@ -11,12 +11,12 @@ trait BackpressureProtocols {
 
   object Backpressure {
     case class Connection[T](
-      channel: Channel[Int],
+      pressure: Channel[Int],
       buffer: EventBuffer[T],
       subscription: Subscription
     ) {
       def toPump: Pump[T] = {
-        val pressureSubscription = buffer.on(channel ! 1)
+        val pressureSubscription = buffer.on(pressure ! 1)
         Pump(
           buffer,
           pressureSubscription.chain(subscription)
@@ -76,7 +76,7 @@ trait BackpressureProtocols {
           val system = Reactor.self.system
           val frontend = system.channels.daemon.shortcut.open[T]
           val budget = RCell(0)
-          val available = budget.map(_ > 0).toSignal(false)
+          val available = budget.map(_ > 0).toEmpty.changes.toSignal(false)
           val increments = twoWay.input.onEvent(x => budget := budget() + x)
           val forwarding = frontend.events.onEvent { x =>
             if (available()) twoWay.output ! x

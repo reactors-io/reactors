@@ -26,6 +26,12 @@ trait ReliableProtocols {
   case class Reliable[T](channel: Channel[T], subscription: Subscription)
 
   object Reliable {
+    /** Represents the reading side of a reliable connection.
+     *
+     *  @param events
+     *  @param subscription
+     *  @tparam T
+     */
     case class Connection[T](events: Events[T], subscription: Subscription)
     extends io.reactors.protocol.Connection[T]
 

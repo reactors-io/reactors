@@ -42,6 +42,10 @@ trait Signal[@spec(Int, Long, Double) T] extends Events[T] with Subscription {
    */
   def changes: Events[T] = new Signal.Changes(this)
 
+  /** Emits only when the state is equal to the specified value.
+   */
+  def is(x: T): Events[T] = this.filter(y => y == x)
+
   /** Emits only when the state changes to the specified value.
    *
    *  {{{
