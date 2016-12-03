@@ -18,8 +18,9 @@ extends Properties("BackpressureProtocolsCheck") with ExtendedProperties {
   val sizes = detChoose(1, 256)
 
   property("batching backpressure on two-way channel") = forAllNoShrink(sizes, sizes) {
-    (total, window) =>
+    (rawTotal, window) =>
     stackTraced {
+      val total = math.max(1, rawTotal)
       val done = Promise[Seq[Int]]()
       val system = ReactorSystem.default("check-system")
       val medium = Backpressure.Medium.default[Int]
@@ -29,7 +30,7 @@ extends Properties("BackpressureProtocolsCheck") with ExtendedProperties {
         val pumpServer = self.main.serveBackpressure(medium, policy)
         pumpServer.connections onEvent { pump =>
           val seen = mutable.Buffer[Int]()
-          pump.buffer.available.filter(_ == true) on {
+          pump.buffer.available.becomes(true) on {
             while (pump.buffer.available()) {
               val x = pump.buffer.dequeue()
               seen += x
@@ -44,8 +45,8 @@ extends Properties("BackpressureProtocolsCheck") with ExtendedProperties {
 
       system.spawnLocal[Unit] { self =>
         server.connectBackpressure(medium, policy) onEvent { valve =>
-          valve.available.filter(_ == true) on {
-            var i = 0
+          var i = 0
+          valve.available.becomes(true) on {
             while (valve.available() && i < total) {
               valve.channel ! i
               i += 1

@@ -39,7 +39,7 @@ extends AsyncFunSuite with AsyncTimeLimitedTests {
               pumpServer.subscription.unsubscribe()
             }
           }
-          pump.buffer.available.onceTrue.on(consume())
+          pump.buffer.available.becomes(true).once.on(consume())
         }
         consume()
       }
@@ -53,7 +53,7 @@ extends AsyncFunSuite with AsyncTimeLimitedTests {
             valve.channel ! i
             i += 1
           }
-          valve.available.onceTrue.on(produce(i))
+          valve.available.becomes(true).once.on(produce(i))
         }
         produce(0)
       }
@@ -83,7 +83,7 @@ extends AsyncFunSuite with AsyncTimeLimitedTests {
               pumpServer.subscription.unsubscribe()
             }
           }
-          pump.buffer.available.onceTrue.on(consume())
+          pump.buffer.available.becomes(true).once.on(consume())
         }
         consume()
       }
@@ -97,7 +97,7 @@ extends AsyncFunSuite with AsyncTimeLimitedTests {
             valve.channel ! i
             i += 1
           }
-          valve.available.onceTrue.on(produce(i))
+          valve.available.becomes(true).once.on(produce(i))
         }
         produce(0)
       }
