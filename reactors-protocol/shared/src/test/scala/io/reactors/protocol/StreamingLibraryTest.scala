@@ -76,7 +76,7 @@ object StreamingLibraryTest {
         }
 
         val server = self.system.channels.backpressureServer(inMedium)
-          .serveGenericBackpressure(inMedium, inPolicy)
+          .serveBackpressureConnections(inMedium, inPolicy)
         source.streamServer ! server.channel
 
         server.connections.once onEvent { connection =>

@@ -9,6 +9,16 @@ import io.reactors.services.Channels
 
 
 
+/** Reliable communication protocols ensure reliable delivery.
+ *
+ *  Reliable delivery is normally ensured when delivering events between reactors
+ *  in the same reactor system. However, when the underlying transport is an unreliable
+ *  network, events may be delayed, lost, duplicated or arbitrarily corrupted,
+ *  depending on the properties of the communication medium.
+ *
+ *  Reliability protocols ensure that all original events are delivered exactly once
+ *  and in order, using either one-way or two-way reliable connections.
+ */
 trait ReliableProtocols {
   /** Represents a connected reliable channel.
    *

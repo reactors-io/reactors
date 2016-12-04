@@ -114,7 +114,7 @@ extends AsyncFunSuite with AsyncTimeLimitedTests {
     val medium = Backpressure.Medium.reliable[Int](Reliable.TwoWay.Policy.reorder(128))
     val policy = Backpressure.Policy.batching(maxBudget)
 
-    val server = system.genericBackpressureServer(medium, policy) { s =>
+    val server = system.backpressureConnectionServer(medium, policy) { s =>
       val seen = mutable.Buffer[Int]()
       s.connections onEvent { connection =>
         connection.buffer.available.is(true) on {
