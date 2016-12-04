@@ -47,10 +47,10 @@ class ReliableProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
     val event1 = Promise[String]
     val event2 = Promise[String]
 
-    val policy = Reliable.Policy.reorder[String](128)
+    val policy = Reliable.Policy.reorder(128)
     system.channels.registerTemplate(TwoWay.OutputTag, system.channels.named("out"))
 
-    val proto = Reactor.reliableServer(policy) {
+    val proto = Reactor.reliableServer[String](policy) {
       (server, connection) =>
       connection.events onEvent { x =>
         if (!event1.trySuccess(x)) {
@@ -85,10 +85,10 @@ class ReliableProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
 
     val total = 256
     val window = total / 2
-    val policy = Reliable.Policy.reorder[Int](window)
+    val policy = Reliable.Policy.reorder(window)
     system.channels.registerTemplate(TwoWay.InputTag, system.channels.named("acks"))
 
-    val server = system.reliableServer(policy) { (server, connection) =>
+    val server = system.reliableServer[Int](policy) { (server, connection) =>
       val seen = mutable.Buffer[Int]()
       connection.events onEvent { x =>
         seen += x
@@ -118,10 +118,10 @@ class ReliableProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
     val system = ReactorSystem.default("conversions", Scripted.defaultBundle)
     val done = Promise[Seq[Int]]()
     val total = 16
-    val policy = Reliable.Policy.reorder[Int](4)
+    val policy = Reliable.Policy.reorder(4)
     system.channels.registerTemplate(TwoWay.OutputTag, system.channels.named("out"))
 
-    val proto = Reactor.reliableServer(policy) { (server, connection) =>
+    val proto = Reactor.reliableServer[Int](policy) { (server, connection) =>
       val seen = mutable.Buffer[Int]()
       connection.events onEvent { x =>
         seen += x
@@ -150,10 +150,11 @@ class ReliableProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
     val system = ReactorSystem.default("conversions", Scripted.defaultBundle)
     val done = Promise[Seq[String]]()
     val total = 64
-    val policy = Reliable.TwoWay.Policy.reorder[String, Int](16)
+    val policy = Reliable.TwoWay.Policy.reorder(16)
     system.channels.registerTemplate(TwoWay.OutputTag, system.channels.named("out"))
 
-    val serverProto = Reactor.reliableTwoWayServer(policy) { (server, twoWay) =>
+    val serverProto = Reactor.reliableTwoWayServer[String, Int](policy) {
+      (server, twoWay) =>
       twoWay.input onEvent { n =>
         twoWay.output ! n.toString
       }

@@ -24,7 +24,7 @@ extends AsyncFunSuite with AsyncTimeLimitedTests {
     val maxBudget = 16
     val system = ReactorSystem.default("backpressure-protocols")
     val medium = Backpressure.Medium.default[Int]
-    val policy = Backpressure.Policy.sliding[Int](maxBudget)
+    val policy = Backpressure.Policy.sliding(maxBudget)
 
     val backpressureServer = system.backpressureServer(medium, policy) { pumpServer =>
       pumpServer.connections onEvent { pump =>
@@ -46,7 +46,7 @@ extends AsyncFunSuite with AsyncTimeLimitedTests {
     }
 
     system.spawnLocal[Unit] { self =>
-      backpressureServer.connectBackpressure(medium, policy) onEvent { valve =>
+      backpressureServer.connectBackpressure[Int](medium, policy) onEvent { valve =>
         def produce(from: Int): Unit = {
           var i = from
           while (valve.available() && i < total) {
@@ -68,7 +68,7 @@ extends AsyncFunSuite with AsyncTimeLimitedTests {
     val maxBudget = 32
     val system = ReactorSystem.default("backpressure-protocols")
     val medium = Backpressure.Medium.default[Int]
-    val policy = Backpressure.Policy.batching[Int](maxBudget)
+    val policy = Backpressure.Policy.batching(maxBudget)
 
     val backpressureServer = system.backpressureServer(medium, policy) { pumpServer =>
       pumpServer.connections onEvent { pump =>
@@ -112,7 +112,7 @@ extends AsyncFunSuite with AsyncTimeLimitedTests {
     val maxBudget = 128
     val system = ReactorSystem.default("backpressure-protocols")
     val medium = Backpressure.Medium.reliable[Int](Reliable.TwoWay.Policy.reorder(128))
-    val policy = Backpressure.Policy.batching[Int](maxBudget)
+    val policy = Backpressure.Policy.batching(maxBudget)
 
     val server = system.genericBackpressureServer(medium, policy) { s =>
       val seen = mutable.Buffer[Int]()

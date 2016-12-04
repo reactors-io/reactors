@@ -41,7 +41,7 @@ object StreamingLibraryTest {
 
     def foreach(f: T => Unit)(implicit a: Arrayable[T]): Unit = {
       val medium = Backpressure.Medium.reliable[T](Reliable.TwoWay.Policy.reorder(128))
-      val policy = Backpressure.Policy.sliding[T](128)
+      val policy = Backpressure.Policy.sliding(128)
       system.backpressureServer(medium, policy) { server =>
         streamServer ! server.channel
         server.connections.once onEvent { pump =>
@@ -62,10 +62,10 @@ object StreamingLibraryTest {
     val streamServer: StreamServer[S] = {
       val inMedium =
         Backpressure.Medium.reliable[T](Reliable.TwoWay.Policy.reorder(128))
-      val inPolicy = Backpressure.Policy.sliding[T](128)
+      val inPolicy = Backpressure.Policy.sliding(128)
       val outMedium =
         Backpressure.Medium.reliable[S](Reliable.TwoWay.Policy.reorder(128))
-      val outPolicy = Backpressure.Policy.sliding[S](128)
+      val outPolicy = Backpressure.Policy.sliding(128)
       system.spawn(Reactor[StreamReq[S]] { self =>
         val valves = mutable.Set[Valve[S]]()
 

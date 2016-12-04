@@ -57,7 +57,7 @@ trait BackpressureProtocols {
         channel => channel.connect()
       )
 
-      def reliable[T: Arrayable](policy: Reliable.TwoWay.Policy[Int, T]) =
+      def reliable[T: Arrayable](policy: Reliable.TwoWay.Policy) =
         Backpressure.Medium[Reliable.TwoWay.Req[Int, T], T](
           builder => builder.reliableTwoWayServer[Int, T],
           connector => connector.serveTwoWayReliable(policy),
@@ -65,59 +65,59 @@ trait BackpressureProtocols {
         )
     }
 
-    case class Policy[T](
-      server: (Events[Int], Channel[Int]) => Subscription,
-      client: TwoWay[Int, T] => Valve[T]
-    )
+    trait Policy {
+      def server(inPressure: Events[Int], outPressure: Channel[Int]): Subscription
+      def client[T: Arrayable](twoWay: TwoWay[Int, T]): Valve[T]
+    }
 
     object Policy {
-      private def defaultClient[T: Arrayable](size: Int): TwoWay[Int, T] => Valve[T] = {
-        twoWay => {
-          val system = Reactor.self.system
-          val frontend = system.channels.daemon.shortcut.open[T]
-          val budget = RCell(0)
-          val available = budget.map(_ > 0).toEmpty.changes.toSignal(false)
-          val increments = twoWay.input.onEvent(x => budget := budget() + x)
-          val forwarding = frontend.events.onEvent { x =>
-            if (available()) twoWay.output ! x
-            else throw new IllegalStateException("Backpressure channel not available.")
-            budget := budget() - 1
-          }
-          Valve(
-            frontend.channel,
-            available,
-            forwarding.chain(increments).chain(twoWay.subscription)
-          )
+      private def defaultClient[T: Arrayable](
+        size: Int, twoWay: TwoWay[Int, T]
+      ): Valve[T] = {
+        val system = Reactor.self.system
+        val frontend = system.channels.daemon.shortcut.open[T]
+        val budget = RCell(0)
+        val available = budget.map(_ > 0).toEmpty.changes.toSignal(false)
+        val increments = twoWay.input.onEvent(x => budget := budget() + x)
+        val forwarding = frontend.events.onEvent { x =>
+          if (available()) twoWay.output ! x
+          else throw new IllegalStateException("Backpressure channel not available.")
+          budget := budget() - 1
         }
+        Valve(
+          frontend.channel,
+          available,
+          forwarding.chain(increments).chain(twoWay.subscription)
+        )
       }
 
-      def sliding[T: Arrayable](size: Int) = Backpressure.Policy[T](
-        server = (inputPressure, outputPressure) => {
-          outputPressure ! size
-          inputPressure onEvent { n =>
-            outputPressure ! n
+      def sliding(size: Int) = new Backpressure.Policy {
+        def server(inPressure: Events[Int], outPressure: Channel[Int]): Subscription = {
+          outPressure ! size
+          inPressure onEvent { n =>
+            outPressure ! n
           }
-        },
-        client = defaultClient[T](size)
-      )
+        }
+        def client[T: Arrayable](twoWay: TwoWay[Int, T]) =
+          defaultClient[T](size, twoWay)
+      }
 
-      def batching[T: Arrayable](size: Int): Backpressure.Policy[T] = {
-        Backpressure.Policy[T](
-          server = (inputPressure, outputPressure) => {
-            outputPressure ! size
-            val tokens = RCell(0)
-            val tokenSubscription = inputPressure onEvent { n =>
-              tokens := tokens() + n
-            }
-            val flushSubscription = Reactor.self.sysEvents onMatch {
-              case ReactorPreempted =>
-                outputPressure ! tokens()
-                tokens := 0
-            }
-            tokenSubscription.chain(flushSubscription)
-          },
-          client = defaultClient[T](size)
-        )
+      def batching(size: Int) = new Backpressure.Policy {
+        def server(inPressure: Events[Int], outPressure: Channel[Int]) = {
+          outPressure ! size
+          val tokens = RCell(0)
+          val tokenSubscription = inPressure onEvent { n =>
+            tokens := tokens() + n
+          }
+          val flushSubscription = Reactor.self.sysEvents onMatch {
+            case ReactorPreempted =>
+              outPressure ! tokens()
+              tokens := 0
+          }
+          tokenSubscription.chain(flushSubscription)
+        }
+        def client[T: Arrayable](twoWay: TwoWay[Int, T]) =
+          defaultClient[T](size, twoWay)
       }
     }
   }
@@ -128,12 +128,10 @@ trait BackpressureProtocols {
     }
   }
 
-  implicit class BackpressureConnectorOps[R, T](
-    val connector: Connector[R]
-  ) {
+  implicit class BackpressureConnectorOps[R, T](val connector: Connector[R]) {
     def serveGenericBackpressure(
       medium: Backpressure.Medium[R, T],
-      policy: Backpressure.Policy[T]
+      policy: Backpressure.Policy
     )(implicit a: Arrayable[T]): Backpressure.Server[R, T] = {
       val twoWayServer = medium.serve(connector)
       Backpressure.Server(
@@ -151,29 +149,25 @@ trait BackpressureProtocols {
 
     def serveBackpressure(
       medium: Backpressure.Medium[R, T],
-      policy: Backpressure.Policy[T]
+      policy: Backpressure.Policy
     )(implicit a: Arrayable[T]): Backpressure.PumpServer[R, T] = {
       serveGenericBackpressure(medium, policy).toPumpServer
     }
   }
 
-  implicit class BackpressureServerOps[R, T](
-    val server: Channel[R]
-  ) {
-    def connectBackpressure(
+  implicit class BackpressureServerOps[R](val server: Channel[R]) {
+    def connectBackpressure[T: Arrayable](
       medium: Backpressure.Medium[R, T],
-      policy: Backpressure.Policy[T]
+      policy: Backpressure.Policy
     ): IVar[Valve[T]] = {
-      medium.connect(server).map(policy.client).toIVar
+      medium.connect(server).map(policy.client[T]).toIVar
     }
   }
 
-  implicit class BackpressureReactorCompanionOps(
-    val reactor: Reactor.type
-  ) {
+  implicit class BackpressureReactorCompanionOps(val reactor: Reactor.type) {
     def genericBackpressureServer[R: Arrayable, T: Arrayable](
       medium: Backpressure.Medium[R, T],
-      policy: Backpressure.Policy[T]
+      policy: Backpressure.Policy
     )(f: Backpressure.Server[R, T] => Unit): Proto[Reactor[R]] = {
       Reactor[R] { self =>
         f(self.main.serveGenericBackpressure(medium, policy))
@@ -182,7 +176,7 @@ trait BackpressureProtocols {
 
     def backpressureServer[R: Arrayable, T: Arrayable](
       medium: Backpressure.Medium[R, T],
-      policy: Backpressure.Policy[T]
+      policy: Backpressure.Policy
     )(f: Backpressure.PumpServer[R, T] => Unit): Proto[Reactor[R]] = {
       Reactor[R] { self =>
         f(self.main.serveBackpressure(medium, policy))
@@ -190,12 +184,10 @@ trait BackpressureProtocols {
     }
   }
 
-  implicit class BackpressureSystemOps(
-    val system: ReactorSystem
-  ) {
+  implicit class BackpressureSystemOps(val system: ReactorSystem) {
     def genericBackpressureServer[R: Arrayable, T: Arrayable](
       medium: Backpressure.Medium[R, T],
-      policy: Backpressure.Policy[T]
+      policy: Backpressure.Policy
     )(f: Backpressure.Server[R, T] => Unit): Channel[R] = {
       val proto = Reactor.genericBackpressureServer(medium, policy)(f)
       system.spawn(proto)
@@ -203,7 +195,7 @@ trait BackpressureProtocols {
 
     def backpressureServer[R: Arrayable, T: Arrayable](
       medium: Backpressure.Medium[R, T],
-      policy: Backpressure.Policy[T]
+      policy: Backpressure.Policy
     )(f: Backpressure.PumpServer[R, T] => Unit): Channel[R] = {
       val proto = Reactor.backpressureServer(medium, policy)(f)
       system.spawn(proto)

@@ -28,8 +28,8 @@ extends Properties("BackpressureProtocolsCheck") with ExtendedProperties {
 
       system.channels.registerTemplate(TwoWay.OutputTag, system.channels.named("out"))
 
-      val policy = Reliable.Policy.reorder[Int](window)
-      val proto = Reactor.reliableServer(policy) { (server, connection) =>
+      val policy = Reliable.Policy.reorder(window)
+      val proto = Reactor.reliableServer[Int](policy) { (server, connection) =>
         val seen = mutable.Buffer[Int]()
         connection.events onEvent { x =>
           seen += x

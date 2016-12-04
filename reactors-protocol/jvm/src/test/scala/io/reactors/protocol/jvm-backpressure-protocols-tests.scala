@@ -22,7 +22,7 @@ extends Properties("BackpressureProtocolsCheck") with ExtendedProperties {
     window: Int,
     system: ReactorSystem,
     medium: Backpressure.Medium[R, Int],
-    policy: Backpressure.Policy[Int]
+    policy: Backpressure.Policy
   ): Promise[Seq[Int]] = {
     val done = Promise[Seq[Int]]()
 
@@ -64,7 +64,7 @@ extends Properties("BackpressureProtocolsCheck") with ExtendedProperties {
     stackTraced {
       val system = ReactorSystem.default("check-system")
       val medium = Backpressure.Medium.default[Int]
-      val policy = Backpressure.Policy.batching[Int](window)
+      val policy = Backpressure.Policy.batching(window)
 
       val done = producerConsumer(total, window, system, medium, policy)
 
@@ -80,7 +80,7 @@ extends Properties("BackpressureProtocolsCheck") with ExtendedProperties {
         val system = ReactorSystem.default("test system")
         val medium =
           Backpressure.Medium.reliable[Int](Reliable.TwoWay.Policy.reorder(window))
-        val policy = Backpressure.Policy.batching[Int](window)
+        val policy = Backpressure.Policy.batching(window)
 
         val done = producerConsumer(total, window, system, medium, policy)
 
@@ -96,7 +96,7 @@ extends Properties("BackpressureProtocolsCheck") with ExtendedProperties {
       val system = ReactorSystem.default("test system")
       val medium =
         Backpressure.Medium.reliable[Int](Reliable.TwoWay.Policy.reorder(window))
-      val policy = Backpressure.Policy.sliding[Int](window)
+      val policy = Backpressure.Policy.sliding(window)
 
       val done = producerConsumer(total, window, system, medium, policy)
 

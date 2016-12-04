@@ -54,29 +54,45 @@ trait ReliableProtocols {
      */
     type Req[T] = io.reactors.protocol.TwoWay.Req[Long, Stamp[T]]
 
-
     /** Captures the assumptions about the lossiness of the underlying transport.
      *
      *  Depending on the lossiness assumptions, different policies must be used
      *  to establish reliability.
-     *
-     *  @param client           mapping from client-sent events to the two-way channel
-     *  @param server           mapping from the two-way channel to the events received
-     *                          by the server
      */
-    case class Policy[T](
-      client: (Events[T], io.reactors.protocol.TwoWay[Long, Stamp[T]]) => Subscription,
-      server: (io.reactors.protocol.TwoWay[Stamp[T], Long], Channel[T]) => Subscription
-    )
+    trait Policy {
+      /** Wires client-sent events to the two-way connection.
+       */
+      def client[T: Arrayable](
+        sends: Events[T],
+        twoWay: io.reactors.protocol.TwoWay[Long, Stamp[T]]
+      ): Subscription
+
+      /** Wires the two-way connection to the delivery channel of the server.
+       */
+      def server[T: Arrayable](
+        twoWay: io.reactors.protocol.TwoWay[Stamp[T], Long],
+        deliver: Channel[T]
+      ): Subscription
+    }
 
     object Policy {
       /** Assumes that the transport may reorder and indefinitely delay some events.
        *
        *  Furthermore, the requirement is that the underlying medium is not lossy,
        *  and that it does not create duplicates.
+       *
+       *  @param window     number of events that the policy will send without an
+       *                    acknowledgement, before starting to buffer events locally
        */
-      def reorder[T: Arrayable](window: Int) = Policy[T](
-        (sends, twoWay) => {
+      def reorder(window: Int) = new Reorder(window)
+
+      /** See `reorder`.
+       */
+      class Reorder(val window: Int) extends Reliable.Policy {
+        def client[T: Arrayable](
+          sends: Events[T],
+          twoWay: io.reactors.protocol.TwoWay[Long, Stamp[T]]
+        ): Subscription = {
           var lastAck = 0L
           var lastStamp = 0L
           val queue = new UnrolledRing[T]
@@ -96,8 +112,12 @@ trait ReliableProtocols {
               channel ! Stamp.Some(queue.dequeue(), lastStamp)
             }
           } andThen (channel ! Stamp.None())
-        },
-        (twoWay, deliver) => {
+        }
+
+        def server[T: Arrayable](
+          twoWay: io.reactors.protocol.TwoWay[Stamp[T], Long],
+          deliver: Channel[T]
+        ): Subscription = {
           val io.reactors.protocol.TwoWay(acks, events, subscription) = twoWay
           var nextStamp = 1L
           val queue = new BinaryHeap[Stamp[T]]()(
@@ -105,7 +125,7 @@ trait ReliableProtocols {
             Order((x, y) => (x.stamp - y.stamp).toInt)
           )
           events onMatch {
-            case stamp @ Stamp.Some(x, timestamp) =>
+            case stamp@Stamp.Some(x, timestamp) =>
               if (timestamp == nextStamp) {
                 acks ! nextStamp
                 nextStamp += 1
@@ -121,7 +141,7 @@ trait ReliableProtocols {
               }
           } andThen (acks ! -1)
         }
-      )
+      }
     }
 
     object TwoWay {
@@ -156,18 +176,20 @@ trait ReliableProtocols {
        *
        *  Depending on the lossiness of the transport, different policies must be
        *  used when establishing a reliable two-way connection.
-       *
-       *  @param input
-       *  @param output
-       *  @param inputGuard
-       *  @param outputGuard
        */
-      case class Policy[I, O](
-        input: Reliable.Policy[I],
-        output: Reliable.Policy[O],
-        inputGuard: Reliable.Server[I] => Unit,
-        outputGuard: Reliable.Server[O] => Unit
-      )
+      trait Policy extends Reliable.Policy {
+        /** Guard placed on the input server after it is created.
+         *
+         *  This can be used to, for example, add a timeout before closing the server.
+         */
+        def inputServerGuard[I](inServer: Reliable.Server[I]): Subscription
+
+        /** Guard placed on the output server after it is created.
+         *
+         *  This can be used to, for example, add a timeout before closing the server.
+         */
+        def outputServerGuard[O](outServer: Reliable.Server[O]): Subscription
+      }
 
       object Policy {
         /** Policy that assumes that the transport may arbitrarily delay any event.
@@ -175,13 +197,11 @@ trait ReliableProtocols {
          *  Additionally, this policy assumes that the transport may reorder events,
          *  but will never drop, duplicate or corrupt the events.
          */
-        def reorder[I: Arrayable, O: Arrayable](window: Int) =
-          Reliable.TwoWay.Policy[I, O](
-            Reliable.Policy.reorder[I](window),
-            Reliable.Policy.reorder[O](window),
-            server => {},
-            server => {}
-          )
+        def reorder(window: Int) =
+          new Reliable.Policy.Reorder(window) with Reliable.TwoWay.Policy {
+            def inputServerGuard[I](inServer: Reliable.Server[I]) = Subscription.empty
+            def outputServerGuard[I](outServer: Reliable.Server[I]) = Subscription.empty
+          }
       }
     }
 
@@ -216,7 +236,7 @@ trait ReliableProtocols {
      *  @return           state of the new reliable connections server
      */
     def serveReliable(
-      policy: Reliable.Policy[T] = Reliable.Policy.reorder[T](128)
+      policy: Reliable.Policy = Reliable.Policy.reorder(128)
     ): Reliable.Server[T] = {
       val system = Reactor.self.system
       val twoWayServer = connector.serveTwoWay()
@@ -251,7 +271,7 @@ trait ReliableProtocols {
      *                     the reliable connection object
      */
     def openReliable(
-      policy: Reliable.Policy[T] = Reliable.Policy.reorder[T](128)
+      policy: Reliable.Policy = Reliable.Policy.reorder(128)
     ): IVar[Reliable[T]] = {
       val system = Reactor.self.system
       server.connect() map {
@@ -270,9 +290,7 @@ trait ReliableProtocols {
   implicit class ReliableReactorCompanionOps(val reactor: Reactor.type) {
     /** Same as calling the `serveReliable` operation, but creates a `Proto` object.
      */
-    def reliableServer[T: Arrayable](
-      policy: Reliable.Policy[T]
-    )(
+    def reliableServer[T: Arrayable](policy: Reliable.Policy)(
       f: (Reliable.Server[T], Reliable.Connection[T]) => Unit
     ): Proto[Reactor[Reliable.Req[T]]] = {
       Reactor[Reliable.Req[T]] { self =>
@@ -285,9 +303,7 @@ trait ReliableProtocols {
   implicit class ReliableSystemOps(val system: ReactorSystem) {
     /** Same as calling the `serveReliable` operation, but starts the reactor directly.
      */
-    def reliableServer[T: Arrayable](
-      policy: Reliable.Policy[T]
-    )(
+    def reliableServer[T: Arrayable](policy: Reliable.Policy)(
       f: (Reliable.Server[T], Reliable.Connection[T]) => Unit
     ): Channel[Reliable.Req[T]] = {
       system.spawn(Reactor.reliableServer[T](policy)(f))
@@ -320,18 +336,18 @@ trait ReliableProtocols {
      *  @return        state of the newly created two-way reliable server
      */
     def serveTwoWayReliable(
-      policy: Reliable.TwoWay.Policy[I, O] = Reliable.TwoWay.Policy.reorder[I, O](128)
+      policy: Reliable.TwoWay.Policy = Reliable.TwoWay.Policy.reorder(128)
     ): Reliable.TwoWay.Server[I, O] = {
       val system = Reactor.self.system
       val connections = connector.events.map {
         case req @ (inServer, reply) =>
           val outServer = system.channels.daemon.shortcut.reliableServer[O]
-            .serveReliable(policy.output)
+            .serveReliable(policy)
           outServer.connections.on(outServer.subscription.unsubscribe())
-          policy.outputGuard(outServer)
+          policy.outputServerGuard(outServer)
           reply ! outServer.channel
 
-          val inReliable = inServer.openReliable(policy.input)
+          val inReliable = inServer.openReliable(policy)
 
           (outServer.connections sync inReliable) { (out, in) =>
             TwoWay(in.channel, out.events, in.subscription.chain(out.subscription))
@@ -356,16 +372,16 @@ trait ReliableProtocols {
      *                   connection, completed once the connection is established
      */
     def connectReliable(
-      policy: Reliable.TwoWay.Policy[I, O] = Reliable.TwoWay.Policy.reorder[I, O](128)
+      policy: Reliable.TwoWay.Policy = Reliable.TwoWay.Policy.reorder(128)
     ): IVar[TwoWay[I, O]] = {
       val system = Reactor.self.system
       val inServer = system.channels.daemon.shortcut.reliableServer[I]
-        .serveReliable(policy.input)
-      policy.inputGuard(inServer)
+        .serveReliable(policy)
+      policy.inputServerGuard(inServer)
       inServer.connections.on(inServer.subscription.unsubscribe())
 
       (reliableServer ? inServer.channel).map { outServer =>
-        val outReliable = outServer.openReliable(policy.output)
+        val outReliable = outServer.openReliable(policy)
 
         (outReliable sync inServer.connections) { (out, in) =>
           TwoWay(out.channel, in.events, out.subscription.chain(in.subscription))
@@ -380,7 +396,7 @@ trait ReliableProtocols {
      *  The reactor's main channel is used as the two-way reliable connection server.
      */
     def reliableTwoWayServer[I: Arrayable, O: Arrayable](
-      policy: Reliable.TwoWay.Policy[I, O]
+      policy: Reliable.TwoWay.Policy
     )(
       f: (Reliable.TwoWay.Server[I, O], TwoWay[O, I]) => Unit
     ): Proto[Reactor[Reliable.TwoWay.Req[I, O]]] = {
@@ -398,9 +414,7 @@ trait ReliableProtocols {
      *
      *  The reactor's main channel is used as the two-way reliable connection server.
      */
-    def reliableTwoWayServer(
-      policy: Reliable.TwoWay.Policy[I, O]
-    )(
+    def reliableTwoWayServer(policy: Reliable.TwoWay.Policy)(
       f: (Reliable.TwoWay.Server[I, O], TwoWay[O, I]) => Unit
     ): Channel[Reliable.TwoWay.Req[I, O]] = {
       val proto = Reactor.reliableTwoWayServer(policy)(f)
