@@ -39,9 +39,7 @@ object StreamingLibraryTest {
     def map[S](f: T => S)(implicit at: Arrayable[T], as: Arrayable[S]): Stream[S] =
       new Mapped(this, f)
 
-    def foreach(f: T => Unit)(
-      implicit a: Arrayable[T]
-    ): Unit = {
+    def foreach(f: T => Unit)(implicit a: Arrayable[T]): Unit = {
       val medium = Backpressure.Medium.reliable[T](Reliable.TwoWay.Policy.reorder(128))
       val policy = Backpressure.Policy.sliding[T](128)
       system.backpressureServer(medium, policy) { server =>
