@@ -41,7 +41,7 @@ class SignalCatamorph[@spec(Int, Long, Double) T](
   val catamorph: RCatamorph[T, Signal[T]]
 ) extends RCatamorph[T, Signal[T]] {
   private[reactors] var subscription: Subscription = _
-  private var signalSubscriptions = mutable.Map[Signal[T], Subscription]()
+  private val signalSubscriptions = mutable.Map[Signal[T], Subscription]()
   private var insertsEvents: Events[Signal[T]] = null
   private var removesEvents: Events[Signal[T]] = null
   private var defaultSignal: Signal[T] with Events.Push[T] = null

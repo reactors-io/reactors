@@ -31,10 +31,16 @@ object StreamingLibraryTest {
 
   type StreamServer[T] = Channel[StreamReq[T]]
 
+  type StreamMedium[T] = Backpressure.Medium[Reliable.TwoWay.Req[Int, T], T]
+
   trait Stream[T] {
     def system: ReactorSystem
 
     def streamServer: StreamServer[T]
+
+    def backpressureMedium[T: Arrayable]: StreamMedium[T]
+
+    def backpressurePolicy: Backpressure.Policy
 
     def map[S](f: T => S)(implicit at: Arrayable[T], as: Arrayable[S]): Stream[S] =
       new Mapped(this, f)
@@ -54,67 +60,75 @@ object StreamingLibraryTest {
     }
   }
 
+  class Source[T](val system: ReactorSystem) extends Stream[T] {
+    val streamServer = ???
+
+    val backpressurePolicy = Backpressure.Policy.sliding(128)
+
+    def backpressureMedium[T: Arrayable] =
+      Backpressure.Medium.reliable[T](Reliable.TwoWay.Policy.reorder(128))
+  }
+
   class Mapped[T, S](source: Stream[T], f: T => S)(
     implicit val at: Arrayable[T], as: Arrayable[S]
   ) extends Stream[S] {
     val system = source.system
 
+    def backpressureMedium[T: Arrayable] = source.backpressureMedium[T]
+
+    val backpressurePolicy = source.backpressurePolicy
+
     val streamServer: StreamServer[S] = {
-      val inMedium =
-        Backpressure.Medium.reliable[T](Reliable.TwoWay.Policy.reorder(128))
-      val inPolicy = Backpressure.Policy.sliding(128)
-      val outMedium =
-        Backpressure.Medium.reliable[S](Reliable.TwoWay.Policy.reorder(128))
-      val outPolicy = Backpressure.Policy.sliding(128)
+      val inMedium = backpressureMedium[T]
+      val outMedium = backpressureMedium[S]
+      val policy = backpressurePolicy
+
       system.spawn(Reactor[StreamReq[S]] { self =>
-        val valves = mutable.Set[Valve[S]]()
+        val valves = new MultiValve[S]
 
         self.main.events onEvent { backServer =>
-          backServer.connectBackpressure(outMedium, outPolicy) onEvent {
+          backServer.connectBackpressure(outMedium, policy) onEvent {
             valve => valves += valve
           }
         }
 
         val server = self.system.channels.backpressureServer(inMedium)
-          .serveBackpressureConnections(inMedium, inPolicy)
+          .serveBackpressureConnections(inMedium, policy)
         source.streamServer ! server.channel
 
-        server.connections.once onEvent { connection =>
-          // flow {
-          //   while (true) {
-          //     await(connection.buffer.available)
-          //     val x = connection.buffer.dequeue()
-          //     val y = f(x)
-          //     val pushes = for (v <- valves.toEvents) yield flow {
-          //       await(v.available)
-          //       v.channel ! y
-          //     }
-          //     await(pushes.union.toDoneSignal)
-          //     connection.channel ! 1
-          //   }
-          // }
-          def loop(): Unit = {
-            if (connection.buffer.available()) {
-              val x = connection.buffer.dequeue()
+        server.connections.once onEvent { c =>
+          val available =
+            (c.buffer.available zip valves.available) (_ && _).toSignal(false)
+          available.is(true) on {
+            while (available()) {
+              val x = c.buffer.dequeue()
               val y = f(x)
-              val pushes = for (v <- valves.toEvents) yield {
-                if (v.available()) {
-                  v.channel ! y
-                  new Events.Never[Unit]
-                } else {
-                  v.available.filter(_ == true).once.map(_ => v.channel ! y)
-                }
-              }
-              pushes.union onDone {
-                connection.pressure ! 1
-                loop()
-              }
-            } else connection.buffer.available.filter(_ == true).once on {
-              loop()
+              valves.channel ! y
             }
           }
-          loop()
         }
+//          def loop(): Unit = {
+//            if (connection.buffer.available()) {
+//              val x = connection.buffer.dequeue()
+//              val y = f(x)
+//              val pushes = for (v <- valves.toEvents) yield {
+//                if (v.available()) {
+//                  v.channel ! y
+//                  new Events.Never[Unit]
+//                } else {
+//                  v.available.filter(_ == true).once.map(_ => v.channel ! y)
+//                }
+//              }
+//              pushes.union onDone {
+//                connection.pressure ! 1
+//                loop()
+//              }
+//            } else connection.buffer.available.filter(_ == true).once on {
+//              loop()
+//            }
+//          }
+//          loop()
+//        }
       })
     }
   }

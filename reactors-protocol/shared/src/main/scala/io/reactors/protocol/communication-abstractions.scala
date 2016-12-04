@@ -3,6 +3,7 @@ package protocol
 
 
 
+import io.reactors.container.RHashSet
 
 
 
@@ -23,6 +24,14 @@ trait CommunicationAbstractions {
     available: Signal[Boolean],
     subscription: Subscription
   )
+
+  class MultiValve[T] {
+    private val valves = new RHashSet[Valve[T]]
+    val available: Signal[Boolean] =
+      valves.map(_.available).toSignalAggregate(true)(_ && _)
+    val channel: Channel[T] = ???
+    def +=(x: Valve[T]): Unit = ???
+  }
 
   case class Pump[T](
     buffer: EventBuffer[T],
