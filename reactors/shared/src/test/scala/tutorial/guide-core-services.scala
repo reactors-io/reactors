@@ -47,7 +47,7 @@ This is already a powerful set of abstractions,
 and we can use reactors and event streams to write all kinds of distributed programs.
 However, such a model is restricted to reactor computations only --
 we cannot, for example, start blocking I/O operations, read from a temperature sensor,
-wait until a GPU computation completes, or do logging.
+wait until a GPU computation completes, or react to temporal events.
 In some cases,
 we need to interact with the native capabilities of the OS,
 or tap into a rich ecosystem of existing libraries.
@@ -144,7 +144,7 @@ class ReactorSystemServices extends AsyncFunSuite {
     (more specifically, it returns an `IVar` event stream, i.e. a single-assignment
     variable, which always produces at most one event).
     We install a callback to the `timeout` event stream, which seals the main channel
-    channel of this reactor.
+    of this reactor.
     !*/
 
     /*!begin-code!*/
@@ -199,10 +199,10 @@ class ReactorSystemServices extends AsyncFunSuite {
   ### The channels service
 
   Some services provide event streams that work with reactor system internals.
-  The `Channels` service is a good example - it provides an event-drive view over all
+  The `Channels` service is one such example - it provides an event-driven view over all
   channels that exist in the current reactor system. This allows polling the channels
-  that are currently available, or awaiting for a channel with a specific name to become
-  available. Awaiting for a channel is particularly useful, as it allows to battle
+  that are currently available, or waiting until a channel with a specific name becomes
+  available. Awaiting a channel is particularly useful, as it allows easier handling of
   asynchrony between reactors, which is inherent to distributed systems.
 
   As a side-note, we actually saw the `Channels` service earlier, when we used it to
@@ -354,7 +354,7 @@ class GuideReactorSystemServicesCustomService extends AsyncFunSuite {
     /*!end-code!*/
 
     /*!md
-    Later, when we shutdown the system, we expect that the code in the callback runs
+    Later, when we shut down the system, we expect that the code in the callback runs
     and completes the promise:
     !*/
 

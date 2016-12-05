@@ -35,7 +35,7 @@ or alternatively on NodeJS or inside the browser if you are using the Scala.js f
 ### SBT
 
 If you are developing using the [sbt](http://www.scala-sbt.org/) build tool,
-the easiest is to include Reactors into your project as a library depedency.
+the easiest is to include Reactors into your project as a library dependency.
 
 To get started with Reactors.IO, you should grab the latest snapshot version distributed
 on Maven. If you are using SBT, add the following to your project definition:

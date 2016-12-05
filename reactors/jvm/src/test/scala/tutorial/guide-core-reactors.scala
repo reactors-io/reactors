@@ -76,7 +76,7 @@ class Reactors extends FunSuite with Matchers {
     /*!include-code Java:reactors-java-reactors-anonymous.html!*/
 
     /*!md
-    Lets examine this code more closely. The `Reactor.apply` method is called with the
+    Let's examine this code more closely. The `Reactor.apply` method is called with the
     argument `String`. This means that the reactor encoded in the resulting `Proto`
     object only receives events whose type is `String`. This is the first difference
     with respect to the standard actor model, in which actors can receive messages of
@@ -340,10 +340,10 @@ class ReactorChannels extends FunSuite with Matchers {
     Next, we create a client reactor that we control by sending it `String` events. This
     means that the reactor's type will be `Reactor[String]`. However, the client reactor
     will also have to contact the `MapReactor` and ask it for one of the URLs. Since the
-    `MapReactor` can only send it back events that are `List[String]`, its default
-    channel will not be able to receive the reply. The client will have to provide the
-    `MapReactor` with a different channel. The following expression is used to create
-    a new channel:
+    `MapReactor` can only send it back events that are `List[String]`, the client's
+    default channel might not generally be able to receive the reply. The client will
+    have to provide the `MapReactor` with a different channel. The following expression
+    is used to create a new channel:
 
     ```
     val c: Connector[EventType] = system.channels.open[EventType]
@@ -389,8 +389,8 @@ class ReactorChannels extends FunSuite with Matchers {
     /*!md
     Above, when the reactor receives the `"start"` event, it opens a new channel `reply`
     that accepts `List[String]` events. It then sends the `MapReactor` a `Get` event
-    with the `"dns-main"` key and the channel. Then, the reactor listens to events sent
-    back and prints the URL to the standard output.
+    with the `"dns-main"` key and the channel. Finally, the reactor listens to events
+    sent back and prints the URL to the standard output.
 
     Another new thing in this code is in the `"end"` case of the pattern match. Here,
     the reactor calls `seal` on the main channel to indicate that it will not receive
@@ -400,7 +400,7 @@ class ReactorChannels extends FunSuite with Matchers {
     > A reactor terminates either when all its non-daemon channels are sealed, or when
     > its constructor or some event handler throws an exception.
 
-    Lets start the client reactor and see what happens:
+    Let's start the client reactor and see what happens:
     !*/
 
     /*!begin-code!*/
@@ -412,7 +412,7 @@ class ReactorChannels extends FunSuite with Matchers {
 
     /*!md
     At this point, we should witness the URL on the standard output.
-    Finally, we can send the `"end"` message to the `Reactor` to stop it.
+    Finally, we can send the `"end"` message to the client reactor to stop it.
     !*/
 
     /*!begin-code!*/

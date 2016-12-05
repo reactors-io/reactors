@@ -84,7 +84,7 @@ class Schedulers extends FunSuite with Matchers {
 
   test("custom global execution context scheduler") {
     /*!md
-    Every reactor system is bundled a default scheduler
+    Every reactor system is bundled with a default scheduler
     and some additional predefined schedulers.
     When a reactor is started, it uses the default scheduler,
     unless specified otherwise.
@@ -111,7 +111,7 @@ class Schedulers extends FunSuite with Matchers {
 
     /*!md
     Running the snippet above should start the `Logger` reactor and print `scheduled`
-    once, because starting a reactor schedules it even before any event arrives.
+    once, because starting a reactor schedules it even before any events arrive.
     If we now send an event to the main channel, we will see `scheduled` printed again,
     followed by the event itself.
     !*/
@@ -150,7 +150,7 @@ class Schedulers extends FunSuite with Matchers {
 
 ## Reactor Lifecycle
 
-Every reactor goes through a certain number of stages during its lifetime,
+Every reactor goes through a certain set of stages during its lifetime,
 jointly called a **reactor lifecycle**.
 When the reactor enters a specific stage, it emits a lifecycle event.
 All lifecycle events are dispatched on a special daemon event stream called `sysEvents`.
