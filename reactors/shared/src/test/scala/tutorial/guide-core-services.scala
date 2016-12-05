@@ -130,7 +130,7 @@ class ReactorSystemServices extends AsyncFunSuite {
   the outside world of events, namely, the `Clock` service.
   The `Clock` service is capable of producing time-driven events,
   for example, timeouts, countdowns or periodic counting.
-  This service is standard, so it is also available by calling either `system.clock`
+  This service is standard, so it is available by calling either `system.clock`
   or `system.service[Clock]` - both return the same instance.
   !*/
 

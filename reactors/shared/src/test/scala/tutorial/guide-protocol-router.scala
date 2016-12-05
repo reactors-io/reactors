@@ -108,7 +108,7 @@ class GuideRouterProtocol extends AsyncFunSuite {
 
     The `route` method expects a `Router.Policy` object as an argument.
     The policy object contains the routing logic for the router protocol.
-    We will use the simple round-robin policy in this example.
+    In this example, we will use the simple round-robin policy.
     The `Router.roundRobin` factory method expects a list of channels
     for the round-robin policy, so we will pass a list with `worker1` and `worker2`:
     !*/

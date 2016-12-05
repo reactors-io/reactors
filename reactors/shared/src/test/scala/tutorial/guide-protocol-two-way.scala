@@ -25,7 +25,7 @@ import scala.concurrent.Promise
 /*!md
 ## 2-Way Communication Protocol
 
-In this section, we will inspect a 2-way communication protocol
+In this section, we show a 2-way communication protocol
 that is a part of the `reactors-protocol` module.
 In 2-way communication,
 both the server and the client obtain a connection handle of type `TwoWay`,
@@ -41,11 +41,15 @@ class GuideTwoWayProtocol extends AsyncFunSuite {
   type Out = Int
 
   /*!md
+  In this section, we show a two-way communication protocol.
+  In two-way communication, two parties obtain a connection handle of type `TwoWay`,
+  which allows them to simultaneously send and receive an unlimited number of events,
+  until they decide to close this connection.
+  One party initiates the connection, so we call that party the client,
+  and the other party the server.
   The `TwoWay` type has two type parameters `I` and `O`,
-  that describe the types of input and output events, respectively.
-  The input events are the events that are incoming from the point of view of the
-  owner of the `TwoWay` object.
-  The output events are the outgoing events from the owner's point of view.
+  which describe the types of input and output events, respectively,
+  from the client’s point of view.
   Show graphically, this looks as follows:
 
   ```
@@ -53,7 +57,8 @@ class GuideTwoWayProtocol extends AsyncFunSuite {
                 O ----------> O
   ```
 
-  Note that these types are reversed depending on whether you are looking at the
+  Note that the types of the `TwoWay` objectt are reversed
+  depending on whether you are looking at the
   connection from the server-side or from the client-side.
   The type of the client-side 2-way connection is:
   !*/
@@ -77,7 +82,8 @@ class GuideTwoWayProtocol extends AsyncFunSuite {
     Accordingly, the `TwoWay` object contains an output channel `output`,
     and an input event stream `input`.
     To close the connection, the `TwoWay` object contains a subscription
-    object called `subscription`, which frees the associated resources.
+    object called `subscription`, which is used to close the connection
+    and free the associated resources.
     !*/
   }
 
@@ -103,13 +109,13 @@ class GuideTwoWayProtocol extends AsyncFunSuite {
     The 2-way communication protocol works in two phases.
     First, a client asks a 2-way connection server to establish a 2-way connection.
     Second, the client and the server use the 2-way channel to communicate.
-    A single 2-way connection server can create many 2-way connections.
+    Note that a single 2-way connection server can create many 2-way connections.
 
     As explained in an earlier section,
     there are usually several ways to instantiate the protocol - either as standalone
     reactor that runs only that protocol, or as a single protocol running inside a
     larger reactor.
-    Let's start with a more general variant. We will declare a reactor,
+    We start with a more general variant. We will declare a reactor,
     and instantiate a 2-way connection server within that reactor.
     The 2-way server will receive strings, and respond with the length of those strings.
     !*/
@@ -121,21 +127,21 @@ class GuideTwoWayProtocol extends AsyncFunSuite {
 
     /*!md
     The above two lines declare a reactor `Proto` object,
-    which instantiates a 2-way called `lengthServer`.
-    This is done by first calling the `twoWayServer` method on the `channels` service,
-    which is used to specify the input and the output type
-    (from the point of view of the client),
-    and then calling `serverTwoWay` to start the protocol.
+    which instantiates a 2-way server called `lengthServer`.
+    We did this by first calling the `twoWayServer` method on the `Channels` service,
+    and specifying the input and the output type
+    (from the point of view of the client).
+    We then called `serverTwoWay` to start the protocol.
     In our case, we set the input type `I` to `Int`, meaning that the client will
     receive integers from the server, and the output type `O` to `String`,
     meaning that the client will be sending strings to the server.
 
     The resulting object `lengthServer` represents the state of the connection.
-    It has an event stream called `connections`, which emits an event every time
+    It contains an event stream called `connections`, which emits an event every time
     some client requests a connection.
     If we do nothing with this event stream,
-    the the server will be silent - it will start connections, but ignore events
-    incoming from the client.
+    the server will be silent - it will start new connections, but ignore events
+    incoming from the clients.
     How the client and server communicate over the 2-way channel
     (and when to terminate this communication) is up to the user to specify.
     To customize the 2-way communication protocol with our own logic,
@@ -201,7 +207,7 @@ class GuideTwoWayProtocol extends AsyncFunSuite {
 
     In the following, we connect to the server.
     Once the server responds,
-    we use the `TwoWay[Int, String]` object to send a string event.
+    we use the `TwoWay[Int, String]` object to send a string event,
     and then print the length event that we get back:
     !*/
 

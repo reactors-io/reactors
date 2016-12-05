@@ -36,7 +36,9 @@ extends Events.Push[T] with Events[T] with Subscription.Proxy {
    */
   def enqueue(x: T): Unit = {
     try buffer.enqueue(x)
-    finally availabilityCell := true
+    finally {
+      if (!availabilityCell()) availabilityCell := true
+    }
   }
 
   /** Dequeues a previously enqueued event.
@@ -45,7 +47,7 @@ extends Events.Push[T] with Events[T] with Subscription.Proxy {
     val x = buffer.dequeue()
     try reactAll(x, null)
     finally if (buffer.isEmpty) {
-      availabilityCell := false
+      if (availabilityCell()) availabilityCell := false
     }
     x
   }

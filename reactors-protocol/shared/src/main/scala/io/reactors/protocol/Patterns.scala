@@ -33,9 +33,9 @@ trait Patterns {
      *  Assuming that `f == (x: Int) => x.seconds`:
      *
      *  {{{
-     *  this         ---1---3-----------------2------------->
-     *  throttle(f)  ----------1----------3------------2---->
-     *  time             <-1s-> <---3s--->     <--2s-->
+     *  this         ---1-2-3-------------------2------------->
+     *  throttle(f)  ---1--------2----------3------------2---->
+     *  time             <--2s--> <---3s--->     <--2s-->
      *  }}}
      *
      *  Note that exceptions on the current stream `events` result in unreacting the
@@ -95,9 +95,7 @@ trait Patterns {
 
 
 object Patterns {
-  private[protocol] class Throttle[T](
-    val events: Events[T], val f: T => Duration
-  )(
+  private[protocol] class Throttle[T](val events: Events[T], val f: T => Duration)(
     implicit val a: Arrayable[T]
   ) extends Events[T] {
     def onReaction(obs: Observer[T]) =
@@ -106,9 +104,7 @@ object Patterns {
 
   private[protocol] class ThrottleObserver[T](
     val target: Observer[T], val f: T => Duration
-  )(
-    implicit val a: Arrayable[T]
-  ) extends Observer[T] {
+  )(implicit val a: Arrayable[T]) extends Observer[T] {
     var done = false
     var queue = new UnrolledRing[T]
     def react(x: T, hint: Any) {

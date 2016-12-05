@@ -42,13 +42,27 @@ trait Signal[@spec(Int, Long, Double) T] extends Events[T] with Subscription {
    */
   def changes: Events[T] = new Signal.Changes(this)
 
+  /** Emits only when the state is equal to the specified value.
+   */
+  def is(x: T): Events[T] = this.filter(y => y == x)
+
+  /** Emits only when the state changes to the specified value.
+   *
+   *  {{{
+   *  time       --------------------->
+   *  this       --1--2--3---3--4--3-->
+   *  becomes(3) --------3---------3-->
+   *  }}}
+   */
+  def becomes(x: T): Events[T] = this.changes.filter(y => y == x)
+
   /** A signal that produces difference events between the current and previous
    *  value of `this` signal.
    *
    *  {{{
-   *  time ---------------->
-   *  this --1--3---6---7-->
-   *  diff --z--2---3---1-->
+   *  time     ---------------->
+   *  this     --1--3---6---7-->
+   *  diffPast --z--2---3---1-->
    *  }}}
    *  
    *  @tparam S       the type of the difference event

@@ -33,11 +33,11 @@ trait TwoWayProtocols {
   object TwoWay {
     /** Tag for the server-side outgoing channels of the `TwoWay` object.
      */
-    object InputTag extends Channels.Tag
+    object OutputTag extends Channels.Tag
 
     /** Tag for the client-side outgoing channels of the `TwoWay` object.
      */
-    object OutputTag extends Channels.Tag
+    object InputTag extends Channels.Tag
 
     /** Two-way server object.
      *
@@ -91,7 +91,7 @@ trait TwoWayProtocols {
       val connections = connector.events map {
         case (outputChannel, reply) =>
           val system = Reactor.self.system
-          val output = system.channels.template(TwoWay.InputTag).daemon.open[O]
+          val output = system.channels.template(TwoWay.OutputTag).daemon.open[O]
           reply ! output.channel
           TwoWay(outputChannel, output.events, Subscription(output.seal()))
       } toEmpty
@@ -115,7 +115,7 @@ trait TwoWayProtocols {
       implicit a: Arrayable[I]
     ): IVar[TwoWay[I, O]] = {
       val system = Reactor.self.system
-      val output = system.channels.template(TwoWay.OutputTag).daemon.open[I]
+      val output = system.channels.template(TwoWay.InputTag).daemon.open[I]
       val result: Events[TwoWay[I, O]] = (twoWayServer ? output.channel) map {
         inputChannel =>
         TwoWay(inputChannel, output.events, Subscription(output.seal()))
