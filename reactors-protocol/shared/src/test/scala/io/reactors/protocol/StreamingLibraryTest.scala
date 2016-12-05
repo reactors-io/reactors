@@ -98,12 +98,12 @@ object StreamingLibraryTest {
 
         server.connections.once onEvent { c =>
           val available =
-            (c.buffer.available zip valves.available) (_ && _).toSignal(false)
+            (c.buffer.available zip valves.out.available) (_ && _).toSignal(false)
           available.is(true) on {
             while (available()) {
               val x = c.buffer.dequeue()
               val y = f(x)
-              valves.channel ! y
+              valves.out.channel ! y
             }
           }
         }

@@ -27,10 +27,8 @@ trait CommunicationAbstractions {
 
   class MultiValve[T] {
     private val valves = new RHashSet[Valve[T]]
-    val available: Signal[Boolean] =
-      valves.map(_.available).toSignalAggregate(true)(_ && _)
-    val channel: Channel[T] = ???
-    def +=(x: Valve[T]): Unit = ???
+    val out: Valve[T] = ???
+    def +=(v: Valve[T]) = ???
   }
 
   case class Pump[T](
