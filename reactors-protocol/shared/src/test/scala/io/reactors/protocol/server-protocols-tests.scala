@@ -4,10 +4,8 @@ package protocol
 
 
 import io.reactors.common.afterTime
-import io.reactors.test._
 import org.scalatest._
 import org.scalatest.concurrent.AsyncTimeLimitedTests
-import scala.collection._
 import scala.concurrent._
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
@@ -45,7 +43,7 @@ extends AsyncFunSuite with AsyncTimeLimitedTests {
   test("request a reply from a server reactor") {
     val p = Promise[Int]()
     val server = system.server[Int, Int]((s, x) => x + 17)
-    val client = system.spawn(Reactor[Int] { self =>
+    system.spawn(Reactor[Int] { self =>
       (server ? 11) onEvent { y =>
         p.success(y)
       }
@@ -57,7 +55,7 @@ extends AsyncFunSuite with AsyncTimeLimitedTests {
     val p = Promise[Int]()
     val failed = Promise[Boolean]()
     val server = system.maybeServer((x: Int) => x + 17, -1)
-    val client = system.spawn(Reactor[Int] { self =>
+    system.spawn(Reactor[Int] { self =>
       (server ? -18) on {
         failed.success(true)
       }

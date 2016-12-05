@@ -43,7 +43,6 @@ trait Subscription {
 /** Default subscription implementations.
  */
 object Subscription {
-
   /** Returns a subscription that runs the specified action when unsubscribed.
    *
    *  The action **will not be** executed more than once.
