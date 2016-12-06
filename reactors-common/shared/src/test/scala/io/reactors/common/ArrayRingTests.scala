@@ -5,7 +5,6 @@ package io.reactors.common
 import io.reactors.test._
 import org.scalacheck._
 import org.scalacheck.Prop.forAllNoShrink
-import org.scalacheck.Gen.choose
 import scala.collection._
 import scala.util.Random
 
@@ -41,6 +40,17 @@ class ArrayRingCheck extends Properties("UnrolledRing") with ExtendedProperties 
       for (i <- 0 until size) assert(ring.dequeue() == i)
 
       true
+    }
+  }
+
+  property("should enqueue and dequeueMany") = forAllNoShrink(sizes) { size =>
+    stackTraced {
+      val ring = new ArrayRing[Int](size)
+
+      for (i <- 0 until size) ring.enqueue(i)
+      ring.dequeueMany(size / 2)
+
+      ring.size == (size - size / 2)
     }
   }
 

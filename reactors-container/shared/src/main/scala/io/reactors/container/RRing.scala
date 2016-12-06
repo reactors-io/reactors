@@ -41,6 +41,11 @@ class RRing[@spec(Int, Long, Double) T: Arrayable](val window: Int) {
     x
   }
 
+  def dequeueMany(n: Int): Unit = {
+    ring.dequeueMany(n)
+    rawSize := rawSize() - n
+  }
+
   def clear(): Unit = {
     ring.clear()
     rawSize := 0

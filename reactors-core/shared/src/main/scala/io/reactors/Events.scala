@@ -1735,7 +1735,10 @@ object Events {
       pushSource.reactAll(x, hint)
     }
     def except(t: Throwable) = pushSource.exceptAll(t)
-    def unreact() = pushSource.unreactAll()
+    def unreact() = {
+      done = true
+      pushSource.unreactAll()
+    }
   }
 
   private[reactors] class ToColdSignal[@spec(Int, Long, Double) T](

@@ -42,6 +42,15 @@ class ArrayRing[@specialized(Int, Long, Double) T: Arrayable](val window: Int) {
     x
   }
 
+  def dequeueMany(n: Int): Unit = {
+    if (n > size) throw new IllegalStateException(s"<size=$size>.dequeueMany($n)")
+    var left = n
+    while (left > 0) {
+      dequeue()
+      left -= 1
+    }
+  }
+
   protected def rawClear(self: ArrayRing[T]): Unit = {
     var i = 0
     val nil = implicitly[Arrayable[T]].nil
