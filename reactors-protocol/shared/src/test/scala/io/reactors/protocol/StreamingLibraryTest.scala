@@ -84,7 +84,7 @@ object StreamingLibraryTest {
       val policy = backpressurePolicy
 
       system.spawn(Reactor[StreamReq[S]] { self =>
-        val valves = new MultiValve[S]
+        val valves = new MultiValve[S](128)
 
         self.main.events onEvent { backServer =>
           backServer.connectBackpressure(outMedium, policy) onEvent {
