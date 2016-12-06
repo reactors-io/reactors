@@ -252,6 +252,11 @@ trait Events[@spec(Int, Long, Double) T] {
   def scanPast[@spec(Int, Long, Double) S](z: S)(op: (S, T) => S): Events[S] =
     new Events.ScanPast(this, z, op)
 
+  /** Returns a subsequence of events such that subsequent events are not equal.
+   */
+  def changed(initial: T): Events[T] =
+    new Events.Changed(this, initial)
+
   /** Reduces all the events in this event stream.
    *
    *  Emits a single event *after* the event stream unreacts, and then it unreacts
@@ -1838,6 +1843,34 @@ object Events {
     def react(value: T, hint: Any) {
       cnt += 1
       target.react(cnt, hint)
+    }
+    def except(t: Throwable) {
+      target.except(t)
+    }
+    def unreact() {
+      target.unreact()
+    }
+  }
+
+  private[reactors] class Changed[@spec(Int, Long, Double) T](
+    val self: Events[T],
+    val initial: T
+  ) extends Events[T] {
+    private def newChangedObserver(observer: Observer[T]): Observer[T] =
+      new ChangedObserver[T](observer, initial)
+    def onReaction(observer: Observer[T]): Subscription =
+      self.onReaction(newChangedObserver(observer))
+  }
+
+  private[reactors] class ChangedObserver[@spec(Int, Long, Double) T](
+    val target: Observer[T],
+    var last: T
+  ) extends Observer[T] {
+    def react(value: T, hint: Any) {
+      if (value != last) {
+        target.react(value, hint)
+      }
+      last = value
     }
     def except(t: Throwable) {
       target.except(t)

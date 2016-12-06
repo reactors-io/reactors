@@ -133,6 +133,10 @@ class EventBoxingBench extends Bench.Forked[Long] {
       var mapBooleanCount = 0
       emitter.map(_ > 0).on(mapBooleanCount += 1)
 
+      // changed
+      var changedCount = 0
+      emitter.changed(0).on(changedCount += 1)
+
       // takeWhile
       var takeWhileDone = false
       emitter.takeWhile(_ < 1000).onDone(takeWhileDone = true)

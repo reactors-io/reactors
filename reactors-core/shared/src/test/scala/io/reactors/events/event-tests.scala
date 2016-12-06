@@ -582,6 +582,27 @@ class EventsSpec extends FunSuite {
     assert(end.unsubscriptionCount == 1)
   }
 
+  test("changed") {
+    val emitter = new Events.Emitter[Int]
+    val seen = mutable.Buffer[Int]()
+    var done = false
+    emitter.changed(0).onEventOrDone(seen += _)(done = true)
+
+    emitter.react(0)
+    assert(seen == Nil)
+    emitter.react(1)
+    assert(seen == Seq(1))
+    emitter.react(5)
+    assert(seen == Seq(1, 5))
+    emitter.react(5)
+    assert(seen == Seq(1, 5))
+    emitter.react(7)
+    assert(seen == Seq(1, 5, 7))
+    assert(!done)
+    emitter.unreact()
+    assert(done)
+  }
+
   test("once") {
     var count = 0
     var done = 0
