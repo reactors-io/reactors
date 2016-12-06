@@ -3,11 +3,9 @@ package container
 
 
 
-import java.util.NoSuchElementException
-import org.scalacheck._
-import org.scalacheck.Gen._
-import org.scalacheck.Prop._
 import io.reactors.test._
+import org.scalacheck._
+import org.scalacheck.Prop._
 import scala.collection._
 
 
