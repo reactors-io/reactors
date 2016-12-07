@@ -87,8 +87,7 @@ trait Signal[@spec(Int, Long, Double) T] extends Events[T] with Subscription {
    *  zip  --1,a--2,a---4,a---4,b--8,b--8,c->
    *  }}}
    *
-   *  When either of the input signals unreacts, the resulting signal also
-   *  unreacts.
+   *  When both of the input signals unreact, the resulting signal also unreacts.
    *
    *  The resulting tuple of events from `this` and `that` is mapped using the
    *  user-specified mapping function `f`.

@@ -78,6 +78,8 @@ class SignalSpec extends FunSuite {
     assert(!done)
     e1.unreact()
     assert(buffer == Seq(3, 8, 10, 14, 30))
+    assert(!done)
+    e0.unreact()
     assert(done)
     e0.react(23)
     assert(buffer == Seq(3, 8, 10, 14, 30))
@@ -181,6 +183,13 @@ class SignalSpec extends FunSuite {
     assert(sdiff() == 1)
     rt.x := rt.x() + 1
     assert(sdiff() == 1)
+  }
+
+  test("be zipped on constant signals") {
+    val c1 = new Signal.Const(7)
+    val c2 = new Signal.Const(19)
+    val s = (c1 zip c2)(_ + _)
+    assert(s() == 26)
   }
 
   test("reflect changes") {
