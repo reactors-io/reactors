@@ -440,6 +440,8 @@ class EventsSpec extends FunSuite {
     e0.react(1)
     e1.react(2)
     e0.unreact()
+    assert(!done)
+    e1.unreact()
     assert(done)
     assert(!e0.hasSubscriptions)
     assert(!e1.hasSubscriptions)
