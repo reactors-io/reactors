@@ -27,7 +27,7 @@ class MultiValve[T: Arrayable](val window: Int) {
   }
 
   val out: Valve[T] = {
-    val c = Reactor.self.system.channels.open[T]
+    val c = Reactor.self.system.channels.daemon.shortcut.open[T]
     val forwarding = c.events onEvent { x =>
       if (ring.available()) {
         ring.enqueue(x)

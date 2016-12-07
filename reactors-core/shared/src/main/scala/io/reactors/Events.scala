@@ -1871,9 +1871,9 @@ object Events {
   ) extends Observer[T] {
     def react(value: T, hint: Any) {
       if (value != last) {
+        last = value
         target.react(value, hint)
       }
-      last = value
     }
     def except(t: Throwable) {
       target.except(t)

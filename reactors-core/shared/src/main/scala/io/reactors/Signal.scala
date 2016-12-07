@@ -43,10 +43,16 @@ trait Signal[@spec(Int, Long, Double) T] extends Events[T] with Subscription {
   def changes: Events[T] = new Signal.Changes(this)
 
   /** Emits only when the state is equal to the specified value.
+   *
+   *  Will immediately emit upon subscription if the current signal value is equal to
+   *  the specified value.
    */
-  def is(x: T): Events[T] = this.filter(y => y == x)
+  def is(x: T): Events[T] = new Signal.Is(this, x)
 
   /** Emits only when the state changes to the specified value.
+   *
+   *  This means that the value was previously not equal to the specified value,
+   *  but then became equal.
    *
    *  {{{
    *  time       --------------------->
@@ -351,6 +357,24 @@ object Signal {
     def react(x: T, hint: Any) = if (cached != x) {
       cached = x
       target.react(x, hint)
+    }
+    def except(t: Throwable) = target.except(t)
+    def unreact() = target.unreact()
+  }
+
+  private[reactors] class Is[@spec(Int, Long, Double) T](val self: Signal[T], val x: T)
+  extends Events[T] {
+    def onReaction(obs: Observer[T]) = {
+      if (self() == x) obs.react(x, null)
+      self.onReaction(new IsObserver(obs, x))
+    }
+  }
+
+  private[reactors] class IsObserver[@spec(Int, Long, Double) T](
+    val target: Observer[T],val y: T
+  ) extends Observer[T] {
+    def react(x: T, hint: Any) = {
+      if (y == x) target.react(x, hint)
     }
     def except(t: Throwable) = target.except(t)
     def unreact() = target.unreact()
