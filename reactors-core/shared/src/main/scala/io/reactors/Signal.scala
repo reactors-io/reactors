@@ -400,21 +400,28 @@ object Signal {
     val that: Signal[S],
     val f: (T, S) => R
   ) extends Events[R] {
-    def newZipThisObserver(obs: Observer[R]) =
-      new ZipThisObserver(obs, f, self, that)
-    def newZipThatObserver(obs: Observer[R], thisObs: ZipThisObserver[T, S, R]) =
-      new ZipThatObserver(obs, f, thisObs)
+    def newZipThisObserver(obs: Observer[R], state: ZipState) =
+      new ZipThisObserver(obs, f, self, that, state)
+    def newZipThatObserver(obs: Observer[R], state: ZipState) =
+      new ZipThatObserver(obs, f, self, that, state)
     def onReaction(obs: Observer[R]) = {
-      val thisObs = newZipThisObserver(obs)
-      val thatObs = newZipThatObserver(obs, thisObs)
+      val state = new ZipState
+      val thisObs = newZipThisObserver(obs, state)
+      val thatObs = newZipThatObserver(obs, state)
       val sub = new Subscription.Composite(
         self.onReaction(thisObs),
         that.onReaction(thatObs)
       )
-      thisObs.subscription = sub
+      state.subscription = sub
       sub
     }
   }
+
+  private[reactors] class ZipState(
+    var thisDone: Boolean = false,
+    var thatDone: Boolean = false,
+    var subscription: Subscription = Subscription.empty
+  )
 
   private[reactors] class ZipThisObserver[
     @spec(Int, Long, Double) T,
@@ -424,11 +431,10 @@ object Signal {
     val target: Observer[R],
     val f: (T, S) => R,
     val self: Signal[T],
-    val that: Signal[S]
+    val that: Signal[S],
+    val state: ZipState
   ) extends Observer[T] {
-    var subscription: Subscription = _
-    var done = false
-    def react(x: T, hint: Any): Unit = if (!done) {
+    def react(x: T, hint: Any): Unit = if (!state.thisDone) {
       val event = try {
         f(x, that())
       } catch {
@@ -438,13 +444,15 @@ object Signal {
       }
       target.react(event, null)
     }
-    def except(t: Throwable) = if (!done) {
+    def except(t: Throwable) = if (!state.thisDone) {
       target.except(t)
     }
-    def unreact() = if (!done) {
-      done = true
-      subscription.unsubscribe()
-      target.unreact()
+    def unreact() = if (!state.thisDone) {
+      state.thisDone = true
+      if (state.thatDone) {
+        state.subscription.unsubscribe()
+        target.unreact()
+      }
     }
   }
 
@@ -455,11 +463,13 @@ object Signal {
   ](
     val target: Observer[R],
     val f: (T, S) => R,
-    val thisObserver: ZipThisObserver[T, S, R]
+    val self: Signal[T],
+    val that: Signal[S],
+    val state: ZipState
   ) extends Observer[S] {
-    def react(x: S, hint: Any): Unit = if (!thisObserver.done) {
+    def react(x: S, hint: Any): Unit = if (!state.thatDone) {
       val event = try {
-        f(thisObserver.self(), x)
+        f(self(), x)
       } catch {
         case NonLethal(t) =>
           target.except(t)
@@ -467,13 +477,15 @@ object Signal {
       }
       target.react(event, null)
     }
-    def except(t: Throwable) = if (!thisObserver.done) {
+    def except(t: Throwable) = if (!state.thatDone) {
       target.except(t)
     }
-    def unreact() = if (!thisObserver.done) {
-      thisObserver.done = true
-      thisObserver.subscription.unsubscribe()
-      target.unreact()
+    def unreact() = if (!state.thatDone) {
+      state.thatDone = true
+      if (state.thisDone) {
+        state.subscription.unsubscribe()
+        target.unreact()
+      }
     }
   }
 

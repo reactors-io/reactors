@@ -12,8 +12,6 @@ import scala.util.Random
 
 class ArrayRingCheck extends Properties("ArrayRing") with ExtendedProperties {
 
-  val smallSizes = detChoose(0, UnrolledRing.INITIAL_NODE_LENGTH)
-
   val sizes = detChoose(1, 1000)
 
   val probs = detChoose(0, 100)

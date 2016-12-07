@@ -17,10 +17,10 @@ class MultiValve[T: Arrayable](val window: Int) {
   private val slowest = valves.map(_._2).toSignalAggregate(Long.MaxValue)(math.min)
   private val oldest = RCell(0L)
   private val next = RCell(0L)
-  private val needsCleaning = (slowest zip oldest)(_ > _).changes.toSignal(false)
-  private val cleaning = needsCleaning.is(true) on {
+  private val needsFlush = (slowest zip oldest)(_ > _).changes.toSignal(false)
+  private val flushing = needsFlush.is(true) on {
     val total = slowest() - oldest()
-    while (needsCleaning()) {
+    while (needsFlush()) {
       oldest := oldest() + 1
     }
     ring.dequeueMany(total.toInt)
@@ -32,12 +32,13 @@ class MultiValve[T: Arrayable](val window: Int) {
       if (ring.available()) {
         ring.enqueue(x)
         next := next() + 1
+        if (slowest() > next()) ring.dequeue()
       } else throw new IllegalStateException("Valve is not available.")
     }
     Valve(
       c.channel,
       ring.available,
-      cleaning.chain(forwarding).andThen(c.seal())
+      flushing.chain(forwarding).andThen(c.seal())
     )
   }
 
