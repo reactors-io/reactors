@@ -10,17 +10,19 @@ import io.reactors.common.ArrayRing
 class RRing[@spec(Int, Long, Double) T: Arrayable](val window: Int) {
   private var ring: ArrayRing[T] = _
   private var rawSize: RCell[Int] = _
+  private var rawAvailable: Signal[Boolean] = _
 
   def init(self: RRing[T]): Unit = {
     ring = new ArrayRing[T](window)
     rawSize = RCell(0)
+    rawAvailable = rawSize.map(_ < window).changed(true).toSignal(true)
   }
 
   init(this)
 
   def sizes: Signal[Int] = rawSize
 
-  def available: Signal[Boolean] = rawSize.map(_ < window).changed(true).toSignal(true)
+  def available: Signal[Boolean] = rawAvailable
 
   def size: Int = rawSize()
 

@@ -19,8 +19,8 @@ import scala.util.Random
 
 
 class MultiValveCheck extends Properties("MultiValve") with ExtendedProperties {
-  val sizes = detChoose(1, 1000)
-  val windows = detChoose(1, 64)
+  val sizes = detChoose(1, 1024)
+  val windows = detChoose(1, 256)
   val probs = detChoose(0, 100)
 
   property("available when empty") = forAllNoShrink(sizes, windows) {
@@ -159,6 +159,57 @@ class MultiValveCheck extends Properties("MultiValve") with ExtendedProperties {
           }
 
           Await.result(done.future, 500.seconds) == (0 until total)
+        } finally {
+          system.shutdown()
+        }
+      }
+    }
+
+  property("single valve, using backpressure channels") =
+    forAllNoShrink(sizes, windows, windows) { (total, window, pressureWindow) =>
+      stackTraced {
+        val system = ReactorSystem.default("test")
+
+        try {
+          val done = Promise[Seq[Int]]()
+
+          system.spawnLocal[Unit] { self =>
+            val seen = mutable.Buffer[Int]()
+            val medium = Backpressure.Medium.default[Int]
+            val policy = Backpressure.Policy.batching(pressureWindow)
+            val server = system.channels.backpressureServer(medium)
+              .serveBackpressure(medium, policy)
+            server.connections onEvent { c =>
+              c.buffer.available.is(true) on {
+                while (c.buffer.available()) {
+                  val x = c.buffer.dequeue()
+                  seen += x
+                  if (x == (total - 1)) {
+                    done.success(seen)
+                  }
+                }
+              }
+            }
+
+            server.channel.connectBackpressure(medium, policy) onEvent { v =>
+              val multi = new MultiValve[Int](window)
+              multi += v
+
+              var i = 0
+              multi.out.available.is(true) on {
+                println("starting at: " + i)
+                while (multi.out.available() && i < total) {
+                  multi.out.channel ! i
+                  if (!multi.out.available()) {
+                    println("nope")
+                  }
+                  i += 1
+                }
+              }
+            }
+          }
+
+          Await.result(done.future, 1011.seconds) == (0 until total)
         } finally {
           system.shutdown()
         }
