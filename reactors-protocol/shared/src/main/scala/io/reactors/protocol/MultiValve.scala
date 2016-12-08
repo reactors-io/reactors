@@ -17,12 +17,10 @@ class MultiValve[T: Arrayable](val window: Int) {
   private val slowest = valves.map(_._2).toSignalAggregate(Long.MaxValue)(math.min)
   private val oldest = RCell(0L)
   private val next = RCell(0L)
-  private val needsFlush = (slowest zip oldest)(_ > _).changes.toSignal(false)
-  private val flushing = needsFlush.is(true) on {
+  private val flush = Reactor.self.system.channels.daemon.open[Unit]
+  flush.events on {
     val total = slowest() - oldest()
-    while (needsFlush()) {
-      oldest := oldest() + 1
-    }
+    oldest := oldest() + total
     ring.dequeueMany(total.toInt)
   }
 
@@ -38,7 +36,7 @@ class MultiValve[T: Arrayable](val window: Int) {
     Valve(
       c.channel,
       ring.available,
-      flushing.chain(forwarding).andThen(c.seal())
+      forwarding.andThen(c.seal()).andThen(valves.clear()).andThen(flush.seal())
     )
   }
 
@@ -54,6 +52,10 @@ class MultiValve[T: Arrayable](val window: Int) {
         val x = ring(idx)
         v.channel ! x
         pos := pos() + 1
+      }
+      val total = slowest() - oldest()
+      if (total > 0) {
+        flush.channel ! ()
       }
     }
 

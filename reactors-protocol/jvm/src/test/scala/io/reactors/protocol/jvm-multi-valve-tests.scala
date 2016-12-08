@@ -32,12 +32,15 @@ class MultiValveCheck extends Properties("MultiValve") with ExtendedProperties {
 
         system.spawnLocal[Unit] { self =>
           val multi = new MultiValve[Int](window)
-          for (i <- 0 until total) {
-            assert(multi.out.available())
-            multi.out.channel ! i
+
+          var i = 0
+          multi.out.available.is(true) on {
+            while (multi.out.available() && i < total) {
+              multi.out.channel ! i
+              i += 1
+            }
+            if (i == total) done.trySuccess(true)
           }
-          multi.out.available()
-          done.success(true)
         }
 
         Await.result(done.future, 5.seconds)
@@ -63,12 +66,14 @@ class MultiValveCheck extends Properties("MultiValve") with ExtendedProperties {
           val multi = new MultiValve[Int](window)
           multi += valve
 
-          for (i <- 0 until total) {
-            assert(multi.out.available())
-            multi.out.channel ! i
+          var i = 0
+          multi.out.available.is(true) on {
+            while (multi.out.available() && i < total) {
+              multi.out.channel ! i
+              i += 1
+            }
+            if (i == total) done.trySuccess(true)
           }
-          assert(multi.out.available())
-          done.success(true)
         }
 
         Await.result(done.future, 5.seconds)
@@ -94,12 +99,14 @@ class MultiValveCheck extends Properties("MultiValve") with ExtendedProperties {
           val multi = new MultiValve[Int](window)
           for (v <- vs) multi += v
 
-          for (i <- 0 until total) {
-            assert(multi.out.available())
-            multi.out.channel ! i
+          var i = 0
+          multi.out.available.is(true) on {
+            while (multi.out.available() && i < total) {
+              multi.out.channel ! i
+              i += 1
+            }
+            if (i == total) done.trySuccess(true)
           }
-          assert(multi.out.available())
-          done.success(true)
         }
 
         Await.result(done.future, 5.seconds)
@@ -158,7 +165,7 @@ class MultiValveCheck extends Properties("MultiValve") with ExtendedProperties {
             }
           }
 
-          Await.result(done.future, 500.seconds) == (0 until total)
+          Await.result(done.future, 10.seconds) == (0 until total)
         } finally {
           system.shutdown()
         }
@@ -197,19 +204,15 @@ class MultiValveCheck extends Properties("MultiValve") with ExtendedProperties {
 
               var i = 0
               multi.out.available.is(true) on {
-                println("starting at: " + i)
                 while (multi.out.available() && i < total) {
                   multi.out.channel ! i
-                  if (!multi.out.available()) {
-                    println("nope")
-                  }
                   i += 1
                 }
               }
             }
           }
 
-          Await.result(done.future, 1011.seconds) == (0 until total)
+          Await.result(done.future, 1000.seconds) == (0 until total)
         } finally {
           system.shutdown()
         }
