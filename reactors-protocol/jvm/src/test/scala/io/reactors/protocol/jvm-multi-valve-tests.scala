@@ -83,7 +83,7 @@ class MultiValveCheck extends Properties("MultiValve") with ExtendedProperties {
     }
   }
 
-  property("dual valve, always available") = forAllNoShrink(sizes, windows) {
+  property("two valves, always available") = forAllNoShrink(sizes, windows) {
     (total, window) =>
     stackTraced {
       val system = ReactorSystem.default("test")
@@ -218,4 +218,17 @@ class MultiValveCheck extends Properties("MultiValve") with ExtendedProperties {
         }
       }
     }
+
+//  property("two valves, using backpressure") =
+//    forAllNoShrink(sizes, windows, windows) { (total, window, pressureWindow) =>
+//      stackTraced {
+//        val system = ReactorSystem.default("test")
+//
+//        try {
+//          val done1 = Promise[Boolean]
+//        } finally {
+//          system.shutdown()
+//        }
+//      }
+//    }
 }

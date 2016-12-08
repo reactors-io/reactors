@@ -54,9 +54,7 @@ class MultiValve[T: Arrayable](val window: Int) {
         pos := pos() + 1
       }
       val total = slowest() - oldest
-      if (total > 0) {
-        flush.channel ! ()
-      }
+      if (total > 0) flush.channel ! ()
     }
 
     moving.chain(available).chain(morePending).andThen(valves -= (v, pos))
