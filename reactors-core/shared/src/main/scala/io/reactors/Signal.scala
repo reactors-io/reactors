@@ -54,6 +54,9 @@ trait Signal[@spec(Int, Long, Double) T] extends Events[T] with Subscription {
    *  This means that the value was previously not equal to the specified value,
    *  but then became equal.
    *
+   *  Will not immediately emit upon subscription if the current signal value is
+   *  equal to the specified value.
+   *
    *  {{{
    *  time       --------------------->
    *  this       --1--2--3---3--4--3-->

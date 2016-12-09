@@ -14,6 +14,7 @@ import scala.collection._
 import scala.concurrent.duration._
 import scala.concurrent.Await
 import scala.concurrent.Promise
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.Random
 
 
@@ -43,7 +44,7 @@ class MultiValveCheck extends Properties("MultiValve") with ExtendedProperties {
           }
         }
 
-        Await.result(done.future, 5.seconds)
+        Await.result(done.future, 10.seconds)
       } finally {
         system.shutdown()
       }
@@ -76,7 +77,7 @@ class MultiValveCheck extends Properties("MultiValve") with ExtendedProperties {
           }
         }
 
-        Await.result(done.future, 5.seconds)
+        Await.result(done.future, 10.seconds)
       } finally {
         system.shutdown()
       }
@@ -109,7 +110,7 @@ class MultiValveCheck extends Properties("MultiValve") with ExtendedProperties {
           }
         }
 
-        Await.result(done.future, 5.seconds)
+        Await.result(done.future, 10.seconds)
       } finally {
         system.shutdown()
       }
@@ -212,23 +213,65 @@ class MultiValveCheck extends Properties("MultiValve") with ExtendedProperties {
             }
           }
 
-          Await.result(done.future, 1000.seconds) == (0 until total)
+          Await.result(done.future, 10.seconds) == (0 until total)
         } finally {
           system.shutdown()
         }
       }
     }
 
-//  property("two valves, using backpressure") =
-//    forAllNoShrink(sizes, windows, windows) { (total, window, pressureWindow) =>
-//      stackTraced {
-//        val system = ReactorSystem.default("test")
-//
-//        try {
-//          val done1 = Promise[Boolean]
-//        } finally {
-//          system.shutdown()
-//        }
-//      }
-//    }
+  property("two valves, using backpressure") =
+    forAllNoShrink(sizes, windows, windows) { (total, window, pressureWindow) =>
+      stackTraced {
+        val system = ReactorSystem.default("test")
+
+        try {
+          val done1 = Promise[Boolean]
+          val done2 = Promise[Boolean]
+
+          system.spawnLocal[Unit] { self =>
+            val medium = Backpressure.Medium.default[Int]
+            val policy = Backpressure.Policy.batching(pressureWindow)
+
+            val server = system.channels.backpressureServer(medium)
+              .serveBackpressure(medium, policy)
+            def accept(p: Pump[Int], d: Promise[Boolean]): Unit = {
+              val seen = mutable.Buffer[Int]()
+              p.buffer.available.is(true) onEvent { x =>
+                while (p.buffer.available()) {
+                  seen += p.buffer.dequeue()
+                }
+                if (seen.size == total) d.success(seen == (0 until total))
+              }
+            }
+            server.connections.once onEvent { p => accept(p, done1) }
+            server.connections.drop(1).once onEvent { p => accept(p, done2) }
+
+            server.channel.connectBackpressure(medium, policy) onEvent { v1 =>
+              server.channel.connectBackpressure(medium, policy) onEvent { v2 =>
+                val multi = new MultiValve[Int](window)
+                multi += v1
+                multi += v2
+
+                var i = 0
+                multi.out.available.is(true) on {
+                  while (multi.out.available() && i < total) {
+                    multi.out.channel ! i
+                    i += 1
+                  }
+                }
+              }
+            }
+          }
+
+          val done = for {
+            x <- done1.future
+            y <- done2.future
+          } yield x && y
+          Await.result(done, 10.seconds)
+        } finally {
+          system.shutdown()
+        }
+      }
+    }
 }
