@@ -9,6 +9,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import org.scalatest._
 import org.scalatest.concurrent.AsyncTimeLimitedTests
+import scala.concurrent.Promise
 
 
 
@@ -19,9 +20,22 @@ class StreamingLibraryTest extends AsyncFunSuite with AsyncTimeLimitedTests {
 
   implicit override def executionContext = ExecutionContext.Implicits.global
 
+  import StreamingLibraryTest._
+
   test("streaming map") {
-    // TODO: Implement test.
-    Future(assert(true))
+    val total = 4096
+    val done = Promise[Seq[Int]]()
+
+    system.spawnLocal[Unit] { self =>
+      val seen = mutable.Buffer[Int]()
+      val source = new Source[Int](system)
+      source.map(_ * 2).foreach { x =>
+        seen += x
+        if (seen.size == total) done.success(seen)
+      }
+    }
+
+    done.future.map(t => assert(t == (0 until total)))
   }
 }
 
@@ -38,7 +52,7 @@ object StreamingLibraryTest {
 
     def streamServer: StreamServer[T]
 
-    def backpressureMedium[T: Arrayable]: StreamMedium[T]
+    def backpressureMedium[R: Arrayable]: StreamMedium[R]
 
     def backpressurePolicy: Backpressure.Policy
 
@@ -46,8 +60,8 @@ object StreamingLibraryTest {
       new Mapped(this, f)
 
     def foreach(f: T => Unit)(implicit a: Arrayable[T]): Unit = {
-      val medium = Backpressure.Medium.reliable[T](Reliable.TwoWay.Policy.reorder(128))
-      val policy = Backpressure.Policy.sliding(128)
+      val medium = backpressureMedium[T]
+      val policy = backpressurePolicy
       system.backpressureServer(medium, policy) { server =>
         streamServer ! server.channel
         server.connections.once onEvent { pump =>
@@ -60,23 +74,38 @@ object StreamingLibraryTest {
     }
   }
 
-  class Source[T](val system: ReactorSystem) extends Stream[T] {
-    val streamServer = ???
+  class Source[T: Arrayable](val system: ReactorSystem) extends Stream[T] {
+    def backpressureMedium[R: Arrayable] =
+      Backpressure.Medium.reliable[R](Reliable.TwoWay.Policy.reorder(256))
 
-    val backpressurePolicy = Backpressure.Policy.sliding(128)
+    val backpressurePolicy = Backpressure.Policy.sliding(256)
 
-    def backpressureMedium[T: Arrayable] =
-      Backpressure.Medium.reliable[T](Reliable.TwoWay.Policy.reorder(128))
+    val (valve, streamServer) = {
+      val multi = new MultiValve[T](256)
+
+      val server = system.channels.open[StreamReq[T]]
+      server.events.onEvent { bs =>
+        bs.connectBackpressure(backpressureMedium[T], backpressurePolicy) onEvent { v =>
+          multi += v
+        }
+      }
+
+      (multi.out, server.channel)
+    }
   }
 
-  class Mapped[T, S](source: Stream[T], f: T => S)(
-    implicit val at: Arrayable[T], as: Arrayable[S]
-  ) extends Stream[S] {
-    val system = source.system
+  trait Transformed[T, S] extends Stream[S] {
+    implicit val arrayableT: Arrayable[T]
 
-    def backpressureMedium[T: Arrayable] = source.backpressureMedium[T]
+    implicit val arrayableS: Arrayable[S]
 
-    val backpressurePolicy = source.backpressurePolicy
+    def backpressureMedium[R: Arrayable] = parent.backpressureMedium[R]
+
+    val backpressurePolicy = parent.backpressurePolicy
+
+    def parent: Stream[T]
+
+    def kernel(x: T, output: Channel[S]): Unit
 
     val streamServer: StreamServer[S] = {
       val inMedium = backpressureMedium[T]
@@ -84,52 +113,40 @@ object StreamingLibraryTest {
       val policy = backpressurePolicy
 
       system.spawn(Reactor[StreamReq[S]] { self =>
-        val valves = new MultiValve[S](128)
+        val multi = new MultiValve[S](256)
 
         self.main.events onEvent { backServer =>
           backServer.connectBackpressure(outMedium, policy) onEvent {
-            valve => valves += valve
+            valve => multi += valve
           }
         }
 
         val server = self.system.channels.backpressureServer(inMedium)
           .serveBackpressureConnections(inMedium, policy)
-        source.streamServer ! server.channel
+        parent.streamServer ! server.channel
 
         server.connections.once onEvent { c =>
-          val available =
-            (c.buffer.available zip valves.out.available) (_ && _).toSignal(false)
+          val available = (c.buffer.available zip multi.out.available)(_ && _)
+            .changes.toSignal(false)
           available.is(true) on {
             while (available()) {
               val x = c.buffer.dequeue()
-              val y = f(x)
-              valves.out.channel ! y
+              kernel(x, multi.out.channel)
             }
           }
         }
-//          def loop(): Unit = {
-//            if (connection.buffer.available()) {
-//              val x = connection.buffer.dequeue()
-//              val y = f(x)
-//              val pushes = for (v <- valves.toEvents) yield {
-//                if (v.available()) {
-//                  v.channel ! y
-//                  new Events.Never[Unit]
-//                } else {
-//                  v.available.filter(_ == true).once.map(_ => v.channel ! y)
-//                }
-//              }
-//              pushes.union onDone {
-//                connection.pressure ! 1
-//                loop()
-//              }
-//            } else connection.buffer.available.filter(_ == true).once on {
-//              loop()
-//            }
-//          }
-//          loop()
-//        }
       })
+    }
+  }
+
+  class Mapped[T, S](val parent: Stream[T], val f: T => S)(
+    implicit val arrayableT: Arrayable[T], val arrayableS: Arrayable[S]
+  ) extends Transformed[T, S] {
+    lazy val system = parent.system
+
+    def kernel(x: T, output: Channel[S]): Unit = {
+      val y = f(x)
+      output ! y
     }
   }
 
