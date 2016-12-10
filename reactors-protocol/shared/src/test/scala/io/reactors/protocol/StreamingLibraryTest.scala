@@ -22,16 +22,16 @@ class StreamingLibraryTest extends AsyncFunSuite with AsyncTimeLimitedTests {
 
   import StreamingLibraryTest._
 
-  test("streaming map") {
+  test("streaming filter and map") {
     val total = 4096
     val done = Promise[Seq[Int]]()
 
     system.spawnLocal[Unit] { self =>
       val seen = mutable.Buffer[Int]()
       val source = new Source[Int](system)
-      val ready = source.map(_ * 2).foreach { x =>
+      val ready = source.filter(_ % 2 == 0).map(_ * 2).foreach { x =>
         seen += x
-        if (seen.size == total) done.success(seen)
+        if (seen.size == total / 2) done.success(seen)
       }
 
       (ready ? ()) on {
@@ -45,7 +45,7 @@ class StreamingLibraryTest extends AsyncFunSuite with AsyncTimeLimitedTests {
       }
     }
 
-    done.future.map(t => assert(t == (0 until total).map(_ * 2)))
+    done.future.map(t => assert(t == (0 until total).filter(_ % 2 == 0).map(_ * 2)))
   }
 }
 
@@ -68,6 +68,9 @@ object StreamingLibraryTest {
 
     def map[S](f: T => S)(implicit at: Arrayable[T], as: Arrayable[S]): Stream[S] =
       new Mapped(this, f)
+
+    def filter(p: T => Boolean)(implicit at: Arrayable[T]): Stream[T] =
+      new Filtered(this, p)
 
     def foreach(f: T => Unit)(implicit a: Arrayable[T]): Server[Unit, Unit] = {
       val medium = backpressureMedium[T]
@@ -167,4 +170,13 @@ object StreamingLibraryTest {
     }
   }
 
+  class Filtered[T](val parent: Stream[T], val p: T => Boolean)(
+    implicit val arrayableT: Arrayable[T], val arrayableS: Arrayable[T]
+  ) extends Transformed[T, T] {
+    lazy val system = parent.system
+
+    def kernel(x: T, output: Channel[T]): Unit = {
+      if (p(x)) output ! x
+    }
+  }
 }
