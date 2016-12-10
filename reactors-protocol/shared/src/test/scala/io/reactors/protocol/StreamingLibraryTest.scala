@@ -45,7 +45,7 @@ class StreamingLibraryTest extends AsyncFunSuite with AsyncTimeLimitedTests {
       }
     }
 
-    done.future.map(t => assert(t == (0 until total)))
+    done.future.map(t => assert(t == (0 until total).map(_ * 2)))
   }
 }
 
