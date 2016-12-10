@@ -425,7 +425,7 @@ trait Events[@spec(Int, Long, Double) T] {
   def until[@spec(Int, Long, Double) S](that: Events[S]): Events[T] =
     new Events.Until[T, S](this, that)
 
-  /** Delays events from this stream until first event from the target event stream.
+  /** Defers events from this stream until first event from the target event stream.
    *
    *  All events from this event stream are kept in a buffer until the first occurrence
    *  of an event in `that` event stream. After that, all events from the buffer are
@@ -445,10 +445,10 @@ trait Events[@spec(Int, Long, Double) T] {
    *  @param that     event stream whose first event flushes the events.
    *  @return
    */
-  def delay[@spec(Int, Long, Double) S](that: Events[S])(
+  def defer[@spec(Int, Long, Double) S](that: Events[S])(
     implicit a: Arrayable[T]
   ): Events[T] =
-    new Events.Delay[T, S](this, that)
+    new Events.Defer[T, S](this, that)
 
   /** Creates an event stream that forwards an event from this event stream only once.
    *
@@ -690,8 +690,8 @@ trait Events[@spec(Int, Long, Double) T] {
    *  val e1 = new Events.Emitter[Int]
    *  val e2 = new Events.Emitter[Int]
    *  val currentEvent = currentEvents.mux()
-   *  val prints = currentEvent.onEvent(println) 
-   *  
+   *  val prints = currentEvent.onEvent(println)
+   *
    *  currentEvents.react(e1)
    *  e2.react(1) // nothing is printed
    *  e1.react(2) // 2 is printed
@@ -748,7 +748,7 @@ trait Events[@spec(Int, Long, Double) T] {
   def done(implicit ds: Spec[T]): Events[Unit] = new Events.Unreacted(this)
 
   /** Creates a union of `this` and `that` event stream.
-   *  
+   *
    *  The resulting event stream emits events from both `this` and `that`
    *  event stream.
    *  It unreacts when both `this` and `that` event stream unreact.
@@ -770,7 +770,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  subscribed to multiple times.
    *
    *  Example:
-   *  
+   *
    *  {{{
    *  time  -------------------------->
    *  this     --1----2--------3------>
@@ -778,7 +778,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *                 ---4----------7-->
    *  union -----1----2-4---5--3-6-7-->
    *  }}}
-   *  
+   *
    *  '''Use case:'''
    *
    *  {{{
@@ -820,7 +820,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *
    *  '''Note:''' This operation potentially caches events from `that`.
    *  Unless certain that `this` eventually unreacts, `concat` should not be used.
-   *  
+   *
    *  @param that      another event stream for the concatenation
    *  @param a         evidence that arrays can be created for the type `T`
    *  @return          event stream that concatenates events from `this` and `that`
@@ -844,7 +844,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  event streams.
    *  Unless each event stream emitted by `this` is known to unreact eventually,
    *  this operation should not be called.
-   *  
+   *
    *  @tparam S         the type of the events in event streams emitted by `this`
    *  @param evidence   evidence that events of type `T` produced by `this`
    *                    are actually event stream values of type `S`
@@ -883,7 +883,7 @@ trait Events[@spec(Int, Long, Double) T] {
     new Events.PostfixFirst[T, S](this, evidence)
 
   /** Syncs the arrival of events from `this` and `that` event stream.
-   *  
+   *
    *  Ensures that pairs of events from this event stream and that event stream
    *  are emitted together.
    *  If the events produced in time by `this` and `that`, the sync will be as
@@ -2022,7 +2022,7 @@ object Events {
     def unreact() = {}
   }
 
-  private[reactors] class Delay[
+  private[reactors] class Defer[
     @spec(Int, Long, Double) T,
     @spec(Int, Long, Double) S
   ](
@@ -2030,8 +2030,8 @@ object Events {
     val that: Events[S]
   )(implicit a: Arrayable[T]) extends Events[T] {
     def onReaction(observer: Observer[T]): Subscription = {
-      val delayObserver = new DelayObserver[T, S](observer, false, false, false)
-      val delayThatObserver = new DelayThatObserver(delayObserver)
+      val delayObserver = new DeferObserver[T, S](observer, false, false, false)
+      val delayThatObserver = new DeferThatObserver(delayObserver)
       delayObserver.selfSubscription = self.onReaction(delayObserver)
       delayObserver.thatSubscription = that.onReaction(delayThatObserver)
       new Subscription.Composite(
@@ -2041,7 +2041,7 @@ object Events {
     }
   }
 
-  private[reactors] class DelayObserver[
+  private[reactors] class DeferObserver[
     @spec(Int, Long, Double) T,
     @spec(Int, Long, Double) S
   ](
@@ -2053,7 +2053,7 @@ object Events {
     private[reactors] var buffer: UnrolledRing[T] = _
     private[reactors] var selfSubscription: Subscription = _
     private[reactors] var thatSubscription: Subscription = _
-    def init(self: DelayObserver[T, S]): Unit = {
+    def init(self: DeferObserver[T, S]): Unit = {
       buffer = new UnrolledRing[T]
     }
     init(this)
@@ -2074,11 +2074,11 @@ object Events {
     }
   }
 
-  private[reactors] class DelayThatObserver[
+  private[reactors] class DeferThatObserver[
     @spec(Int, Long, Double) T,
     @spec(Int, Long, Double) S
   ](
-    val delayObserver: DelayObserver[T, S]
+    val delayObserver: DeferObserver[T, S]
   ) extends Observer[S] {
     def react(x: S, hint: Any): Unit = {
       delayObserver.thatSubscription.unsubscribe()

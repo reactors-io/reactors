@@ -572,13 +572,13 @@ class EventsSpec extends FunSuite {
     assert(sum == 26)
   }
 
-  test("delay") {
+  test("defer") {
     var done = false
     var seen = mutable.Buffer[Int]()
     val emitter = new Events.Emitter[Int]
     val go = new IVar[Boolean]
-    val delayed = emitter.delay(go)
-    delayed.onEventOrDone(seen += _)(done = true)
+    val deferred = emitter.defer(go)
+    deferred.onEventOrDone(seen += _)(done = true)
 
     emitter.react(7)
     assert(!done)
@@ -595,13 +595,13 @@ class EventsSpec extends FunSuite {
     assert(done)
   }
 
-  test("delay early unreact") {
+  test("defer early unreact") {
     var done = false
     var seen = mutable.Buffer[Int]()
     val emitter = new Events.Emitter[Int]
     val go = new IVar[Boolean]
-    val delayed = emitter.delay(go)
-    delayed.onEventOrDone(seen += _)(done = true)
+    val deferred = emitter.defer(go)
+    deferred.onEventOrDone(seen += _)(done = true)
 
     emitter.react(7)
     assert(!done)

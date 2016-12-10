@@ -24,7 +24,7 @@ trait BackpressureProtocols {
     /** Represents an established backpressure connection.
      *
      *  Connection clients must manually release events from the associated event buffer
-     *  and then send prssure tokens back to the producer. The event buffer has an
+     *  and then send pressure tokens back to the producer. The event buffer has an
      *  `available` signal used to notify about event availability.
      *
      *  For convenience, every backpressure connection can be converted into a `Pump`

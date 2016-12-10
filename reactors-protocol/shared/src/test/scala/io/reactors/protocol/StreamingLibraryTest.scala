@@ -29,9 +29,19 @@ class StreamingLibraryTest extends AsyncFunSuite with AsyncTimeLimitedTests {
     system.spawnLocal[Unit] { self =>
       val seen = mutable.Buffer[Int]()
       val source = new Source[Int](system)
-      source.map(_ * 2).foreach { x =>
+      val ready = source.map(_ * 2).foreach { x =>
         seen += x
         if (seen.size == total) done.success(seen)
+      }
+
+      (ready ? ()) on {
+        var i = 0
+        source.valve.available.is(true) on {
+          while (source.valve.available() && i < total) {
+            source.valve.channel ! i
+            i += 1
+          }
+        }
       }
     }
 
@@ -59,16 +69,22 @@ object StreamingLibraryTest {
     def map[S](f: T => S)(implicit at: Arrayable[T], as: Arrayable[S]): Stream[S] =
       new Mapped(this, f)
 
-    def foreach(f: T => Unit)(implicit a: Arrayable[T]): Unit = {
+    def foreach(f: T => Unit)(implicit a: Arrayable[T]): Server[Unit, Unit] = {
       val medium = backpressureMedium[T]
       val policy = backpressurePolicy
-      system.backpressureServer(medium, policy) { server =>
+      system.spawnLocal[Server.Req[Unit, Unit]] { self =>
+        val server = system.channels.backpressureServer(medium)
+          .serveBackpressure(medium, policy)
         streamServer ! server.channel
-        server.connections.once onEvent { pump =>
+        val incoming = server.connections.once
+        incoming onEvent { pump =>
           pump.buffer.onEvent(f)
-          pump.buffer.available.filter(_ == true) on {
+          pump.buffer.available.is(true) on {
             while (pump.buffer.nonEmpty) pump.buffer.dequeue()
           }
+        }
+        self.main.events.defer(incoming) onMatch {
+          case (_, ch) => ch ! ()
         }
       }
     }
@@ -114,25 +130,26 @@ object StreamingLibraryTest {
 
       system.spawn(Reactor[StreamReq[S]] { self =>
         val multi = new MultiValve[S](256)
-
-        self.main.events onEvent { backServer =>
-          backServer.connectBackpressure(outMedium, policy) onEvent {
-            valve => multi += valve
-          }
-        }
-
         val server = self.system.channels.backpressureServer(inMedium)
           .serveBackpressureConnections(inMedium, policy)
         parent.streamServer ! server.channel
 
-        server.connections.once onEvent { c =>
+        val incoming = server.connections.once
+        incoming onEvent { c =>
           val available = (c.buffer.available zip multi.out.available)(_ && _)
             .changes.toSignal(false)
           available.is(true) on {
             while (available()) {
               val x = c.buffer.dequeue()
               kernel(x, multi.out.channel)
+              c.pressure ! 1
             }
+          }
+        }
+
+        self.main.events.defer(incoming) onEvent { backServer =>
+          backServer.connectBackpressure(outMedium, policy) onEvent {
+            valve => multi += valve
           }
         }
       })
