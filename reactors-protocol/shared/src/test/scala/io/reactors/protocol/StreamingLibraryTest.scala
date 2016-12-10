@@ -179,4 +179,19 @@ object StreamingLibraryTest {
       if (p(x)) output ! x
     }
   }
+
+  class Batch[T](val parent: Stream[T], val size: Int)(
+    implicit val arrayableT: Arrayable[T], val arrayableS: Arrayable[Seq[T]]
+  ) extends Transformed[T, Seq[T]] {
+    lazy val system = parent.system
+    var buffer = mutable.Buffer[T]()
+
+    def kernel(x: T, output: Channel[Seq[T]]): Unit = {
+      buffer += x
+      if (buffer.size == size) {
+        output ! buffer
+        buffer = mutable.Buffer[T]()
+      }
+    }
+  }
 }
