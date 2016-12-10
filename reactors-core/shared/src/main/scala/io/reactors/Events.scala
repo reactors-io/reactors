@@ -425,6 +425,31 @@ trait Events[@spec(Int, Long, Double) T] {
   def until[@spec(Int, Long, Double) S](that: Events[S]): Events[T] =
     new Events.Until[T, S](this, that)
 
+  /** Delays events from this stream until first event from the target event stream.
+   *
+   *  All events from this event stream are kept in a buffer until the first occurrence
+   *  of an event in `that` event stream. After that, all events from the buffer are
+   *  emitted on the resulting event stream, and the rest of the events are forwarded
+   *  normally.
+   *
+   *  This is shown in the following:
+   *
+   *  {{{
+   *  time   ---------------------->
+   *  this   --1---2-------3---4--->
+   *  that   --------x-------y---z->
+   *  delay  --------1-2---3---4--->
+   *  }}}
+   *
+   *  @tparam S       type of events in `that` event stream
+   *  @param that     event stream whose first event flushes the events.
+   *  @return
+   */
+  def delay[@spec(Int, Long, Double) S](that: Events[S])(
+    implicit a: Arrayable[T]
+  ): Events[T] =
+    new Events.Delay[T, S](this, that)
+
   /** Creates an event stream that forwards an event from this event stream only once.
    *
    *  The resulting event stream emits only a single event produced by `this`
@@ -831,7 +856,6 @@ trait Events[@spec(Int, Long, Double) T] {
     implicit evidence: T <:< Events[S], a: Arrayable[S]
   ): Events[S] =
     new Events.PostfixConcat[T, S](this, evidence, a)
-
 
   /** Returns an event stream that forwards from the first active nested event stream.
    *
@@ -1996,6 +2020,81 @@ object Events {
       if (untilObserver.live) untilObserver.target.except(t)
     }
     def unreact() = {}
+  }
+
+  private[reactors] class Delay[
+    @spec(Int, Long, Double) T,
+    @spec(Int, Long, Double) S
+  ](
+    val self: Events[T],
+    val that: Events[S]
+  )(implicit a: Arrayable[T]) extends Events[T] {
+    def onReaction(observer: Observer[T]): Subscription = {
+      val delayObserver = new DelayObserver[T, S](observer, false, false, false)
+      val delayThatObserver = new DelayThatObserver(delayObserver)
+      delayObserver.selfSubscription = self.onReaction(delayObserver)
+      delayObserver.thatSubscription = that.onReaction(delayThatObserver)
+      new Subscription.Composite(
+        delayObserver.selfSubscription,
+        delayObserver.thatSubscription
+      )
+    }
+  }
+
+  private[reactors] class DelayObserver[
+    @spec(Int, Long, Double) T,
+    @spec(Int, Long, Double) S
+  ](
+    val target: Observer[T],
+    var canForward: Boolean,
+    var mustTerminate: Boolean,
+    var hasTerminated: Boolean
+  )(implicit val a: Arrayable[T]) extends Observer[T] {
+    private[reactors] var buffer: UnrolledRing[T] = _
+    private[reactors] var selfSubscription: Subscription = _
+    private[reactors] var thatSubscription: Subscription = _
+    def init(self: DelayObserver[T, S]): Unit = {
+      buffer = new UnrolledRing[T]
+    }
+    init(this)
+    def react(x: T, hint: Any): Unit = {
+      if (canForward) target.react(x, null)
+      else buffer.enqueue(x)
+    }
+    def except(t: Throwable): Unit = {
+      target.except(t)
+    }
+    def unreact(): Unit = {
+      mustTerminate = true
+      if (canForward && !hasTerminated) {
+        hasTerminated = true
+        thatSubscription.unsubscribe()
+        target.unreact()
+      }
+    }
+  }
+
+  private[reactors] class DelayThatObserver[
+    @spec(Int, Long, Double) T,
+    @spec(Int, Long, Double) S
+  ](
+    val delayObserver: DelayObserver[T, S]
+  ) extends Observer[S] {
+    def react(x: S, hint: Any): Unit = {
+      delayObserver.thatSubscription.unsubscribe()
+      delayObserver.canForward = true
+      while (delayObserver.buffer.nonEmpty) {
+        val x = delayObserver.buffer.dequeue()
+        delayObserver.target.react(x, null)
+      }
+      if (delayObserver.mustTerminate && !delayObserver.hasTerminated) {
+        delayObserver.target.unreact()
+      }
+    }
+    def except(t: Throwable): Unit = {
+      delayObserver.target.except(t)
+    }
+    def unreact(): Unit = {}
   }
 
   private[reactors] class Once[@spec(Int, Long, Double) T](val self: Events[T])

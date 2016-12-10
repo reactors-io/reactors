@@ -572,6 +572,50 @@ class EventsSpec extends FunSuite {
     assert(sum == 26)
   }
 
+  test("delay") {
+    var done = false
+    var seen = mutable.Buffer[Int]()
+    val emitter = new Events.Emitter[Int]
+    val go = new IVar[Boolean]
+    val delayed = emitter.delay(go)
+    delayed.onEventOrDone(seen += _)(done = true)
+
+    emitter.react(7)
+    assert(!done)
+    assert(seen == Seq())
+    emitter.react(11)
+    assert(seen == Seq())
+    go.react(true)
+    assert(seen == Seq(7, 11))
+    emitter.react(17)
+    assert(seen == Seq(7, 11, 17))
+    assert(!done)
+    emitter.unreact()
+    assert(seen == Seq(7, 11, 17))
+    assert(done)
+  }
+
+  test("delay early unreact") {
+    var done = false
+    var seen = mutable.Buffer[Int]()
+    val emitter = new Events.Emitter[Int]
+    val go = new IVar[Boolean]
+    val delayed = emitter.delay(go)
+    delayed.onEventOrDone(seen += _)(done = true)
+
+    emitter.react(7)
+    assert(!done)
+    assert(seen == Seq())
+    emitter.react(11)
+    assert(seen == Seq())
+    emitter.unreact()
+    assert(seen == Seq())
+    assert(!done)
+    go.react(true)
+    assert(seen == Seq(7, 11))
+    assert(done)
+  }
+
   test("until unsubscribes") {
     val emitter = new TestEmitter[Int]
     val end = new TestEmitter[Int]
