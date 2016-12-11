@@ -48,6 +48,33 @@ class StreamingLibraryTest extends AsyncFunSuite with AsyncTimeLimitedTests {
     val expected = (0 until total).filter(_ % 2 == 0).map(_ * 2).grouped(2).toSeq
     done.future.map(t => assert(t == expected))
   }
+
+  test("streaming scanPast") {
+    val total = 4096
+    val done = Promise[Seq[Long]]()
+
+    system.spawnLocal[Unit] { self =>
+      val seen = mutable.Buffer[Long]()
+      val source = new Source[Int](system)
+      val ready = source.scanPast(0L)(_ + _).foreach { x =>
+        seen += x
+        if (seen.size == total) done.success(seen)
+      }
+
+      (ready ? ()) on {
+        var i = 0
+        source.valve.available.is(true) on {
+          while (source.valve.available() && i < total) {
+            source.valve.channel ! i
+            i += 1
+          }
+        }
+      }
+    }
+
+    val expected = (0 until total).map(_.toLong).scanLeft(0L)(_ + _).tail
+    done.future.map(t => assert(t == expected))
+  }
 }
 
 
@@ -75,6 +102,11 @@ object StreamingLibraryTest {
 
     def batch(size: Int)(implicit at: Arrayable[T]): Stream[Seq[T]] =
       new Batch(this, size)
+
+    def scanPast[S](z: S)(op: (S, T) => S)(
+      implicit at: Arrayable[T], as: Arrayable[S]
+    ): Stream[S] =
+      new ScanPast(this, z, op)
 
     def foreach(f: T => Unit)(implicit a: Arrayable[T]): Server[Unit, Unit] = {
       val medium = backpressureMedium[T]
@@ -196,6 +228,18 @@ object StreamingLibraryTest {
         output ! buffer
         buffer = mutable.Buffer[T]()
       }
+    }
+  }
+
+  class ScanPast[T, S](val parent: Stream[T], val z: S, op: (S, T) => S)(
+    implicit val arrayableT: Arrayable[T], val arrayableS: Arrayable[S]
+  ) extends Transformed[T, S] {
+    lazy val system = parent.system
+    var last: S = z
+
+    def kernel(x: T, output: Channel[S]): Unit = {
+      last = op(last, x)
+      output ! last
     }
   }
 }
