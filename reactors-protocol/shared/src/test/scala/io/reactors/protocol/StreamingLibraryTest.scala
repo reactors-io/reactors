@@ -22,16 +22,16 @@ class StreamingLibraryTest extends AsyncFunSuite with AsyncTimeLimitedTests {
 
   import StreamingLibraryTest._
 
-  test("streaming filter and map") {
+  test("streaming filter, map and batch") {
     val total = 4096
-    val done = Promise[Seq[Int]]()
+    val done = Promise[Seq[Seq[Int]]]()
 
     system.spawnLocal[Unit] { self =>
-      val seen = mutable.Buffer[Int]()
+      val seen = mutable.Buffer[Seq[Int]]()
       val source = new Source[Int](system)
-      val ready = source.filter(_ % 2 == 0).map(_ * 2).foreach { x =>
-        seen += x
-        if (seen.size == total / 2) done.success(seen)
+      val ready = source.filter(_ % 2 == 0).map(_ * 2).batch(2).foreach { xs =>
+        seen += xs
+        if (seen.size == total / 4) done.success(seen)
       }
 
       (ready ? ()) on {
@@ -45,7 +45,8 @@ class StreamingLibraryTest extends AsyncFunSuite with AsyncTimeLimitedTests {
       }
     }
 
-    done.future.map(t => assert(t == (0 until total).filter(_ % 2 == 0).map(_ * 2)))
+    val expected = (0 until total).filter(_ % 2 == 0).map(_ * 2).grouped(2).toSeq
+    done.future.map(t => assert(t == expected))
   }
 }
 
@@ -71,6 +72,9 @@ object StreamingLibraryTest {
 
     def filter(p: T => Boolean)(implicit at: Arrayable[T]): Stream[T] =
       new Filtered(this, p)
+
+    def batch(size: Int)(implicit at: Arrayable[T]): Stream[Seq[T]] =
+      new Batch(this, size)
 
     def foreach(f: T => Unit)(implicit a: Arrayable[T]): Server[Unit, Unit] = {
       val medium = backpressureMedium[T]
