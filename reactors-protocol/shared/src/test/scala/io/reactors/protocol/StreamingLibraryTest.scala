@@ -34,7 +34,7 @@ class StreamingLibraryTest extends AsyncFunSuite with AsyncTimeLimitedTests {
         if (seen.size == total / 4) done.success(seen)
       }
 
-      (ready ? ()) on {
+      ready on {
         var i = 0
         source.valve.available.is(true) on {
           while (source.valve.available() && i < total) {
@@ -61,7 +61,7 @@ class StreamingLibraryTest extends AsyncFunSuite with AsyncTimeLimitedTests {
         if (seen.size == total) done.success(seen)
       }
 
-      (ready ? ()) on {
+      ready on {
         var i = 0
         source.valve.available.is(true) on {
           while (source.valve.available() && i < total) {
@@ -108,24 +108,20 @@ object StreamingLibraryTest {
     ): Stream[S] =
       new ScanPast(this, z, op)
 
-    def foreach(f: T => Unit)(implicit a: Arrayable[T]): Server[Unit, Unit] = {
+    def foreach(f: T => Unit)(implicit a: Arrayable[T]): IVar[Unit] = {
       val medium = backpressureMedium[T]
       val policy = backpressurePolicy
-      system.spawnLocal[Server.Req[Unit, Unit]] { self =>
-        val server = system.channels.backpressureServer(medium)
-          .serveBackpressure(medium, policy)
-        streamServer ! server.channel
-        val incoming = server.connections.once
-        incoming onEvent { pump =>
-          pump.buffer.onEvent(f)
-          pump.buffer.available.is(true) on {
-            while (pump.buffer.nonEmpty) pump.buffer.dequeue()
-          }
-        }
-        self.main.events.defer(incoming) onMatch {
-          case (_, ch) => ch ! ()
+      val server = system.channels.backpressureServer(medium)
+        .serveBackpressure(medium, policy)
+      streamServer ! server.channel
+      val incoming = server.connections.once
+      incoming onEvent { pump =>
+        pump.buffer.onEvent(f)
+        pump.buffer.available.is(true) on {
+          while (pump.buffer.nonEmpty) pump.buffer.dequeue()
         }
       }
+      incoming.once.map(_ => ()).toIVar
     }
   }
 
