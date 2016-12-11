@@ -57,7 +57,7 @@ class GuideTwoWayProtocol extends AsyncFunSuite {
                 O ----------> O
   ```
 
-  Note that the types of the `TwoWay` objectt are reversed
+  Note that the types of the `TwoWay` object are reversed
   depending on whether you are looking at the
   connection from the server-side or from the client-side.
   The type of the client-side 2-way connection is:
