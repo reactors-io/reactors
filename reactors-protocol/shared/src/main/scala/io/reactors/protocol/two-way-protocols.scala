@@ -89,11 +89,11 @@ trait TwoWayProtocols {
      */
     def serveTwoWay()(implicit a: Arrayable[O]): TwoWay.Server[I, O] = {
       val connections = connector.events map {
-        case (outputChannel, reply) =>
+        case (inputChannel, reply) =>
           val system = Reactor.self.system
           val output = system.channels.template(TwoWay.OutputTag).daemon.open[O]
           reply ! output.channel
-          TwoWay(outputChannel, output.events, Subscription(output.seal()))
+          TwoWay(inputChannel, output.events, Subscription(output.seal()))
       } toEmpty
 
       TwoWay.Server(
@@ -115,10 +115,10 @@ trait TwoWayProtocols {
       implicit a: Arrayable[I]
     ): IVar[TwoWay[I, O]] = {
       val system = Reactor.self.system
-      val output = system.channels.template(TwoWay.InputTag).daemon.open[I]
-      val result: Events[TwoWay[I, O]] = (twoWayServer ? output.channel) map {
-        inputChannel =>
-        TwoWay(inputChannel, output.events, Subscription(output.seal()))
+      val input = system.channels.template(TwoWay.InputTag).daemon.open[I]
+      val result: Events[TwoWay[I, O]] = (twoWayServer ? input.channel) map {
+        outputChannel =>
+        TwoWay(outputChannel, input.events, Subscription(input.seal()))
       }
       result.toIVar
     }
