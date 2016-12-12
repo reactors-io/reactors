@@ -135,7 +135,7 @@ trait ReliableProtocols {
             Order((x, y) => (x.stamp - y.stamp).toInt)
           )
           events onMatch {
-            case stamp@Stamp.Some(x, timestamp) =>
+            case stamp @ Stamp.Some(x, timestamp) =>
               if (timestamp == nextStamp) {
                 acks ! nextStamp
                 nextStamp += 1
