@@ -37,7 +37,7 @@ trait BackpressureProtocols {
      *  @param buffer         event buffer that holds events ready to be delivered
      *  @param subscription   resources associated with the connection
      */
-    case class Connection[T](
+    case class Link[T](
       pressure: Channel[Int],
       buffer: EventBuffer[T],
       subscription: Subscription
@@ -65,9 +65,9 @@ trait BackpressureProtocols {
      */
     case class Server[R, T](
       channel: Channel[R],
-      connections: Events[Connection[T]],
+      connections: Events[Link[T]],
       subscription: Subscription
-    ) extends ServerSide[R, Connection[T]] {
+    ) extends ServerSide[R, Link[T]] {
       def toPumpServer: PumpServer[R, T] = {
         Backpressure.PumpServer(
           channel,
@@ -231,7 +231,7 @@ trait BackpressureProtocols {
             val system = Reactor.self.system
             val pressure = system.channels.daemon.shortcut.open[Int]
             val sub = policy.server(pressure.events, channel).chain(twoWaySub)
-            Backpressure.Connection(pressure.channel, events.toEventBuffer, sub)
+            Backpressure.Link(pressure.channel, events.toEventBuffer, sub)
         },
         twoWayServer.subscription
       )

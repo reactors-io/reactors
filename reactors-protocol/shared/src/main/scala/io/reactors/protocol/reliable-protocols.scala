@@ -42,7 +42,7 @@ trait ReliableProtocols {
      *  @param events           event stream for incoming events of this connection
      *  @param subscription     subscription of the connection
      */
-    case class Connection[T](events: Events[T], subscription: Subscription)
+    case class Link[T](events: Events[T], subscription: Subscription)
     extends io.reactors.protocol.Connection[T]
 
     /** State of the reliable channel server.
@@ -54,9 +54,9 @@ trait ReliableProtocols {
      */
     case class Server[T](
       channel: Channel[Req[T]],
-      connections: Events[Reliable.Connection[T]],
+      connections: Events[Reliable.Link[T]],
       subscription: Subscription
-    ) extends ServerSide[Req[T], Reliable.Connection[T]]
+    ) extends ServerSide[Req[T], Reliable.Link[T]]
 
     /** Type of the requests for establishing reliable channels.
      *
@@ -260,7 +260,7 @@ trait ReliableProtocols {
             .chain(twoWay.subscription)
           events.collect({ case s @ Stamp.None() => s })
             .toIVar.on(subscription.unsubscribe())
-          Reliable.Connection(reliable.events, subscription)
+          Reliable.Link(reliable.events, subscription)
       } toEmpty
 
       Reliable.Server(
@@ -301,7 +301,7 @@ trait ReliableProtocols {
     /** Same as calling the `serveReliable` operation, but creates a `Proto` object.
      */
     def reliableServer[T: Arrayable](policy: Reliable.Policy)(
-      f: (Reliable.Server[T], Reliable.Connection[T]) => Unit
+      f: (Reliable.Server[T], Reliable.Link[T]) => Unit
     ): Proto[Reactor[Reliable.Req[T]]] = {
       Reactor[Reliable.Req[T]] { self =>
         val server = self.main.serveReliable(policy)
@@ -314,7 +314,7 @@ trait ReliableProtocols {
     /** Same as calling the `serveReliable` operation, but starts the reactor directly.
      */
     def reliableServer[T: Arrayable](policy: Reliable.Policy)(
-      f: (Reliable.Server[T], Reliable.Connection[T]) => Unit
+      f: (Reliable.Server[T], Reliable.Link[T]) => Unit
     ): Channel[Reliable.Req[T]] = {
       system.spawn(Reactor.reliableServer[T](policy)(f))
     }
