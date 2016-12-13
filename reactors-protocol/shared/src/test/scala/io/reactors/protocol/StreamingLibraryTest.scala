@@ -83,7 +83,7 @@ object StreamingLibraryTest {
         val server = system.channels.backpressureServer(medium)
           .serveBackpressure(medium, policy)
         streamServer ! server.channel
-        val incoming = server.connections.once
+        val incoming = server.links.once
         incoming onEvent { pump =>
           pump.buffer.onEvent(f)
           pump.buffer.available.is(true) on {
@@ -141,7 +141,7 @@ object StreamingLibraryTest {
           .serveBackpressureConnections(inMedium, policy)
         parent.streamServer ! server.channel
 
-        val incoming = server.connections.once
+        val incoming = server.links.once
         incoming onEvent { c =>
           val available = (c.buffer.available zip multi.out.available)(_ && _)
             .changes.toSignal(false)

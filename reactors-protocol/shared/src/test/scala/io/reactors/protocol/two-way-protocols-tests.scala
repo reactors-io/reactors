@@ -23,7 +23,7 @@ class TwoWayProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
     val proto = Reactor[Unit] { self =>
       val server = system.channels.daemon.twoWayServer[Unit, String].serveTwoWay()
 
-      server.connections.onEvent { twoWay =>
+      server.links.onEvent { twoWay =>
         twoWay.input onEvent { s =>
           done.success(s)
           self.main.seal()
@@ -43,7 +43,7 @@ class TwoWayProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
     val proto = Reactor[Unit] { self =>
       val server = system.channels.daemon.twoWayServer[Int, String].serveTwoWay()
 
-      server.connections.onEvent { twoWay =>
+      server.links.onEvent { twoWay =>
         twoWay.input onEvent { s =>
           twoWay.output ! s.length
         }
@@ -66,7 +66,7 @@ class TwoWayProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
     val proto = Reactor[Unit] { self =>
       val server = system.channels.daemon.twoWayServer[Int, Int]serveTwoWay()
 
-      server.connections.onEvent { twoWay =>
+      server.links.onEvent { twoWay =>
         twoWay.input onEvent { n =>
           twoWay.output ! n
         }

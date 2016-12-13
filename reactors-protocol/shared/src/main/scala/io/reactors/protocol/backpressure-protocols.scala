@@ -11,23 +11,23 @@ package protocol
  *  In an asynchronous system, there is always a possibility that a producer reactor
  *  sends more events than the consumer can handle. This can eventually blow up the
  *  memory requirements of the consumer, since its event queue grows indefinitely.
- *  Backpressure connections ensure that the
+ *  Backpressure links ensure that the
  *
  *  Backpressure is parametric in the choice of the underlying communication medium.
- *  A backpressure connection is established on top of a two-way connection,
- *  but that two-way connections may be non-reliable or reliable. This is abstracted
+ *  A backpressure link is established on top of a two-way link,
+ *  but that two-way links may be non-reliable or reliable. This is abstracted
  *  away in a configuration object called a `Medium`, which is necessary to start
  *  the backpressure protocol.
  */
 trait BackpressureProtocols {
   object Backpressure {
-    /** Represents an established backpressure connection.
+    /** Represents an established backpressure link.
      *
      *  Connection clients must manually release events from the associated event buffer
      *  and then send pressure tokens back to the producer. The event buffer has an
      *  `available` signal used to notify about event availability.
      *
-     *  For convenience, every backpressure connection can be converted into a `Pump`
+     *  For convenience, every backpressure link can be converted into a `Pump`
      *  object, which automatically sends backpressure tokens when events are dequeued
      *  from the event buffer.
      *
@@ -35,14 +35,14 @@ trait BackpressureProtocols {
      *  @param pressure       backpressure channel, used by consumers to signal the
      *                        producers when additional events can be sent
      *  @param buffer         event buffer that holds events ready to be delivered
-     *  @param subscription   resources associated with the connection
+     *  @param subscription   resources associated with the link
      */
     case class Link[T](
       pressure: Channel[Int],
       buffer: EventBuffer[T],
       subscription: Subscription
     ) {
-      /** Converts this connection into a backpressure pump.
+      /** Converts this link into a backpressure pump.
        */
       def toPump: Pump[T] = {
         val pressureSubscription = buffer.on(pressure ! 1)
@@ -53,25 +53,25 @@ trait BackpressureProtocols {
       }
     }
 
-    /** Represents the state of a backpressure connection server.
+    /** Represents the state of a backpressure link server.
      *
      *  @tparam R             type of the request object used by the underlying medium
      *  @tparam T             type of the events delivered on the backpressure channel
      *  @param channel        request channel that allows the clients to send requests
-     *                        for new backpressure connections
-     *  @param connections    server-side event stream that emits connections that are
+     *                        for new backpressure links
+     *  @param links          server-side event stream that emits links that are
      *                        established with this backpressure server
      *  @param subscription   resources associated with the backpressure server
      */
     case class Server[R, T](
       channel: Channel[R],
-      connections: Events[Link[T]],
+      links: Events[Link[T]],
       subscription: Subscription
     ) extends ServerSide[R, Link[T]] {
       def toPumpServer: PumpServer[R, T] = {
         Backpressure.PumpServer(
           channel,
-          connections.map(_.toPump),
+          links.map(_.toPump),
           subscription
         )
       }
@@ -83,7 +83,7 @@ trait BackpressureProtocols {
      */
     case class PumpServer[R, T](
       channel: Channel[R],
-      connections: Events[Pump[T]],
+      links: Events[Pump[T]],
       subscription: Subscription
     ) extends ServerSide[R, Pump[T]]
 
@@ -98,7 +98,7 @@ trait BackpressureProtocols {
     )
 
     object Medium {
-      /** Provides normal non-reliable two-way connections.
+      /** Provides normal non-reliable two-way links.
        */
       def default[T: Arrayable] = Backpressure.Medium[TwoWay.Req[Int, T], T](
         builder => builder.twoWayServer[Int, T],
@@ -106,7 +106,7 @@ trait BackpressureProtocols {
         channel => channel.connect()
       )
 
-      /** Provides reliable two-way connection.
+      /** Provides reliable two-way link.
        *
        *  This reliable `Medium` must be parametrized with a reliable two-way policy.
        */
@@ -126,7 +126,7 @@ trait BackpressureProtocols {
      *  The details are captured in:
      *  - How the consumer-side (i.e. server-side) pressure stream is forwarded to the
      *    producer.
-     *  - How a `Valve` object is created from a two-way connection on the
+     *  - How a `Valve` object is created from a two-way link on the
      *    producer-side (i.e. client-side).
      */
     trait Policy {
@@ -213,9 +213,9 @@ trait BackpressureProtocols {
   }
 
   implicit class BackpressureConnectorOps[R, T](val connector: Connector[R]) {
-    /** Starts a server that accepts incoming backpressure connection requests.
+    /** Starts a server that accepts incoming backpressure link requests.
      *
-     *  @param medium        protocol for establishing two-way connections
+     *  @param medium        protocol for establishing two-way links
      *  @param policy        captures the details of the backpressure implementation
      *  @return              a backpressure server state object
      */
@@ -226,7 +226,7 @@ trait BackpressureProtocols {
       val twoWayServer = medium.serve(connector)
       Backpressure.Server(
         twoWayServer.channel,
-        twoWayServer.connections.map {
+        twoWayServer.links.map {
           case TwoWay(channel, events, twoWaySub) =>
             val system = Reactor.self.system
             val pressure = system.channels.daemon.shortcut.open[Int]
@@ -241,7 +241,7 @@ trait BackpressureProtocols {
      *
      *  See the `Pump` class.
      *
-     *  @param medium        protocol for establishing two-way connections
+     *  @param medium        protocol for establishing two-way links
      *  @param policy        captures the details of the backpressure implementation
      *  @return              a backpressure server state object
      */
@@ -256,7 +256,7 @@ trait BackpressureProtocols {
   implicit class BackpressureServerOps[R](val server: Channel[R]) {
     /** Connects to a backpressure server.
      *
-     *  @tparam T           type of events delivered on the backpressure connection
+     *  @tparam T           type of events delivered on the backpressure link
      *  @param medium       see the `Backpressure.Medium` class
      *  @param policy       see the `Backpressure.Policy` class
      *  @return             a single-assignment variable that is eventually completed
@@ -271,7 +271,7 @@ trait BackpressureProtocols {
   }
 
   implicit class BackpressureReactorCompanionOps(val reactor: Reactor.type) {
-    /** Creates a backpressure connection server `Proto`.
+    /** Creates a backpressure link server `Proto`.
      *
      *  See `serveBackpressureConnections`.
      */
@@ -299,7 +299,7 @@ trait BackpressureProtocols {
   }
 
   implicit class BackpressureSystemOps(val system: ReactorSystem) {
-    /** Creates and starts a backpressure connection server reactor.
+    /** Creates and starts a backpressure link server reactor.
      *
      *  See `serveBackpressureConnections`.
      */
