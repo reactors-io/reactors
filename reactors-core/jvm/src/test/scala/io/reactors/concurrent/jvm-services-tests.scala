@@ -66,11 +66,11 @@ extends Reactor[Unit] {
 
 object ChannelsCheck extends Properties("ChannelsCheck") with ExtendedProperties {
 
-  val repetitions = 10
+  val repetitions = 3
   val nameCounter = new AtomicLong(0L)
 
   property("channel should be awaited") =
-    forAllNoShrink(detChoose(0, 50)) { n =>
+    forAllNoShrink(detChoose(0, 7)) { n =>
       stackTraced {
         for (i <- 0 until repetitions) {
           val system = ReactorSystem.default("check-system")
@@ -83,7 +83,7 @@ object ChannelsCheck extends Properties("ChannelsCheck") with ExtendedProperties
                 self.main.seal()
               }
             })
-            Thread.sleep(n)
+            Thread.sleep(n * n)
             system.spawn(Reactor[String] { self =>
               self.main.events onMatch {
                 case "done" =>
