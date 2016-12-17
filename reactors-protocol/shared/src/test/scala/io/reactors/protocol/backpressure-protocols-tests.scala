@@ -135,7 +135,7 @@ extends AsyncFunSuite with AsyncTimeLimitedTests {
       server.connectBackpressure(medium, policy) onEvent { valve =>
         var i = 0
         valve.available.is(true) on {
-          while (valve.available()) {
+          while (valve.available() && i < total) {
             valve.channel ! i
             i += 1
           }
