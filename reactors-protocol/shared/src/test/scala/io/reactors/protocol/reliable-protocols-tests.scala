@@ -26,8 +26,8 @@ class ReliableProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
       val server = system.channels.daemon.reliableServer[String]
         .serveReliable(Reliable.Policy.reorder(128))
 
-      server.connections onEvent { connection =>
-        connection.events onMatch {
+      server.links onEvent { link =>
+        link.events onMatch {
           case "finish" =>
             done.success(true)
             self.main.seal()
@@ -51,8 +51,8 @@ class ReliableProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
     system.channels.registerTemplate(TwoWay.OutputTag, system.channels.named("out"))
 
     val proto = Reactor.reliableServer[String](policy) {
-      (server, connection) =>
-      connection.events onEvent { x =>
+      (server, link) =>
+      link.events onEvent { x =>
         if (!event1.trySuccess(x)) {
           event2.success(x)
           server.subscription.unsubscribe()
@@ -88,9 +88,9 @@ class ReliableProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
     val policy = Reliable.Policy.reorder(window)
     system.channels.registerTemplate(TwoWay.InputTag, system.channels.named("acks"))
 
-    val server = system.reliableServer[Int](policy) { (server, connection) =>
+    val server = system.reliableServer[Int](policy) { (server, link) =>
       val seen = mutable.Buffer[Int]()
-      connection.events onEvent { x =>
+      link.events onEvent { x =>
         seen += x
         if (x == total - 1) {
           done.success(seen)
@@ -121,9 +121,9 @@ class ReliableProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
     val policy = Reliable.Policy.reorder(4)
     system.channels.registerTemplate(TwoWay.OutputTag, system.channels.named("out"))
 
-    val proto = Reactor.reliableServer[Int](policy) { (server, connection) =>
+    val proto = Reactor.reliableServer[Int](policy) { (server, link) =>
       val seen = mutable.Buffer[Int]()
-      connection.events onEvent { x =>
+      link.events onEvent { x =>
         seen += x
         if (x == total - 1) {
           done.success(seen)

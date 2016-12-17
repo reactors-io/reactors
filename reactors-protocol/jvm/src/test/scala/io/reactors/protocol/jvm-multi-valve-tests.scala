@@ -187,7 +187,7 @@ class MultiValveCheck extends Properties("MultiValve") with ExtendedProperties {
             val policy = Backpressure.Policy.batching(pressureWindow)
             val server = system.channels.backpressureServer(medium)
               .serveBackpressure(medium, policy)
-            server.connections onEvent { c =>
+            server.links onEvent { c =>
               c.buffer.available.is(true) on {
                 while (c.buffer.available()) {
                   val x = c.buffer.dequeue()
@@ -244,8 +244,8 @@ class MultiValveCheck extends Properties("MultiValve") with ExtendedProperties {
                 if (seen.size == total) d.success(seen == (0 until total))
               }
             }
-            server.connections.once onEvent { p => accept(p, done1) }
-            server.connections.drop(1).once onEvent { p => accept(p, done2) }
+            server.links.once onEvent { p => accept(p, done1) }
+            server.links.drop(1).once onEvent { p => accept(p, done2) }
 
             server.channel.connectBackpressure(medium, policy) onEvent { v1 =>
               server.channel.connectBackpressure(medium, policy) onEvent { v2 =>

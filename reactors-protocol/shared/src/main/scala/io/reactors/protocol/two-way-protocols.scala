@@ -16,16 +16,16 @@ trait TwoWayProtocols {
    *  @tparam O              type of the outgoing events
    *  @param output          the output channel, for outgoing events
    *  @param input           the input event stream, for incoming events
-   *  @param subscription    subscription associated with this 2-way connection
+   *  @param subscription    subscription associated with this 2-way link
    */
   case class TwoWay[I, O](
     output: Channel[O], input: Events[I], subscription: Subscription
   ) extends Connection[I] {
-    /** Same as `input`, events provided by this connection.
+    /** Same as `input`, events provided by this link.
      */
     def events = input
 
-    /** Same as `output`, channel provided to write with this connection.
+    /** Same as `output`, channel provided to write with this link.
      */
     def channel = output
   }
@@ -43,13 +43,13 @@ trait TwoWayProtocols {
      *
      *  @tparam I            type of the server-side input events
      *  @tparam O            type of the server-side output events
-     *  @param channel       request channel for establishing 2-way connections
-     *  @param connections   event stream that emits established connections
+     *  @param channel       request channel for establishing 2-way links
+     *  @param links         event stream that emits established links
      *  @param subscription  subscription for the server and its resources
      */
     case class Server[I, O](
       channel: io.reactors.protocol.Server[Channel[I], Channel[O]],
-      connections: Events[TwoWay[O, I]],
+      links: Events[TwoWay[O, I]],
       subscription: Subscription
     ) extends ServerSide[Req[I, O], TwoWay[O, I]]
 
@@ -88,7 +88,7 @@ trait TwoWayProtocols {
      *  (see `twoWayServer`).
      */
     def serveTwoWay()(implicit a: Arrayable[O]): TwoWay.Server[I, O] = {
-      val connections = connector.events map {
+      val links = connector.events map {
         case (inputChannel, reply) =>
           val system = Reactor.self.system
           val output = system.channels.template(TwoWay.OutputTag).daemon.open[O]
@@ -98,8 +98,8 @@ trait TwoWayProtocols {
 
       TwoWay.Server(
         connector.channel,
-        connections,
-        connections.chain(Subscription(connector.seal()))
+        links,
+        links.chain(Subscription(connector.seal()))
       )
     }
   }
@@ -109,7 +109,7 @@ trait TwoWayProtocols {
   ](val twoWayServer: Channel[TwoWay.Req[I, O]]) {
     /** Connects to a 2-way protocol server.
      *
-     *  A successful connection yields a 2-way channel object of type `TwoWay[I, O]`.
+     *  A successful link yields a 2-way channel object of type `TwoWay[I, O]`.
      */
     def connect()(
       implicit a: Arrayable[I]
@@ -129,7 +129,7 @@ trait TwoWayProtocols {
      *
      *  @tparam I       type of the server-side input events
      *  @tparam O       type of the server-side output events
-     *  @param f        callback function for a successful incoming connection
+     *  @param f        callback function for a successful incoming link
      *  @return         a `Proto` object
      */
     def twoWayServer[@spec(Int, Long, Double) I, @spec(Int, Long, Double) O](
@@ -137,7 +137,7 @@ trait TwoWayProtocols {
     )(implicit ai: Arrayable[I], ao: Arrayable[O]): Proto[Reactor[TwoWay.Req[I, O]]] = {
       Reactor[TwoWay.Req[I, O]] { self =>
         val server = self.main.serveTwoWay()
-        server.connections.onEvent(twoWay => f(server, twoWay))
+        server.links.onEvent(twoWay => f(server, twoWay))
       }
     }
   }
@@ -147,7 +147,7 @@ trait TwoWayProtocols {
      *
      *  @tparam I       type of the server-side input events
      *  @tparam O       type of the server-side output events
-     *  @param f        callback function for a successful incoming connection
+     *  @param f        callback function for a successful incoming link
      *  @return         a channel of the 2-way server
      */
     def twoWayServer[@spec(Int, Long, Double) I, @spec(Int, Long, Double) O](

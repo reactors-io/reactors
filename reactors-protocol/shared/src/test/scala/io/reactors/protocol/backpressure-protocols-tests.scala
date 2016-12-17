@@ -27,7 +27,7 @@ extends AsyncFunSuite with AsyncTimeLimitedTests {
     val policy = Backpressure.Policy.sliding(maxBudget)
 
     val backpressureServer = system.backpressureServer(medium, policy) { pumpServer =>
-      pumpServer.connections onEvent { pump =>
+      pumpServer.links onEvent { pump =>
         val seen = mutable.Buffer[Int]()
         def consume(): Unit = {
           while (pump.buffer.available()) {
@@ -72,7 +72,7 @@ extends AsyncFunSuite with AsyncTimeLimitedTests {
     val policy = Backpressure.Policy.batching(maxBudget)
 
     val backpressureServer = system.backpressureServer(medium, policy) { pumpServer =>
-      pumpServer.connections onEvent { pump =>
+      pumpServer.links onEvent { pump =>
         val seen = mutable.Buffer[Int]()
         def consume(): Unit = {
           while (pump.buffer.available()) {
@@ -115,12 +115,12 @@ extends AsyncFunSuite with AsyncTimeLimitedTests {
 
     val server = system.backpressureConnectionServer(medium, policy) { s =>
       val seen = mutable.Buffer[Int]()
-      s.connections onEvent { connection =>
-        connection.buffer.available.is(true) on {
-          while (connection.buffer.available()) {
-            assert(connection.buffer.size < maxBudget)
-            connection.pressure ! 1
-            val x = connection.buffer.dequeue()
+      s.links onEvent { link =>
+        link.buffer.available.is(true) on {
+          while (link.buffer.available()) {
+            assert(link.buffer.size < maxBudget)
+            link.pressure ! 1
+            val x = link.buffer.dequeue()
             seen += x
             if (x == (total - 1)) {
               done.success(seen)

@@ -28,7 +28,7 @@ extends Properties("BackpressureProtocolsCheck") with ExtendedProperties {
 
     val server = system.spawnLocal[R] { self =>
       val pumpServer = self.main.serveBackpressure(medium, policy)
-      pumpServer.connections onEvent { pump =>
+      pumpServer.links onEvent { pump =>
         val seen = mutable.Buffer[Int]()
         pump.buffer.available.is(true) on {
           assert(pump.buffer.size <= window)

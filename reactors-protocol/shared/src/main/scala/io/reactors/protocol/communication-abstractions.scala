@@ -14,7 +14,7 @@ trait CommunicationAbstractions {
 
   trait ServerSide[R, C] {
     def channel: Channel[R]
-    def connections: Events[C]
+    def links: Events[C]
     def subscription: Subscription
   }
 

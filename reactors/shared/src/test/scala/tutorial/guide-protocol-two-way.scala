@@ -28,9 +28,9 @@ import scala.concurrent.Promise
 In this section, we show a 2-way communication protocol
 that is a part of the `reactors-protocol` module.
 In 2-way communication,
-both the server and the client obtain a connection handle of type `TwoWay`,
+both the server and the client obtain a link handle of type `TwoWay`,
 which allows them to send and receive an unlimited number of events,
-until they decide to close this connection.
+until they decide to close this link.
 !*/
 class GuideTwoWayProtocol extends AsyncFunSuite {
 
@@ -42,10 +42,10 @@ class GuideTwoWayProtocol extends AsyncFunSuite {
 
   /*!md
   In this section, we show a two-way communication protocol.
-  In two-way communication, two parties obtain a connection handle of type `TwoWay`,
+  In two-way communication, two parties obtain a link handle of type `TwoWay`,
   which allows them to simultaneously send and receive an unlimited number of events,
-  until they decide to close this connection.
-  One party initiates the connection, so we call that party the client,
+  until they decide to close this link.
+  One party initiates the link, so we call that party the client,
   and the other party the server.
   The `TwoWay` type has two type parameters `I` and `O`,
   which describe the types of input and output events, respectively,
@@ -59,8 +59,8 @@ class GuideTwoWayProtocol extends AsyncFunSuite {
 
   Note that the types of the `TwoWay` object are reversed
   depending on whether you are looking at the
-  connection from the server-side or from the client-side.
-  The type of the client-side 2-way connection is:
+  link from the server-side or from the client-side.
+  The type of the client-side 2-way link is:
   !*/
 
   trait Foo {
@@ -71,7 +71,7 @@ class GuideTwoWayProtocol extends AsyncFunSuite {
     /*!end-code!*/
 
     /*!md
-    Whereas the type of the server would see the 2-way connection as:
+    Whereas the type of the server would see the 2-way link as:
     !*/
 
     /*!begin-code!*/
@@ -81,8 +81,8 @@ class GuideTwoWayProtocol extends AsyncFunSuite {
     /*!md
     Accordingly, the `TwoWay` object contains an output channel `output`,
     and an input event stream `input`.
-    To close the connection, the `TwoWay` object contains a subscription
-    object called `subscription`, which is used to close the connection
+    To close the link, the `TwoWay` object contains a subscription
+    object called `subscription`, which is used to close the link
     and free the associated resources.
     !*/
   }
@@ -107,16 +107,16 @@ class GuideTwoWayProtocol extends AsyncFunSuite {
 
     /*!md
     The 2-way communication protocol works in two phases.
-    First, a client asks a 2-way connection server to establish a 2-way connection.
+    First, a client asks a 2-way link server to establish a 2-way link.
     Second, the client and the server use the 2-way channel to communicate.
-    Note that a single 2-way connection server can create many 2-way connections.
+    Note that a single 2-way link server can create many 2-way links.
 
     As explained in an earlier section,
     there are usually several ways to instantiate the protocol - either as standalone
     reactor that runs only that protocol, or as a single protocol running inside a
     larger reactor.
     We start with a more general variant. We will declare a reactor,
-    and instantiate a 2-way connection server within that reactor.
+    and instantiate a 2-way link server within that reactor.
     The 2-way server will receive strings, and respond with the length of those strings.
     !*/
 
@@ -136,26 +136,26 @@ class GuideTwoWayProtocol extends AsyncFunSuite {
     receive integers from the server, and the output type `O` to `String`,
     meaning that the client will be sending strings to the server.
 
-    The resulting object `lengthServer` represents the state of the connection.
-    It contains an event stream called `connections`, which emits an event every time
-    some client requests a connection.
+    The resulting object `lengthServer` represents the state of the link.
+    It contains an event stream called `links`, which emits an event every time
+    some client requests a link.
     If we do nothing with this event stream,
-    the server will be silent - it will start new connections, but ignore events
+    the server will be silent - it will start new links, but ignore events
     incoming from the clients.
     How the client and server communicate over the 2-way channel
     (and when to terminate this communication) is up to the user to specify.
     To customize the 2-way communication protocol with our own logic,
-    we need to react to the `TwoWay` events emitted by `connections`,
+    we need to react to the `TwoWay` events emitted by `links`,
     and install callbacks to the `TwoWay` objects.
 
-    In our case, for each incoming 2-way connection,
+    In our case, for each incoming 2-way link,
     we want to react to `input` strings by computing the length of the string
     and then sending that length back along the `output` channel.
     We can do this as follows:
     !*/
 
     /*!begin-code!*/
-      lengthServer.connections.onEvent { serverTwoWay =>
+      lengthServer.links.onEvent { serverTwoWay =>
         serverTwoWay.input.onEvent { s =>
           serverTwoWay.output ! s.length
         }
@@ -163,7 +163,7 @@ class GuideTwoWayProtocol extends AsyncFunSuite {
     /*!end-code!*/
 
     /*!md
-    So far, so good - we have a working instance of the 2-way connection server.
+    So far, so good - we have a working instance of the 2-way link server.
     The current state of the reactor can be illustrated with the following figure,
     where our new channel appears alongside standard reactor channels:
 
@@ -172,7 +172,7 @@ class GuideTwoWayProtocol extends AsyncFunSuite {
         |
         |       #-----------------------#
         \       |                       |
-         \------o--> connections        |
+         \------o--> links              |
                 |                       |
                 o--> main channel       |
                 |                       |
@@ -191,7 +191,7 @@ class GuideTwoWayProtocol extends AsyncFunSuite {
     so we will skip that part.
 
     Next, let's start the client-side part of the protocol.
-    The client must use the 2-way server channel to request a connection.
+    The client must use the 2-way server channel to request a link.
     The `lengthServer` object that we saw earlier has a field `channel`
     that must be used for this purpose.
     Generally, this channel must be known to the client
@@ -203,7 +203,7 @@ class GuideTwoWayProtocol extends AsyncFunSuite {
     method on the `channel`. This method is only available when the
     package `io.reactors.protocol` is imported, and works on 2-way server channels.
     The `connect` method returns an `IVar` (single element event stream),
-    which is completed with a `TwoWay` object once the connection is established.
+    which is completed with a `TwoWay` object once the link is established.
 
     In the following, we connect to the server.
     Once the server responds,
@@ -225,13 +225,13 @@ class GuideTwoWayProtocol extends AsyncFunSuite {
     /*!end-code!*/
 
     /*!md
-    After the connection is established,
+    After the link is established,
     the state of the reactor and its connectors is as shown in the following diagram:
 
     ```
                  #-----------------------#
                  |                       |
-                 o--> connections        |
+                 o--> links              |
                  |                       |
                  |                       |
           /---->[ ]-->                   |
@@ -265,19 +265,19 @@ class GuideTwoWayProtocol extends AsyncFunSuite {
 
   In the next example, we instantiate the two-way protocol between two reactors.
   Furthermore, we use the short-hand version that both declares a reactor,
-  and uses its *main channel* as the 2-way connection server.
+  and uses its *main channel* as the 2-way link server.
   We call this reactor a *2-way server*.
 
   To create a `Proto` object of a 2-way server,
   we use the `twoWayServer` extension method on `Reactor`.
   This method takes a lambda with two parameters --
   the `server` state, which we saw earlier,
-  and a newly established `twoWay` connection.
-  The lambda is invoked each time when a connection is established.
+  and a newly established `twoWay` link.
+  The lambda is invoked each time when a link is established.
 
   In the following, we create a reactor `seriesCalculator`,
   which emits elements of the series `1.0 / i`.
-  For each `twoWay` connection that is established,
+  For each `twoWay` link that is established,
   it responds to each integer `n` that it receives
   with a stream of events `1.0 / i`,
   where `i` ranges from `1` to `n`:
@@ -308,9 +308,9 @@ class GuideTwoWayProtocol extends AsyncFunSuite {
     ### Two-Way Connection Subscriptions
 
     We mentioned before that the 2-way server object has a `subscription` that can be
-    used to stop the server and prevent establishing new connections.
-    However, existing connections are not closed when the server is stopped.
-    To close the existing connections, each `TwoWay` object has its own `subscription`
+    used to stop the server and prevent establishing new links.
+    However, existing links are not closed when the server is stopped.
+    To close the existing links, each `TwoWay` object has its own `subscription`
     value.
 
     Let's write a client for the `seriesCalculator` reactor that we started previously.
@@ -339,11 +339,11 @@ class GuideTwoWayProtocol extends AsyncFunSuite {
     In real scenarios,
     you should take care to additionally call `unsubscribe`
     on the server side `TwoWay` object.
-    How the server decides that it is time to close the connection is up to you - for
-    example, the server could close the connection when it receives a negative `n`.
+    How the server decides that it is time to close the link is up to you - for
+    example, the server could close the link when it receives a negative `n`.
 
     The `TwoWay` protocol is relatively low-level.
-    It does not itself close its connections,
+    It does not itself close its links,
     and delegates the task of doing so to its users.
     As such, its purpose is mainly to serve as a building block
     for higher-level protocols.

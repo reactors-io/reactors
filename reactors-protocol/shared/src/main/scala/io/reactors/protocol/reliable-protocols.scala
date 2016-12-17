@@ -17,7 +17,7 @@ import io.reactors.services.Channels
  *  depending on the properties of the communication medium.
  *
  *  Reliability protocols ensure that all original events are delivered exactly once
- *  and in order, using either one-way or two-way reliable connections.
+ *  and in order, using either one-way or two-way reliable links.
  */
 trait ReliableProtocols {
   /** Represents a connected reliable channel.
@@ -25,36 +25,36 @@ trait ReliableProtocols {
    *  When using a reliable channel to send events, clients have some level of guarantee
    *  that their events will not be impaired in some way. The exact guarantees are
    *  detailed in the `Policy` object which must be specified when establishing a
-   *  reliable connection.
+   *  reliable link.
    *
-   *  To close this reliable connection, clients must use the associated subscription.
+   *  To close this reliable link, clients must use the associated subscription.
    *
    *  @tparam T                 type of the events sent by this reliable channel
-   *  @param channel            channel underlying the reliable connection
-   *  @param subscription       subscription associated with the reliable connection
+   *  @param channel            channel underlying the reliable link
+   *  @param subscription       subscription associated with the reliable link
    */
   case class Reliable[T](channel: Channel[T], subscription: Subscription)
 
   object Reliable {
-    /** Represents the reading side of a reliable connection.
+    /** Represents the reading side of a reliable link.
      *
-     *  @tparam T               type of the events incoming on this reliable connection
-     *  @param events           event stream for incoming events of this connection
-     *  @param subscription     subscription of the connection
+     *  @tparam T               type of the events incoming on this reliable link
+     *  @param events           event stream for incoming events of this link
+     *  @param subscription     subscription of the link
      */
     case class Link[T](events: Events[T], subscription: Subscription)
     extends io.reactors.protocol.Connection[T]
 
     /** State of the reliable channel server.
      *
-     *  @tparam T               type of the events in the incoming connections
-     *  @param channel          channel used to request reliable connections
-     *  @param connections      event stream of established connections
+     *  @tparam T               type of the events in the incoming links
+     *  @param channel          channel used to request reliable links
+     *  @param links            event stream of established links
      *  @param subscription     subscription of the server
      */
     case class Server[T](
       channel: Channel[Req[T]],
-      connections: Events[Reliable.Link[T]],
+      links: Events[Reliable.Link[T]],
       subscription: Subscription
     ) extends ServerSide[Req[T], Reliable.Link[T]]
 
@@ -70,14 +70,14 @@ trait ReliableProtocols {
      *  to establish reliability.
      */
     trait Policy {
-      /** Wires client-sent events to the two-way connection.
+      /** Wires client-sent events to the two-way link.
        */
       def client[T: Arrayable](
         sends: Events[T],
         twoWay: io.reactors.protocol.TwoWay[Long, Stamp[T]]
       ): Subscription
 
-      /** Wires the two-way connection to the delivery channel of the server.
+      /** Wires the two-way link to the delivery channel of the server.
        */
       def server[T: Arrayable](
         twoWay: io.reactors.protocol.TwoWay[Stamp[T], Long],
@@ -159,8 +159,8 @@ trait ReliableProtocols {
        *
        * @tparam I               incoming event type, from the client's perspective
        * @tparam O               outgoing event type, from the client's perspective
-       * @param channel          channel used to establish a reliable two-way connection
-       * @param connections      event stream that emits established connections
+       * @param channel          channel used to establish a reliable two-way link
+       * @param links            event stream that emits established links
        * @param subscription     subscription of the server
        */
       case class Server[I, O](
@@ -168,11 +168,11 @@ trait ReliableProtocols {
           Channel[Reliable.Req[I]],
           Channel[Reliable.Req[O]]
         ],
-        connections: Events[TwoWay[O, I]],
+        links: Events[TwoWay[O, I]],
         subscription: Subscription
       ) extends ServerSide[TwoWay.Req[I, O], TwoWay[O, I]]
 
-      /** Type of the request used to establish reliable two-way connections.
+      /** Type of the request used to establish reliable two-way links.
        *
        *  @tparam I          type of the incoming events, from the client's perspective
        *  @tparam O          type of the outgoing events, from the client's perspective
@@ -185,7 +185,7 @@ trait ReliableProtocols {
       /** Captures the assumption about the lossiness of the underlying transport.
        *
        *  Depending on the lossiness of the transport, different policies must be
-       *  used when establishing a reliable two-way connection.
+       *  used when establishing a reliable two-way link.
        */
       trait Policy extends Reliable.Policy {
         /** Guard placed on the input server after it is created.
@@ -223,14 +223,14 @@ trait ReliableProtocols {
   /* One-way reliable protocols */
 
   implicit class ReliableChannelBuilderOps(val builder: ChannelBuilder) {
-    /** Opens a connector for a reliable connection server.
+    /** Opens a connector for a reliable link server.
      *
      *  Note that opening a connector does not yet start the protocol.
      *  To start the reliable channel server, `serveReliable` must be called
      *  on the connector.
      *
-     *  @tparam T        type of the events of the established reliable connections
-     *  @return          a connector for the reliable connection server
+     *  @tparam T        type of the events of the established reliable links
+     *  @return          a connector for the reliable link server
      */
     def reliableServer[T]: Connector[Reliable.Req[T]] = {
       builder.open[Reliable.Req[T]]
@@ -240,17 +240,17 @@ trait ReliableProtocols {
   implicit class ReliableConnectorOps[T: Arrayable](
     val connector: Connector[Reliable.Req[T]]
   ) {
-    /** Starts a server that responds to incoming requests for reliable connections.
+    /** Starts a server that responds to incoming requests for reliable links.
      *
      *  @param policy     captures assumptions about the underlying transport
-     *  @return           state of the new reliable connections server
+     *  @return           state of the new reliable links server
      */
     def serveReliable(
       policy: Reliable.Policy = Reliable.Policy.reorder(128)
     ): Reliable.Server[T] = {
       val system = Reactor.self.system
       val twoWayServer = connector.serveTwoWay()
-      val connections = twoWayServer.connections map {
+      val links = twoWayServer.links map {
         case twoWay @ TwoWay(_, events, _) =>
           val reliable =
             system.channels.template(Reliable.ChannelTag).daemon.shortcut.open[T]
@@ -265,8 +265,8 @@ trait ReliableProtocols {
 
       Reliable.Server(
         connector.channel,
-        connections,
-        connections.chain(twoWayServer.subscription).andThen(connector.seal())
+        links,
+        links.chain(twoWayServer.subscription).andThen(connector.seal())
       )
     }
   }
@@ -274,11 +274,11 @@ trait ReliableProtocols {
   implicit class ReliableServerOps[T: Arrayable](
     val server: Channel[Reliable.Req[T]]
   ) {
-    /** Opens a reliable connection.
+    /** Opens a reliable link.
      *
      *  @param policy      captures assumption about the underlying transport
      *  @return            single-assignment variable that is eventually completed with
-     *                     the reliable connection object
+     *                     the reliable link object
      */
     def openReliable(
       policy: Reliable.Policy = Reliable.Policy.reorder(128)
@@ -305,7 +305,7 @@ trait ReliableProtocols {
     ): Proto[Reactor[Reliable.Req[T]]] = {
       Reactor[Reliable.Req[T]] { self =>
         val server = self.main.serveReliable(policy)
-        server.connections.onEvent(connection => f(server, connection))
+        server.links.onEvent(link => f(server, link))
       }
     }
   }
@@ -323,7 +323,7 @@ trait ReliableProtocols {
   /* Two-way reliable protocols */
 
   implicit class ReliableTwoWayChannelBuilderOps(val builder: ChannelBuilder) {
-    /** Opens a connector that can accept requests for reliable two-way connections.
+    /** Opens a connector that can accept requests for reliable two-way links.
      *
      *  Does not start the reliable two-way server protocol. For that, clients must
      *  call the `serverTwoWayReliable` method on the connector.
@@ -340,7 +340,7 @@ trait ReliableProtocols {
   implicit class ReliableTwoWayConnectorOps[I: Arrayable, O: Arrayable](
     val connector: Connector[Reliable.TwoWay.Req[I, O]]
   ) {
-    /** Starts a server that accepts requests for two-way reliable connections.
+    /** Starts a server that accepts requests for two-way reliable links.
      *
      *  @param policy  captures assumptions about the underlying transport
      *  @return        state of the newly created two-way reliable server
@@ -349,25 +349,25 @@ trait ReliableProtocols {
       policy: Reliable.TwoWay.Policy = Reliable.TwoWay.Policy.reorder(128)
     ): Reliable.TwoWay.Server[I, O] = {
       val system = Reactor.self.system
-      val connections = connector.events.map {
+      val links = connector.events.map {
         case req @ (inServer, reply) =>
           val outServer = system.channels.daemon.shortcut.reliableServer[O]
             .serveReliable(policy)
-          outServer.connections.on(outServer.subscription.unsubscribe())
+          outServer.links.on(outServer.subscription.unsubscribe())
           policy.outputServerGuard(outServer)
           reply ! outServer.channel
 
           val inReliable = inServer.openReliable(policy)
 
-          (outServer.connections sync inReliable) { (out, in) =>
+          (outServer.links sync inReliable) { (out, in) =>
             TwoWay(in.channel, out.events, in.subscription.chain(out.subscription))
           } toIVar
       }.union.toEmpty
 
       Reliable.TwoWay.Server(
         connector.channel,
-        connections,
-        connections.andThen(connector.seal())
+        links,
+        links.andThen(connector.seal())
       )
     }
   }
@@ -375,11 +375,11 @@ trait ReliableProtocols {
   implicit class ReliableTwoWayServerOps[I: Arrayable, O: Arrayable](
     val reliableServer: Channel[io.reactors.protocol.Reliable.TwoWay.Req[I, O]]
   ) {
-    /** Requests and establishes a two-way reliable connection.
+    /** Requests and establishes a two-way reliable link.
      *
      *  @param policy    captures assumptions about the underlying transport
      *  @return          a single-assignment variable with the established two-way
-     *                   connection, completed once the connection is established
+     *                   link, completed once the link is established
      */
     def connectReliable(
       policy: Reliable.TwoWay.Policy = Reliable.TwoWay.Policy.reorder(128)
@@ -388,12 +388,12 @@ trait ReliableProtocols {
       val inServer = system.channels.daemon.shortcut.reliableServer[I]
         .serveReliable(policy)
       policy.inputServerGuard(inServer)
-      inServer.connections.on(inServer.subscription.unsubscribe())
+      inServer.links.on(inServer.subscription.unsubscribe())
 
       (reliableServer ? inServer.channel).map { outServer =>
         val outReliable = outServer.openReliable(policy)
 
-        (outReliable sync inServer.connections) { (out, in) =>
+        (outReliable sync inServer.links) { (out, in) =>
           TwoWay(out.channel, in.events, out.subscription.chain(in.subscription))
         }
       }.union.toIVar
@@ -403,7 +403,7 @@ trait ReliableProtocols {
   implicit class ReliableTwoWayReactorCompanionOps(val reactor: Reactor.type) {
     /** Same as `serveTwoWayReliable`, but creates a `Proto` object.
      *
-     *  The reactor's main channel is used as the two-way reliable connection server.
+     *  The reactor's main channel is used as the two-way reliable link server.
      */
     def reliableTwoWayServer[I: Arrayable, O: Arrayable](
       policy: Reliable.TwoWay.Policy
@@ -412,7 +412,7 @@ trait ReliableProtocols {
     ): Proto[Reactor[Reliable.TwoWay.Req[I, O]]] = {
       Reactor[Reliable.TwoWay.Req[I, O]] { self =>
         val server = self.main.serveTwoWayReliable(policy)
-        server.connections.onEvent(twoWay => f(server, twoWay))
+        server.links.onEvent(twoWay => f(server, twoWay))
       }
     }
   }
@@ -422,7 +422,7 @@ trait ReliableProtocols {
   ) {
     /** Same as `serveTwoWayReliable`, but immediately starts the reactor.
      *
-     *  The reactor's main channel is used as the two-way reliable connection server.
+     *  The reactor's main channel is used as the two-way reliable link server.
      */
     def reliableTwoWayServer(policy: Reliable.TwoWay.Policy)(
       f: (Reliable.TwoWay.Server[I, O], TwoWay[O, I]) => Unit
