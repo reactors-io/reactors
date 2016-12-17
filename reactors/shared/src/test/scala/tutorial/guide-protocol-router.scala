@@ -193,7 +193,9 @@ class GuideRouterProtocol extends AsyncFunSuite {
   import io.reactors.protocol._
 
   /*!begin-code!*/
-  sealed trait Op[K, V]
+  sealed trait Op[K, V] {
+    def key: K
+  }
 
   case class Put[K, V](key: K, value: V)
   extends Op[K, V]
@@ -241,7 +243,7 @@ class GuideRouterProtocol extends AsyncFunSuite {
 
       // Return the router reactor, which forwards requests
       // to the appropriate shard reactor.
-      system.router(Router.hash(shards))
+      system.router(Router.hash(shards, _._1.key.##))
     }
     /*!end-code!*/
 
