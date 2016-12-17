@@ -21,16 +21,20 @@ class EventBuffer[@spec(Int, Long, Double) T: Arrayable]
 extends Events.Push[T] with Events[T] with Subscription.Proxy {
   private val buffer = new UnrolledRing[T]
   private val availabilityCell = new RCell[Boolean](false)
-  private[reactors] var innerSubscription = Subscription.empty
+  private var rawSubscription = Subscription.empty
+
+  private[reactors] def subscription_=(s: Subscription) = {
+    rawSubscription = new Subscription.Composite(
+      s,
+      new Subscription {
+        override def unsubscribe(): Unit = unreactAll()
+      }
+    )
+  }
 
   /** The subscription associated with this event buffer.
    */
-  val subscription: Subscription = new Subscription.Composite(
-    innerSubscription,
-    new Subscription {
-      override def unsubscribe(): Unit = unreactAll()
-    }
-  )
+  def subscription: Subscription = rawSubscription
 
   /** Enqueues an event.
    */

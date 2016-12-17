@@ -53,12 +53,6 @@ object Platform {
       default-schema = "local"
       transports = [
         {
-          schema = "local"
-          transport = "io.reactors.transport.LocalTransport"
-          host = ""
-          port = 0
-        },
-        {
           schema = "udp"
           transport = "io.reactors.remote.UdpTransport"
           host = "localhost"

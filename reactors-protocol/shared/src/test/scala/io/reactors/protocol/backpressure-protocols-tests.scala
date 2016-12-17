@@ -49,11 +49,12 @@ extends AsyncFunSuite with AsyncTimeLimitedTests {
       backpressureServer.connectBackpressure[Int](medium, policy) onEvent { valve =>
         def produce(from: Int): Unit = {
           var i = from
-          while (valve.available() && i < total) {
-            valve.channel ! i
-            i += 1
+          valve.available.is(true) on {
+            while (valve.available() && i < total) {
+              valve.channel ! i
+              i += 1
+            }
           }
-          valve.available.is(true).once.on(produce(i))
         }
         produce(0)
       }
@@ -91,15 +92,13 @@ extends AsyncFunSuite with AsyncTimeLimitedTests {
 
     system.spawnLocal[Unit] { self =>
       backpressureServer.connectBackpressure(medium, policy) onEvent { valve =>
-        def produce(from: Int): Unit = {
-          var i = from
+        var i = 0
+        valve.available.is(true) on {
           while (valve.available() && i < total) {
             valve.channel ! i
             i += 1
           }
-          valve.available.is(true).once.on(produce(i))
         }
-        produce(0)
       }
     }
 

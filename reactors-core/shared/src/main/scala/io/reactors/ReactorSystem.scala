@@ -251,12 +251,19 @@ object ReactorSystem {
       val spindownTestIterations = config.int("scheduler.spindown.test-iterations")
     }
 
+    val defaultTransports = Map(
+      "local" -> Bundle.TransportInfo(
+        SystemUrl("local", "", 0),
+        "io.reactors.transport.LocalTransport"
+      )
+    )
+
     val urlMap = config.list("remote.transports").map { c =>
       val schema = c.string("schema")
       val url = SystemUrl(c.string("schema"), c.string("host"), c.int("port"))
       val transportName = c.string("transport")
       (schema, Bundle.TransportInfo(url, transportName))
-    } toMap
+    }.toMap ++ defaultTransports
 
     val urls = urlMap.map(_._2.url).toSet
 

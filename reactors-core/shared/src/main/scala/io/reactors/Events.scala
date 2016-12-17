@@ -1067,7 +1067,7 @@ trait Events[@spec(Int, Long, Double) T] {
    */
   def toEventBuffer(implicit a: Arrayable[T]): EventBuffer[T] = {
     val buffer = new EventBuffer[T]
-    buffer.innerSubscription = this onEvent { x =>
+    buffer.subscription = this onEvent { x =>
       buffer.enqueue(x)
     }
     buffer

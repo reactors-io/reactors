@@ -3,6 +3,7 @@ package io
 
 
 import scala.annotation.implicitNotFound
+import scala.util.control.NoStackTrace
 
 
 
@@ -67,7 +68,11 @@ package object reactors {
     def apply(obj: Any) = throw new RuntimeException(obj.toString)
     def illegalArg(msg: String) = throw new IllegalArgumentException(msg)
     def illegalState(obj: Any) = throw new IllegalStateException(obj.toString)
+    def test(obj: Any) = throw new TestControlException(obj.toString)
   }
+
+  case class TestControlException(msg: String)
+  extends Throwable(msg) with NoStackTrace
 
   /** Thrown when an error in reactor execution occurs.
    */

@@ -19,6 +19,7 @@ import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.concurrent.duration._
 import scala.util.Success
+import scala.util.control.ControlThrowable
 
 
 
@@ -547,7 +548,7 @@ with Matchers with AsyncTimeLimitedTests {
     })
     def spawnTestReactor(fail: Boolean) = {
       val proto = Reactor[Unit] { self =>
-        if (fail) sys.error("Reactor terminated (THIS IS OK!)")
+        if (fail) exception.test("Reactor terminated (THIS IS OK!)")
         val aux = system.channels.named("aux").open[String]
         aux.events onMatch {
           case "done" =>

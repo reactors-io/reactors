@@ -30,7 +30,7 @@ trait RouterProtocols {
      */
     def route(policy: Router.Policy[T]): Router[T] = {
       conn.events.onEvent { x =>
-        policy.routee(x) ! x
+        policy(x) ! x
       }
       Router(conn.channel, Subscription(conn.seal()))
     }
@@ -66,14 +66,14 @@ case class Router[T](channel: Channel[T], subscription: Subscription)
 object Router {
   /** Type of a function that selects a channel given an event.
    */
-  case class Policy[T](routee: T => Channel[T])
+  type Policy[T] = T => Channel[T]
 
   /** Always returns a zero channel, which loses all the events sent to it.
    *
    *  @tparam T       type of the events to route
    *  @return         a selector function that drops events
    */
-  def zeroSelector[T]: Policy[T] = Policy((x: T) => new Channel.Zero[T])
+  def zeroSelector[T]: Policy[T] = (x: T) => new Channel.Zero[T]
 
   /** Picks channels in a Round Robin manner.
    *
@@ -83,13 +83,13 @@ object Router {
    */
   def roundRobin[T](targets: Seq[Channel[T]]): Policy[T] = {
     var i = -1
-    Policy((x: T) => {
+    (x: T) => {
       if (targets.nonEmpty) {
         i = (i + 1) % targets.length
         val ch = targets(i)
         ch
       } else new Channel.Zero[T]
-    })
+    }
   }
 
   /** Picks a channel from a random distribution.
@@ -106,10 +106,10 @@ object Router {
       (n: Int) => r.nextInt(n)
     }
   ): Policy[T] = {
-    Policy((x: T) => {
+    (x: T) => {
       if (targets.nonEmpty) targets(randfun(targets.length))
       else new Channel.Zero[T]
-    })
+    }
   }
 
   /** Consistently picks a channel using a hashing function on the event.
@@ -128,10 +128,10 @@ object Router {
     targets: Seq[Channel[T]],
     hashing: T => Int = (x: T) => x.##
   ): Policy[T] = {
-    Policy((x: T) => {
+    (x: T) => {
       if (targets.nonEmpty) targets(math.abs(hashing(x)) % targets.length)
       else new Channel.Zero[T]
-    })
+    }
   }
 
   /** Picks the next channel according to the Deficit Round Robin routing algorithm.
@@ -164,7 +164,7 @@ object Router {
     else {
       val deficits = new Array[Int](targets.length)
       var i = targets.length - 1
-      Policy((x: T) => {
+      (x: T) => {
         val c = cost(x)
         var found = false
         while (!found) {
@@ -176,7 +176,7 @@ object Router {
         }
         deficits(i) -= c
         targets(i)
-      })
+      }
     }
   }
 }
