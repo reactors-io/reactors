@@ -49,7 +49,7 @@ class GuideTwoWayProtocol extends AsyncFunSuite {
   and the other party the server.
   The `TwoWay` type has two type parameters `I` and `O`,
   which describe the types of input and output events, respectively,
-  from the client’s point of view.
+  from the client's point of view.
   Show graphically, this looks as follows:
 
   ```
