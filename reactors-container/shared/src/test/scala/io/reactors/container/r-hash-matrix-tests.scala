@@ -31,7 +31,7 @@ class RHashMatrixSpec extends FunSuite {
 
 
 class RHashMatrixCheck extends Properties("RHashMatrix") with ExtendedProperties {
-  val sizes = detChoose(0, 1000)
+  val sizes = detChoose(0, 600)
 
   property("contain diagonal elements") = forAllNoShrink(sizes) { sz =>
     stackTraced {
