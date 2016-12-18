@@ -44,7 +44,7 @@ extends Properties("ServerProtocols") with ExtendedProperties {
         }
       }
       system.spawn(client)
-      Await.result(p.future, 10.seconds) == Seq("reactors" * num).flatten
+      Await.result(p.future, 20.seconds) == Seq("reactors" * num).flatten
     }
   }
 }
