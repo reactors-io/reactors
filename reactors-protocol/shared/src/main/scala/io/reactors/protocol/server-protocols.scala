@@ -96,7 +96,7 @@ trait ServerProtocols {
      *  @return      the single assignment variable with the reply
      */
     def ?(x: T): IVar[S] = {
-      val connector = Reactor.self.system.channels.open[S]
+      val connector = Reactor.self.system.channels.daemon.open[S]
       val result = connector.events.toIVar
       result.onDone(connector.seal())
       server ! (x, connector.channel)

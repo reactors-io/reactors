@@ -15,7 +15,7 @@ import scala.collection._
  *
  *  The main use of this class is for testing - it allows simulating unreliability on
  *  the network level, as well as specific failure scenarios. This transport class
- *  itself is not meant to be used directly, but instead by the `Scripted` service.
+ *  itself is not meant to be used directly, but is used by the `Scripted` service.
  */
 class ScriptedTransport(val system: ReactorSystem) extends Remote.Transport {
   lazy val multiplexer = system.spawn(Proto[ScriptedMultiplexer])
@@ -90,7 +90,7 @@ object ScriptedTransport {
 }
 
 
-private[instrument] class ScriptedMultiplexer
+class ScriptedMultiplexer
 extends Reactor[ScriptedTransport.Command] {
   import ScriptedTransport._
 
