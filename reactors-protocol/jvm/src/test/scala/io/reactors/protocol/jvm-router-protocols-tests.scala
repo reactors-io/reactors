@@ -88,7 +88,7 @@ extends Properties("RouterProtocols") with ExtendedProperties {
         for (i <- 0 until num) rc.channel ! i
         self.main.seal()
       })
-      for (i <- 0 until num) assert(Await.result(done(i).future, 4.seconds))
+      for (i <- 0 until num) assert(Await.result(done(i).future, 10.seconds))
       true
     }
   }
@@ -111,7 +111,7 @@ extends Properties("RouterProtocols") with ExtendedProperties {
           route(Router.deficitRoundRobin(chs, 1, (x: Int) => x))
         for (i <- 0 until num * reps) rc.channel ! (1 + i % maxcost)
       })
-      latch.await(5, TimeUnit.SECONDS)
+      latch.await(10, TimeUnit.SECONDS)
       assert(totalWork.max - totalWork.min <= maxcost, (totalWork.max, totalWork.min))
       true
     }
