@@ -979,6 +979,7 @@ class EventsSpec extends FunSuite {
     val e2 = new Events.Emitter[Int]
     val sync = Events.sync(e0, e1, e2)
     sync.onEvent(buffer += _)
+    sync.onDone(done = true)
 
     e0.react(3)
     assert(!done)
