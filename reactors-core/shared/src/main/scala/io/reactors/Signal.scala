@@ -255,7 +255,6 @@ object Signal {
     }
   }
 
-
   /** Zips the list of signals, and produces an output signal from their values.
    *
    *  The output signal is updated whenever any of the input signals are updated.

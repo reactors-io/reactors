@@ -1495,6 +1495,15 @@ object Events {
    */
   def never[@spec(Int, Long, Double) T]: Events[T] = new Events.Never[T]
 
+  /** Synchronizes a sequence of event streams.
+   *
+   *  The resulting event stream emits a sequence of events every time it manages
+   *  to obtain a sequence from each of the input 
+   */
+  def sync[@spec(Int, Long, Double) T](es: Events[T]*)(
+    implicit a: Arrayable[T]
+  ): Events[Seq[T]] = new Events.SyncMany(es)
+
   private[reactors] class MutateObserver[
     @spec(Int, Long, Double) T, M >: Null <: AnyRef
   ](val target: Mutable[M], f: M => T => Unit) extends Observer[T] {
@@ -1643,6 +1652,67 @@ object Events {
     }
     def unreact() {
       target.unreact()
+    }
+  }
+
+  private[reactors] class SyncMany[@spec(Int, Long, Double) T](
+    val es: Seq[Events[T]]
+  )(implicit val a: Arrayable[T]) extends Events[Seq[T]] {
+    def newBuffers(self: SyncMany[T]): Seq[UnrolledRing[T]] =
+      for (e <- es) yield new UnrolledRing[T]
+    def newSyncManyObserver(
+      target: Observer[Seq[T]], r: UnrolledRing[T], rs: Array[UnrolledRing[T]],
+      sub: Subscription
+    ) = {
+      new SyncManyObserver(target, r, rs, sub)
+    }
+    def onReaction(target: Observer[Seq[T]]): Subscription = {
+      val sub = new Subscription.Collection
+      val rs = newBuffers(this).toArray
+      val obss = for (r <- rs) yield newSyncManyObserver(target, r, rs, sub)
+      for ((e, obs) <- es zip obss) sub.addAndGet(e.onReaction(obs))
+      sub
+    }
+  }
+
+  private[reactors] class SyncManyObserver[@spec(Int, Long, Double) T](
+    val target: Observer[Seq[T]],
+    val buffer: UnrolledRing[T],
+    val buffers: Array[UnrolledRing[T]],
+    val subscription: Subscription
+  ) extends Observer[T] {
+    var done: Boolean = _
+    def init(self: SyncManyObserver[T]) {
+      done = false
+    }
+    init(this)
+    def checkReady(self: SyncManyObserver[T]) {
+      var i = 0
+      while (i < buffers.length) {
+        if (buffers(i).isEmpty) return
+        i += 1
+      }
+      val batch = mutable.Buffer[T]()
+      i = 0
+      while (i < buffers.length) {
+        batch += buffers(i).dequeue()
+        i += 1
+      }
+      target.react(batch, null)
+    }
+    def react(value: T, hint: Any) {
+      buffer.enqueue(value)
+      checkReady(this)
+    }
+    def except(t: Throwable) {
+      target.except(t)
+    }
+    def unreact() {
+      if (!done) {
+        done = true
+        subscription.unsubscribe()
+        target.unreact()
+      }
     }
   }
 
