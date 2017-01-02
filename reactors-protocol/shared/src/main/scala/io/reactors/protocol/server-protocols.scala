@@ -18,6 +18,10 @@ trait ServerProtocols {
   object Server {
     type Req[T, S] = (T, Channel[S])
 
+    object Stream {
+      type Req[T, S] = io.reactors.protocol.Server.Req[(T, S), S]
+    }
+
     case class State[T, S](channel: Server[T, S], subscription: Subscription)
   }
 
@@ -28,6 +32,13 @@ trait ServerProtocols {
      *  requests - for this, `serve` must be called on the connector.
      */
     def server[T, S]: Connector[Server.Req[T, S]] = builder.open[Server.Req[T, S]]
+
+    /** Open a new streaming server channel.
+     *
+     *  Method `serve` must be subsequently called to start the server.
+     */
+    def streamServer[T, S]: Connector[Server.Stream.Req[T, S]] =
+      builder.open[Server.Stream.Req[T, S]]
   }
 
   implicit class ServerConnectorOps[T, S](val conn: Connector[Server.Req[T, S]]) {
@@ -84,6 +95,23 @@ trait ServerProtocols {
     }
   }
 
+  implicit class ServerStreamConnectorOps[T, @specialized(Int, Long, Double) S](
+    val conn: Connector[Server.Stream.Req[T, S]]
+  ) {
+    /** Starts the stream server.
+     *
+     *  For each streaming request, an event stream is created using the specified
+     *  function. Events from this event stream are streamed to the client,
+     *  and a terminator value is sent at the end.
+     */
+    def serve(f: T => Events[S]): Server.State[(T, S), S] = {
+      val subscription = conn.events onMatch {
+        case ((x, term), ch) => f(x).onEventOrDone(y => ch ! y)(ch ! term)
+      }
+      Server.State(conn.channel, subscription.andThen(conn.seal()))
+    }
+  }
+
   implicit class ServerOps[T, @specialized(Int, Long, Double) S: Arrayable](
     val server: Server[T, S]
   ) {
@@ -128,7 +156,7 @@ trait ServerProtocols {
      *  @param term  termination event, server must use it to indicate the end of stream
      *  @return      a signal emitting the server replies
      */
-    def streaming(x: T, term: S): Signal[S] = {
+    def askStream(x: T, term: S): Signal[S] = {
       val connector = Reactor.self.system.channels.open[S]
       val result = connector.events.takeWhile(_ != term).toEmpty
       result.onDone(connector.seal())

@@ -24,20 +24,15 @@ extends Properties("ServerProtocols") with ExtendedProperties {
     num =>
     stackTraced {
       val p = Promise[Seq[Char]]()
-      val serverProto = Reactor[Server.Req[(String, Char), Char]] { self =>
-        self.main.events onMatch {
-          case ((s, term), ch) =>
-            for (c <- s * num) ch ! c
-            ch ! term
-            self.main.seal()
-        }
+      val serverProto = Reactor[Server.Stream.Req[String, Char]] { self =>
+        self.main.serve(s => (s * num).toSeq.toEvents)
       }
       val server = system.spawn(serverProto)
       val client = Reactor[Unit] { self =>
         self.sysEvents onMatch {
           case ReactorStarted =>
             val buffer = mutable.Buffer[Char]()
-            server.streaming("reactors", 0.toChar).onEventOrDone(buffer += _) {
+            server.askStream("reactors", 0.toChar).onEventOrDone(buffer += _) {
               p.success(buffer)
               self.main.seal()
             }
