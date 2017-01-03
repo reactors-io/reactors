@@ -25,7 +25,7 @@ class RoundaboutBench extends JBench.OfflineReport {
     exec.maxWarmupRuns -> 160,
     exec.benchRuns -> 40,
     exec.independentSamples -> 1,
-    verbose -> true
+    verbose -> false
   )
 
   override def reporter = Reporter.Composite(
