@@ -2834,8 +2834,9 @@ object Events {
     def onReaction(observer: Observer[S]): Subscription = {
       val postfixObserver = new PostfixUnionObserver(observer, evid)
       val sub = self.onReaction(postfixObserver)
-      postfixObserver.subscription = postfixObserver.subscriptions.addAndGet(sub)
-      postfixObserver.subscriptions
+      postfixObserver.outerSubscription.set(
+        postfixObserver.allSubscriptions.addAndGet(sub))
+      postfixObserver.allSubscriptions
     }
   }
 
@@ -2844,15 +2845,16 @@ object Events {
     val evidence: T <:< Events[S]
   ) extends Observer[T] {
     private[reactors] var terminated: Boolean = _
-    private[reactors] var subscription: Subscription = _
-    private[reactors] var subscriptions: Subscription.Collection = _
+    private[reactors] var outerSubscription: Subscription.Cell = _
+    private[reactors] var allSubscriptions: Subscription.Collection = _
     def init(e: T <:< Events[S]) {
       terminated = false
-      subscriptions = new Subscription.Collection
+      outerSubscription = new Subscription.Cell
+      allSubscriptions = new Subscription.Collection
     }
     init(evidence)
     def checkUnreact() =
-      if (subscriptions.isEmpty) target.unreact()
+      if (allSubscriptions.isEmpty) target.unreact()
     def newPostfixUnionNestedObserver: PostfixUnionNestedObserver[T, S] =
       new PostfixUnionNestedObserver(target, this)
     def react(value: T, hint: Any): Unit = if (!terminated) {
@@ -2864,15 +2866,15 @@ object Events {
           return
       }
       val obs = newPostfixUnionNestedObserver
-      val sub = subscriptions.addAndGet(moreEvents.onReaction(obs))
-      obs.subscription = sub
+      val sub = allSubscriptions.addAndGet(moreEvents.onReaction(obs))
+      obs.subscription.set(sub)
     }
     def except(t: Throwable) = if (!terminated) {
       target.except(t)
     }
     def unreact() = {
       terminated = true
-      subscription.unsubscribe()
+      outerSubscription.unsubscribe()
       checkUnreact()
     }
   }
@@ -2883,7 +2885,11 @@ object Events {
     val target: Observer[S],
     val unionObserver: PostfixUnionObserver[T, S]
   ) extends Observer[S] {
-    var subscription: Subscription = _
+    var subscription: Subscription.Cell = _
+    def init(self: PostfixUnionNestedObserver[T, S]) {
+      subscription = new Subscription.Cell
+    }
+    init(this)
     def react(value: S, hint: Any) = target.react(value, hint)
     def except(t: Throwable) = target.except(t)
     def unreact() {

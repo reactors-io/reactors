@@ -110,4 +110,31 @@ object Subscription {
     def isEmpty: Boolean = set.isEmpty
   }
 
+  /** A mutable cell that can contain at most one subscription.
+   *
+   *  Has similar semantics as subscription collection.
+   */
+  class Cell extends Subscription {
+    private var done = false
+    private var inner: Subscription = null
+    def unsubscribe() {
+      done = true
+      if (inner != null) inner.unsubscribe()
+    }
+    def set(s: Subscription): Subscription = {
+      if (done) {
+        s.unsubscribe()
+        Subscription.empty
+      } else {
+        inner = new Subscription {
+          override def unsubscribe() {
+            s.unsubscribe()
+            inner = null
+          }
+        }
+        inner
+      }
+    }
+  }
+
 }
