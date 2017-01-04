@@ -196,6 +196,16 @@ object ReactorSystem {
     new ReactorSystem(name, bundle)
   }
 
+  /** Creates a default reactor system, given a custom configuration.
+   *
+   *  @param name       the name of the reactor system instance
+   *  @param config     configuration overrides for the reactor system
+   *  @return           a new reactor system instance
+   */
+  def default(name: String, config: String) = {
+    new ReactorSystem(name, Bundle.default(config))
+  }
+
   /** Contains machine information.
    */
   private val machineConfig = Configuration.parse(Platform.machineConfiguration)
