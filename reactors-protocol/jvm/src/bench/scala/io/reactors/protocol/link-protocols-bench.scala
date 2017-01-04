@@ -15,7 +15,7 @@ class LinkProtocolsBench extends JBench.OfflineReport {
   override def defaultConfig = Context(
     exec.minWarmupRuns -> 80,
     exec.maxWarmupRuns -> 160,
-    exec.benchRuns -> 50,
+    exec.benchRuns -> 5000,
     exec.independentSamples -> 1,
     verbose -> true
   )
@@ -102,69 +102,60 @@ class LinkProtocolsBench extends JBench.OfflineReport {
   //   assert(Await.result(done.future, 10.seconds))
   // }
 
-  def optimizedReorder(window: Int) = new Reliable.Policy {
-    def client[T: Arrayable](
-      sends: Events[T],
-      twoWay: io.reactors.protocol.TwoWay[Long, Stamp[T]]
-    ): Subscription = {
-      var lastStamp = 0L
-      val io.reactors.protocol.TwoWay(channel, acks, subscription) = twoWay
-      sends onEvent { x =>
-        lastStamp += 1
-        channel ! new Stamp.Some(x, lastStamp)
-      }
-    }
-
-    def server[T: Arrayable](
-      twoWay: io.reactors.protocol.TwoWay[Stamp[T], Long],
-      deliver: Channel[T]
-    ): Subscription = {
-      val io.reactors.protocol.TwoWay(acks, events, subscription) = twoWay
-      var nextStamp = 1L
-      val queue = new io.reactors.common.BinaryHeap[Stamp[T]]()(
-        implicitly,
-        Order((x, y) => (x.stamp - y.stamp).toInt)
-      )
-      val ackSub = Reactor.self.sysEvents onMatch {
-        case ReactorPreempted => acks ! nextStamp
-      }
-      events onMatch {
-        case stamp @ Stamp.Some(x, timestamp) =>
-          if (timestamp == nextStamp) {
-            nextStamp += 1
-            deliver ! x
-            while (queue.nonEmpty && queue.head.stamp == nextStamp) {
-              val Stamp.Some(y, _) = queue.dequeue()
-              nextStamp += 1
-              deliver ! y
-            }
-          } else {
-            queue.enqueue(stamp)
-          }
-      } chain (ackSub) andThen (acks ! -1)
-    }
-  }
+  // @gen("sizes")
+  // @benchmark("io.reactors.protocol.link")
+  // @curve("reliable-optimized-link")
+  // def reliableOptimizedSend(sz: Int): Unit = {
+  //   val done = Promise[Boolean]()
+  //   val policy = Reliable.Policy.fastReorder(8192)
+  //   val server = system.reliableServer[String](policy) {
+  //     (server, link) =>
+  //     var count = 0
+  //     link.events onEvent { x =>
+  //       count += 1
+  //       if (count == sz) done.success(true)
+  //     }
+  //   }
+  //   system.spawnLocal[Unit] { self =>
+  //     server.openReliable(policy) onEvent { r =>
+  //       var i = 0
+  //       while (i < sz) {
+  //         r.channel ! "data"
+  //         i += 1
+  //       }
+  //     }
+  //   }
+  //   assert(Await.result(done.future, 10.seconds))
+  // }
 
   @gen("sizes")
   @benchmark("io.reactors.protocol.link")
-  @curve("reliable-optimized-link")
-  def reliableOptimizedSend(sz: Int): Unit = {
+  @curve("backpressure-simple-link")
+  def backpressureSimpleSend(sz: Int): Unit = {
     val done = Promise[Boolean]()
-    val policy = optimizedReorder(8192)
-    val server = system.reliableServer[String](policy) {
-      (server, link) =>
-      var count = 0
-      link.events onEvent { x =>
-        count += 1
-        if (count == sz) done.success(true)
-      }
+    val medium = Backpressure.Medium.default[Int]
+    val policy = Backpressure.Policy.batching(8192)
+    val server = system.backpressureServer(medium, policy) {
+      case Backpressure.PumpServer(ch, links, sub) =>
+        links onEvent { pump =>
+          var count = 0
+          pump.available.is(true) on {
+            while (pump.available()) {
+              pump.dequeue()
+              count += 1
+              if (count == sz) done.success(true)
+            }
+          }
+        }
     }
     system.spawnLocal[Unit] { self =>
-      server.openReliable(policy) onEvent { r =>
+      server.openBackpressure(medium, policy) onEvent { valve =>
         var i = 0
-        while (i < sz) {
-          r.channel ! "data"
-          i += 1
+        valve.available.is(true) on {
+          while (valve.available() && i < sz) {
+            valve.channel ! 0
+            i += 1
+          }
         }
       }
     }

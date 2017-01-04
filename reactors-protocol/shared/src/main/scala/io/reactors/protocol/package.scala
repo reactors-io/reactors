@@ -9,7 +9,7 @@ package object protocol extends StandardAbstractions
 with ChannelProtocols
 with Patterns
 with Conversions
-with Convenience
+with ConvenienceProtocols
 with ServerProtocols
 with RouterProtocols
 with TwoWayProtocols

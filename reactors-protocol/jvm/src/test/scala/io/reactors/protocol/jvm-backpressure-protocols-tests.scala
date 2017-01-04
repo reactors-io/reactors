@@ -45,7 +45,7 @@ extends Properties("BackpressureProtocolsCheck") with ExtendedProperties {
     }
 
     system.spawnLocal[Unit] { self =>
-      server.connectBackpressure(medium, policy) onEvent { valve =>
+      server.openBackpressure(medium, policy) onEvent { valve =>
         var i = 0
         valve.available.is(true) on {
           while (valve.available() && i < total) {

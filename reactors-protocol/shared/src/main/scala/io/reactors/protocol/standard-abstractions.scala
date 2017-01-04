@@ -34,7 +34,7 @@ object Stamp {
    * @param x       the underlying object
    * @param stamp   the stamp of this stamped value
    */
-  case class Some[T](var x: T, var stamp: Long) extends Stamp[T] {
+  case class Some[T](x: T, stamp: Long) extends Stamp[T] {
     def isEmpty = false
     def nonEmpty = true
   }

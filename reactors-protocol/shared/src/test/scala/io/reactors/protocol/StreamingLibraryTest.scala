@@ -136,7 +136,7 @@ object StreamingLibraryTest {
 
       val server = system.channels.open[StreamReq[T]]
       server.events.onEvent { bs =>
-        bs.connectBackpressure(backpressureMedium[T], backpressurePolicy) onEvent { v =>
+        bs.openBackpressure(backpressureMedium[T], backpressurePolicy) onEvent { v =>
           multi += v
         }
       }
@@ -183,7 +183,7 @@ object StreamingLibraryTest {
         }
 
         self.main.events.defer(incoming) onEvent { backServer =>
-          backServer.connectBackpressure(outMedium, policy) onEvent {
+          backServer.openBackpressure(outMedium, policy) onEvent {
             valve => multi += valve
           }
         }

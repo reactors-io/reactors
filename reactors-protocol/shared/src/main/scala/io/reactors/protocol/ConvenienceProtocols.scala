@@ -8,7 +8,7 @@ package protocol
 
 /** Contains various convenience operations.
  */
-trait Convenience {
+trait ConvenienceProtocols {
   /** Adds convenience methods for reactor systems.
    */
   implicit def reactorSystemOps(system: ReactorSystem) =

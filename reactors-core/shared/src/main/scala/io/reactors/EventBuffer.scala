@@ -19,9 +19,17 @@ import io.reactors.common.UnrolledRing
  */
 class EventBuffer[@spec(Int, Long, Double) T: Arrayable]
 extends Events.Push[T] with Events[T] with Subscription.Proxy {
-  private val buffer = new UnrolledRing[T]
-  private val availabilityCell = new RCell[Boolean](false)
-  private var rawSubscription = Subscription.empty
+  private[reactors] var buffer: UnrolledRing[T] = _
+  private[reactors] var availabilityCell: RCell[Boolean] = _
+  private[reactors] var rawSubscription: Subscription = _
+
+  private[reactors] def init(self: EventBuffer[T]) {
+    buffer = new UnrolledRing[T]
+    availabilityCell = new RCell[Boolean](false)
+    rawSubscription = Subscription.empty
+  }
+
+  init(this)
 
   private[reactors] def subscription_=(s: Subscription) = {
     rawSubscription = new Subscription.Composite(
@@ -46,6 +54,8 @@ extends Events.Push[T] with Events[T] with Subscription.Proxy {
   }
 
   /** Dequeues a previously enqueued event.
+   *
+   *  The event stream is first published on the associated event stream, then returned.
    */
   def dequeue(): T = {
     val x = buffer.dequeue()

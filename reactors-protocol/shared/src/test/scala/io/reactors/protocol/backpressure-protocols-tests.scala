@@ -46,7 +46,7 @@ extends AsyncFunSuite with AsyncTimeLimitedTests {
     }
 
     system.spawnLocal[Unit] { self =>
-      backpressureServer.connectBackpressure[Int](medium, policy) onEvent { valve =>
+      backpressureServer.openBackpressure[Int](medium, policy) onEvent { valve =>
         def produce(from: Int): Unit = {
           var i = from
           valve.available.is(true) on {
@@ -91,7 +91,7 @@ extends AsyncFunSuite with AsyncTimeLimitedTests {
     }
 
     system.spawnLocal[Unit] { self =>
-      backpressureServer.connectBackpressure(medium, policy) onEvent { valve =>
+      backpressureServer.openBackpressure(medium, policy) onEvent { valve =>
         var i = 0
         valve.available.is(true) on {
           while (valve.available() && i < total) {
@@ -113,7 +113,7 @@ extends AsyncFunSuite with AsyncTimeLimitedTests {
     val medium = Backpressure.Medium.reliable[Int](Reliable.TwoWay.Policy.reorder(128))
     val policy = Backpressure.Policy.batching(maxBudget)
 
-    val server = system.backpressureConnectionServer(medium, policy) { s =>
+    val server = system.backpressureLinkServer(medium, policy) { s =>
       val seen = mutable.Buffer[Int]()
       s.links onEvent { link =>
         link.buffer.available.is(true) on {
@@ -132,7 +132,7 @@ extends AsyncFunSuite with AsyncTimeLimitedTests {
     }
 
     system.spawnLocal[Unit] { self =>
-      server.connectBackpressure(medium, policy) onEvent { valve =>
+      server.openBackpressure(medium, policy) onEvent { valve =>
         var i = 0
         valve.available.is(true) on {
           while (valve.available() && i < total) {

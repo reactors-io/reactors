@@ -25,7 +25,9 @@ package object reactors {
 
   implicit val doubleSpec = new Spec[Double]
 
-  implicit def anySpec[T] = new Spec[T]
+  private val anySpecValue = new Spec[Any]
+
+  implicit def anySpec[T] = anySpecValue.asInstanceOf[Spec[T]]
 
   /* basic abstractions */
 

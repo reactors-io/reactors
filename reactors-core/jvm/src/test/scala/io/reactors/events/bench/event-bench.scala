@@ -64,6 +64,24 @@ class EventBoxingBench extends Bench.Forked[Long] {
     }
   }
 
+  measure method "RCell" config (
+    reports.validation.predicate -> { (n: Any) => n == 0 }
+  ) in {
+    using(Gen.single("numEvents")(10000)) in { numEvents =>
+      val budget = RCell(0)
+      val available = budget.map(_ > 0).toEmpty.changes.toSignal(false)
+      var count = 0
+      available.is(true).on(count += 1)
+
+      var i = 0
+      while (i < numEvents) {
+        budget := budget() + i
+        if (i % 2 == 0) budget := 0
+        i += 1
+      }
+    }
+  }
+
   measure method "Emitter.<combinators>" config (
     reports.validation.predicate -> { (n: Any) => n == 29 }
   ) in {

@@ -199,7 +199,7 @@ class MultiValveCheck extends Properties("MultiValve") with ExtendedProperties {
               }
             }
 
-            server.channel.connectBackpressure(medium, policy) onEvent { v =>
+            server.channel.openBackpressure(medium, policy) onEvent { v =>
               val multi = new MultiValve[Int](window)
               multi += v
 
@@ -247,8 +247,8 @@ class MultiValveCheck extends Properties("MultiValve") with ExtendedProperties {
             server.links.once onEvent { p => accept(p, done1) }
             server.links.drop(1).once onEvent { p => accept(p, done2) }
 
-            server.channel.connectBackpressure(medium, policy) onEvent { v1 =>
-              server.channel.connectBackpressure(medium, policy) onEvent { v2 =>
+            server.channel.openBackpressure(medium, policy) onEvent { v1 =>
+              server.channel.openBackpressure(medium, policy) onEvent { v2 =>
                 val multi = new MultiValve[Int](window)
                 multi += v1
                 multi += v2

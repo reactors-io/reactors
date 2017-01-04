@@ -28,26 +28,10 @@ trait CommunicationAbstractions {
     buffer: EventBuffer[T],
     subscription: Subscription
   ) {
-    def plug(valve: Valve[T])(implicit a: Arrayable[T]): Subscription = {
-      val pump = this
+    def available: Signal[Boolean] = buffer.available
 
-      val forwardSub = pump.buffer.onEvent(x => valve.channel ! x)
+    def events: Events[T] = buffer.events
 
-      def flush(): Unit = {
-        while (pump.buffer.nonEmpty && valve.available()) {
-          pump.buffer.dequeue()
-        }
-      }
-
-      val valveSub = valve.available.filter(_ == true) on {
-        flush()
-      }
-
-      val pumpSub = pump.buffer.available.filter(_ == true) on {
-        flush()
-      }
-
-      new Subscription.Composite(forwardSub, valveSub, pumpSub)
-    }
+    def dequeue(): T = buffer.dequeue()
   }
 }
