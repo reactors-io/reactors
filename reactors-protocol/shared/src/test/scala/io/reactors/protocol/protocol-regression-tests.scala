@@ -20,5 +20,7 @@ class ProtocolRegressionSpec extends FunSuite {
       .map((v) => util.Arrays.asList(v, v + 1).asScala.toEvents)
       .union
       .onEvent(seen += _)
+
+    assert(seen == Seq(1, 2, 2, 3, 3, 4, 4, 5, 5, 6))
   }
 }
