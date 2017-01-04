@@ -91,10 +91,19 @@ trait ReliableProtocols {
        *  Furthermore, the requirement is that the underlying medium is not lossy,
        *  and that it does not create duplicates.
        *
+       *  This policy also takes care not to overflow the receiver by buffering events
+       *  at the sender if necessary.
+       *
        *  @param window     number of events that the policy will send without an
        *                    acknowledgement, before starting to buffer events locally
        */
       def reorder(window: Int) = new Reorder(window)
+
+      /** Same as `reorder`, but faster.
+       *
+       *  This policy does not take care to avoid overflowing the receiver.
+       */
+      def fastReorder(window: Int) = new FastReorder(window)
 
       /** See `reorder`.
        */
@@ -151,6 +160,46 @@ trait ReliableProtocols {
                 queue.enqueue(stamp)
               }
           } chain (ackSub) andThen (acks ! -1)
+        }
+      }
+
+      class FastReorder(val window: Int) extends Reliable.Policy {
+        def client[T: Arrayable](
+          sends: Events[T],
+          twoWay: io.reactors.protocol.TwoWay[Long, Stamp[T]]
+        ): Subscription = {
+          var lastStamp = 0L
+          val io.reactors.protocol.TwoWay(channel, acks, subscription) = twoWay
+          sends onEvent { x =>
+            lastStamp += 1
+            channel ! new Stamp.Some(x, lastStamp)
+          }
+        }
+
+        def server[T: Arrayable](
+          twoWay: io.reactors.protocol.TwoWay[Stamp[T], Long],
+          deliver: Channel[T]
+        ): Subscription = {
+          val io.reactors.protocol.TwoWay(acks, events, subscription) = twoWay
+          var nextStamp = 1L
+          val queue = new io.reactors.common.BinaryHeap[Stamp[T]]()(
+            implicitly,
+            Order((x, y) => (x.stamp - y.stamp).toInt)
+          )
+          events onMatch {
+            case stamp @ Stamp.Some(x, timestamp) =>
+              if (timestamp == nextStamp) {
+                nextStamp += 1
+                deliver ! x
+                while (queue.nonEmpty && queue.head.stamp == nextStamp) {
+                  val Stamp.Some(y, _) = queue.dequeue()
+                  nextStamp += 1
+                  deliver ! y
+                }
+              } else {
+                queue.enqueue(stamp)
+              }
+          } andThen (acks ! -1)
         }
       }
     }
