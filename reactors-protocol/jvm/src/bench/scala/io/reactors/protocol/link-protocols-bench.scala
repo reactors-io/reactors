@@ -103,24 +103,6 @@ class LinkProtocolsBench extends JBench.OfflineReport {
   // }
 
   def optimizedReorder(window: Int) = new Reliable.Policy {
-    val pool = new java.util.concurrent.ArrayBlockingQueue[Stamp.Some[AnyRef]](8192)
-
-    def alloc[T](x: T, stamp: Long): Stamp.Some[T] = {
-      if (!pool.isEmpty) {
-        val s = pool.poll().asInstanceOf[Stamp.Some[T]]
-        if (s != null) {
-          s.x = x
-          s.stamp = stamp
-          return s
-        }
-      }
-      new Stamp.Some(x, stamp)
-    }
-
-    def dealloc[T](s: Stamp.Some[T]) = {
-      pool.offer(s.asInstanceOf[Stamp.Some[AnyRef]])
-    }
-
     def client[T: Arrayable](
       sends: Events[T],
       twoWay: io.reactors.protocol.TwoWay[Long, Stamp[T]]
@@ -129,7 +111,7 @@ class LinkProtocolsBench extends JBench.OfflineReport {
       val io.reactors.protocol.TwoWay(channel, acks, subscription) = twoWay
       sends onEvent { x =>
         lastStamp += 1
-        channel ! alloc(x, lastStamp)
+        channel ! new Stamp.Some(x, lastStamp)
       }
     }
 
@@ -151,12 +133,10 @@ class LinkProtocolsBench extends JBench.OfflineReport {
           if (timestamp == nextStamp) {
             nextStamp += 1
             deliver ! x
-            dealloc(stamp)
             while (queue.nonEmpty && queue.head.stamp == nextStamp) {
               val Stamp.Some(y, _) = queue.dequeue()
               nextStamp += 1
               deliver ! y
-              dealloc(stamp)
             }
           } else {
             queue.enqueue(stamp)
@@ -165,14 +145,12 @@ class LinkProtocolsBench extends JBench.OfflineReport {
     }
   }
 
-  lazy val optimizedPolicy = optimizedReorder(8192)
-
   @gen("sizes")
   @benchmark("io.reactors.protocol.link")
   @curve("reliable-optimized-link")
   def reliableOptimizedSend(sz: Int): Unit = {
     val done = Promise[Boolean]()
-    val policy = optimizedPolicy
+    val policy = optimizedReorder(8192)
     val server = system.reliableServer[String](policy) {
       (server, link) =>
       var count = 0
