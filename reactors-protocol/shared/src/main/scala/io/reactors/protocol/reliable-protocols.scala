@@ -110,7 +110,7 @@ trait ReliableProtocols {
           sends onEvent { x =>
             if ((lastStamp - lastAck) < window) {
               lastStamp += 1
-              channel ! Stamp.Some(x, lastStamp)
+              channel ! new Stamp.Some(x, lastStamp)
             } else {
               queue.enqueue(x)
             }
@@ -119,7 +119,7 @@ trait ReliableProtocols {
             lastAck = math.max(lastAck, stamp)
             while (queue.nonEmpty && (lastStamp - lastAck) < window) {
               lastStamp += 1
-              channel ! Stamp.Some(queue.dequeue(), lastStamp)
+              channel ! new Stamp.Some(queue.dequeue(), lastStamp)
             }
           } andThen (channel ! Stamp.None())
         }
@@ -134,22 +134,23 @@ trait ReliableProtocols {
             implicitly,
             Order((x, y) => (x.stamp - y.stamp).toInt)
           )
+          val ackSub = Reactor.self.sysEvents onMatch {
+            case ReactorPreempted => acks ! nextStamp
+          }
           events onMatch {
             case stamp @ Stamp.Some(x, timestamp) =>
               if (timestamp == nextStamp) {
-                acks ! nextStamp
                 nextStamp += 1
                 deliver ! x
                 while (queue.nonEmpty && queue.head.stamp == nextStamp) {
                   val Stamp.Some(y, _) = queue.dequeue()
-                  acks ! nextStamp
                   nextStamp += 1
                   deliver ! y
                 }
               } else {
                 queue.enqueue(stamp)
               }
-          } andThen (acks ! -1)
+          } chain (ackSub) andThen (acks ! -1)
         }
       }
     }
