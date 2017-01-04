@@ -89,7 +89,7 @@ object Platform {
         test-iterations = 3
       }
       default = {
-        budget = 50
+        budget = 64
         postschedule-count = 50
       }
     }
