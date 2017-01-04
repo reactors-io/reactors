@@ -103,7 +103,7 @@ trait ReliableProtocols {
        *
        *  This policy does not take care to avoid overflowing the receiver.
        */
-      def fastReorder(window: Int) = new FastReorder(window)
+      def fastReorder = new FastReorder
 
       /** See `reorder`.
        */
@@ -163,7 +163,7 @@ trait ReliableProtocols {
         }
       }
 
-      class FastReorder(val window: Int) extends Reliable.Policy {
+      class FastReorder extends Reliable.Policy {
         def client[T: Arrayable](
           sends: Events[T],
           twoWay: io.reactors.protocol.TwoWay[Long, Stamp[T]]
@@ -252,16 +252,23 @@ trait ReliableProtocols {
       }
 
       object Policy {
+        trait NoGuard extends Reliable.TwoWay.Policy  {
+          def inputServerGuard[I](inServer: Reliable.Server[I]) = Subscription.empty
+          def outputServerGuard[I](outServer: Reliable.Server[I]) = Subscription.empty
+        }
+
         /** Policy that assumes that the transport may arbitrarily delay any event.
          *
          *  Additionally, this policy assumes that the transport may reorder events,
          *  but will never drop, duplicate or corrupt the events.
          */
         def reorder(window: Int) =
-          new Reliable.Policy.Reorder(window) with Reliable.TwoWay.Policy {
-            def inputServerGuard[I](inServer: Reliable.Server[I]) = Subscription.empty
-            def outputServerGuard[I](outServer: Reliable.Server[I]) = Subscription.empty
-          }
+          new Reliable.Policy.Reorder(window) with Reliable.TwoWay.Policy.NoGuard
+
+        /** Same as reorder, but faster.
+         */
+        def fastReorder =
+          new Reliable.Policy.FastReorder with Reliable.TwoWay.Policy.NoGuard
       }
     }
 
