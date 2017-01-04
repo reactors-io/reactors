@@ -69,7 +69,7 @@ trait BackpressureProtocols {
       subscription: Subscription
     ) extends ServerSide[R, Link[T]] {
       def toPumpServer: PumpServer[R, T] = {
-        Backpressure.PumpServer(
+        new Backpressure.PumpServer(
           channel,
           links.map(_.toPump),
           subscription
@@ -82,40 +82,42 @@ trait BackpressureProtocols {
      *  See `Backpressure.Server`.
      */
     case class PumpServer[R, T](
-      channel: Channel[R],
-      links: Events[Pump[T]],
-      subscription: Subscription
+      val channel: Channel[R],
+      val links: Events[Pump[T]],
+      val subscription: Subscription
     ) extends ServerSide[R, Pump[T]]
 
     /** Abstracts over the underlying two-way communication protocol.
      *
      *  Captures the protocol needed to create a two-way server, and to connect to it.
      */
-    case class Medium[R, T](
-      openServer: ChannelBuilder => Connector[R],
-      serve: Connector[R] => ServerSide[R, TwoWay[T, Int]],
-      connect: Channel[R] => IVar[TwoWay[Int, T]]
+    class Medium[R, @spec(Int, Long, Double) T](
+      val openServer: ChannelBuilder => Connector[R],
+      val serve: Connector[R] => ServerSide[R, TwoWay[T, Int]],
+      val connect: Channel[R] => IVar[TwoWay[Int, T]]
     )
 
     object Medium {
       /** Provides normal non-reliable two-way links.
        */
-      def default[T: Arrayable] = Backpressure.Medium[TwoWay.Req[Int, T], T](
-        builder => builder.twoWayServer[Int, T],
-        connector => connector.serveTwoWay(),
-        channel => channel.connect()
-      )
+      def default[@spec(Int, Long, Double) T: Arrayable] =
+        new Backpressure.Medium[TwoWay.Req[Int, T], T](
+          builder => builder.twoWayServer[Int, T],
+          connector => connector.serveTwoWay(),
+          channel => channel.connect()
+        )
 
       /** Provides reliable two-way link.
        *
        *  This reliable `Medium` must be parametrized with a reliable two-way policy.
        */
-      def reliable[T: Arrayable](policy: Reliable.TwoWay.Policy) =
-        Backpressure.Medium[Reliable.TwoWay.Req[Int, T], T](
-          builder => builder.reliableTwoWayServer[Int, T],
-          connector => connector.serveTwoWayReliable(policy),
-          channel => channel.connectReliable(policy)
-        )
+      def reliable[@spec(Int, Long, Double) T: Arrayable](
+        policy: Reliable.TwoWay.Policy
+      ) = new Backpressure.Medium[Reliable.TwoWay.Req[Int, T], T](
+        builder => builder.reliableTwoWayServer[Int, T],
+        connector => connector.serveTwoWayReliable(policy),
+        channel => channel.connectReliable(policy)
+      )
     }
 
     /** Captures the specific backpressure policy.
@@ -130,12 +132,16 @@ trait BackpressureProtocols {
      *    producer-side (i.e. client-side).
      */
     trait Policy {
-      def server(inPressure: Events[Int], outPressure: Channel[Int]): Subscription
-      def client[T: Arrayable](twoWay: TwoWay[Int, T]): Valve[T]
+      def server(
+        inPressure: Events[Int], outPressure: Channel[Int]
+      ): Subscription
+      def client[@spec(Int, Long, Double) T: Arrayable](
+        twoWay: TwoWay[Int, T]
+      ): Valve[T]
     }
 
     object Policy {
-      private def defaultClient[T: Arrayable](
+      private[reactors] def defaultClient[@spec(Int, Long, Double) T: Arrayable](
         size: Int, twoWay: TwoWay[Int, T]
       ): Valve[T] = {
         val system = Reactor.self.system
@@ -170,7 +176,7 @@ trait BackpressureProtocols {
             outPressure ! n
           }
         }
-        def client[T: Arrayable](twoWay: TwoWay[Int, T]) =
+        def client[@spec(Int, Long, Double) T: Arrayable](twoWay: TwoWay[Int, T]) =
           defaultClient[T](size, twoWay)
       }
 
@@ -195,13 +201,15 @@ trait BackpressureProtocols {
           }
           tokenSubscription.chain(flushSubscription)
         }
-        def client[T: Arrayable](twoWay: TwoWay[Int, T]) =
+        def client[@spec(Int, Long, Double) T: Arrayable](twoWay: TwoWay[Int, T]) =
           defaultClient[T](size, twoWay)
       }
     }
   }
 
-  implicit class BackpressureChannelBuilderOps[R, T](val builder: ChannelBuilder) {
+  implicit class BackpressureChannelBuilderOps[R, @spec(Int, Long, Double) T](
+    val builder: ChannelBuilder
+  ) {
     /** Opens a connector for the backpressure server.
      *
      *  This does not start the protocol, use `serveBackpressureConnections` or
@@ -212,7 +220,9 @@ trait BackpressureProtocols {
     }
   }
 
-  implicit class BackpressureConnectorOps[R, T](val connector: Connector[R]) {
+  implicit class BackpressureConnectorOps[R, @spec(Int, Long, Double) T](
+    val connector: Connector[R]
+  ) {
     /** Starts a server that accepts incoming backpressure link requests.
      *
      *  @param medium        protocol for establishing two-way links
@@ -262,7 +272,7 @@ trait BackpressureProtocols {
      *  @return             a single-assignment variable that is eventually completed
      *                      with the `Valve` object
      */
-    def connectBackpressure[T: Arrayable](
+    def openBackpressure[@spec(Int, Long, Double) T: Arrayable](
       medium: Backpressure.Medium[R, T],
       policy: Backpressure.Policy
     ): IVar[Valve[T]] = {
@@ -275,7 +285,7 @@ trait BackpressureProtocols {
      *
      *  See `serveBackpressureConnections`.
      */
-    def backpressureConnectionServer[R: Arrayable, T: Arrayable](
+    def backpressureLinkServer[R: Arrayable, @spec(Int, Long, Double) T: Arrayable](
       medium: Backpressure.Medium[R, T],
       policy: Backpressure.Policy
     )(f: Backpressure.Server[R, T] => Unit): Proto[Reactor[R]] = {
@@ -288,7 +298,7 @@ trait BackpressureProtocols {
      *
      *  See `serveBackpressure`.
      */
-    def backpressureServer[R: Arrayable, T: Arrayable](
+    def backpressureServer[R: Arrayable, @spec(Int, Long, Double) T: Arrayable](
       medium: Backpressure.Medium[R, T],
       policy: Backpressure.Policy
     )(f: Backpressure.PumpServer[R, T] => Unit): Proto[Reactor[R]] = {
@@ -303,11 +313,11 @@ trait BackpressureProtocols {
      *
      *  See `serveBackpressureConnections`.
      */
-    def backpressureConnectionServer[R: Arrayable, T: Arrayable](
+    def backpressureLinkServer[R: Arrayable, @spec(Int, Long, Double) T: Arrayable](
       medium: Backpressure.Medium[R, T],
       policy: Backpressure.Policy
     )(f: Backpressure.Server[R, T] => Unit): Channel[R] = {
-      val proto = Reactor.backpressureConnectionServer(medium, policy)(f)
+      val proto = Reactor.backpressureLinkServer(medium, policy)(f)
       system.spawn(proto)
     }
 
@@ -315,7 +325,7 @@ trait BackpressureProtocols {
      *
      *  See `serveBackpressure`.
      */
-    def backpressureServer[R: Arrayable, T: Arrayable](
+    def backpressureServer[R: Arrayable, @spec(Int, Long, Double) T: Arrayable](
       medium: Backpressure.Medium[R, T],
       policy: Backpressure.Policy
     )(f: Backpressure.PumpServer[R, T] => Unit): Channel[R] = {
