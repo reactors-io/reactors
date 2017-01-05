@@ -126,4 +126,23 @@ class ArrayRingCheck extends Properties("ArrayRing") with ExtendedProperties {
       elements == dequeued
     }
   }
+
+  property("should resize") = forAllNoShrink(sizes) { total =>
+    stackTraced {
+      val elements = mutable.ArrayBuffer[Int]()
+      val dequeued = mutable.ArrayBuffer[Int]()
+      val ring = new ArrayRing[Int]
+
+      for (i <- 0 until total) {
+        elements += i
+        ring.enqueue(i)
+        assert(ring.last == i)
+      }
+      while (ring.nonEmpty) {
+        dequeued += ring.dequeue()
+      }
+
+      elements == dequeued
+    }
+  }
 }

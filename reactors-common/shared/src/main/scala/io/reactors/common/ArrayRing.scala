@@ -6,13 +6,17 @@ import io.reactors.Arrayable
 
 
 
-class ArrayRing[@specialized(Int, Long, Double) T: Arrayable](val window: Int) {
-  private var array: Array[T] = _
-  private var firstIdx: Int = _
-  private var lastIdx: Int = _
+class ArrayRing[@specialized(Int, Long, Double) T: Arrayable](val window: Int = -1) {
+  private[reactors] var array: Array[T] = _
+  private[reactors] var firstIdx: Int = _
+  private[reactors] var lastIdx: Int = _
 
   def init(self: ArrayRing[T]): Unit = {
-    array = implicitly[Arrayable[T]].newRawArray(window + 1)
+    if (window != -1) {
+      array = implicitly[Arrayable[T]].newRawArray(window + 1)
+    } else {
+      array = implicitly[Arrayable[T]].newRawArray(5)
+    }
     firstIdx = 0
     lastIdx = 0
   }
@@ -28,8 +32,24 @@ class ArrayRing[@specialized(Int, Long, Double) T: Arrayable](val window: Int) {
 
   def last: T = apply(size - 1)
 
+  def resize(): Unit = {
+    val narray = implicitly[Arrayable[T]].newRawArray(array.length * 2 + 1)
+    var i = 0
+    val sz = size
+    while (i < sz) {
+      narray(i) = apply(i)
+      i += 1
+    }
+    array = narray
+    firstIdx = 0
+    lastIdx = i
+  }
+
   def enqueue(x: T): Unit = {
-    if (size == window) throw new IllegalStateException("<full>.enqueue")
+    if (size == array.length - 1) {
+      if (window != -1) throw new IllegalStateException("<full>.enqueue")
+      else resize()
+    }
     array(lastIdx) = x
     lastIdx = (lastIdx + 1) % array.length
   }
