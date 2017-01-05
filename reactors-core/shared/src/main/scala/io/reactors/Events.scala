@@ -1020,12 +1020,12 @@ trait Events[@spec(Int, Long, Double) T] {
    *  @return          the signal version of the current event stream
    */
   def toEmpty: Signal[T] =
-    new Events.ToSignal(this, false, null.asInstanceOf[T], false)
+    new Events.ToSignal(this, false, null.asInstanceOf[T])
 
   /** Same as `toEmpty`, but emits an event on subscription if signal is non-empty.
    */
   def toEager: Signal[T] =
-    new Events.ToSignal(this, false, null.asInstanceOf[T], true)
+    new Events.ToSignal(this, false, null.asInstanceOf[T])
 
   /** Given an initial event `init`, converts this event stream into a `Signal`.
    *
@@ -1036,7 +1036,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  @return          the signal version of the current event stream
    */
   def toSignal(init: T): Signal[T] =
-    new Events.ToSignal(this, true, init, false)
+    new Events.ToSignal(this, true, init)
 
   /** Given an initial event `init`, converts the event stream into a cold `Signal`.
    *
@@ -1797,8 +1797,7 @@ object Events {
   private[reactors] class ToSignal[@spec(Int, Long, Double) T](
     val self: Events[T],
     private var full: Boolean,
-    private var cached: T,
-    private var propagateOnSubscribe: Boolean
+    private var cached: T
   ) extends Signal[T] with Observer[T] with Subscription.Proxy {
     private var pushSource: PushSource[T] = _
     private var rawSubscription: Subscription = _
@@ -1814,7 +1813,7 @@ object Events {
         obs.unreact()
         Subscription.empty
       } else {
-        if (propagateOnSubscribe && full) obs.react(cached, null)
+        if (full) obs.react(cached, null)
         pushSource.onReaction(obs)
       }
     }
@@ -2585,7 +2584,9 @@ object Events {
     val target: Observer[S],
     val muxObserver: MuxObserver[T, S]
   ) extends Observer[S] {
-    def react(value: S, hint: Any) = target.react(value, hint)
+    def react(value: S, hint: Any) = {
+      target.react(value, hint)
+    }
     def except(t: Throwable) = target.except(t)
     def unreact() {
       muxObserver.currentSubscription = Subscription.empty

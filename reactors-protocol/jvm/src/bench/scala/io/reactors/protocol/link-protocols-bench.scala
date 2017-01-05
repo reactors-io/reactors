@@ -201,4 +201,40 @@ class LinkProtocolsBench extends JBench.OfflineReport {
     }
     assert(Await.result(done.future, 10.seconds))
   }
+
+  @gen("sizes")
+  @benchmark("io.reactors.protocol.link")
+  @curve("multivalve-backpressure-link")
+  def backpressureMultiValveSend(sz: Int): Unit = {
+    val done = Promise[Boolean]()
+    val medium = Backpressure.Medium.default[Int]
+    val policy = Backpressure.Policy.batching(8192)
+    val server = system.backpressureServer(medium, policy) {
+      case Backpressure.PumpServer(ch, links, sub) =>
+        links onEvent { pump =>
+          var count = 0
+          pump.available.is(true) on {
+            while (pump.available()) {
+              pump.dequeue()
+              count += 1
+              if (count == sz) done.success(true)
+            }
+          }
+        }
+    }
+    system.spawnLocal[Unit] { self =>
+      server.openBackpressure(medium, policy) onEvent { valve =>
+        val multi = new MultiValve.Biased[Int](8192)
+        multi += valve
+        var i = 0
+        multi.out.available.is(true) on {
+          while (multi.out.available() && i < sz) {
+            multi.out.channel ! 0
+            i += 1
+          }
+        }
+      }
+    }
+    assert(Await.result(done.future, 10.seconds))
+  }
 }

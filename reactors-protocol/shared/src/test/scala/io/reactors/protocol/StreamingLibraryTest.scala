@@ -34,10 +34,14 @@ class StreamingLibraryTest extends AsyncFunSuite with AsyncTimeLimitedTests {
         if (seen.size == total / 4) done.success(seen)
       }
 
+      println("about to call ready")
       ready on {
         var i = 0
+        println("ready")
         source.valve.available.is(true) on {
+          println("available")
           while (source.valve.available() && i < total) {
+            println(i)
             source.valve.channel ! i
             i += 1
           }
@@ -65,6 +69,7 @@ class StreamingLibraryTest extends AsyncFunSuite with AsyncTimeLimitedTests {
         var i = 0
         source.valve.available.is(true) on {
           while (source.valve.available() && i < total) {
+            println(i)
             source.valve.channel ! i
             i += 1
           }
