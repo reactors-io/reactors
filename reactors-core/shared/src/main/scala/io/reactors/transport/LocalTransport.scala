@@ -17,6 +17,8 @@ import io.reactors._
 class LocalTransport(val system: ReactorSystem) extends Remote.Transport {
   def schema = "local"
 
+  def port = -1
+
   def newChannel[@spec(Int, Long, Double) T: Arrayable](url: ChannelUrl): Channel[T] = {
     new LocalTransport.LocalChannel(this, url)
   }

@@ -44,6 +44,8 @@ class ScriptedTransport(val system: ReactorSystem) extends Remote.Transport {
 
   def schema = "scripted"
 
+  def port = -1
+
   def newChannel[@spec(Int, Long, Double) T: Arrayable](url: ChannelUrl): Channel[T] = {
     new ScriptedTransport.ScriptedChannel(this, url)
   }

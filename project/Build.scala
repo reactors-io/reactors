@@ -392,6 +392,8 @@ object ReactorsBuild extends MechaRepoBuild {
           baseDirectory.value.getParentFile / "shared" / "src" / "test" / "scala"
       ): _*
     )
+    .configs(Benchmark)
+    .settings(inConfig(Benchmark)(Defaults.testSettings): _*)
     .jvmSettings(
       (test in Test) <<= (test in Test)
         .dependsOn(test in (reactorsCommon.jvm, Test))

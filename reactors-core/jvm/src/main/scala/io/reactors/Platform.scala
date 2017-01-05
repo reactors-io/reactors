@@ -56,7 +56,7 @@ object Platform {
           schema = "udp"
           transport = "io.reactors.remote.UdpTransport"
           host = "localhost"
-          port = 17771
+          port = 0
         }
       ]
     }

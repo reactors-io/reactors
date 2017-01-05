@@ -129,15 +129,15 @@ trait TwoWayProtocols {
      *
      *  @tparam I       type of the server-side input events
      *  @tparam O       type of the server-side output events
-     *  @param f        callback function for a successful incoming link
+     *  @param f        function invoked with server state once the reactor starts
      *  @return         a `Proto` object
      */
     def twoWayServer[@spec(Int, Long, Double) I, @spec(Int, Long, Double) O](
-      f: (TwoWay.Server[I, O], TwoWay[O, I]) => Unit
+      f: TwoWay.Server[I, O] => Unit
     )(implicit ai: Arrayable[I], ao: Arrayable[O]): Proto[Reactor[TwoWay.Req[I, O]]] = {
       Reactor[TwoWay.Req[I, O]] { self =>
         val server = self.main.serveTwoWay()
-        server.links.onEvent(twoWay => f(server, twoWay))
+        f(server)
       }
     }
   }
@@ -147,11 +147,11 @@ trait TwoWayProtocols {
      *
      *  @tparam I       type of the server-side input events
      *  @tparam O       type of the server-side output events
-     *  @param f        callback function for a successful incoming link
+     *  @param f        function invoked with server state once the reactor starts
      *  @return         a channel of the 2-way server
      */
     def twoWayServer[@spec(Int, Long, Double) I, @spec(Int, Long, Double) O](
-      f: (TwoWay.Server[I, O], TwoWay[O, I]) => Unit
+      f: TwoWay.Server[I, O] => Unit
     )(implicit ai: Arrayable[I], ao: Arrayable[O]): Channel[TwoWay.Req[I, O]] = {
       val proto = Reactor.twoWayServer(f)
       system.spawn(proto)

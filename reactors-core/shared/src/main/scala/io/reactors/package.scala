@@ -130,13 +130,31 @@ package object reactors {
   /* URL classes for remote */  
 
   case class SystemUrl(schema: String, host: String, port: Int) {
-    lazy val inetSocketAddress = Platform.inetAddress(host, port)
+    @transient lazy val inetSocketAddress = Platform.inetAddress(host, port)
+    def withPort(p: Int) = SystemUrl(schema, host, p)
   }
   
-  case class ReactorUrl(systemUrl: SystemUrl, name: String)
+  case class ReactorUrl(systemUrl: SystemUrl, name: String) {
+    def withPort(p: Int) = ReactorUrl(systemUrl.withPort(p), name)
+  }
   
   case class ChannelUrl(reactorUrl: ReactorUrl, anchor: String) {
     val channelName = s"${reactorUrl.name}#$anchor"
+  }
+
+  object ChannelUrl {
+    def parse(url: String): ChannelUrl = {
+      var parts = url.split("://")
+      val schema = parts(0)
+      parts = parts(1).split("/", 2)
+      val hostport = parts(0).split(":")
+      val host = hostport(0)
+      val port = hostport(1).toInt
+      parts = parts(1).split("#")
+      val reactorName = parts(0)
+      val channelName = parts(1)
+      ChannelUrl(ReactorUrl(SystemUrl(schema, host, port), reactorName), channelName)
+    }
   }
 }
 

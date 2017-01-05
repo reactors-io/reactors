@@ -64,7 +64,7 @@ class TwoWayProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
   test("open a two-way server and ping-pong-count up to 10") {
     val done = Promise[Int]
     val proto = Reactor[Unit] { self =>
-      val server = system.channels.daemon.twoWayServer[Int, Int]serveTwoWay()
+      val server = system.channels.daemon.twoWayServer[Int, Int].serveTwoWay()
 
       server.links.onEvent { twoWay =>
         twoWay.input onEvent { n =>
@@ -93,9 +93,11 @@ class TwoWayProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
   test("open a two-way server reactor and connect to it from another reactor") {
     val done = Promise[String]
 
-    val server = system.twoWayServer[String, Int] { (server, twoWay) =>
-      twoWay.input onEvent { n =>
-        twoWay.output ! n.toString
+    val server = system.twoWayServer[String, Int] { server =>
+      server.links onEvent { twoWay =>
+        twoWay.input onEvent { n =>
+          twoWay.output ! n.toString
+        }
       }
     }
 
@@ -115,16 +117,18 @@ class TwoWayProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
   test("server unsubscribes after the first event, does not receive the second") {
     val done = Promise[String]
 
-    val server = system.twoWayServer[String, Int] { (server, twoWay) =>
-      var first = true
-      twoWay.input onEvent { x =>
-        if (first) {
-          assert(x == 7)
-          twoWay.subscription.unsubscribe()
-          server.subscription.unsubscribe()
-          first = false
-        } else {
-          done.success("Got second event!")
+    val server = system.twoWayServer[String, Int] { server =>
+      server.links onEvent { twoWay =>
+        var first = true
+        twoWay.input onEvent { x =>
+          if (first) {
+            assert(x == 7)
+            twoWay.subscription.unsubscribe()
+            server.subscription.unsubscribe()
+            first = false
+          } else {
+            done.success("Got second event!")
+          }
         }
       }
 
@@ -148,11 +152,13 @@ class TwoWayProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
   test("client unsubscribes after the first event, does not receive the second") {
     val done = Promise[String]
 
-    val serverProto = Reactor.twoWayServer[String, Int] { (server, twoWay) =>
-      twoWay.input onEvent { x =>
-        twoWay.output ! x.toString
-        twoWay.output ! "second event that you should not see"
-        server.subscription.unsubscribe()
+    val serverProto = Reactor.twoWayServer[String, Int] { server =>
+      server.links onEvent { twoWay =>
+        twoWay.input onEvent { x =>
+          twoWay.output ! x.toString
+          twoWay.output ! "second event that you should not see"
+          server.subscription.unsubscribe()
+        }
       }
     }
     val server = system.spawn(serverProto)

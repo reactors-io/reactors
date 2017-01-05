@@ -31,6 +31,11 @@ class Remote(val system: ReactorSystem) extends Protocol.Service {
     transports(url.reactorUrl.systemUrl.schema).newChannel[T](url)
   }
 
+  def resolve[@spec(Int, Long, Double) T: Arrayable](url: String): Channel[T] = {
+    val channelUrl = ChannelUrl.parse(url)
+    resolve(channelUrl)
+  }
+
   def shutdown() {
     for ((schema, transport) <- transports) transport.shutdown()
   }
@@ -56,6 +61,10 @@ object Remote {
     /** The schema string that this transport must be registered with.
      */
     def schema: String
+
+    /** Port associated with the transport if applicable, or `-1` otherwise.
+     */
+    def port: Int
 
     /** Shuts down the transport, and releases the associated resources.
      */
