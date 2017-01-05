@@ -107,15 +107,6 @@ trait ReliableProtocols {
        */
       def fastReorder = new FastReorder
 
-      /** Assumes that the transport may reorder and lose some of the events.
-       *
-       *  @param window       number of events to send without an acknowledgement
-       *  @param checkPeriod  how often to check for liveness
-       */
-      def lossy(window: Int, checkPeriod: Duration = 50.millis) = {
-        new Lossy(window, checkPeriod)
-      }
-
       /** See `reorder`.
        */
       class Reorder(val window: Int) extends Reliable.Policy {
@@ -211,92 +202,6 @@ trait ReliableProtocols {
                 queue.enqueue(stamp)
               }
           } andThen (acks ! -1)
-        }
-      }
-
-      /** See `lossy`.
-       */
-      class Lossy(val window: Int, val checkPeriod: Duration = 50.millis)
-      extends Reliable.Policy {
-        def client[T: Arrayable](
-          sends: Events[T],
-          twoWay: io.reactors.protocol.TwoWay[Long, Stamp[T]]
-        ): Subscription = {
-          var lastAck = 0L
-          var bufferStart = 0L
-          val buffer = new ArrayRing[T]
-          val io.reactors.protocol.TwoWay(channel, acks, subscription) = twoWay
-          sends onEvent { x =>
-            buffer.enqueue(x)
-            if (buffer.size < window) {
-              println(bufferStart + buffer.size - 1)
-              channel ! new Stamp.Some(x, bufferStart + buffer.size - 1)
-            }
-          }
-          var acksSeen = true
-          val ackSub = acks onEvent { timestamp =>
-            var dequeueCount = 0
-            while (bufferStart <= timestamp) {
-              buffer.dequeue()
-              bufferStart += 1
-              dequeueCount += 1
-            }
-            while (buffer.size >= window - dequeueCount && dequeueCount > 0) {
-              val idx = window - dequeueCount
-              val x = buffer.apply(idx)
-              channel ! new Stamp.Some(x, bufferStart + idx)
-              dequeueCount -= 1
-            }
-            acksSeen = true
-          }
-          val timeSub = Reactor.self.system.clock.periodic(checkPeriod) on {
-            if (!acksSeen) {
-              var i = 0
-              while (i < buffer.size) {
-                val x = buffer.apply(i)
-                channel ! new Stamp.Some(x, bufferStart + i)
-                i += 1
-              }
-            }
-            acksSeen = false
-          }
-          ackSub.chain(timeSub)
-        }
-
-        def server[T: Arrayable](
-          twoWay: io.reactors.protocol.TwoWay[Stamp[T], Long],
-          deliver: Channel[T]
-        ): Subscription = {
-          val io.reactors.protocol.TwoWay(acks, events, subscription) = twoWay
-          var nextStamp = 0L
-          val queue = new BinaryHeap[Stamp[T]]()(
-            implicitly, Order((x, y) => (x.stamp - y.stamp).toInt)
-          )
-          var receiveSeen = false
-          val ackSub = Reactor.self.sysEvents onMatch { case ReactorPreempted =>
-            if (receiveSeen) {
-              acks ! (nextStamp - 1)
-              receiveSeen = false
-            }
-          }
-          events onMatch {
-            case stamp @ Stamp.Some(x, timestamp) =>
-              if (timestamp < nextStamp) {
-                // Event already delivered, this is a duplicate.
-              } else if (timestamp == nextStamp) {
-                println("got: " + timestamp)
-                nextStamp += 1
-                deliver ! x
-                while (queue.nonEmpty && queue.head.stamp == nextStamp) {
-                  val Stamp.Some(y, _) = queue.dequeue()
-                  nextStamp += 1
-                  deliver ! y
-                }
-                receiveSeen = true
-              } else {
-                queue.enqueue(stamp)
-              }
-          } chain (ackSub) andThen (acks ! -1)
         }
       }
     }
