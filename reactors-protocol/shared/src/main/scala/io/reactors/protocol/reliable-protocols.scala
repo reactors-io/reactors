@@ -3,9 +3,11 @@ package protocol
 
 
 
+import io.reactors.common.ArrayRing
 import io.reactors.common.BinaryHeap
 import io.reactors.common.UnrolledRing
 import io.reactors.services.Channels
+import scala.concurrent.duration._
 
 
 
@@ -105,6 +107,15 @@ trait ReliableProtocols {
        */
       def fastReorder = new FastReorder
 
+      /** Assumes that the transport may reorder and lose some of the events.
+       *
+       *  @param window       number of events to send without an acknowledgement
+       *  @param checkPeriod  how often to check for liveness
+       */
+      def lossy(window: Int, checkPeriod: Duration = 50.millis) = {
+        new Lossy(window, checkPeriod)
+      }
+
       /** See `reorder`.
        */
       class Reorder(val window: Int) extends Reliable.Policy {
@@ -124,8 +135,8 @@ trait ReliableProtocols {
               queue.enqueue(x)
             }
           }
-          acks onEvent { stamp =>
-            lastAck = math.max(lastAck, stamp)
+          acks onEvent { timestamp =>
+            lastAck = math.max(lastAck, timestamp)
             while (queue.nonEmpty && (lastStamp - lastAck) < window) {
               lastStamp += 1
               channel ! new Stamp.Some(queue.dequeue(), lastStamp)
@@ -140,8 +151,7 @@ trait ReliableProtocols {
           val io.reactors.protocol.TwoWay(acks, events, subscription) = twoWay
           var nextStamp = 1L
           val queue = new BinaryHeap[Stamp[T]]()(
-            implicitly,
-            Order((x, y) => (x.stamp - y.stamp).toInt)
+            implicitly, Order((x, y) => (x.stamp - y.stamp).toInt)
           )
           val ackSub = Reactor.self.sysEvents onMatch {
             case ReactorPreempted => acks ! nextStamp
@@ -163,6 +173,8 @@ trait ReliableProtocols {
         }
       }
 
+      /** See `fastReorder`.
+       */
       class FastReorder extends Reliable.Policy {
         def client[T: Arrayable](
           sends: Events[T],
@@ -183,8 +195,7 @@ trait ReliableProtocols {
           val io.reactors.protocol.TwoWay(acks, events, subscription) = twoWay
           var nextStamp = 1L
           val queue = new io.reactors.common.BinaryHeap[Stamp[T]]()(
-            implicitly,
-            Order((x, y) => (x.stamp - y.stamp).toInt)
+            implicitly, Order((x, y) => (x.stamp - y.stamp).toInt)
           )
           events onMatch {
             case stamp @ Stamp.Some(x, timestamp) =>
@@ -200,6 +211,92 @@ trait ReliableProtocols {
                 queue.enqueue(stamp)
               }
           } andThen (acks ! -1)
+        }
+      }
+
+      /** See `lossy`.
+       */
+      class Lossy(val window: Int, val checkPeriod: Duration = 50.millis)
+      extends Reliable.Policy {
+        def client[T: Arrayable](
+          sends: Events[T],
+          twoWay: io.reactors.protocol.TwoWay[Long, Stamp[T]]
+        ): Subscription = {
+          var lastAck = 0L
+          var bufferStart = 0L
+          val buffer = new ArrayRing[T]
+          val io.reactors.protocol.TwoWay(channel, acks, subscription) = twoWay
+          sends onEvent { x =>
+            buffer.enqueue(x)
+            if (buffer.size < window) {
+              println(bufferStart + buffer.size - 1)
+              channel ! new Stamp.Some(x, bufferStart + buffer.size - 1)
+            }
+          }
+          var acksSeen = true
+          val ackSub = acks onEvent { timestamp =>
+            var dequeueCount = 0
+            while (bufferStart <= timestamp) {
+              buffer.dequeue()
+              bufferStart += 1
+              dequeueCount += 1
+            }
+            while (buffer.size >= window - dequeueCount && dequeueCount > 0) {
+              val idx = window - dequeueCount
+              val x = buffer.apply(idx)
+              channel ! new Stamp.Some(x, bufferStart + idx)
+              dequeueCount -= 1
+            }
+            acksSeen = true
+          }
+          val timeSub = Reactor.self.system.clock.periodic(checkPeriod) on {
+            if (!acksSeen) {
+              var i = 0
+              while (i < buffer.size) {
+                val x = buffer.apply(i)
+                channel ! new Stamp.Some(x, bufferStart + i)
+                i += 1
+              }
+            }
+            acksSeen = false
+          }
+          ackSub.chain(timeSub)
+        }
+
+        def server[T: Arrayable](
+          twoWay: io.reactors.protocol.TwoWay[Stamp[T], Long],
+          deliver: Channel[T]
+        ): Subscription = {
+          val io.reactors.protocol.TwoWay(acks, events, subscription) = twoWay
+          var nextStamp = 0L
+          val queue = new BinaryHeap[Stamp[T]]()(
+            implicitly, Order((x, y) => (x.stamp - y.stamp).toInt)
+          )
+          var receiveSeen = false
+          val ackSub = Reactor.self.sysEvents onMatch { case ReactorPreempted =>
+            if (receiveSeen) {
+              acks ! (nextStamp - 1)
+              receiveSeen = false
+            }
+          }
+          events onMatch {
+            case stamp @ Stamp.Some(x, timestamp) =>
+              if (timestamp < nextStamp) {
+                // Event already delivered, this is a duplicate.
+              } else if (timestamp == nextStamp) {
+                println("got: " + timestamp)
+                nextStamp += 1
+                deliver ! x
+                while (queue.nonEmpty && queue.head.stamp == nextStamp) {
+                  val Stamp.Some(y, _) = queue.dequeue()
+                  nextStamp += 1
+                  deliver ! y
+                }
+                receiveSeen = true
+              } else {
+                queue.enqueue(stamp)
+              }
+          } chain (ackSub) andThen (acks ! -1)
         }
       }
     }
@@ -358,11 +455,11 @@ trait ReliableProtocols {
     /** Same as calling the `serveReliable` operation, but creates a `Proto` object.
      */
     def reliableServer[T: Arrayable](policy: Reliable.Policy)(
-      f: (Reliable.Server[T], Reliable.Link[T]) => Unit
+      f: Reliable.Server[T] => Unit
     ): Proto[Reactor[Reliable.Req[T]]] = {
       Reactor[Reliable.Req[T]] { self =>
         val server = self.main.serveReliable(policy)
-        server.links.onEvent(link => f(server, link))
+        f(server)
       }
     }
   }
@@ -371,7 +468,7 @@ trait ReliableProtocols {
     /** Same as calling the `serveReliable` operation, but starts the reactor directly.
      */
     def reliableServer[T: Arrayable](policy: Reliable.Policy)(
-      f: (Reliable.Server[T], Reliable.Link[T]) => Unit
+      f: Reliable.Server[T] => Unit
     ): Channel[Reliable.Req[T]] = {
       system.spawn(Reactor.reliableServer[T](policy)(f))
     }
@@ -465,11 +562,11 @@ trait ReliableProtocols {
     def reliableTwoWayServer[I: Arrayable, O: Arrayable](
       policy: Reliable.TwoWay.Policy
     )(
-      f: (Reliable.TwoWay.Server[I, O], TwoWay[O, I]) => Unit
+      f: Reliable.TwoWay.Server[I, O] => Unit
     ): Proto[Reactor[Reliable.TwoWay.Req[I, O]]] = {
       Reactor[Reliable.TwoWay.Req[I, O]] { self =>
         val server = self.main.serveTwoWayReliable(policy)
-        server.links.onEvent(twoWay => f(server, twoWay))
+        f(server)
       }
     }
   }
@@ -482,7 +579,7 @@ trait ReliableProtocols {
      *  The reactor's main channel is used as the two-way reliable link server.
      */
     def reliableTwoWayServer(policy: Reliable.TwoWay.Policy)(
-      f: (Reliable.TwoWay.Server[I, O], TwoWay[O, I]) => Unit
+      f: Reliable.TwoWay.Server[I, O] => Unit
     ): Channel[Reliable.TwoWay.Req[I, O]] = {
       val proto = Reactor.reliableTwoWayServer(policy)(f)
       system.spawn(proto)
