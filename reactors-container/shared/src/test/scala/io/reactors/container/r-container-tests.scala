@@ -98,12 +98,12 @@ class RContainerCheck extends Properties("RContainer") with ExtendedProperties {
   property("filter") = forAllNoShrink(sizes) { sz =>
     stackTraced {
       val numbers = RHashSet[Int]
-      val oddSum = numbers.filter(_ % 2 == 0).reduce(0)(_ + _)(_ - _).toEmpty
+      val oddSum = numbers.filter(_ % 2 == 0).reduce(0)(_ + _)(_ - _)
       val seen = mutable.Buffer[Int]()
       oddSum.onEvent(seen += _)
 
       for (i <- 0 until sz) numbers += i
-      assert(seen == (2 until sz).filter(_ % 2 == 0).scanLeft(0)(_ + _))
+      assert(seen.tail == (2 until sz).filter(_ % 2 == 0).scanLeft(0)(_ + _), seen)
       seen.clear()
       for (i <- 0 until sz) numbers -= i
       val half = (sz + 1) / 2 - 1

@@ -13,7 +13,8 @@ import scala.reflect.ClassTag
  * 
  *  @tparam T       type for which we want to instantiate an array
  */
-trait Arrayable[@specialized(Byte, Short, Int, Float, Long, Double) T] {
+trait Arrayable[@specialized(Byte, Short, Int, Float, Long, Double) T]
+extends Serializable {
   /** Class tag for type `T`.
    */
   val classTag: ClassTag[T]

@@ -50,12 +50,13 @@ class ReliableProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
     val policy = Reliable.Policy.reorder(128)
     system.channels.registerTemplate(TwoWay.OutputTag, system.channels.named("out"))
 
-    val proto = Reactor.reliableServer[String](policy) {
-      (server, link) =>
-      link.events onEvent { x =>
-        if (!event1.trySuccess(x)) {
-          event2.success(x)
-          server.subscription.unsubscribe()
+    val proto = Reactor.reliableServer[String](policy) { server =>
+      server.links onEvent { link =>
+        link.events onEvent { x =>
+          if (!event1.trySuccess(x)) {
+            event2.success(x)
+            server.subscription.unsubscribe()
+          }
         }
       }
     }
@@ -88,12 +89,14 @@ class ReliableProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
     val policy = Reliable.Policy.reorder(window)
     system.channels.registerTemplate(TwoWay.InputTag, system.channels.named("acks"))
 
-    val server = system.reliableServer[Int](policy) { (server, link) =>
-      val seen = mutable.Buffer[Int]()
-      link.events onEvent { x =>
-        seen += x
-        if (x == total - 1) {
-          done.success(seen)
+    val server = system.reliableServer[Int](policy) { server =>
+      server.links onEvent { link =>
+        val seen = mutable.Buffer[Int]()
+        link.events onEvent { x =>
+          seen += x
+          if (x == total - 1) {
+            done.success(seen)
+          }
         }
       }
     }
@@ -102,7 +105,7 @@ class ReliableProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
       server.openReliable(policy) onEvent { r =>
         val acks = self.system.channels.get[Long]("client", "acks").get
         self.system.service[Scripted].instrument(acks) {
-          _.take(window).reverse
+          _.take(window).throttle(_ => 10.millis)
         }
         for (i <- 0 until total) {
           r.channel ! i
@@ -121,12 +124,14 @@ class ReliableProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
     val policy = Reliable.Policy.reorder(4)
     system.channels.registerTemplate(TwoWay.OutputTag, system.channels.named("out"))
 
-    val proto = Reactor.reliableServer[Int](policy) { (server, link) =>
-      val seen = mutable.Buffer[Int]()
-      link.events onEvent { x =>
-        seen += x
-        if (x == total - 1) {
-          done.success(seen)
+    val proto = Reactor.reliableServer[Int](policy) { server =>
+      server.links onEvent { link =>
+        val seen = mutable.Buffer[Int]()
+        link.events onEvent { x =>
+          seen += x
+          if (x == total - 1) {
+            done.success(seen)
+          }
         }
       }
     }
@@ -153,10 +158,11 @@ class ReliableProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
     val policy = Reliable.TwoWay.Policy.reorder(16)
     system.channels.registerTemplate(TwoWay.OutputTag, system.channels.named("out"))
 
-    val serverProto = Reactor.reliableTwoWayServer[String, Int](policy) {
-      (server, twoWay) =>
-      twoWay.input onEvent { n =>
-        twoWay.output ! n.toString
+    val serverProto = Reactor.reliableTwoWayServer[String, Int](policy) { server =>
+      server.links onEvent { twoWay =>
+        twoWay.input onEvent { n =>
+          twoWay.output ! n.toString
+        }
       }
     }
     val server = system.spawn(serverProto.withName("server"))

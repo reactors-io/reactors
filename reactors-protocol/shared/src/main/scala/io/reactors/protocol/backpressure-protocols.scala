@@ -196,8 +196,10 @@ trait BackpressureProtocols {
           }
           val flushSubscription = Reactor.self.sysEvents onMatch {
             case ReactorPreempted =>
-              outPressure ! tokens()
-              tokens := 0
+              if (tokens() > 0) {
+                outPressure ! tokens()
+                tokens := 0
+              }
           }
           tokenSubscription.chain(flushSubscription)
         }

@@ -69,7 +69,9 @@ class RemoteTest extends FunSuite with Matchers {
 
       // check that server completed normally
       assert(server.success)
-    } finally system.shutdown()
+    } finally {
+      system.shutdown()
+    }
   }
 
   test("UDP transport should send and receive events correctly") {

@@ -150,6 +150,8 @@ object UdpTransport {
     val udpTransport: UdpTransport,
     val buffer: ByteBuffer
   ) extends Thread {
+    setDaemon(true)
+
     def notifyEnd() {
       // no op
     }

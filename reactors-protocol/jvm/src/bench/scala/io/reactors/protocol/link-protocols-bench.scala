@@ -39,7 +39,7 @@ class LinkProtocolsBench extends JBench.OfflineReport {
   @gen("sizes")
   @benchmark("io.reactors.protocol.link")
   @curve("fire-and-forget")
-  def send(sz: Int): Unit = {
+  def fireAndForget(sz: Int): Unit = {
     val done = Promise[Boolean]()
     val ch = system.spawnLocal[Int] { self =>
       var count = 0
@@ -63,11 +63,13 @@ class LinkProtocolsBench extends JBench.OfflineReport {
   @curve("two-way-link")
   def twoWaySend(sz: Int): Unit = {
     val done = Promise[Boolean]()
-    val server = system.twoWayServer[Int, Int] { (server, link) =>
-      var count = 0
-      link.input onEvent { x =>
-        count += 1
-        if (count == sz) done.success(true)
+    val server = system.twoWayServer[Int, Int] { server =>
+      server.links onEvent { link =>
+        var count = 0
+        link.input onEvent { x =>
+          count += 1
+          if (count == sz) done.success(true)
+        }
       }
     }
     system.spawnLocal[Unit] { self =>
@@ -88,12 +90,13 @@ class LinkProtocolsBench extends JBench.OfflineReport {
   def reliableSend(sz: Int): Unit = {
     val done = Promise[Boolean]()
     val policy = Reliable.Policy.reorder(8192)
-    val server = system.reliableServer[String](policy) {
-      (server, link) =>
-      var count = 0
-      link.events onEvent { x =>
-        count += 1
-        if (count == sz) done.success(true)
+    val server = system.reliableServer[String](policy) { server =>
+      server.links onEvent { link =>
+        var count = 0
+        link.events onEvent { x =>
+          count += 1
+          if (count == sz) done.success(true)
+        }
       }
     }
     system.spawnLocal[Unit] { self =>
@@ -114,12 +117,13 @@ class LinkProtocolsBench extends JBench.OfflineReport {
   def reliableOptimizedSend(sz: Int): Unit = {
     val done = Promise[Boolean]()
     val policy = Reliable.Policy.fastReorder
-    val server = system.reliableServer[String](policy) {
-      (server, link) =>
-      var count = 0
-      link.events onEvent { x =>
-        count += 1
-        if (count == sz) done.success(true)
+    val server = system.reliableServer[String](policy) { server =>
+      server.links onEvent { link =>
+        var count = 0
+        link.events onEvent { x =>
+          count += 1
+          if (count == sz) done.success(true)
+        }
       }
     }
     system.spawnLocal[Unit] { self =>
@@ -194,6 +198,42 @@ class LinkProtocolsBench extends JBench.OfflineReport {
         valve.available.is(true) on {
           while (valve.available() && i < sz) {
             valve.channel ! 0
+            i += 1
+          }
+        }
+      }
+    }
+    assert(Await.result(done.future, 10.seconds))
+  }
+
+  @gen("sizes")
+  @benchmark("io.reactors.protocol.link")
+  @curve("multivalve-backpressure-link")
+  def backpressureMultiValveSend(sz: Int): Unit = {
+    val done = Promise[Boolean]()
+    val medium = Backpressure.Medium.default[Int]
+    val policy = Backpressure.Policy.batching(8192)
+    val server = system.backpressureServer(medium, policy) {
+      case Backpressure.PumpServer(ch, links, sub) =>
+        links onEvent { pump =>
+          var count = 0
+          pump.available.is(true) on {
+            while (pump.available()) {
+              pump.dequeue()
+              count += 1
+              if (count == sz) done.success(true)
+            }
+          }
+        }
+    }
+    system.spawnLocal[Unit] { self =>
+      server.openBackpressure(medium, policy) onEvent { valve =>
+        val multi = new MultiValve.Biased[Int](8192)
+        multi += valve
+        var i = 0
+        multi.out.available.is(true) on {
+          while (multi.out.available() && i < sz) {
+            multi.out.channel ! 0
             i += 1
           }
         }

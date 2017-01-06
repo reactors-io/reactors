@@ -393,6 +393,8 @@ object ReactorsBuild extends MechaRepoBuild {
         mechaPublishKey <<= mechaPublishKey.dependsOn(publish)
       ): _*
     )
+    .configs(Benchmark)
+    .settings(inConfig(Benchmark)(Defaults.testSettings): _*)
     .jvmSettings(
       (test in Test) <<= (test in Test)
         .dependsOn(test in (reactorsCommon.jvm, Test))

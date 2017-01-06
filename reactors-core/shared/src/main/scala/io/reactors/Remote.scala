@@ -15,7 +15,8 @@ import scala.collection._
 class Remote(val system: ReactorSystem) extends Protocol.Service {
   private val transports = mutable.Map[String, Remote.Transport]()
 
-  for ((tp, t) <- system.bundle.urlMap) {
+  private def initializeTransport(schema: String): Unit = {
+    val t = system.bundle.urlMap(schema)
     val transport = Platform.Reflect.instantiate(t.transportName, Seq(system))
       .asInstanceOf[Remote.Transport]
     if (transport.schema != t.url.schema) exception.illegalArg(
@@ -25,10 +26,24 @@ class Remote(val system: ReactorSystem) extends Protocol.Service {
     transports(t.url.schema) = transport
   }
 
-  def transport(schema: String) = transports(schema)
+  def transport(schema: String) = {
+    if (!transports.contains(schema)) {
+      initializeTransport(schema)
+    }
+    transports(schema)
+  }
 
   def resolve[@spec(Int, Long, Double) T: Arrayable](url: ChannelUrl): Channel[T] = {
-    transports(url.reactorUrl.systemUrl.schema).newChannel[T](url)
+    val schema = url.reactorUrl.systemUrl.schema
+    if (!transports.contains(schema)) {
+      initializeTransport(schema)
+    }
+    transports(schema).newChannel[T](url)
+  }
+
+  def resolve[@spec(Int, Long, Double) T: Arrayable](url: String): Channel[T] = {
+    val channelUrl = ChannelUrl.parse(url)
+    resolve(channelUrl)
   }
 
   def shutdown() {
@@ -56,6 +71,10 @@ object Remote {
     /** The schema string that this transport must be registered with.
      */
     def schema: String
+
+    /** Port associated with the transport if applicable, or `-1` otherwise.
+     */
+    def port: Int
 
     /** Shuts down the transport, and releases the associated resources.
      */

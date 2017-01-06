@@ -44,15 +44,15 @@ class SignalSpec extends FunSuite {
     emitter.toSignal(0).diffPast(_ - _).onEvent(buffer += _)
 
     emitter.react(3)
-    assert(buffer == Seq(3))
+    assert(buffer == Seq(0, 3))
     emitter.react(3)
-    assert(buffer == Seq(3, 0))
+    assert(buffer == Seq(0, 3, 0))
     emitter.react(5)
-    assert(buffer == Seq(3, 0, 2))
+    assert(buffer == Seq(0, 3, 0, 2))
     emitter.react(11)
-    assert(buffer == Seq(3, 0, 2, 6))
+    assert(buffer == Seq(0, 3, 0, 2, 6))
     emitter.react(19)
-    assert(buffer == Seq(3, 0, 2, 6, 8))
+    assert(buffer == Seq(0, 3, 0, 2, 6, 8))
     emitter.unreact()
   }
 
@@ -66,23 +66,23 @@ class SignalSpec extends FunSuite {
     zip.onDone(done = true)
 
     e0.react(3)
-    assert(buffer == Seq(3))
+    assert(buffer == Seq(0, 3))
     e1.react(5)
-    assert(buffer == Seq(3, 8))
+    assert(buffer == Seq(0, 3, 8))
     e1.react(7)
-    assert(buffer == Seq(3, 8, 10))
+    assert(buffer == Seq(0, 3, 8, 10))
     e1.react(11)
-    assert(buffer == Seq(3, 8, 10, 14))
+    assert(buffer == Seq(0, 3, 8, 10, 14))
     e0.react(19)
-    assert(buffer == Seq(3, 8, 10, 14, 30))
+    assert(buffer == Seq(0, 3, 8, 10, 14, 30))
     assert(!done)
     e1.unreact()
-    assert(buffer == Seq(3, 8, 10, 14, 30))
+    assert(buffer == Seq(0, 3, 8, 10, 14, 30))
     assert(!done)
     e0.unreact()
     assert(done)
     e0.react(23)
-    assert(buffer == Seq(3, 8, 10, 14, 30))
+    assert(buffer == Seq(0, 3, 8, 10, 14, 30))
   }
 
   test("past2") {
@@ -248,6 +248,7 @@ class SignalSpec extends FunSuite {
     e2 react "b"
     e3 react "c"
     val expected = Seq(
+      ("", "", ""),
       ("a", "", ""),
       ("a", "b", ""),
       ("a", "b", "c")
@@ -263,8 +264,10 @@ class SignalSpec extends FunSuite {
     val synced = (s1 syncWith s2)((_, _))
     val buffer = mutable.Buffer[(String, String)]()
     synced.onEvent(buffer += _)
+    e2.react("22")
     buffer += synced()
-    assert(buffer == Seq(("1", "2")))
+    e1.react("11")
+    assert(buffer == Seq(("1", "2"), ("1", "2"), ("11", "22")))
   }
 
   test("zip many") {

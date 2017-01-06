@@ -130,7 +130,9 @@ class ReactorSystem(
     try {
       // 3. Set name.
       frame.name = uname
-      frame.url = ReactorUrl(bundle.urlMap(proto.transportOrDefault(this)).url, uname)
+      val port = this.remote.transport(proto.transportOrDefault(this)).port
+      val sysUrl = bundle.urlMap(proto.transportOrDefault(this)).url.withPort(port)
+      frame.url = ReactorUrl(sysUrl, uname)
 
       // 4. Prepare for the first execution.
       scheduler.initSchedule(frame)
