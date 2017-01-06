@@ -34,10 +34,11 @@ class Remote(val system: ReactorSystem) extends Protocol.Service {
   }
 
   def resolve[@spec(Int, Long, Double) T: Arrayable](url: ChannelUrl): Channel[T] = {
+    val schema = url.reactorUrl.systemUrl.schema
     if (!transports.contains(schema)) {
       initializeTransport(schema)
     }
-    transports(url.reactorUrl.systemUrl.schema).newChannel[T](url)
+    transports(schema).newChannel[T](url)
   }
 
   def resolve[@spec(Int, Long, Double) T: Arrayable](url: String): Channel[T] = {
