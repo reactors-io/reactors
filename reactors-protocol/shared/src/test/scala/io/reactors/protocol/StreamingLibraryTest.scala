@@ -3,13 +3,14 @@ package protocol
 
 
 
+import io.reactors.common.Conc
+import org.scalatest._
+import org.scalatest.concurrent.AsyncTimeLimitedTests
 import scala.collection._
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
-import scala.concurrent.duration._
-import org.scalatest._
-import org.scalatest.concurrent.AsyncTimeLimitedTests
 import scala.concurrent.Promise
+import scala.concurrent.duration._
 
 
 
@@ -105,8 +106,10 @@ object StreamingLibraryTest {
 
     def scanPast[S](z: S)(op: (S, T) => S)(
       implicit at: Arrayable[T], as: Arrayable[S]
-    ): Stream[S] =
-      new ScanPast(this, z, op)
+    ): Stream[S] = new ScanPast(this, z, op)
+
+    def sliding(size: Int)(implicit at: Arrayable[T]): Stream[Conc.Queue[T]] =
+      new Sliding(this, size)
 
     def foreach(f: T => Unit)(implicit a: Arrayable[T]): IVar[Unit] = {
       val medium = backpressureMedium[T]
@@ -212,7 +215,7 @@ object StreamingLibraryTest {
     }
   }
 
-  class Batch[T](val parent: Stream[T], val size: Int)(
+  class Batch[T](val parent: Stream[T], val limit: Int)(
     implicit val arrayableT: Arrayable[T], val arrayableS: Arrayable[Seq[T]]
   ) extends Transformed[T, Seq[T]] {
     lazy val system = parent.system
@@ -220,10 +223,23 @@ object StreamingLibraryTest {
 
     def kernel(x: T, output: Channel[Seq[T]]): Unit = {
       buffer += x
-      if (buffer.size == size) {
+      if (buffer.size == limit) {
         output ! buffer
         buffer = mutable.Buffer[T]()
       }
+    }
+  }
+
+  class Sliding[T](val parent: Stream[T], val limit: Int)(
+    implicit val arrayableT: Arrayable[T], val arrayableS: Arrayable[Conc.Queue[T]]
+  ) extends Transformed[T, Conc.Queue[T]] {
+    lazy val system = parent.system
+    var queue = new Conc.Queue[T]
+
+    def kernel(x: T, output: Channel[Conc.Queue[T]]): Unit = {
+      queue = queue.enqueue(x)
+      if (queue.size > limit) queue = queue.dequeue()
+      output ! queue
     }
   }
 
