@@ -105,7 +105,7 @@ class ReliableProtocolsSpec extends AsyncFunSuite with AsyncTimeLimitedTests {
       server.openReliable(policy) onEvent { r =>
         val acks = self.system.channels.get[Long]("client", "acks").get
         self.system.service[Scripted].instrument(acks) {
-          _.take(window).reverse
+          _.take(window).throttle(_ => 10.millis)
         }
         for (i <- 0 until total) {
           r.channel ! i

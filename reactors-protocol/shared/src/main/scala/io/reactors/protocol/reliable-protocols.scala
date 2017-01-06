@@ -147,7 +147,7 @@ trait ReliableProtocols {
           var mustSendAck = false
           val ackSub = Reactor.self.sysEvents onMatch { case ReactorPreempted =>
             if (mustSendAck) {
-              acks ! nextStamp
+              acks ! (nextStamp - 1)
               mustSendAck = false
             }
           }
