@@ -18,6 +18,9 @@ class StreamingBench extends JBench.OfflineReport {
     exec.maxWarmupRuns -> 160,
     exec.benchRuns -> 50,
     exec.independentSamples -> 1,
+    exec.jvmflags -> List(
+      "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005"
+    ),
     verbose -> true
   )
 
@@ -26,7 +29,9 @@ class StreamingBench extends JBench.OfflineReport {
     new MongoDbReporter[Double]
   )
 
-  val maxSize = 200000
+  override def persistor = Persistor.None
+
+  val maxSize = 20000
   val sizes = Gen.range("size")(maxSize, maxSize, 2000)
 
   @transient lazy val system = ReactorSystem.default("reactor-bench", """
@@ -46,7 +51,22 @@ class StreamingBench extends JBench.OfflineReport {
     system.spawnLocal[Int] { self =>
       val source = new Source[String](system)
       val seen = mutable.Buffer[String]()
-      val ready = source.filter(_.matches(".*keyword.*")).foreach(seen += _)
+      source.filter(_.matches(".*(keyword|done).*")).foreach { x =>
+        seen += x
+        if (x == "done") {
+          done.success(true)
+          self.main.seal()
+        }
+      } on {
+        var i = 0
+        source.valve.available.is(true) on {
+          while (source.valve.available() && i <= sz) {
+            if (i == sz) source.valve.channel ! "done"
+            else source.valve.channel ! ("hm" * (i % 10) + "-keyword-" + i)
+            i += 1
+          }
+        }
+      }
     }
     assert(Await.result(done.future, 10.seconds))
   }

@@ -144,8 +144,12 @@ trait ReliableProtocols {
           val queue = new BinaryHeap[Stamp[T]]()(
             implicitly, Order((x, y) => (x.stamp - y.stamp).toInt)
           )
-          val ackSub = Reactor.self.sysEvents onMatch {
-            case ReactorPreempted => acks ! nextStamp
+          var mustSendAck = false
+          val ackSub = Reactor.self.sysEvents onMatch { case ReactorPreempted =>
+            if (mustSendAck) {
+              acks ! nextStamp
+              mustSendAck = false
+            }
           }
           events onMatch {
             case stamp @ Stamp.Some(x, timestamp) =>
@@ -157,6 +161,7 @@ trait ReliableProtocols {
                   nextStamp += 1
                   deliver ! y
                 }
+                mustSendAck = true
               } else {
                 queue.enqueue(stamp)
               }
