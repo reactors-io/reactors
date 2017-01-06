@@ -389,7 +389,8 @@ object ReactorsBuild extends MechaRepoBuild {
         unmanagedSourceDirectories in Compile +=
           baseDirectory.value.getParentFile / "shared" / "src" / "main" / "scala",
         unmanagedSourceDirectories in Test +=
-          baseDirectory.value.getParentFile / "shared" / "src" / "test" / "scala"
+          baseDirectory.value.getParentFile / "shared" / "src" / "test" / "scala",
+        mechaPublishKey <<= mechaPublishKey.dependsOn(publish)
       ): _*
     )
     .jvmSettings(
