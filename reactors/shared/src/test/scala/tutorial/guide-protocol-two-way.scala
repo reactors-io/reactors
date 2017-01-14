@@ -122,7 +122,8 @@ class GuideTwoWayProtocol extends AsyncFunSuite {
 
     /*!begin-code!*/
     val seeker = Reactor[Unit] { self =>
-      val lengthServer = self.system.channels.twoWayServer[Int, String].serveTwoWay()
+      val lengthServer =
+        self.system.channels.twoWayServer[Int, String].serveTwoWay()
     /*!end-code!*/
 
     /*!md
