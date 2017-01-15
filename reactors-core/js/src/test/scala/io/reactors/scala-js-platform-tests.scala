@@ -35,7 +35,7 @@ class ScalaJsPlatformTest extends FunSuite {
       pickler = "io.reactors.pickle.JavaSerialization"
       remote = {
         udp = {
-          schema = "reactor.udp"
+          schema = "udp"
           transport = "io.reactors.remote.Udp"
           host = "localhost"
           port = 17771
@@ -64,13 +64,13 @@ class ScalaJsPlatformTest extends FunSuite {
       }
     """) { c =>
       assert(c.string("pickler") == "io.reactors.pickle.JavaSerialization")
-      assert(c.string("remote.udp.schema") == "reactor.udp")
+      assert(c.string("remote.udp.schema") == "udp")
       assert(c.int("remote.udp.port") == 17771)
       assert(c.int("scheduler.spindown.initial") == 10)
       assert(c.double("scheduler.spindown.mutation-rate") == 0.15)
       assert(c.children("remote.udp") == Seq())
       val remotes = c.children("remote")
-      assert(remotes(0).string("schema") == "reactor.udp")
+      assert(remotes(0).string("schema") == "udp")
       assert(remotes(0).string("transport") == "io.reactors.remote.Udp")
       assert(remotes(0).string("host") == "localhost")
       assert(remotes(0).int("port") == 17771)

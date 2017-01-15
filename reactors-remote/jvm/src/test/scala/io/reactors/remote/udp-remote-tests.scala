@@ -57,7 +57,7 @@ class RemoteTest extends FunSuite with Matchers {
     val system = ReactorSystem.default("test-system")
     try {
       val port = socket.getLocalPort
-      val sysUrl = SystemUrl("reactor.udp", "localhost", port)
+      val sysUrl = SystemUrl("udp", "localhost", port)
       val channelUrl = ChannelUrl(ReactorUrl(sysUrl, "test-reactor"), "test-anchor")
       val channel = system.remote.resolve[String](channelUrl)
 
@@ -69,21 +69,47 @@ class RemoteTest extends FunSuite with Matchers {
 
       // check that server completed normally
       assert(server.success)
-    } finally system.shutdown()
+    } finally {
+      system.shutdown()
+    }
   }
 
   test("UDP transport should send and receive events correctly") {
     // start two reactor systems
     val sendSys = ReactorSystem.default(
       "test-send-sys",
-      new ReactorSystem.Bundle(JvmScheduler.default, "remote.udp.port = 0"))
+      new ReactorSystem.Bundle(JvmScheduler.default, """
+        remote = {
+          default-schema = "udp"
+          transports = [
+            {
+              schema = "udp"
+              transport = "io.reactors.remote.UdpTransport"
+              host = "localhost"
+              port = 0
+            }
+          ]
+        }
+      """))
     val recvSys = ReactorSystem.default(
       "test-recv-sys",
-      new ReactorSystem.Bundle(JvmScheduler.default, "remote.udp.port = 0"))
+      new ReactorSystem.Bundle(JvmScheduler.default, """
+        remote = {
+          default-schema = "udp"
+          transports = [
+            {
+              schema = "udp"
+              transport = "io.reactors.remote.UdpTransport"
+              host = "localhost"
+              port = 0
+            }
+          ]
+        }
+      """))
     try {
       // prepare channel
-      val sysUrl = SystemUrl("reactor.udp", "localhost",
-        recvSys.remote.transport("reactor.udp").asInstanceOf[UdpTransport].port)
+      val sysUrl = SystemUrl("udp", "localhost",
+        recvSys.remote.transport("udp").asInstanceOf[UdpTransport].port)
       val channelUrl =
         ChannelUrl(ReactorUrl(sysUrl, "test-reactor"), "test-anchor")
       val ch = sendSys.remote.resolve[String](channelUrl)
@@ -91,9 +117,8 @@ class RemoteTest extends FunSuite with Matchers {
       // start receiving reactor
       val started = Promise[Boolean]()
       val received = Promise[Boolean]()
-      val receiverProto =
-        Proto[RemoteTest.UdpReceiver](started, received)
-          .withName("test-reactor").withChannelName("test-anchor")
+      val receiverProto = Proto[RemoteTest.UdpReceiver](started, received)
+        .withName("test-reactor").withChannelName("test-anchor")
       recvSys.spawn(receiverProto)
       assert(Await.result(started.future, 10.seconds))
       

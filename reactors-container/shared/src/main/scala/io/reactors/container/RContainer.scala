@@ -149,6 +149,21 @@ trait RContainer[@spec(Int, Long, Double) T] extends Subscription {
     c.signal.withSubscription(sub)
   }
 
+  /** Converts this container of signals into a signal aggregate.
+   */
+  def toSignalAggregate[@spec(Int, Long, Double) S](z: S)(op: (S, S) => S)(
+    implicit e: T <:< Signal[S]
+  ): Signal[S] = {
+    val a = new MonoidCatamorph[S, Signal[S]](_(), z, op)
+    val c = new SignalCatamorph[S](a)
+    this.foreach(x => c += e(x))
+    val sub = new Subscription.Composite(
+      inserts.onEvent(x => c += e(x)),
+      removes.onEvent(x => c += e(x))
+    )
+    c.signal.withSubscription(sub)
+  }
+
 }
 
 

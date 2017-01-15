@@ -33,6 +33,11 @@ class ChannelBuilder(
   def daemon =
     new ChannelBuilder(channelName, true, eventQueueFactory, shortcutLocal, extras)
 
+  /** Specifies a daemon channel.
+   */
+  def nonDaemon =
+    new ChannelBuilder(channelName, false, eventQueueFactory, shortcutLocal, extras)
+
   /** Associates a new event queue factory.
    */
   def eventQueue(factory: EventQueue.Factory) =

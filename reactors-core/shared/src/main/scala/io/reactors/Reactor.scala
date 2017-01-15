@@ -93,6 +93,10 @@ trait Reactor[@spec(Int, Long, Double) T] extends Platform.Reflectable {
    */
   final def uid: Long = frame.uid
 
+  /** The name of this reactor.
+   */
+  final def name: String = frame.name
+
   /** The reactor system of this reactor.
    */
   final def system: ReactorSystem = frame.reactorSystem

@@ -16,32 +16,32 @@ import scala.concurrent.duration._
 class DirectBackpressureTest extends FunSuite with Matchers with BeforeAndAfterAll {
   val system = ReactorSystem.default("test-system")
 
-  test("start backpressure and send messages") {
-    val done = Promise[Int]()
-    val worker = system.backpressurePerClient(50) { (events: Events[Int]) =>
-      var sum = 0
-      events onEvent { x =>
-        sum += x
-        if (x == 199) {
-          done.success(sum)
-          Reactor.self.main.seal()
-        }
-      }
-    }
+  // test("start backpressure and send messages") {
+  //   val done = Promise[Int]()
+  //   val worker = system.backpressurePerClient(50) { (events: Events[Int]) =>
+  //     var sum = 0
+  //     events onEvent { x =>
+  //       sum += x
+  //       if (x == 199) {
+  //         done.success(sum)
+  //         Reactor.self.main.seal()
+  //       }
+  //     }
+  //   }
 
-    val source = Reactor.direct[Unit] {
-      val link: Backpressure.Link[Int] = receive(worker.link)
-      var i = 0
-      while (i < 200) {
-        link ! i
-        i += 1
-      }
-      Reactor.self.main.seal()
-    }
-    system.spawn(source)
+  //   val source = Reactor.direct[Unit] {
+  //     val link: Backpressure.Link[Int] = receive(worker.link)
+  //     var i = 0
+  //     while (i < 200) {
+  //       link ! i
+  //       i += 1
+  //     }
+  //     Reactor.self.main.seal()
+  //   }
+  //   system.spawn(source)
 
-    assert(Await.result(done.future, 5.seconds) == 199 * 200 / 2)
-  }
+  //   assert(Await.result(done.future, 5.seconds) == 199 * 200 / 2)
+  // }
 
   override def afterAll() {
     system.shutdown()

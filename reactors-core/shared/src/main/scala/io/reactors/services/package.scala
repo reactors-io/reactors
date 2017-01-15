@@ -3,6 +3,7 @@ package services
 
 
 
+import io.reactors.common.IndexMap
 import io.reactors.concurrent.Frame
 import io.reactors.concurrent.Services
 import java.util.Timer
@@ -12,6 +13,7 @@ import scala.annotation.tailrec
 import scala.annotation.unchecked
 import scala.collection._
 import scala.concurrent.duration._
+import scala.reflect.ClassTag
 
 
 
@@ -187,7 +189,54 @@ class Channels(val system: ReactorSystem)
 extends ChannelBuilder(
   null, false, EventQueue.UnrolledRing.Factory, false, immutable.Map()
 ) with Protocol.Service {
+  private val tagMap = new IndexMap[Channels.Tag, ChannelBuilder]
+
   def shutdown() {
+  }
+
+  private[reactors] def getConnector[T](
+    reactorName: String, channelName: String
+  ): Option[Connector[T]] = {
+    val info = system.frames.forName(reactorName)
+    if (info == null) None
+    else {
+      info.connectors.get(channelName) match {
+        case Some(conn: Connector[T] @unchecked) => Some(conn)
+        case _ => None
+      }
+    }
+  }
+
+  private[reactors] def getLocal[T](
+    reactorName: String, channelName: String
+  ): Option[Channel[T]] = {
+    getConnector[T](reactorName, channelName).map(_.localChannel)
+  }
+
+  private[reactors] def getLocal[T](url: ChannelUrl): Option[Channel[T]] = {
+    getLocal[T](url.reactorUrl.name, url.anchor)
+  }
+
+  /** Registers a channel builder template under a specific tag.
+   *
+   *  Specific protocols use channel builder templates to instantiate their components,
+   *  and overriding a template in some cases allows to inject custom behavior (for
+   *  example, for testing purposes).
+   *  Removes previous registrations, if any.
+   */
+  def registerTemplate(tag: Channels.Tag, template: ChannelBuilder): Unit =
+    system.monitor.synchronized {
+      tagMap(tag) = template
+    }
+
+  /** Returns a channel builder template that had been previously registered for a tag.
+   *
+   *  If no template was registered with the specified tag, method returns `this`.
+   */
+  def template(tag: Channels.Tag): ChannelBuilder = system.monitor.synchronized {
+    val v = tagMap(tag)
+    if (v != null) v
+    else this
   }
 
   /** Optionally returns the channel with the given name, if it exists.
@@ -207,14 +256,7 @@ extends ChannelBuilder(
    *  @param channelName  name of the channel
    */
   def get[T](reactorName: String, channelName: String): Option[Channel[T]] = {
-    val info = system.frames.forName(reactorName)
-    if (info == null) None
-    else {
-      info.connectors.get(channelName) match {
-        case Some(conn: Connector[T] @unchecked) => Some(conn.channel)
-        case _ => None
-      }
-    }
+    getConnector[T](reactorName, channelName).map(_.channel)
   }
 
   /** Await for the channel with the specified full name.
@@ -269,4 +311,9 @@ extends ChannelBuilder(
 
     ivar
   }
+}
+
+
+object Channels {
+  abstract class Tag extends IndexMap.Key
 }

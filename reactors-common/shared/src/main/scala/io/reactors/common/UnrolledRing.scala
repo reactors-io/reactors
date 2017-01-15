@@ -15,13 +15,13 @@ class UnrolledRing[@specialized(Byte, Short, Int, Float, Long, Double) T](
 
   private[reactors] var start: Node[T] = _
   private[reactors] var end: Node[T] = _
-  private[reactors] var size: Int = _
+  private[reactors] var rawSize: Int = _
 
   private[reactors] def init(a: Arrayable[T]) {
     start = new Node(arrayable.newRawArray(INITIAL_NODE_LENGTH), 0, 0)
     start.next = start
     end = start
-    size = 0
+    rawSize = 0
   }
 
   init(arrayable)
@@ -36,6 +36,8 @@ class UnrolledRing[@specialized(Byte, Short, Int, Float, Long, Double) T](
   def clear() {
     init(arrayable)
   }
+
+  def size: Int = rawSize
 
   def nonEmpty: Boolean = {
     if (start.nonEmpty) true
@@ -54,19 +56,19 @@ class UnrolledRing[@specialized(Byte, Short, Int, Float, Long, Double) T](
 
   def enqueue(elem: T) {
     end.enqueue(this, elem)
-    size += 1
+    rawSize += 1
   }
 
   def dequeue(): T = {
     advance()
     val elem = start.dequeue(this)
-    size -= 1
+    rawSize -= 1
     elem
   }
 
   def remove(elem: T): Int = {
     val at = UnrolledRing.remove(this, null, start, elem, 0)
-    if (at != -1) size -= 1
+    if (at != -1) rawSize -= 1
     at
   }
 

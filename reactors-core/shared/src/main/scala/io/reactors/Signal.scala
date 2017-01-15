@@ -42,17 +42,39 @@ trait Signal[@spec(Int, Long, Double) T] extends Events[T] with Subscription {
    */
   def changes: Events[T] = new Signal.Changes(this)
 
+  /** Emits only when the state is equal to the specified value.
+   *
+   *  Will immediately emit upon subscription if the current signal value is equal to
+   *  the specified value.
+   */
+  def is(x: T): Events[T] = new Signal.Is(this, x)
+
+  /** Emits only when the state changes to the specified value.
+   *
+   *  This means that the value was previously not equal to the specified value,
+   *  but then became equal.
+   *
+   *  Will not immediately emit upon subscription if the current signal value is
+   *  equal to the specified value.
+   *
+   *  {{{
+   *  time       --------------------->
+   *  this       --1--2--3---3--4--3-->
+   *  becomes(3) --------3---------3-->
+   *  }}}
+   */
+  def becomes(x: T): Events[T] = this.changes.filter(y => y == x)
+
   /** A signal that produces difference events between the current and previous
    *  value of `this` signal.
    *
    *  {{{
-   *  time ---------------->
-   *  this --1--3---6---7-->
-   *  diff --z--2---3---1-->
+   *  time     ---------------->
+   *  this     --1--3---6---7-->
+   *  diffPast --z--2---3---1-->
    *  }}}
    *  
    *  @tparam S       the type of the difference event
-   *  @param z        the initial value for the difference
    *  @param op       the operator that computes the difference between
    *                  consecutive events
    *  @return         a subscription and a signal with the difference value
@@ -74,8 +96,7 @@ trait Signal[@spec(Int, Long, Double) T] extends Events[T] with Subscription {
    *  zip  --1,a--2,a---4,a---4,b--8,b--8,c->
    *  }}}
    *
-   *  When either of the input signals unreacts, the resulting signal also
-   *  unreacts.
+   *  When both of the input signals unreact, the resulting signal also unreacts.
    *
    *  The resulting tuple of events from `this` and `that` is mapped using the
    *  user-specified mapping function `f`.
@@ -234,7 +255,6 @@ object Signal {
     }
   }
 
-
   /** Zips the list of signals, and produces an output signal from their values.
    *
    *  The output signal is updated whenever any of the input signals are updated.
@@ -344,6 +364,24 @@ object Signal {
     def unreact() = target.unreact()
   }
 
+  private[reactors] class Is[@spec(Int, Long, Double) T](val self: Signal[T], val x: T)
+  extends Events[T] {
+    def onReaction(obs: Observer[T]) = {
+      if (self() == x) obs.react(x, null)
+      self.onReaction(new IsObserver(obs, x))
+    }
+  }
+
+  private[reactors] class IsObserver[@spec(Int, Long, Double) T](
+    val target: Observer[T],val y: T
+  ) extends Observer[T] {
+    def react(x: T, hint: Any) = {
+      if (y == x) target.react(x, hint)
+    }
+    def except(t: Throwable) = target.except(t)
+    def unreact() = target.unreact()
+  }
+
   private[reactors] class DiffPast[
     @spec(Int, Long, Double) T,
     @spec(Int, Long, Double) S
@@ -387,21 +425,28 @@ object Signal {
     val that: Signal[S],
     val f: (T, S) => R
   ) extends Events[R] {
-    def newZipThisObserver(obs: Observer[R]) =
-      new ZipThisObserver(obs, f, self, that)
-    def newZipThatObserver(obs: Observer[R], thisObs: ZipThisObserver[T, S, R]) =
-      new ZipThatObserver(obs, f, thisObs)
+    def newZipThisObserver(obs: Observer[R], state: ZipState) =
+      new ZipThisObserver(obs, f, self, that, state)
+    def newZipThatObserver(obs: Observer[R], state: ZipState) =
+      new ZipThatObserver(obs, f, self, that, state)
     def onReaction(obs: Observer[R]) = {
-      val thisObs = newZipThisObserver(obs)
-      val thatObs = newZipThatObserver(obs, thisObs)
+      val state = new ZipState
+      val thisObs = newZipThisObserver(obs, state)
+      val thatObs = newZipThatObserver(obs, state)
       val sub = new Subscription.Composite(
         self.onReaction(thisObs),
         that.onReaction(thatObs)
       )
-      thisObs.subscription = sub
+      state.subscription = sub
       sub
     }
   }
+
+  private[reactors] class ZipState(
+    var thisDone: Boolean = false,
+    var thatDone: Boolean = false,
+    var subscription: Subscription = Subscription.empty
+  )
 
   private[reactors] class ZipThisObserver[
     @spec(Int, Long, Double) T,
@@ -411,11 +456,10 @@ object Signal {
     val target: Observer[R],
     val f: (T, S) => R,
     val self: Signal[T],
-    val that: Signal[S]
+    val that: Signal[S],
+    val state: ZipState
   ) extends Observer[T] {
-    var subscription: Subscription = _
-    var done = false
-    def react(x: T, hint: Any): Unit = if (!done) {
+    def react(x: T, hint: Any): Unit = if (!state.thisDone) {
       val event = try {
         f(x, that())
       } catch {
@@ -425,13 +469,15 @@ object Signal {
       }
       target.react(event, null)
     }
-    def except(t: Throwable) = if (!done) {
+    def except(t: Throwable) = if (!state.thisDone) {
       target.except(t)
     }
-    def unreact() = if (!done) {
-      done = true
-      subscription.unsubscribe()
-      target.unreact()
+    def unreact() = if (!state.thisDone) {
+      state.thisDone = true
+      if (state.thatDone) {
+        state.subscription.unsubscribe()
+        target.unreact()
+      }
     }
   }
 
@@ -442,11 +488,13 @@ object Signal {
   ](
     val target: Observer[R],
     val f: (T, S) => R,
-    val thisObserver: ZipThisObserver[T, S, R]
+    val self: Signal[T],
+    val that: Signal[S],
+    val state: ZipState
   ) extends Observer[S] {
-    def react(x: S, hint: Any): Unit = if (!thisObserver.done) {
+    def react(x: S, hint: Any): Unit = if (!state.thatDone) {
       val event = try {
-        f(thisObserver.self(), x)
+        f(self(), x)
       } catch {
         case NonLethal(t) =>
           target.except(t)
@@ -454,13 +502,15 @@ object Signal {
       }
       target.react(event, null)
     }
-    def except(t: Throwable) = if (!thisObserver.done) {
+    def except(t: Throwable) = if (!state.thatDone) {
       target.except(t)
     }
-    def unreact() = if (!thisObserver.done) {
-      thisObserver.done = true
-      thisObserver.subscription.unsubscribe()
-      target.unreact()
+    def unreact() = if (!state.thatDone) {
+      state.thatDone = true
+      if (state.thisDone) {
+        state.subscription.unsubscribe()
+        target.unreact()
+      }
     }
   }
 

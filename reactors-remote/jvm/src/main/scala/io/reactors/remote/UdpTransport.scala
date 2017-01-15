@@ -15,7 +15,7 @@ import scala.collection._
 
 class UdpTransport(val system: ReactorSystem) extends Remote.Transport {
   private[remote] val datagramChannel = {
-    val url = system.bundle.urlMap("reactor.udp").url
+    val url = system.bundle.urlMap("udp").url
     val ch = DatagramChannel.open()
     ch.bind(url.inetSocketAddress)
     ch
@@ -75,6 +75,8 @@ class UdpTransport(val system: ReactorSystem) extends Remote.Transport {
   def newChannel[@spec(Int, Long, Double) T: Arrayable](url: ChannelUrl): Channel[T] = {
     new UdpTransport.UdpChannel[T](implicitly[UdpTransport.Sender[T]], url)
   }
+
+  def schema = "udp"
 
   def shutdown() {
     datagramChannel.socket.close()
@@ -148,6 +150,8 @@ object UdpTransport {
     val udpTransport: UdpTransport,
     val buffer: ByteBuffer
   ) extends Thread {
+    setDaemon(true)
+
     def notifyEnd() {
       // no op
     }
@@ -159,9 +163,9 @@ object UdpTransport {
       val isoName = pickler.depickle[String](buffer)
       val channelName = pickler.depickle[String](buffer)
       val event = pickler.depickle[AnyRef](buffer)
-      udpTransport.system.channels.get[AnyRef](isoName, channelName) match {
+      udpTransport.system.channels.getLocal[AnyRef](isoName, channelName) match {
         case Some(ch) => ch ! event
-        case None => // drop event -- no such channel here
+        case None => // Drop event -- no such channel here.
       }
     }
 
@@ -173,7 +177,7 @@ object UdpTransport {
         receive()
         success = true
       } catch {
-        case e: Exception => // not ok
+        case e: Exception => // Not ok.
       }
       if (success) run()
     }

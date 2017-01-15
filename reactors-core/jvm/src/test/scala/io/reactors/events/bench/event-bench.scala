@@ -64,6 +64,24 @@ class EventBoxingBench extends Bench.Forked[Long] {
     }
   }
 
+  measure method "RCell" config (
+    reports.validation.predicate -> { (n: Any) => n == 0 }
+  ) in {
+    using(Gen.single("numEvents")(10000)) in { numEvents =>
+      val budget = RCell(0)
+      val available = budget.map(_ > 0).toEmpty.changes.toSignal(false)
+      var count = 0
+      available.is(true).on(count += 1)
+
+      var i = 0
+      while (i < numEvents) {
+        budget := budget() + i
+        if (i % 2 == 0) budget := 0
+        i += 1
+      }
+    }
+  }
+
   measure method "Emitter.<combinators>" config (
     reports.validation.predicate -> { (n: Any) => n == 29 }
   ) in {
@@ -133,6 +151,10 @@ class EventBoxingBench extends Bench.Forked[Long] {
       var mapBooleanCount = 0
       emitter.map(_ > 0).on(mapBooleanCount += 1)
 
+      // changed
+      var changedCount = 0
+      emitter.changed(0).on(changedCount += 1)
+
       // takeWhile
       var takeWhileDone = false
       emitter.takeWhile(_ < 1000).onDone(takeWhileDone = true)
@@ -149,7 +171,7 @@ class EventBoxingBench extends Bench.Forked[Long] {
 
       // unreacted
       var unreactCount = 0
-      emitter.unreacted.onDone(unreactCount += 1)
+      emitter.done.onDone(unreactCount += 1)
 
       // union
       var unionCount = 0
@@ -164,21 +186,25 @@ class EventBoxingBench extends Bench.Forked[Long] {
       val syncEmitter = new Events.Emitter[Int]
       emitter.sync(syncEmitter)(_ + _).on(syncCount += 1)
 
+      // reverse
+      var reverseSum = 0
+      emitter.reverse.onEvent(reverseSum += _)
+
       // postfix union
       var postfixUnionCount = 0
-      var postfixUnionEmitter = new Events.Emitter[Events.Emitter[Int]]
+      val postfixUnionEmitter = new Events.Emitter[Events.Emitter[Int]]
       postfixUnionEmitter.union.on(postfixUnionCount += 1)
       postfixUnionEmitter.react(emitter)
 
       // postfix concat
       var postfixConcatCount = 0
-      var postfixConcatEmitter = new Events.Emitter[Events.Emitter[Int]]
+      val postfixConcatEmitter = new Events.Emitter[Events.Emitter[Int]]
       postfixConcatEmitter.concat.on(postfixConcatCount += 1)
       postfixConcatEmitter.react(emitter)
 
       // postfix first
       var postfixFirstEmitterCount = 0
-      var postfixFirstEmitter = new Events.Emitter[Events.Emitter[Int]]
+      val postfixFirstEmitter = new Events.Emitter[Events.Emitter[Int]]
       postfixFirstEmitter.first.on(postfixFirstEmitterCount += 1)
       postfixFirstEmitter.react(emitter)
 

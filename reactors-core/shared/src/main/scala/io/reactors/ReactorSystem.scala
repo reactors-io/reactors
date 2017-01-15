@@ -6,8 +6,6 @@ import io.reactors.common.Monitor
 import io.reactors.concurrent._
 import io.reactors.pickle.Pickler
 import java.util.Timer
-import java.util.concurrent.atomic._
-import scala.annotation.tailrec
 import scala.collection._
 
 
@@ -33,6 +31,9 @@ class ReactorSystem(
 
   private[reactors] val globalTimer = new Timer(s"reactors-io.$name.global-timer", true)
 
+  private[reactors] val defaultTransportSchema: String =
+   system.bundle.config.string("remote.default-schema")
+
   /** Debugging API.
    */
   private[reactors] val debugApi: DebugApi = {
@@ -51,6 +52,13 @@ class ReactorSystem(
    */
   private[reactors] val frames = new ScalableUniqueStore[Frame.Info]("reactor", 512)
 
+  /** Whether channels should be created with local underlying channels, which bypass
+   *  the network stack.
+   */
+  private[reactors] val usingLocalChannels: Boolean = {
+    bundle.config.string("system.channels.create-as-local").toBoolean
+  }
+
   /** Shuts down services. */
   def shutdown() {
     debugApi.shutdown()
@@ -61,6 +69,7 @@ class ReactorSystem(
   /** Creates a new reactor instance in this reactor system.
    *
    *  '''Use case:'''
+   *
    *  {{{
    *  def spawn(proto: Proto[Reactor[T]]): Channel[T]
    *  }}}
@@ -119,9 +128,11 @@ class ReactorSystem(
     }
 
     try {
-      // 3. Allocate the standard connectors.
+      // 3. Set name.
       frame.name = uname
-      frame.url = ReactorUrl(bundle.urlMap(proto.transportOrDefault(this)).url, uname)
+      val port = this.remote.transport(proto.transportOrDefault(this)).port
+      val sysUrl = bundle.urlMap(proto.transportOrDefault(this)).url.withPort(port)
+      frame.url = ReactorUrl(sysUrl, uname)
 
       // 4. Prepare for the first execution.
       scheduler.initSchedule(frame)
@@ -187,9 +198,27 @@ object ReactorSystem {
     new ReactorSystem(name, bundle)
   }
 
+  /** Creates a default reactor system, given a custom configuration.
+   *
+   *  @param name       the name of the reactor system instance
+   *  @param config     configuration overrides for the reactor system
+   *  @return           a new reactor system instance
+   */
+  def default(name: String, config: String) = {
+    new ReactorSystem(name, Bundle.default(config))
+  }
+
   /** Contains machine information.
    */
   private val machineConfig = Configuration.parse(Platform.machineConfiguration)
+
+  private val multiplatformConfig = Configuration.parse("""
+    system = {
+      channels = {
+        create-as-local = "true"
+      }
+    }
+  """.stripMargin)
 
   /** Retrieves the default bundle config object.
    *
@@ -197,7 +226,9 @@ object ReactorSystem {
    *  the reactor system bundle.
    */
   val defaultConfig =
-    Configuration.parse(Platform.defaultConfiguration).withFallback(machineConfig)
+    Configuration.parse(Platform.defaultConfiguration)
+      .withFallback(machineConfig)
+      .withFallback(multiplatformConfig)
 
   /** Convert the configuration string to a `Configuration` object.
    */
@@ -232,12 +263,19 @@ object ReactorSystem {
       val spindownTestIterations = config.int("scheduler.spindown.test-iterations")
     }
 
-    val urlMap = config.children("remote").map { c =>
+    val defaultTransports = Map(
+      "local" -> Bundle.TransportInfo(
+        SystemUrl("local", "", 0),
+        "io.reactors.transport.LocalTransport"
+      )
+    )
+
+    val urlMap = config.list("remote.transports").map { c =>
       val schema = c.string("schema")
       val url = SystemUrl(c.string("schema"), c.string("host"), c.int("port"))
       val transportName = c.string("transport")
       (schema, Bundle.TransportInfo(url, transportName))
-    } toMap
+    }.toMap ++ defaultTransports
 
     val urls = urlMap.map(_._2.url).toSet
 
@@ -258,8 +296,8 @@ object ReactorSystem {
      *  The method fails if this specific scheduler instance was not previously
      *  registered with the reactor system.
      *
-     *  @param s                   scheduler that was previously registered
-     *  @return                    name of the previously registered scheduler
+     *  @param s          scheduler that was previously registered
+     *  @return           name of the previously registered scheduler
      */
     def schedulerName(s: Scheduler): String = {
       schedulers.find(_._2 eq s).get._1
@@ -287,23 +325,28 @@ object ReactorSystem {
      *  
      *  @return           the default scheduler bundle
      */
-    def default(defaultScheduler: Scheduler): Bundle = {
-      val b = new Bundle(defaultScheduler, Configuration.empty)
+    def default(ds: Scheduler): Bundle = {
+      val b = new Bundle(ds, Configuration.empty)
       Platform.registerDefaultSchedulers(b)
       b
     }
 
-    /** Creates a bundle with a custom configuration.
+    /** Creates a bundle with a custom default scheduler and configuration.
      */
-    def default(defaultScheduler: Scheduler, config: Configuration): Bundle = {
-      val b = new Bundle(defaultScheduler, config)
+    def default(ds: Scheduler, config: Configuration): Bundle = {
+      val b = new Bundle(ds, config)
       Platform.registerDefaultSchedulers(b)
       b
     }
 
-    /** Creates a bundle with a custom configuration text.
+    /** Creates a bundle with a custom default scheduler and configuration text.
      */
-    def default(defaultScheduler: Scheduler, configText: String): Bundle =
+    def default(ds: Scheduler, configText: String): Bundle =
+      default(ds, Configuration.parse(configText))
+
+    /** Creates a bundle with a default scheduler and custom configuration text.
+     */
+    def default(configText: String): Bundle =
       default(defaultScheduler, Configuration.parse(configText))
   }
 

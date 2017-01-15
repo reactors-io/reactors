@@ -46,22 +46,25 @@ extends Reactor[Unit] {
       terminated = true
       p.success((excepted, terminated))
   }
-  sys.error("Exception thrown in ctor (THIS IS OK)!")
+  exception.test("Exception thrown in ctor (THIS IS OK)!")
 }
 
 
 class TerminationExceptionReactor(val p: Promise[Boolean]) extends Reactor[Unit] {
   sysEvents onMatch {
-    case ReactorDied(t) => p.success(true)
-    case ReactorPreempted => main.seal()
-    case ReactorTerminated => sys.error("Exception during termination (THIS IS OK)!")
+    case ReactorDied(t) =>
+      p.success(true)
+    case ReactorPreempted =>
+      main.seal()
+    case ReactorTerminated =>
+      exception.test("Exception during termination (THIS IS OK)!")
   }
 }
 
 
 class RunningExceptionReactor(val p: Promise[Throwable]) extends Reactor[String] {
   main.events onMatch {
-    case "die" => sys.error("Exception thrown (THIS IS OK)!")
+    case "die" => exception.test("Exception thrown (THIS IS OK)!")
   }
   sysEvents onMatch {
     case ReactorDied(t) => p.success(t)

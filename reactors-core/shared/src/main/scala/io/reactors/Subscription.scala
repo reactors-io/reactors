@@ -20,22 +20,29 @@ trait Subscription {
    */
   def unsubscribe(): Unit
 
-  /** Returns a new subscription that unsubscribes using this, and executes an action.
+  /** Returns a new subscription that unsubscribes this, and then executes an action.
    */
-  def and(action: =>Unit): Subscription = new Subscription {
+  def andThen(action: =>Unit): Subscription = new Subscription {
     def unsubscribe() {
       self.unsubscribe()
       action
     }
   }
 
+  /** Returns a new subscription that unsubscribes this subscription, and then another.
+   */
+  def chain(other: Subscription): Subscription = new Subscription {
+    def unsubscribe() {
+      self.unsubscribe()
+      other.unsubscribe()
+    }
+  }
 }
 
 
 /** Default subscription implementations.
  */
 object Subscription {
-
   /** Returns a subscription that runs the specified action when unsubscribed.
    *
    *  The action **will not be** executed more than once.
@@ -101,6 +108,33 @@ object Subscription {
     }
     def remove(s: Subscription): Boolean = set.remove(s)
     def isEmpty: Boolean = set.isEmpty
+  }
+
+  /** A mutable cell that can contain at most one subscription.
+   *
+   *  Has similar semantics as subscription collection.
+   */
+  class Cell extends Subscription {
+    private var done = false
+    private var inner: Subscription = null
+    def unsubscribe() {
+      done = true
+      if (inner != null) inner.unsubscribe()
+    }
+    def set(s: Subscription): Subscription = {
+      if (done) {
+        s.unsubscribe()
+        Subscription.empty
+      } else {
+        inner = new Subscription {
+          override def unsubscribe() {
+            s.unsubscribe()
+            inner = null
+          }
+        }
+        inner
+      }
+    }
   }
 
 }

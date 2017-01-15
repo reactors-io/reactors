@@ -308,7 +308,7 @@ class EventsSpec extends FunSuite {
     val tick = new Events.Emitter[Unit]
     val samples = tick.incremental[Int] {
       val state = emitter.toSignal(0)
-      (state.and(unsubscribed = true), obs => obs.react(state(), null))
+      (state.andThen(unsubscribed = true), obs => obs.react(state(), null))
     }
     samples.onEvent(seen += _)
     assert(seen == Seq())
@@ -440,6 +440,8 @@ class EventsSpec extends FunSuite {
     e0.react(1)
     e1.react(2)
     e0.unreact()
+    assert(!done)
+    e1.unreact()
     assert(done)
     assert(!e0.hasSubscriptions)
     assert(!e1.hasSubscriptions)
@@ -570,6 +572,50 @@ class EventsSpec extends FunSuite {
     assert(sum == 26)
   }
 
+  test("defer") {
+    var done = false
+    var seen = mutable.Buffer[Int]()
+    val emitter = new Events.Emitter[Int]
+    val go = new IVar[Boolean]
+    val deferred = emitter.defer(go)
+    deferred.onEventOrDone(seen += _)(done = true)
+
+    emitter.react(7)
+    assert(!done)
+    assert(seen == Seq())
+    emitter.react(11)
+    assert(seen == Seq())
+    go.react(true)
+    assert(seen == Seq(7, 11))
+    emitter.react(17)
+    assert(seen == Seq(7, 11, 17))
+    assert(!done)
+    emitter.unreact()
+    assert(seen == Seq(7, 11, 17))
+    assert(done)
+  }
+
+  test("defer early unreact") {
+    var done = false
+    var seen = mutable.Buffer[Int]()
+    val emitter = new Events.Emitter[Int]
+    val go = new IVar[Boolean]
+    val deferred = emitter.defer(go)
+    deferred.onEventOrDone(seen += _)(done = true)
+
+    emitter.react(7)
+    assert(!done)
+    assert(seen == Seq())
+    emitter.react(11)
+    assert(seen == Seq())
+    emitter.unreact()
+    assert(seen == Seq())
+    assert(!done)
+    go.react(true)
+    assert(seen == Seq(7, 11))
+    assert(done)
+  }
+
   test("until unsubscribes") {
     val emitter = new TestEmitter[Int]
     val end = new TestEmitter[Int]
@@ -580,6 +626,27 @@ class EventsSpec extends FunSuite {
     end.react(1)
     assert(emitter.unsubscriptionCount == 1)
     assert(end.unsubscriptionCount == 1)
+  }
+
+  test("changed") {
+    val emitter = new Events.Emitter[Int]
+    val seen = mutable.Buffer[Int]()
+    var done = false
+    emitter.changed(0).onEventOrDone(seen += _)(done = true)
+
+    emitter.react(0)
+    assert(seen == Nil)
+    emitter.react(1)
+    assert(seen == Seq(1))
+    emitter.react(5)
+    assert(seen == Seq(1, 5))
+    emitter.react(5)
+    assert(seen == Seq(1, 5))
+    emitter.react(7)
+    assert(seen == Seq(1, 5, 7))
+    assert(!done)
+    emitter.unreact()
+    assert(done)
   }
 
   test("once") {
@@ -818,7 +885,7 @@ class EventsSpec extends FunSuite {
   test("unreacted") {
     var count = 0
     val emitter = new Events.Emitter[Int]
-    emitter.unreacted.on(count += 1)
+    emitter.done.on(count += 1)
 
     emitter.react(5)
     assert(count == 0)
@@ -828,7 +895,7 @@ class EventsSpec extends FunSuite {
 
   test("unreacted unsubscribes early") {
     val emitter = new TestEmitter[Int]
-    emitter.unreacted.on({})
+    emitter.done.on({})
     emitter.unreact()
     assert(emitter.unsubscriptionCount == 1)
   }
@@ -901,6 +968,64 @@ class EventsSpec extends FunSuite {
     assert(!done)
     e1.unreact()
     assert(buffer == Seq(8, 26))
+    assert(done)
+  }
+
+  test("sync many") {
+    var done = false
+    val buffer = mutable.Buffer[Seq[Int]]()
+    val e0 = new Events.Emitter[Int]
+    val e1 = new Events.Emitter[Int]
+    val e2 = new Events.Emitter[Int]
+    val sync = Events.sync(e0, e1, e2)
+    sync.onEvent(buffer += _)
+    sync.onDone(done = true)
+
+    e0.react(3)
+    assert(!done)
+    assert(buffer == Seq())
+    e0.react(5)
+    assert(!done)
+    assert(buffer == Seq())
+    e1.react(13)
+    assert(!done)
+    assert(buffer == Seq())
+    e2.react(23)
+    assert(!done)
+    assert(buffer == Seq(Seq(3, 13, 23)))
+    e2.react(25)
+    assert(!done)
+    assert(buffer == Seq(Seq(3, 13, 23)))
+    e1.react(15)
+    assert(!done)
+    assert(buffer == Seq(Seq(3, 13, 23), Seq(5, 15, 25)))
+    e0.react(7)
+    assert(!done)
+    assert(buffer == Seq(Seq(3, 13, 23), Seq(5, 15, 25)))
+    e1.unreact()
+    assert(done)
+    assert(buffer == Seq(Seq(3, 13, 23), Seq(5, 15, 25)))
+  }
+
+  test("reverse") {
+    var done = false
+    val seen = mutable.Buffer[Int]()
+    val e = new Events.Emitter[Int]
+    val reversed = e.reverse
+    reversed.onEvent(seen += _)
+    reversed.onDone(done = true)
+
+    e.react(11)
+    assert(seen == Seq())
+    assert(!done)
+    e.react(17)
+    assert(seen == Seq())
+    assert(!done)
+    e.react(19)
+    assert(seen == Seq())
+    assert(!done)
+    e.unreact()
+    assert(seen == Seq(19, 17, 11))
     assert(done)
   }
 
@@ -1697,7 +1822,7 @@ class RCellSpec extends FunSuite with Matchers {
 
   test("react to unreactions") {
     val e = new Events.Emitter[Int]
-    val unreacted = e.unreacted
+    val unreacted = e.done
     var events = 0
     var excepts = 0
     var unreactions = 0

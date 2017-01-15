@@ -42,12 +42,12 @@ with Matchers with BeforeAndAfterAll {
     }
   }
 
-  test("countdown should accumulate 45") {
+  test("countdown should accumulate 55") {
     val total = Promise[Seq[Int]]()
     system.spawn(Proto[CountdownReactor](total))
     total.future.map { x =>
-      assert(x == Seq(9, 8, 7, 6, 5, 4, 3, 2, 1, 0),
-        s"Total sum of countdowns = ${total.future.value}")
+      assert(x == Seq(10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0),
+        s"Countdown values = ${total.future.value}")
     }
   }
 

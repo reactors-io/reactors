@@ -63,7 +63,6 @@ import scala.util.Try
  *  @tparam T      type of the events in this event stream
  */
 trait Events[@spec(Int, Long, Double) T] {
-
   /** Registers a new `observer` to this event stream.
    *
    *  The `observer` argument may be invoked multiple times -- whenever an event is
@@ -71,7 +70,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  terminated. After the event stream terminates, no events or exceptions are
    *  propagated on this event stream any more.
    *
-   *  @param ovserver    the observer for `react`, `except` and `unreact` events
+   *  @param observer    the observer for `react`, `except` and `unreact` events
    *  @return            a subscription for unsubscribing from reactions
    */
   def onReaction(observer: Observer[T]): Subscription
@@ -123,7 +122,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  {{{
    *  def onMatch(reactor: PartialFunction[T, Unit]): Subscription
    *  }}}
-   *  
+   *
    *  @param observer    the callback for those events for which it is defined
    *  @return            a subscription for unsubscribing from reactions
    */
@@ -253,6 +252,11 @@ trait Events[@spec(Int, Long, Double) T] {
   def scanPast[@spec(Int, Long, Double) S](z: S)(op: (S, T) => S): Events[S] =
     new Events.ScanPast(this, z, op)
 
+  /** Returns a subsequence of events such that subsequent events are not equal.
+   */
+  def changed(initial: T): Events[T] =
+    new Events.Changed(this, initial)
+
   /** Reduces all the events in this event stream.
    *
    *  Emits a single event *after* the event stream unreacts, and then it unreacts
@@ -274,7 +278,7 @@ trait Events[@spec(Int, Long, Double) T] {
 
   /** Emits the total number of events produced by this event stream.
    *
-   *  The returned value is a [[scala.reactive.Signal]] that holds the total number of
+   *  The returned value is a [[io.reactors.Signal]] that holds the total number of
    *  emitted events.
    *
    *  {{{
@@ -420,6 +424,31 @@ trait Events[@spec(Int, Long, Double) T] {
    */
   def until[@spec(Int, Long, Double) S](that: Events[S]): Events[T] =
     new Events.Until[T, S](this, that)
+
+  /** Defers events from this stream until first event from the target event stream.
+   *
+   *  All events from this event stream are kept in a buffer until the first occurrence
+   *  of an event in `that` event stream. After that, all events from the buffer are
+   *  emitted on the resulting event stream, and the rest of the events are forwarded
+   *  normally.
+   *
+   *  This is shown in the following:
+   *
+   *  {{{
+   *  time   ---------------------->
+   *  this   --1---2-------3---4--->
+   *  that   --------x-------y---z->
+   *  delay  --------1-2---3---4--->
+   *  }}}
+   *
+   *  @tparam S       type of events in `that` event stream
+   *  @param that     event stream whose first event flushes the events.
+   *  @return
+   */
+  def defer[@spec(Int, Long, Double) S](that: Events[S])(
+    implicit a: Arrayable[T]
+  ): Events[T] =
+    new Events.Defer[T, S](this, that)
 
   /** Creates an event stream that forwards an event from this event stream only once.
    *
@@ -661,8 +690,8 @@ trait Events[@spec(Int, Long, Double) T] {
    *  val e1 = new Events.Emitter[Int]
    *  val e2 = new Events.Emitter[Int]
    *  val currentEvent = currentEvents.mux()
-   *  val prints = currentEvent.onEvent(println) 
-   *  
+   *  val prints = currentEvent.onEvent(println)
+   *
    *  currentEvents.react(e1)
    *  e2.react(1) // nothing is printed
    *  e1.react(2) // 2 is printed
@@ -716,10 +745,10 @@ trait Events[@spec(Int, Long, Double) T] {
    *
    *  @return           the unreaction event stream and subscription
    */
-  def unreacted(implicit ds: Spec[T]): Events[Unit] = new Events.Unreacted(this)
+  def done(implicit ds: Spec[T]): Events[Unit] = new Events.Unreacted(this)
 
   /** Creates a union of `this` and `that` event stream.
-   *  
+   *
    *  The resulting event stream emits events from both `this` and `that`
    *  event stream.
    *  It unreacts when both `this` and `that` event stream unreact.
@@ -728,7 +757,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  @return          the event stream with unified events from `this` and `that`
    */
   def union(that: Events[T]): Events[T] = new Events.Union(this, that)
-  
+
   /** Unifies the events produced by all the event streams emitted by `this`.
    *
    *  This operation is only available for event stream values that emit
@@ -741,7 +770,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  subscribed to multiple times.
    *
    *  Example:
-   *  
+   *
    *  {{{
    *  time  -------------------------->
    *  this     --1----2--------3------>
@@ -749,7 +778,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *                 ---4----------7-->
    *  union -----1----2-4---5--3-6-7-->
    *  }}}
-   *  
+   *
    *  '''Use case:'''
    *
    *  {{{
@@ -766,6 +795,13 @@ trait Events[@spec(Int, Long, Double) T] {
     implicit evidence: T <:< Events[S], ds: Spec[S]
   ): Events[S] =
     new Events.PostfixUnion[T, S](this, evidence)
+
+  /** Alias for `union`.
+   */
+  def flatten[@spec(Int, Long, Double) S](
+    implicit evidence: T <:< Events[S], ds: Spec[S]
+  ): Events[S] =
+    union[S]
 
   /** Creates a concatenation of `this` and `that` event stream.
    *
@@ -784,7 +820,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *
    *  '''Note:''' This operation potentially caches events from `that`.
    *  Unless certain that `this` eventually unreacts, `concat` should not be used.
-   *  
+   *
    *  @param that      another event stream for the concatenation
    *  @param a         evidence that arrays can be created for the type `T`
    *  @return          event stream that concatenates events from `this` and `that`
@@ -808,7 +844,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  event streams.
    *  Unless each event stream emitted by `this` is known to unreact eventually,
    *  this operation should not be called.
-   *  
+   *
    *  @tparam S         the type of the events in event streams emitted by `this`
    *  @param evidence   evidence that events of type `T` produced by `this`
    *                    are actually event stream values of type `S`
@@ -820,7 +856,6 @@ trait Events[@spec(Int, Long, Double) T] {
     implicit evidence: T <:< Events[S], a: Arrayable[S]
   ): Events[S] =
     new Events.PostfixConcat[T, S](this, evidence, a)
-
 
   /** Returns an event stream that forwards from the first active nested event stream.
    *
@@ -848,7 +883,7 @@ trait Events[@spec(Int, Long, Double) T] {
     new Events.PostfixFirst[T, S](this, evidence)
 
   /** Syncs the arrival of events from `this` and `that` event stream.
-   *  
+   *
    *  Ensures that pairs of events from this event stream and that event stream
    *  are emitted together.
    *  If the events produced in time by `this` and `that`, the sync will be as
@@ -887,7 +922,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  def sync[S, R](that: Events[S])(f: (T, S) => R): Events[R]
    *  }}}
    *
-   *  '''Note:''' This operation potentially caches events from `this` and `that`.
+   *  '''Note:''' This operation potentially buffers events from `this` and `that`.
    *  Unless certain that both `this` produces a bounded number of events
    *  before the `that` produces an event, and vice versa, this operation
    *  should not be called.
@@ -904,6 +939,26 @@ trait Events[@spec(Int, Long, Double) T] {
     f: (T, S) => R
   )(implicit at: Arrayable[T], as: Arrayable[S]): Events[R] =
     new Events.Sync[T, S, R](this, that, f)
+
+  /** Reverses the events of this event stream.
+   *
+   *  The events are emitted in the opposite order from what they are emitted on `this`
+   *  event stream. Exceptions are simply piped through in the order in which they
+   *  come in.
+   *
+   *  {{{
+   *  time      ------------------------->
+   *  this      ------1----2-3---|
+   *  reverse   -----------------3-2-1-|
+   *  }}}
+   *
+   *  '''Note:''' This operation buffers events from `this` event stream until `this`
+   *  event stream unreacts. No events are emitted before `this` unreacts. Consequently,
+   *  the resulting event stream may buffer events indefinitely, resulting in a memory
+   *  leak. Use this operation **only if you can guarantee that the current event
+   *  stream is finite**.
+   */
+  def reverse(implicit a: Arrayable[T]): Events[T] = new Events.Reverse[T](this)
 
   /** Forwards an event from this event stream with some probability.
    *
@@ -965,12 +1020,12 @@ trait Events[@spec(Int, Long, Double) T] {
    *  @return          the signal version of the current event stream
    */
   def toEmpty: Signal[T] =
-    new Events.ToSignal(this, false, null.asInstanceOf[T], false)
+    new Events.ToSignal(this, false, null.asInstanceOf[T])
 
   /** Same as `toEmpty`, but emits an event on subscription if signal is non-empty.
    */
   def toEager: Signal[T] =
-    new Events.ToSignal(this, false, null.asInstanceOf[T], true)
+    new Events.ToSignal(this, false, null.asInstanceOf[T])
 
   /** Given an initial event `init`, converts this event stream into a `Signal`.
    *
@@ -981,7 +1036,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  @return          the signal version of the current event stream
    */
   def toSignal(init: T): Signal[T] =
-    new Events.ToSignal(this, true, init, false)
+    new Events.ToSignal(this, true, init)
 
   /** Given an initial event `init`, converts the event stream into a cold `Signal`.
    *
@@ -998,6 +1053,25 @@ trait Events[@spec(Int, Long, Double) T] {
    *  the source event stream unreacts.
    */
   def toCold(init: T): Signal[T] = new Events.ToColdSignal(this, init)
+
+  /** Returns a signal that becomes `true` when this event stream is done.
+   */
+  def toDoneSignal: Signal[Boolean] = this.done.map(_ => true).toSignal(false)
+
+  /** Streams events from this event stream into an event buffer.
+   *
+   *  Clients must manually call `dequeue` on the resulting event buffer when they
+   *  are ready to release events.
+   *
+   *  @return          a new event buffer with all the events from this event stream
+   */
+  def toEventBuffer(implicit a: Arrayable[T]): EventBuffer[T] = {
+    val buffer = new EventBuffer[T]
+    buffer.subscription = this onEvent { x =>
+      buffer.enqueue(x)
+    }
+    buffer
+  }
 
   /** Returns the first event emitted by this event stream.
    *
@@ -1382,7 +1456,7 @@ object Events {
    *
    *  Note that mutable event stream never unreacts.
    *
-   *  @see [[scala.reactive.Events]]
+   *  @see [[io.reactors.Events]]
    *  @tparam M          the type of the underlying mutable object
    *  @param content     the mutable object
    */
@@ -1390,6 +1464,8 @@ object Events {
   extends Push[M] with Events[M]
 
   /** A class for event streams that never emit events.
+   *
+   *  Subscribers immediately unreact.
    *
    *  @tparam T         type of events never emitted by this event stream
    */
@@ -1418,6 +1494,15 @@ object Events {
   /** Returns an event stream that never emits.
    */
   def never[@spec(Int, Long, Double) T]: Events[T] = new Events.Never[T]
+
+  /** Synchronizes a sequence of event streams.
+   *
+   *  The resulting event stream emits a sequence of events every time it manages
+   *  to obtain a sequence from each of the input 
+   */
+  def sync[@spec(Int, Long, Double) T](es: Events[T]*)(
+    implicit a: Arrayable[T]
+  ): Events[Seq[T]] = new Events.SyncMany(es)
 
   private[reactors] class MutateObserver[
     @spec(Int, Long, Double) T, M >: Null <: AnyRef
@@ -1570,6 +1655,67 @@ object Events {
     }
   }
 
+  private[reactors] class SyncMany[@spec(Int, Long, Double) T](
+    val es: Seq[Events[T]]
+  )(implicit val a: Arrayable[T]) extends Events[Seq[T]] {
+    def newBuffers(self: SyncMany[T]): Seq[UnrolledRing[T]] =
+      for (e <- es) yield new UnrolledRing[T]
+    def newSyncManyObserver(
+      target: Observer[Seq[T]], r: UnrolledRing[T], rs: Array[UnrolledRing[T]],
+      sub: Subscription
+    ) = {
+      new SyncManyObserver(target, r, rs, sub)
+    }
+    def onReaction(target: Observer[Seq[T]]): Subscription = {
+      val sub = new Subscription.Collection
+      val rs = newBuffers(this).toArray
+      val obss = for (r <- rs) yield newSyncManyObserver(target, r, rs, sub)
+      for ((e, obs) <- es zip obss) sub.addAndGet(e.onReaction(obs))
+      sub
+    }
+  }
+
+  private[reactors] class SyncManyObserver[@spec(Int, Long, Double) T](
+    val target: Observer[Seq[T]],
+    val buffer: UnrolledRing[T],
+    val buffers: Array[UnrolledRing[T]],
+    val subscription: Subscription
+  ) extends Observer[T] {
+    var done: Boolean = _
+    def init(self: SyncManyObserver[T]) {
+      done = false
+    }
+    init(this)
+    def checkReady(self: SyncManyObserver[T]) {
+      var i = 0
+      while (i < buffers.length) {
+        if (buffers(i).isEmpty) return
+        i += 1
+      }
+      val batch = mutable.Buffer[T]()
+      i = 0
+      while (i < buffers.length) {
+        batch += buffers(i).dequeue()
+        i += 1
+      }
+      target.react(batch, null)
+    }
+    def react(value: T, hint: Any) {
+      buffer.enqueue(value)
+      checkReady(this)
+    }
+    def except(t: Throwable) {
+      target.except(t)
+    }
+    def unreact() {
+      if (!done) {
+        done = true
+        subscription.unsubscribe()
+        target.unreact()
+      }
+    }
+  }
+
   private[reactors] class ScanPast[
     @spec(Int, Long, Double) T,
     @spec(Int, Long, Double) S
@@ -1651,8 +1797,7 @@ object Events {
   private[reactors] class ToSignal[@spec(Int, Long, Double) T](
     val self: Events[T],
     private var full: Boolean,
-    private var cached: T,
-    private var propagateOnSubscribe: Boolean
+    private var cached: T
   ) extends Signal[T] with Observer[T] with Subscription.Proxy {
     private var pushSource: PushSource[T] = _
     private var rawSubscription: Subscription = _
@@ -1668,7 +1813,7 @@ object Events {
         obs.unreact()
         Subscription.empty
       } else {
-        if (propagateOnSubscribe && full) obs.react(cached, null)
+        if (full) obs.react(cached, null)
         pushSource.onReaction(obs)
       }
     }
@@ -1683,7 +1828,10 @@ object Events {
       pushSource.reactAll(x, hint)
     }
     def except(t: Throwable) = pushSource.exceptAll(t)
-    def unreact() = pushSource.unreactAll()
+    def unreact() = {
+      done = true
+      pushSource.unreactAll()
+    }
   }
 
   private[reactors] class ToColdSignal[@spec(Int, Long, Double) T](
@@ -1709,7 +1857,7 @@ object Events {
           selfSubscription = self.onReaction(new ToColdSelfObserver(this))
         }
         val savedsub = subscriptions.addAndGet(sub)
-        savedsub.and(checkUnsubscribe())
+        savedsub.andThen(checkUnsubscribe())
       } else Subscription.empty
     }
     def checkUnsubscribe() {
@@ -1791,6 +1939,34 @@ object Events {
     def react(value: T, hint: Any) {
       cnt += 1
       target.react(cnt, hint)
+    }
+    def except(t: Throwable) {
+      target.except(t)
+    }
+    def unreact() {
+      target.unreact()
+    }
+  }
+
+  private[reactors] class Changed[@spec(Int, Long, Double) T](
+    val self: Events[T],
+    val initial: T
+  ) extends Events[T] {
+    private def newChangedObserver(observer: Observer[T]): Observer[T] =
+      new ChangedObserver[T](observer, initial)
+    def onReaction(observer: Observer[T]): Subscription =
+      self.onReaction(newChangedObserver(observer))
+  }
+
+  private[reactors] class ChangedObserver[@spec(Int, Long, Double) T](
+    val target: Observer[T],
+    var last: T
+  ) extends Observer[T] {
+    def react(value: T, hint: Any) {
+      if (value != last) {
+        last = value
+        target.react(value, hint)
+      }
     }
     def except(t: Throwable) {
       target.except(t)
@@ -1913,6 +2089,81 @@ object Events {
       if (untilObserver.live) untilObserver.target.except(t)
     }
     def unreact() = {}
+  }
+
+  private[reactors] class Defer[
+    @spec(Int, Long, Double) T,
+    @spec(Int, Long, Double) S
+  ](
+    val self: Events[T],
+    val that: Events[S]
+  )(implicit a: Arrayable[T]) extends Events[T] {
+    def onReaction(observer: Observer[T]): Subscription = {
+      val delayObserver = new DeferObserver[T, S](observer, false, false, false)
+      val delayThatObserver = new DeferThatObserver(delayObserver)
+      delayObserver.selfSubscription = self.onReaction(delayObserver)
+      delayObserver.thatSubscription = that.onReaction(delayThatObserver)
+      new Subscription.Composite(
+        delayObserver.selfSubscription,
+        delayObserver.thatSubscription
+      )
+    }
+  }
+
+  private[reactors] class DeferObserver[
+    @spec(Int, Long, Double) T,
+    @spec(Int, Long, Double) S
+  ](
+    val target: Observer[T],
+    var canForward: Boolean,
+    var mustTerminate: Boolean,
+    var hasTerminated: Boolean
+  )(implicit val a: Arrayable[T]) extends Observer[T] {
+    private[reactors] var buffer: UnrolledRing[T] = _
+    private[reactors] var selfSubscription: Subscription = _
+    private[reactors] var thatSubscription: Subscription = _
+    def init(self: DeferObserver[T, S]): Unit = {
+      buffer = new UnrolledRing[T]
+    }
+    init(this)
+    def react(x: T, hint: Any): Unit = {
+      if (canForward) target.react(x, null)
+      else buffer.enqueue(x)
+    }
+    def except(t: Throwable): Unit = {
+      target.except(t)
+    }
+    def unreact(): Unit = {
+      mustTerminate = true
+      if (canForward && !hasTerminated) {
+        hasTerminated = true
+        thatSubscription.unsubscribe()
+        target.unreact()
+      }
+    }
+  }
+
+  private[reactors] class DeferThatObserver[
+    @spec(Int, Long, Double) T,
+    @spec(Int, Long, Double) S
+  ](
+    val delayObserver: DeferObserver[T, S]
+  ) extends Observer[S] {
+    def react(x: S, hint: Any): Unit = {
+      delayObserver.thatSubscription.unsubscribe()
+      delayObserver.canForward = true
+      while (delayObserver.buffer.nonEmpty) {
+        val x = delayObserver.buffer.dequeue()
+        delayObserver.target.react(x, null)
+      }
+      if (delayObserver.mustTerminate && !delayObserver.hasTerminated) {
+        delayObserver.target.unreact()
+      }
+    }
+    def except(t: Throwable): Unit = {
+      delayObserver.target.except(t)
+    }
+    def unreact(): Unit = {}
   }
 
   private[reactors] class Once[@spec(Int, Long, Double) T](val self: Events[T])
@@ -2333,7 +2584,9 @@ object Events {
     val target: Observer[S],
     val muxObserver: MuxObserver[T, S]
   ) extends Observer[S] {
-    def react(value: S, hint: Any) = target.react(value, hint)
+    def react(value: S, hint: Any) = {
+      target.react(value, hint)
+    }
     def except(t: Throwable) = target.except(t)
     def unreact() {
       muxObserver.currentSubscription = Subscription.empty
@@ -2535,6 +2788,46 @@ object Events {
     def unreact() = state.unreactBoth(target)
   }
 
+  private[reactors] class Reverse[@spec(Int, Long, Double) T](
+    val self: Events[T]
+  )(implicit val a: Arrayable[T]) extends Events[T] {
+    def onReaction(observer: Observer[T]): Subscription = {
+      val reverseObserver = new ReverseObserver(observer)
+      self.onReaction(reverseObserver)
+    }
+  }
+
+  private[reactors] class ReverseObserver[@spec(Int, Long, Double) T](
+    val target: Observer[T]
+  )(implicit val a: Arrayable[T]) extends Observer[T] {
+    var stack: Stack[T] = _
+    var hintstack: Stack[Any] = _
+
+    def init(implicit a: Arrayable[T]): Unit = {
+      stack = new Stack[T]
+      hintstack = new Stack[Any]
+    }
+    init(a)
+
+    def react(value: T, hint: Any): Unit = {
+      stack.push(value)
+      hintstack.push(hint)
+    }
+
+    def except(t: Throwable): Unit = target.except(t)
+
+    private def flush(a: Arrayable[T]): Unit = {
+      while (stack.nonEmpty) {
+        target.react(stack.pop(), hintstack.pop())
+      }
+    }
+
+    def unreact(): Unit = {
+      flush(a)
+      target.unreact()
+    }
+  }
+
   private[reactors] class PostfixUnion[T, @spec(Int, Long, Double) S: Spec](
     val self: Events[T],
     val evid: T <:< Events[S]
@@ -2542,8 +2835,9 @@ object Events {
     def onReaction(observer: Observer[S]): Subscription = {
       val postfixObserver = new PostfixUnionObserver(observer, evid)
       val sub = self.onReaction(postfixObserver)
-      postfixObserver.subscription = postfixObserver.subscriptions.addAndGet(sub)
-      postfixObserver.subscriptions
+      postfixObserver.outerSubscription.set(
+        postfixObserver.allSubscriptions.addAndGet(sub))
+      postfixObserver.allSubscriptions
     }
   }
 
@@ -2552,15 +2846,16 @@ object Events {
     val evidence: T <:< Events[S]
   ) extends Observer[T] {
     private[reactors] var terminated: Boolean = _
-    private[reactors] var subscription: Subscription = _
-    private[reactors] var subscriptions: Subscription.Collection = _
+    private[reactors] var outerSubscription: Subscription.Cell = _
+    private[reactors] var allSubscriptions: Subscription.Collection = _
     def init(e: T <:< Events[S]) {
       terminated = false
-      subscriptions = new Subscription.Collection
+      outerSubscription = new Subscription.Cell
+      allSubscriptions = new Subscription.Collection
     }
     init(evidence)
     def checkUnreact() =
-      if (subscriptions.isEmpty) target.unreact()
+      if (allSubscriptions.isEmpty) target.unreact()
     def newPostfixUnionNestedObserver: PostfixUnionNestedObserver[T, S] =
       new PostfixUnionNestedObserver(target, this)
     def react(value: T, hint: Any): Unit = if (!terminated) {
@@ -2572,15 +2867,15 @@ object Events {
           return
       }
       val obs = newPostfixUnionNestedObserver
-      val sub = subscriptions.addAndGet(moreEvents.onReaction(obs))
-      obs.subscription = sub
+      val sub = allSubscriptions.addAndGet(moreEvents.onReaction(obs))
+      obs.subscription.set(sub)
     }
     def except(t: Throwable) = if (!terminated) {
       target.except(t)
     }
     def unreact() = {
       terminated = true
-      subscription.unsubscribe()
+      outerSubscription.unsubscribe()
       checkUnreact()
     }
   }
@@ -2591,7 +2886,11 @@ object Events {
     val target: Observer[S],
     val unionObserver: PostfixUnionObserver[T, S]
   ) extends Observer[S] {
-    var subscription: Subscription = _
+    var subscription: Subscription.Cell = _
+    def init(self: PostfixUnionNestedObserver[T, S]) {
+      subscription = new Subscription.Cell
+    }
+    init(this)
     def react(value: S, hint: Any) = target.react(value, hint)
     def except(t: Throwable) = target.except(t)
     def unreact() {

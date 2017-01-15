@@ -13,15 +13,12 @@ import org.scalajs.sbtplugin.cross.CrossProject
 
 
 object ReactorsBuild extends MechaRepoBuild {
-
   def repoName = "reactors"
 
   val reactorsScalaVersion = "2.11.8"
 
-  def projectSettings(
-    suffix: String
-  ) = {
-    MechaRepoPlugin.defaultSettings ++ Seq(
+  def projectSettings(suffix: String) = {
+    Seq(
       name := s"reactors$suffix",
       organization := "io.reactors",
       scalaVersion := reactorsScalaVersion,
@@ -32,7 +29,6 @@ object ReactorsBuild extends MechaRepoBuild {
       cancelable in Global := true,
       fork in Test := true,
       fork in run := true,
-      javaOptions in test += "-Xmx2G -XX:MaxPermSize=384m",
       scalacOptions ++= Seq(
         "-deprecation"
       ),
@@ -93,6 +89,15 @@ object ReactorsBuild extends MechaRepoBuild {
     )
   }
 
+  def jvmProjectSettings(suffix: String) =
+    Seq(
+      javaOptions in Test ++= Seq(
+        "-Xmx2G",
+        "-XX:MaxPermSize=384m",
+        "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005"
+      )
+    )
+
   def gitPropsContents(dir: File, baseDir: File): Seq[File] = {
     def run(cmd: String*): String = Process(cmd, Some(baseDir)).!!
     val branch = run("git", "rev-parse", "--abbrev-ref", "HEAD").trim
@@ -129,10 +134,12 @@ object ReactorsBuild extends MechaRepoBuild {
     .configs(Benchmark)
     .settings(inConfig(Benchmark)(Defaults.testSettings): _*)
     .jvmSettings(
-      libraryDependencies ++= Seq(
-        "com.typesafe.akka" %% "akka-actor" % "2.3.15" % "test;bench"
-      ),
-      libraryDependencies ++= superRepoDependencies(s"reactors-common-jvm")
+      jvmProjectSettings("-common") ++ Seq(
+        libraryDependencies ++= Seq(
+          "com.typesafe.akka" %% "akka-actor" % "2.3.15" % "test;bench"
+        ),
+        libraryDependencies ++= superRepoDependencies(s"reactors-common-jvm")
+      ): _*
     )
     .jvmConfigure(_.copy(id = "reactors-common-jvm").dependsOnSuperRepo)
     .jsSettings(
@@ -167,12 +174,14 @@ object ReactorsBuild extends MechaRepoBuild {
     .configs(Benchmark)
     .settings(inConfig(Benchmark)(Defaults.testSettings): _*)
     .jvmSettings(
-      (test in Test) <<= (test in Test).dependsOn(test in (reactorsCommon.jvm, Test)),
-      publish <<= publish.dependsOn(publish in reactorsCommon.jvm),
-      libraryDependencies ++= Seq(
-        "com.typesafe" % "config" % "1.2.1",
-        "com.typesafe.akka" %% "akka-actor" % "2.3.15" % "test;bench"
-      )
+      jvmProjectSettings("-core") ++ Seq(
+        (test in Test) <<= (test in Test).dependsOn(test in (reactorsCommon.jvm, Test)),
+        publish <<= publish.dependsOn(publish in reactorsCommon.jvm),
+        libraryDependencies ++= Seq(
+          "com.typesafe" % "config" % "1.2.1",
+          "com.typesafe.akka" %% "akka-actor" % "2.3.15" % "test;bench"
+        )
+      ): _*
     )
     .jvmConfigure(_.copy(id = "reactors-core-jvm").dependsOnSuperRepo)
     .jsSettings(
@@ -211,8 +220,10 @@ object ReactorsBuild extends MechaRepoBuild {
     .configs(Benchmark)
     .settings(inConfig(Benchmark)(Defaults.testSettings): _*)
     .jvmSettings(
-      (test in Test) <<= (test in Test).dependsOn(test in (reactorsCore.jvm, Test)),
-      publish <<= publish.dependsOn(publish in reactorsCore.jvm)
+      jvmProjectSettings("-container") ++ Seq(
+        (test in Test) <<= (test in Test).dependsOn(test in (reactorsCore.jvm, Test)),
+        publish <<= publish.dependsOn(publish in reactorsCore.jvm)
+      ): _*
     )
     .jvmConfigure(_.copy(id = "reactors-container-jvm").dependsOnSuperRepo)
     .jsSettings(
@@ -231,10 +242,10 @@ object ReactorsBuild extends MechaRepoBuild {
 
   lazy val reactorsContainerJs = reactorsContainer.js
 
-  lazy val reactorsProtocols = crossProject
-    .in(file("reactors-protocols"))
+  lazy val reactorsProtocol = crossProject
+    .in(file("reactors-protocol"))
     .settings(
-      projectSettings("-protocols") ++ Seq(
+      projectSettings("-protocol") ++ Seq(
         libraryDependencies ++= Seq(
           "org.scalatest" %%% "scalatest" % "3.0.0" % "test",
           "org.scalacheck" %%% "scalacheck" % "1.13.2" % "test"
@@ -248,10 +259,12 @@ object ReactorsBuild extends MechaRepoBuild {
     .configs(Benchmark)
     .settings(inConfig(Benchmark)(Defaults.testSettings): _*)
     .jvmSettings(
-      (test in Test) <<= (test in Test).dependsOn(test in (reactorsCore.jvm, Test)),
-      publish <<= publish.dependsOn(publish in reactorsCore.jvm)
+      jvmProjectSettings("-protocol") ++ Seq(
+        (test in Test) <<= (test in Test).dependsOn(test in (reactorsCore.jvm, Test)),
+        publish <<= publish.dependsOn(publish in reactorsCore.jvm)
+      ): _*
     )
-    .jvmConfigure(_.copy(id = "reactors-protocols-jvm").dependsOnSuperRepo)
+    .jvmConfigure(_.copy(id = "reactors-protocol-jvm").dependsOnSuperRepo)
     .jsSettings(
       (test in Test) <<= (test in Test).dependsOn(test in (reactorsCore.js, Test)),
       publish <<= publish.dependsOn(publish in reactorsCore.js),
@@ -259,16 +272,16 @@ object ReactorsBuild extends MechaRepoBuild {
       fork in run := false,
       scalaJSUseRhino in Global := false
     )
-    .jsConfigure(_.copy(id = "reactors-protocols-js").dependsOnSuperRepo)
+    .jsConfigure(_.copy(id = "reactors-protocol-js").dependsOnSuperRepo)
     .dependsOn(
       reactorsCommon % "compile->compile;test->test",
       reactorsCore % "compile->compile;test->test",
       reactorsContainer % "compile->compile;test->test"
     )
 
-  lazy val reactorsProtocolsJvm = reactorsProtocols.jvm
+  lazy val reactorsProtocolJvm = reactorsProtocol.jvm
 
-  lazy val reactorsProtocolsJs = reactorsProtocols.js
+  lazy val reactorsProtocolJs = reactorsProtocol.js
 
   lazy val reactorsRemote = crossProject
     .in(file("reactors-remote"))
@@ -287,8 +300,10 @@ object ReactorsBuild extends MechaRepoBuild {
     .configs(Benchmark)
     .settings(inConfig(Benchmark)(Defaults.testSettings): _*)
     .jvmSettings(
-      (test in Test) <<= (test in Test).dependsOn(test in (reactorsCore.jvm, Test)),
-      publish <<= publish.dependsOn(publish in reactorsCore.jvm)
+      jvmProjectSettings("-remote") ++ Seq(
+        (test in Test) <<= (test in Test).dependsOn(test in (reactorsCore.jvm, Test)),
+        publish <<= publish.dependsOn(publish in reactorsCore.jvm)
+      ): _*
     )
     .jvmConfigure(_.copy(id = "reactors-remote-jvm").dependsOnSuperRepo)
     .jsSettings(
@@ -328,7 +343,7 @@ object ReactorsBuild extends MechaRepoBuild {
     )
     .dependsOn(
       reactorsCore.jvm % "compile->compile;test->test",
-      reactorsProtocols.jvm % "compile->compile;test->test"
+      reactorsProtocol.jvm % "compile->compile;test->test"
     )
     .dependsOnSuperRepo
 
@@ -359,7 +374,7 @@ object ReactorsBuild extends MechaRepoBuild {
     )
     .dependsOn(
       reactorsCore.jvm % "compile->compile;test->test",
-      reactorsProtocols.jvm % "compile->compile;test->test"
+      reactorsProtocol.jvm % "compile->compile;test->test"
     )
     .dependsOnSuperRepo
 
@@ -374,16 +389,19 @@ object ReactorsBuild extends MechaRepoBuild {
         unmanagedSourceDirectories in Compile +=
           baseDirectory.value.getParentFile / "shared" / "src" / "main" / "scala",
         unmanagedSourceDirectories in Test +=
-          baseDirectory.value.getParentFile / "shared" / "src" / "test" / "scala"
+          baseDirectory.value.getParentFile / "shared" / "src" / "test" / "scala",
+        mechaPublishKey <<= mechaPublishKey.dependsOn(publish)
       ): _*
     )
+    .configs(Benchmark)
+    .settings(inConfig(Benchmark)(Defaults.testSettings): _*)
     .jvmSettings(
       (test in Test) <<= (test in Test)
         .dependsOn(test in (reactorsCommon.jvm, Test))
         .dependsOn(test in (reactorsCore.jvm, Test))
         .dependsOn(test in (reactorsContainer.jvm, Test))
         .dependsOn(test in (reactorsRemote.jvm, Test))
-        .dependsOn(test in (reactorsProtocols.jvm, Test))
+        .dependsOn(test in (reactorsProtocol.jvm, Test))
         .dependsOn(test in (reactorsDebugger, Test))
         .dependsOn(test in (reactorsExtra, Test)),
       publish <<= publish
@@ -391,7 +409,7 @@ object ReactorsBuild extends MechaRepoBuild {
         .dependsOn(publish in reactorsCore.jvm)
         .dependsOn(publish in reactorsContainer.jvm)
         .dependsOn(publish in reactorsRemote.jvm)
-        .dependsOn(publish in reactorsProtocols.jvm)
+        .dependsOn(publish in reactorsProtocol.jvm)
         .dependsOn(publish in reactorsExtra),
       libraryDependencies ++= Seq(
         "com.novocode" % "junit-interface" % "0.11" % "test",
@@ -417,13 +435,13 @@ object ReactorsBuild extends MechaRepoBuild {
         .dependsOn(test in (reactorsCore.js, Test))
         .dependsOn(test in (reactorsContainer.js, Test))
         .dependsOn(test in (reactorsRemote.js, Test))
-        .dependsOn(test in (reactorsProtocols.js, Test)),
+        .dependsOn(test in (reactorsProtocol.js, Test)),
       publish <<= publish
         .dependsOn(publish in reactorsCommon.js)
         .dependsOn(publish in reactorsCore.js)
         .dependsOn(publish in reactorsContainer.js)
         .dependsOn(publish in reactorsRemote.js)
-        .dependsOn(publish in reactorsProtocols.js)
+        .dependsOn(publish in reactorsProtocol.js)
     )
     .jsConfigure(
       _.copy(id = "reactors-js").dependsOnSuperRepo
@@ -433,14 +451,14 @@ object ReactorsBuild extends MechaRepoBuild {
       reactorsCore,
       reactorsContainer,
       reactorsRemote,
-      reactorsProtocols
+      reactorsProtocol
     )
     .dependsOn(
       reactorsCommon % "compile->compile;test->test",
       reactorsCore % "compile->compile;test->test",
       reactorsContainer % "compile->compile;test->test",
       reactorsRemote % "compile->compile;test->test",
-      reactorsProtocols % "compile->compile;test->test"
+      reactorsProtocol % "compile->compile;test->test"
     )
 
   lazy val reactorsJvm = reactors.jvm

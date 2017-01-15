@@ -3,6 +3,7 @@ package io
 
 
 import scala.annotation.implicitNotFound
+import scala.util.control.NoStackTrace
 
 
 
@@ -24,7 +25,9 @@ package object reactors {
 
   implicit val doubleSpec = new Spec[Double]
 
-  implicit def anySpec[T] = new Spec[T]
+  private val anySpecValue = new Spec[Any]
+
+  implicit def anySpec[T] = anySpecValue.asInstanceOf[Spec[T]]
 
   /* basic abstractions */
 
@@ -67,7 +70,11 @@ package object reactors {
     def apply(obj: Any) = throw new RuntimeException(obj.toString)
     def illegalArg(msg: String) = throw new IllegalArgumentException(msg)
     def illegalState(obj: Any) = throw new IllegalStateException(obj.toString)
+    def test(obj: Any) = throw new TestControlException(obj.toString)
   }
+
+  case class TestControlException(msg: String)
+  extends Throwable(msg) with NoStackTrace
 
   /** Thrown when an error in reactor execution occurs.
    */
@@ -123,13 +130,31 @@ package object reactors {
   /* URL classes for remote */  
 
   case class SystemUrl(schema: String, host: String, port: Int) {
-    lazy val inetSocketAddress = Platform.inetAddress(host, port)
+    @transient lazy val inetSocketAddress = Platform.inetAddress(host, port)
+    def withPort(p: Int) = SystemUrl(schema, host, p)
   }
   
-  case class ReactorUrl(systemUrl: SystemUrl, name: String)
+  case class ReactorUrl(systemUrl: SystemUrl, name: String) {
+    def withPort(p: Int) = ReactorUrl(systemUrl.withPort(p), name)
+  }
   
   case class ChannelUrl(reactorUrl: ReactorUrl, anchor: String) {
     val channelName = s"${reactorUrl.name}#$anchor"
+  }
+
+  object ChannelUrl {
+    def parse(url: String): ChannelUrl = {
+      var parts = url.split("://")
+      val schema = parts(0)
+      parts = parts(1).split("/", 2)
+      val hostport = parts(0).split(":")
+      val host = hostport(0)
+      val port = hostport(1).toInt
+      parts = parts(1).split("#")
+      val reactorName = parts(0)
+      val channelName = parts(1)
+      ChannelUrl(ReactorUrl(SystemUrl(schema, host, port), reactorName), channelName)
+    }
   }
 }
 

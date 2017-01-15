@@ -60,9 +60,7 @@ final class Proto[+I <: Reactor[_]] private[reactors] (
     new Proto(clazz, params, scheduler, eventQueueFactory, name, channelName, tname)
 
   private[reactors] def transportOrDefault(system: ReactorSystem): String = {
-    if (transport != null) transport else {
-      system.bundle.config.string("remote-default-schema")
-    }
+    if (transport != null) transport else system.defaultTransportSchema
   }
 
 }

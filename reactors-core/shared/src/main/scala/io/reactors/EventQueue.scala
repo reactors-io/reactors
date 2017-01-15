@@ -28,7 +28,7 @@ trait EventQueue[@spec(Int, Long, Double) T] {
    *
    *  @param x   the event to emit
    */
-  def bypass(x: T): Unit
+  private[reactors] def bypass(x: T): Unit
 
   /** Atomically dequeues an event from the queue, and emits it on the event stream.
    *
@@ -96,9 +96,13 @@ object EventQueue {
     private[reactors] var live = true
     private[reactors] val emitter = new Events.Emitter[T]
 
-    def enqueue(x: T): Int = monitor.synchronized {
-      ring.enqueue(x)
-      ring.size
+    def enqueue(x: T): Int = {
+      var sz = -1
+      monitor.synchronized {
+        ring.enqueue(x)
+        sz = ring.size
+      }
+      sz
     }
 
     def dequeue()(implicit s: Spec[T]): Int = {
