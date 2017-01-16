@@ -45,10 +45,21 @@ trait ServerProtocols {
     /** Installs a serving function to the specified connector.
      */
     def serve(f: T => S): Server.State[T, S] = {
-      val subscription = conn.events onMatch {
+      val sub = conn.events onMatch {
         case (x, ch) => ch ! f(x)
       }
-      Server.State(conn.channel, subscription.andThen(conn.seal()))
+      Server.State(conn.channel, sub.andThen(conn.seal()))
+    }
+
+    /** Installs an asynchronous serving function to the specified connector.
+     *
+     *  Only the first event from the reply event stream is forwarded to the client.
+     */
+    def asyncServe(f: T => Events[S]): Server.State[T, S] = {
+      val sub = conn.events onMatch {
+        case (x, ch) => f(x).once.onEvent(y => ch ! y)
+      }
+      Server.State(conn.channel, sub.andThen(conn.seal()))
     }
   }
 
@@ -77,22 +88,6 @@ trait ServerProtocols {
     def server[T, S](f: (Server.State[T, S], T) => S): Server[T, S] = {
       system.spawn(Reactor.server(f))
     }
-
-    /** Creates a server reactor that optionally responds to requests.
-     *
-     *  This reactor uses the function `f` to create a response of type `S` from the
-     *  request type `T`. If the value obtained this way is not `nil`, the server
-     *  responds.
-     */
-    def maybeServer[T, S](f: T => S, nil: S): Server[T, S] = {
-      system.spawn(Reactor[Server.Req[T, S]] { self =>
-        self.main.events onMatch {
-          case (x, ch) =>
-            val resp = f(x)
-            if (resp != nil) ch ! resp
-        }
-      })
-    }
   }
 
   implicit class ServerStreamConnectorOps[T, @specialized(Int, Long, Double) S](
@@ -104,7 +99,7 @@ trait ServerProtocols {
      *  function. Events from this event stream are streamed to the client,
      *  and a terminator value is sent at the end.
      */
-    def serve(f: T => Events[S]): Server.State[(T, S), S] = {
+    def stream(f: T => Events[S]): Server.State[(T, S), S] = {
       val subscription = conn.events onMatch {
         case ((x, term), ch) => f(x).onEventOrDone(y => ch ! y)(ch ! term)
       }

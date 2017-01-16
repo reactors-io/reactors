@@ -25,7 +25,7 @@ extends Properties("ServerProtocols") with ExtendedProperties {
     stackTraced {
       val p = Promise[Seq[Char]]()
       val serverProto = Reactor[Server.Stream.Req[String, Char]] { self =>
-        self.main.serve(s => (s * num).toSeq.toEvents)
+        self.main.stream(s => (s * num).toSeq.toEvents)
       }
       val server = system.spawn(serverProto)
       val client = Reactor[Unit] { self =>

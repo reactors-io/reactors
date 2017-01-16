@@ -51,32 +51,16 @@ extends AsyncFunSuite with AsyncTimeLimitedTests {
     p.future.map(t => assert(t == 28))
   }
 
-  test("request a reply from a maybe-server reactor") {
+  test("request a reply from an asynchronous server reactor") {
     val p = Promise[Int]()
-    val failed = Promise[Boolean]()
-    val server = system.maybeServer((x: Int) => x + 17, -1)
-    system.spawn(Reactor[Int] { self =>
-      (server ? -18) on {
-        failed.success(true)
-      }
-      system.clock.timeout(50.millis) on {
-        (server ? 11) onEvent { y =>
-          p.success(y)
-          self.main.seal()
-        }
+    val server = system.spawn(Reactor[Server.Req[String, Int]] { self =>
+      self.main.asyncServe { x =>
+        system.clock.timeout(1.second).map(_ => x.toInt)
       }
     })
-    val proceed = Promise[Boolean]()
-    p.future.onComplete { s =>
-      assert(s.get == 28)
-      afterTime(1000.millis) {
-        proceed.success(true)
-      }
-    }
-    for {
-      _ <- proceed.future
-    } yield {
-      assert(failed.future.value == None)
-    }
+    system.spawn(Reactor[Unit] { self =>
+      (server ? "17") onEvent { p.success(_) }
+    })
+    p.future.map(t => assert(t == 17))
   }
 }
