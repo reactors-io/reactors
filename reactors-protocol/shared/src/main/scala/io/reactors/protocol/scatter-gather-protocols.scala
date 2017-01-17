@@ -37,4 +37,28 @@ trait ScatterGatherProtocols {
       Server.State(ch, sub.andThen(scatter.seal()))
     }
   }
+
+  implicit class ScatterGatherReactorCompanionOps[T, S: Arrayable](
+    val companion: Reactor.type
+  ) {
+    /** Creates a prototype of a scatter-gather reactor.
+     *
+     *  @param p        the routing policy
+     */
+    def scatterGather(
+      p: Router.Policy[Server.Req[T, S]]
+    ) = Reactor[ScatterGather.Req[T, S]] { self =>
+      self.main.scatterGather(p)
+    }
+  }
+
+  implicit class ScatterGatherReactorSystemOps[T, S: Arrayable](
+    val system: ReactorSystem
+  ) {
+    /** Spawns a scatter-gather reactor.
+     */
+    def scatterGather(
+      p: Router.Policy[Server.Req[T, S]]
+    ): Server[Seq[T], Seq[S]] = system.spawn(Reactor.scatterGather(p))
+  }
 }
