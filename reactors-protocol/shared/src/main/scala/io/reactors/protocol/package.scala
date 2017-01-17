@@ -13,6 +13,7 @@ with ConvenienceProtocols
 with ServerProtocols
 with RouterProtocols
 with ScatterGatherProtocols
+with RendezvousProtocols
 with TwoWayProtocols
 with ReliableProtocols
 with CommunicationAbstractions
