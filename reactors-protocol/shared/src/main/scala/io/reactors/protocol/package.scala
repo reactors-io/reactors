@@ -12,6 +12,7 @@ with Conversions
 with ConvenienceProtocols
 with ServerProtocols
 with RouterProtocols
+with ScatterGatherProtocols
 with TwoWayProtocols
 with ReliableProtocols
 with CommunicationAbstractions
