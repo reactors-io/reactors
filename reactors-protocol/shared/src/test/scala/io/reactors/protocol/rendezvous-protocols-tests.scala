@@ -24,7 +24,7 @@ extends AsyncFunSuite with AsyncTimeLimitedTests {
     val a = Promise[Int]()
     val b = Promise[String]()
     system.spawnLocal[Unit] { self =>
-      val rendez = rendezvous[String, Int]
+      val rendez = self.system.channels.daemon.rendezvous[String, Int]
       self.system.clock.timeout(500.millis) on {
         (rendez.left ? "ok").onEvent(n => a.success(n))
       }
