@@ -23,6 +23,7 @@ trait RendezvousProtocols {
       flush()
       ey
     }
-    ???
+    val ts = server[T, S].asyncServe(t => meet(t, qt, cs.events))
+    val st = server[S, T].asyncServe(s => meet(s, qs, qt.events))
   }
 }
