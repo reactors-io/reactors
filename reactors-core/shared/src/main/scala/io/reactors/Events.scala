@@ -1662,16 +1662,20 @@ object Events {
       for (e <- es) yield new UnrolledRing[T]
     def newSyncManyObserver(
       target: Observer[Seq[T]], r: UnrolledRing[T], rs: Array[UnrolledRing[T]],
-      sub: Subscription
+      subs: Subscription.Collection
     ) = {
-      new SyncManyObserver(target, r, rs, sub)
+      new SyncManyObserver(target, r, rs, subs, new Subscription.Cell)
     }
     def onReaction(target: Observer[Seq[T]]): Subscription = {
-      val sub = new Subscription.Collection
+      val subs = new Subscription.Collection
       val rs = newBuffers(this).toArray
-      val obss = for (r <- rs) yield newSyncManyObserver(target, r, rs, sub)
-      for ((e, obs) <- es zip obss) sub.addAndGet(e.onReaction(obs))
-      sub
+      val obss = for (r <- rs) yield newSyncManyObserver(target, r, rs, subs)
+      for ((e, obs) <- es zip obss) {
+        val s = e.onReaction(obs)
+        subs.addAndGet(s)
+        obs.subscription.set(s)
+      }
+      subs
     }
   }
 
@@ -1679,7 +1683,8 @@ object Events {
     val target: Observer[Seq[T]],
     val buffer: UnrolledRing[T],
     val buffers: Array[UnrolledRing[T]],
-    val subscription: Subscription
+    val allSubscriptions: Subscription.Collection,
+    val subscription: Subscription.Cell
   ) extends Observer[T] {
     var done: Boolean = _
     def init(self: SyncManyObserver[T]) {
