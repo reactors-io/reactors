@@ -232,7 +232,7 @@ final class Frame(
     else null
   }
 
-  private def processEvents() {
+  private def processEventsDeprecated() {
     schedulerState.onBatchStart(this)
 
     // Precondition: there is at least one pending event.
@@ -278,6 +278,8 @@ final class Frame(
         nc = null
       }
     }
+
+    // Adjust spindown stochastically.
     totalBatches += 1
     totalSpindownScore += spindownScore
     val spindownMutationRate = schedulerConfig.spindownMutationRate
@@ -293,8 +295,38 @@ final class Frame(
     }
     spindown -= (spindown / schedulerConfig.spindownCooldownRate + 1)
     spindown = math.max(schedulerConfig.spindownMin, spindown)
-    // if (random.nextDouble() < 0.0001)
-    //   println(spindown, 1.0 * totalSpindownScore / totalBatches)
+  }
+
+  private def processEvents() {
+    schedulerState.onBatchStart(this)
+
+    // Precondition: there is at least one pending event.
+    // Return value:
+    // - `false` iff stopped by preemption
+    // - `true` iff stopped because there are no events
+    @tailrec def drain(n: Int, c: Connector[_]): Int = {
+      val remaining = c.dequeue()
+      if (schedulerState.onBatchEvent(this)) {
+        // Need to consume some more.
+        if (remaining > 0 && !c.localChannel.isSealed) {
+          drain(n + 1, c)
+        } else {
+          val nc = popNextPending()
+          if (nc != null) drain(n + 1, nc)
+          else n
+        }
+      } else {
+        // Done consuming -- see if the connector needs to be enqueued.
+        if (remaining > 0 && !c.localChannel.isSealed) monitor.synchronized {
+          pendingQueues.enqueue(c)
+        }
+        n
+      }
+    }
+
+    totalBatches += 1
+    var nc = popNextPending()
+    if (nc != null) drain(1, nc)
   }
 
   private def checkTerminated(forcedTermination: Boolean) {
