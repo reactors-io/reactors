@@ -20,7 +20,7 @@ package object algo {
      *
      *  See "Random sampling with a reservoir", by Vitter.
      */
-    def reservoirSample(k: Int)(implicit a: Arrayable[T]): IVar[Array[T]] = {
+    def sampleReservoir(k: Int)(implicit a: Arrayable[T]): IVar[Array[T]] = {
       assert(k > 0)
       val random = new Random
       val array = a.newRawArray(k)
@@ -47,7 +47,7 @@ package object algo {
      *
      *  See "Weighted random sampling with a reservoir", by Efraimidis and Spirakis.
      */
-    def weightedSample(k: Int, weight: T => Double)(
+    def sampleWeighted(k: Int, weight: T => Double)(
       implicit a: Arrayable[T]
     ): IVar[Array[T]] = {
       assert(k > 0)

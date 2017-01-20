@@ -16,14 +16,14 @@ import scala.concurrent.duration._
 class AlgoSpec extends FunSuite {
   test("reservoir sampling, no events") {
     val e = new Events.Emitter[Int]
-    val sample = e.reservoirSample(5)
+    val sample = e.sampleReservoir(5)
     e.unreact()
     assert(sample().length == 0)
   }
 
   test("reservoir sampling, less than k") {
     val e = new Events.Emitter[Int]
-    val sample = e.reservoirSample(5)
+    val sample = e.sampleReservoir(5)
     e.react(7)
     e.react(17)
     e.unreact()
@@ -32,7 +32,7 @@ class AlgoSpec extends FunSuite {
 
   test("reservoir sampling, more than k") {
     val e = new Events.Emitter[Int]
-    val sample = e.reservoirSample(5)
+    val sample = e.sampleReservoir(5)
     val elems = (0 until 16)
     for (i <- elems) e.react(i)
     e.unreact()
@@ -42,14 +42,14 @@ class AlgoSpec extends FunSuite {
   }
   test("weighted sampling, no events") {
     val e = new Events.Emitter[Double]
-    val sample = e.weightedSample(5, x => x)
+    val sample = e.sampleWeighted(5, x => x)
     e.unreact()
     assert(sample().length == 0)
   }
 
   test("weighted sampling, less than k") {
     val e = new Events.Emitter[Double]
-    val sample = e.weightedSample(5, x => x)
+    val sample = e.sampleWeighted(5, x => x)
     e.react(7.0)
     e.react(17.0)
     e.unreact()
@@ -58,7 +58,7 @@ class AlgoSpec extends FunSuite {
 
   test("weighted sampling, more than k") {
     val e = new Events.Emitter[String]
-    val sample = e.weightedSample(5, s => s.length.toDouble)
+    val sample = e.sampleWeighted(5, s => s.length.toDouble)
     val elems = (0 until 16).map(i => (i * i).toString)
     for (s <- elems) e.react(s)
     e.unreact()
