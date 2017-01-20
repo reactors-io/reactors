@@ -14,6 +14,13 @@ import scala.concurrent.duration._
 
 
 class AlgoSpec extends FunSuite {
+  test("reservoir sampling, no events") {
+    val e = new Events.Emitter[Int]
+    val sample = e.reservoirSample(5)
+    e.unreact()
+    assert(sample().length == 0)
+  }
+
   test("reservoir sampling, less than k") {
     val e = new Events.Emitter[Int]
     val sample = e.reservoirSample(5)
