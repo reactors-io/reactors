@@ -9,7 +9,7 @@ import scala.util.Random
 
 
 package object algo {
-  private[reactors] class EventsAlgorithmOps[@spec(Int, Long, Double) T](
+  private[reactors] class EventsSamplingOps[@spec(Int, Long, Double) T](
     val events: Events[T]
   ) {
     /** Returns `k` uniformly sampled elements after this event stream unreacts.
@@ -77,6 +77,6 @@ package object algo {
     }
   }
 
-  implicit def eventsToAlgorithmsOps[@spec(Int, Long, Double) T](events: Events[T]) =
-    new EventsAlgorithmOps(events)
+  implicit def sampling[@spec(Int, Long, Double) T](events: Events[T]) =
+    new EventsSamplingOps(events)
 }
