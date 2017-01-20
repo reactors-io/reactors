@@ -40,4 +40,30 @@ class AlgoSpec extends FunSuite {
     assert(sample().toSeq.forall(x => elems.toSet.contains(x)))
     assert(sample().distinct.length == 5)
   }
+  test("weighted sampling, no events") {
+    val e = new Events.Emitter[Double]
+    val sample = e.weightedSample(5, x => x)
+    e.unreact()
+    assert(sample().length == 0)
+  }
+
+  test("weighted sampling, less than k") {
+    val e = new Events.Emitter[Double]
+    val sample = e.weightedSample(5, x => x)
+    e.react(7.0)
+    e.react(17.0)
+    e.unreact()
+    assert(sample().toSet == Set(7.0, 17.0))
+  }
+
+  test("weighted sampling, more than k") {
+    val e = new Events.Emitter[String]
+    val sample = e.weightedSample(5, s => s.length.toDouble)
+    val elems = (0 until 16).map(i => (i * i).toString)
+    for (s <- elems) e.react(s)
+    e.unreact()
+    assert(sample().toSeq.length == 5)
+    assert(sample().toSeq.forall(x => elems.toSet.contains(x)))
+    assert(sample().distinct.length == 5)
+  }
 }

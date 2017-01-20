@@ -33,6 +33,16 @@ object Order {
       def compare(x: T, y: T): Int = f(x, y)
     }
 
+  def double[@specialized(Short, Int, Long, Float, Double) T](f: (T, T) => Double) =
+    new Order[T] {
+      def compare(x: T, y: T): Int = {
+        val diff = f(x, y)
+        if (diff < 0.0) -1
+        else if (diff > 0.0) 1
+        else 0
+      }
+    }
+
   implicit object ShortOrder extends Order[Short] {
     def compare(x: Short, y: Short) =
       if (x < y) -1

@@ -3,6 +3,7 @@ package protocol
 
 
 
+import io.reactors.common.BinaryHeap
 import scala.util.Random
 
 
@@ -14,7 +15,7 @@ package object algo {
     /** Returns `k` uniformly sampled elements after this event stream unreacts.
      *
      *  This method takes `O(k)` space and reacting to each event takes `O(1)` time.
-     *  If the remainder of the stream has less than `k` elements, then all those
+     *  If the remainder of `this` stream has less than `k` elements, then all those
      *  elements are returned in the sample.
      *
      *  See "Random sampling with a reservoir", by Vitter.
@@ -36,6 +37,43 @@ package object algo {
       }
       (Events.single(array) union updates).last
         .map(a => if (i < k) a.take(i) else a).toIVar
+    }
+
+    /** Returns `k` sampled elements after this event stream unreacts.
+     *
+     *  This mehtod takes `O(k)` space and reacting to each event takes `O(log k)` time.
+     *  If the remainder of `this` stream has less than `k` elements, then all those
+     *  elements are returned in the sample.
+     *
+     *  See "Weighted random sampling with a reservoir", by Efraimidis and Spirakis.
+     */
+    def weightedSample(k: Int, weight: T => Double)(
+      implicit a: Arrayable[T]
+    ): IVar[Array[T]] = {
+      assert(k > 0)
+      val random = new Random
+      val heap = new BinaryHeap[(T, Double)](16)(implicitly, Order.double(_._2 - _._2))
+      var i = 0
+      val updates = events.map { x =>
+        val p = math.pow(random.nextDouble(), 1 / weight(x))
+        if (i < k) {
+          heap.enqueue((x, p))
+        } else if (heap.head._2 < p) {
+          heap.dequeue()
+          heap.enqueue((x, p))
+        }
+        i += 1
+        heap
+      }
+      (Events.single(heap) union updates).last.map { h =>
+        val array = a.newRawArray(h.size)
+        var i = 0
+        for (t <- h) {
+          array(i) = t._1
+          i += 1
+        }
+        array
+      }.toIVar
     }
   }
 
