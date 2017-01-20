@@ -716,6 +716,14 @@ class EventsSpec extends FunSuite {
     assert(done)
   }
 
+  test("single") {
+    var elem = -1
+    var done = false
+    Events.single(7).onEventOrDone(elem = _)(done = true)
+    assert(elem == 7)
+    assert(done)
+  }
+
   test("filter") {
     val buffer = mutable.Buffer[Int]()
     val emitter = new Events.Emitter[Int]
