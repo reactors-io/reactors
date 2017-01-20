@@ -1524,7 +1524,7 @@ object Events {
   private[reactors] class Single[@spec(Int, Long, Double) T](val x: T)
   extends Events[T] {
     def onReaction(obs: Observer[T]): Subscription = {
-      obs.react(x)
+      obs.react(x, null)
       obs.unreact()
       Subscription.empty
     }
@@ -2250,7 +2250,7 @@ object Events {
       seen = false
     }
     init(this)
-    def react(value: T, hint: Any) = if (!seen) {
+    def react(value: T, hint: Any) = {
       seen = true
       last = value
     }

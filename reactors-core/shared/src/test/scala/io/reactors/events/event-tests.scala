@@ -688,6 +688,34 @@ class EventsSpec extends FunSuite {
     assert(emitter.unsubscriptionCount == 1)
   }
 
+  test("last") {
+    var last = -1
+    val emitter = new Events.Emitter[Int]
+    emitter.last.onEvent(x => last = x)
+
+    emitter.react(3)
+    assert(last == -1)
+    emitter.react(5)
+    assert(last == -1)
+    emitter.react(7)
+    assert(last == -1)
+    emitter.react(11)
+    assert(last == -1)
+    emitter.unreact()
+    assert(last == 11)
+  }
+
+  test("last early done") {
+    var last = -1
+    var done = false
+    val emitter = new Events.Emitter[Int]
+    emitter.last.onEventOrDone(x => last = x)(done = true)
+
+    emitter.unreact()
+    assert(last == -1)
+    assert(done)
+  }
+
   test("filter") {
     val buffer = mutable.Buffer[Int]()
     val emitter = new Events.Emitter[Int]
