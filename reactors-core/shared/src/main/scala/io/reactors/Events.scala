@@ -1519,6 +1519,17 @@ object Events {
     implicit a: Arrayable[T]
   ): Events[Seq[T]] = new Events.SyncMany(es)
 
+  def single[@spec(Int, Long, Double) T](x: T): Events[T] = new Events.Single(x)
+
+  private[reactors] class Single[@spec(Int, Long, Double) T](val x: T)
+  extends Events[T] {
+    def onReaction(obs: Observer[T]): Subscription = {
+      obs.react(x)
+      obs.unreact()
+      Subscription.empty
+    }
+  }
+
   private[reactors] class MutateObserver[
     @spec(Int, Long, Double) T, M >: Null <: AnyRef
   ](val target: Mutable[M], f: M => T => Unit) extends Observer[T] {
