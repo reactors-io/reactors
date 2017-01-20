@@ -325,7 +325,6 @@ object JvmScheduler {
     class NewThread(
       val isDaemon: Boolean
     ) extends Dedicated {
-
       override def newState(frame: Frame): Dedicated.Worker = {
         val w = new Worker(frame)
         w.thread = new WorkerThread(w)
