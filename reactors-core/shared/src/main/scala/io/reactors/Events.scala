@@ -465,6 +465,21 @@ trait Events[@spec(Int, Long, Double) T] {
    */
   def once: Events[T] = new Events.Once[T](this)
 
+  /** After `this` event stream unreacts, the resulting stream emits the last event.
+   *
+   *  {{{
+   *  time ------------------>
+   *  this ---1--2----3--|
+   *  last --------------3|
+   *  }}}
+   *
+   *  Note: if there were no events in `this` stream by the time it unreacts, the
+   *  resulting stream unreacts without emitting anything.
+   *
+   *  @return           the last event from this event stream
+   */
+  def last: Events[T] = new Events.Last[T](this)
+
   /** Filters events from `this` event stream value using a specified predicate `p`.
    *
    *  Only events from `this` for which `p` returns `true` are emitted on the
@@ -2200,6 +2215,39 @@ object Events {
       target.except(t)
     }
     def unreact() = if (!seen) {
+      target.unreact()
+    }
+  }
+
+  private[reactors] class Last[@spec(Int, Long, Double) T](val self: Events[T])
+  extends Events[T] {
+    def onReaction(observer: Observer[T]): Subscription = {
+      val obs = new LastObserver(observer)
+      val sub = self.onReaction(obs)
+      obs.subscription = sub
+      sub
+    }
+  }
+
+  private[reactors] class LastObserver[@spec(Int, Long, Double) T](
+    val target: Observer[T]
+  ) extends Observer[T] {
+    private var last: T =_
+    private var seen: Boolean = _
+    var subscription = Subscription.empty
+    def init(dummy: Observer[T]) {
+      seen = false
+    }
+    init(this)
+    def react(value: T, hint: Any) = if (!seen) {
+      seen = true
+      last = value
+    }
+    def except(t: Throwable) = if (!seen) {
+      target.except(t)
+    }
+    def unreact() = {
+      if (seen) target.react(last, null)
       target.unreact()
     }
   }
