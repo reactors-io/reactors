@@ -28,7 +28,6 @@ final class Frame(
   private[reactors] var lifecycleState: Frame.LifecycleState = Frame.Fresh
   private[reactors] val pendingQueues = new UnrolledRing[Connector[_]]
   private[reactors] val sysEmitter = new Events.Emitter[SysEvent]
-  private[reactors] var seed = (uid << 32) | System.identityHashCode(this)
 
   @volatile var reactor: Reactor[_] = _
   @volatile var name: String = _
@@ -36,7 +35,22 @@ final class Frame(
   @volatile var defaultConnector: Connector[_] = _
   @volatile var internalConnector: Connector[_] = _
   @volatile var schedulerState: Scheduler.State = _
-  @volatile private var spinsLeft = 0
+
+  // Speculation state.
+  private[reactors] var seed = (uid << 32) | System.identityHashCode(this)
+  private[reactors] var scheduleCount = 0
+  private[reactors] var sampleCount = 0
+  private[reactors] var histogram: Array[Int] = _
+  private[reactors] var samplingFrequency: Double = minSamplingFrequency
+  private[reactors] var spinSpeculation = 0
+
+  // Spindown state.
+  private[reactors] var spindown = reactorSystem.bundle.schedulerConfig.spindownInitial
+  private[reactors] val schedulerConfig = reactorSystem.bundle.schedulerConfig
+  private[reactors] var totalBatches = 0L
+  private[reactors] var totalSpindownScore = 0L
+  private[reactors] var random = new Random
+  @volatile private var spins = 0
 
   def openConnector[@spec(Int, Long, Double) Q: Arrayable](
     channelName: String,
@@ -228,7 +242,7 @@ final class Frame(
     else null
   }
 
-  // private def processEventsDeprecated() {
+  // private def processEvents() {
   //   schedulerState.onBatchStart(this)
 
   //   // Precondition: there is at least one pending event.
@@ -261,12 +275,12 @@ final class Frame(
   //     if (drain(nc)) {
   //       // Wait a bit for additional events, since preemption is expensive.
   //       nc = null
-  //       spinsLeft = spindown
-  //       while (spinsLeft > 0) {
-  //         spinsLeft -= 1
-  //         if (spinsLeft % 10 == 0) {
+  //       spins = spindown
+  //       while (spins > 0) {
+  //         spins -= 1
+  //         if (spins % 10 == 0) {
   //           nc = popNextPending()
-  //           if (nc != null) spinsLeft = 0
+  //           if (nc != null) spins = 0
   //         }
   //       }
   //       if (nc != null) spindownScore += 1
@@ -300,36 +314,98 @@ final class Frame(
     // Return value:
     // - `false` iff stopped by preemption
     // - `true` iff stopped because there are no events
-    @tailrec def drain(n: Int, c: Connector[_]): Int = {
+    @tailrec def drain(c: Connector[_]): Boolean = {
       val remaining = c.dequeue()
       if (schedulerState.onBatchEvent(this)) {
         // Need to consume some more.
         if (remaining > 0 && !c.localChannel.isSealed) {
-          drain(n + 1, c)
+          drain(c)
         } else {
           val nc = popNextPending()
-          if (nc != null) drain(n + 1, nc)
-          else n
+          if (nc != null) drain(nc)
+          else true
         }
       } else {
         // Done consuming -- see if the connector needs to be enqueued.
         if (remaining > 0 && !c.localChannel.isSealed) monitor.synchronized {
           pendingQueues.enqueue(c)
         }
-        n
+        false
       }
     }
 
+    var factor = 128
     var nc = popNextPending()
-    if (nc != null) drain(1, nc)
-
-    //val sampleProbability = randomDouble()
-    var i = 11
-    while (i > 0) {
-      popNextPending()
-      i -= 1
+    var j = 0
+    while (nc != null) {
+      j += 1
+      if (drain(nc)) {
+        nc = null
+        spins = spinSpeculation * factor
+        while (spins > 0) {
+          spins -= 1
+          if (spins % factor == 0) {
+            nc = popNextPending()
+          }
+          if (nc != null) spins = 0
+        }
+      } else {
+        nc = null
+      }
     }
+
+    val samplingProbability = randomDouble()
+    if (samplingProbability < samplingFrequency) {
+      spins = 0
+      while (spins < histogramSize * factor) {
+        if (spins % factor == 0) {
+          nc = popNextPending()
+        }
+        if (nc != null) {
+          samplingFrequency = math.min(maxSamplingFrequency, samplingFrequency + 0.03)
+          if (histogram == null) histogram = new Array(histogramSize)
+          while (spins < histogramSize * factor) {
+            histogram(spins / factor) += 1
+            spins += factor
+          }
+          drain(nc)
+        }
+        spins += 1
+      }
+      sampleCount += 1
+      if (sampleCount == sampleSize) {
+        sampleCount = 0
+        samplingFrequency = math.max(minSamplingFrequency, samplingFrequency - 0.01)
+        var i = 0
+        var bestdiff = 0.0
+        var besti = 0
+        while (i < histogramSize && histogram != null) {
+          val p = 1.0 * histogram(i) / sampleSize
+          val r = 1.0 * i / histogramSize
+          val cur = r - p
+          if (cur < bestdiff) {
+            bestdiff = cur
+            besti = i
+          }
+          i += 1
+        }
+        spinSpeculation = besti
+        // if (histogram != null) {
+        //   println(sampleCount + ": " + spinSpeculation + ", hist = " +
+        //     histogram.mkString(", "))
+        // }
+      }
+    }
+    scheduleCount += 1
   }
+
+  private def sampleSize: Int = 40
+
+  private def histogramSize: Int = 8
+
+  private def maxSamplingFrequency: Double = 0.08
+
+  private def minSamplingFrequency: Double = 0.005
 
   private def randomBits(bits: Int): Int = {
     seed = (seed * 0x5DEECE66DL + 0xBL) & ((1L << 48) - 1);

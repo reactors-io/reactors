@@ -57,6 +57,6 @@ class BaselineBench extends JBench.OfflineReport {
       }
     })
 
-    assert(Await.result(done.future, 10.seconds))
+    assert(Await.result(done.future, 100.seconds))
   }
 }
