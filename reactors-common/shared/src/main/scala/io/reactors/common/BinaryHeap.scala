@@ -95,6 +95,16 @@ class BinaryHeap[@specialized(Int, Long, Double) T](val initialSize: Int = 16)(
     sz = 0
   }
 
+  def toArray: Array[T] = {
+    val result = arrayable.newRawArray(sz)
+    var i = 1
+    while (i <= sz) {
+      result(i - 1) = array(i)
+      i += 1
+    }
+    result
+  }
+
   private[common] def debugString = s"Heap(sz: $sz, array: ${array.mkString(", ")})"
 
 }
