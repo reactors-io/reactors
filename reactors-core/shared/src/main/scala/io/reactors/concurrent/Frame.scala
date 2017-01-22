@@ -28,11 +28,7 @@ final class Frame(
   private[reactors] var lifecycleState: Frame.LifecycleState = Frame.Fresh
   private[reactors] val pendingQueues = new UnrolledRing[Connector[_]]
   private[reactors] val sysEmitter = new Events.Emitter[SysEvent]
-  private[reactors] var spindown = reactorSystem.bundle.schedulerConfig.spindownInitial
-  private[reactors] val schedulerConfig = reactorSystem.bundle.schedulerConfig
-  private[reactors] var totalBatches = 0L
-  private[reactors] var totalSpindownScore = 0L
-  private[reactors] var random = new Random
+  private[reactors] var seed = (uid << 32) | System.identityHashCode(this)
 
   @volatile var reactor: Reactor[_] = _
   @volatile var name: String = _
@@ -232,70 +228,70 @@ final class Frame(
     else null
   }
 
-  private def processEventsDeprecated() {
-    schedulerState.onBatchStart(this)
+  // private def processEventsDeprecated() {
+  //   schedulerState.onBatchStart(this)
 
-    // Precondition: there is at least one pending event.
-    // Return value:
-    // - `false` iff stopped by preemption
-    // - `true` iff stopped because there are no events
-    @tailrec def drain(c: Connector[_]): Boolean = {
-      val remaining = c.dequeue()
-      if (schedulerState.onBatchEvent(this)) {
-        // Need to consume some more.
-        if (remaining > 0 && !c.localChannel.isSealed) {
-          drain(c)
-        } else {
-          val nc = popNextPending()
-          if (nc != null) drain(nc)
-          else true
-        }
-      } else {
-        // Done consuming -- see if the connector needs to be enqueued.
-        if (remaining > 0 && !c.localChannel.isSealed) monitor.synchronized {
-          pendingQueues.enqueue(c)
-        }
-        false
-      }
-    }
+  //   // Precondition: there is at least one pending event.
+  //   // Return value:
+  //   // - `false` iff stopped by preemption
+  //   // - `true` iff stopped because there are no events
+  //   @tailrec def drain(c: Connector[_]): Boolean = {
+  //     val remaining = c.dequeue()
+  //     if (schedulerState.onBatchEvent(this)) {
+  //       // Need to consume some more.
+  //       if (remaining > 0 && !c.localChannel.isSealed) {
+  //         drain(c)
+  //       } else {
+  //         val nc = popNextPending()
+  //         if (nc != null) drain(nc)
+  //         else true
+  //       }
+  //     } else {
+  //       // Done consuming -- see if the connector needs to be enqueued.
+  //       if (remaining > 0 && !c.localChannel.isSealed) monitor.synchronized {
+  //         pendingQueues.enqueue(c)
+  //       }
+  //       false
+  //     }
+  //   }
 
-    var nc = popNextPending()
-    var spindownScore = 0
-    while (nc != null) {
-      if (drain(nc)) {
-        // Wait a bit for additional events, since preemption is expensive.
-        nc = null
-        spinsLeft = spindown
-        while (spinsLeft > 0) {
-          spinsLeft -= 1
-          if (spinsLeft % 10 == 0) {
-            nc = popNextPending()
-            if (nc != null) spinsLeft = 0
-          }
-        }
-        if (nc != null) spindownScore += 1
-      } else {
-        nc = null
-      }
-    }
+  //   var nc = popNextPending()
+  //   var spindownScore = 0
+  //   while (nc != null) {
+  //     if (drain(nc)) {
+  //       // Wait a bit for additional events, since preemption is expensive.
+  //       nc = null
+  //       spinsLeft = spindown
+  //       while (spinsLeft > 0) {
+  //         spinsLeft -= 1
+  //         if (spinsLeft % 10 == 0) {
+  //           nc = popNextPending()
+  //           if (nc != null) spinsLeft = 0
+  //         }
+  //       }
+  //       if (nc != null) spindownScore += 1
+  //     } else {
+  //       nc = null
+  //     }
+  //   }
 
-    // Adjust spindown stochastically.
-    totalBatches += 1
-    totalSpindownScore += spindownScore
-    val spindownMutationRate = schedulerConfig.spindownMutationRate
-    if (random.nextDouble() < spindownMutationRate || spindownScore >= 1) {
-      var spindownCoefficient = 1.0 * totalSpindownScore / totalBatches
-      val threshold = schedulerConfig.spindownTestThreshold
-      val iters = schedulerConfig.spindownTestIterations
-      if (totalBatches >= threshold) {
-        spindownCoefficient += math.max(0.0, 1.0 - (totalBatches - threshold) / iters)
-      }
-      spindownCoefficient = math.min(1.0, spindownCoefficient)
-      spindown = (schedulerConfig.spindownMax * spindownCoefficient).toInt
-    }
-    spindown -= (spindown / schedulerConfig.spindownCooldownRate + 1)
-    spindown = math.max(schedulerConfig.spindownMin, spindown)
-  }
+  //   // Adjust spindown stochastically.
+  //   totalBatches += 1
+  //   totalSpindownScore += spindownScore
+  //   val spindownMutationRate = schedulerConfig.spindownMutationRate
+  //   if (random.nextDouble() < spindownMutationRate || spindownScore >= 1) {
+  //     var spindownCoefficient = 1.0 * totalSpindownScore / totalBatches
+  //     val threshold = schedulerConfig.spindownTestThreshold
+  //     val iters = schedulerConfig.spindownTestIterations
+  //     if (totalBatches >= threshold) {
+  //       spindownCoefficient += math.max(0.0, 1.0 - (totalBatches - threshold) / iters)
+  //     }
+  //     spindownCoefficient = math.min(1.0, spindownCoefficient)
+  //     spindown = (schedulerConfig.spindownMax * spindownCoefficient).toInt
+  //   }
+  //   spindown -= (spindown / schedulerConfig.spindownCooldownRate + 1)
+  //   spindown = math.max(schedulerConfig.spindownMin, spindown)
+  // }
 
   private def processEvents() {
     schedulerState.onBatchStart(this)
@@ -324,9 +320,28 @@ final class Frame(
       }
     }
 
-    totalBatches += 1
     var nc = popNextPending()
     if (nc != null) drain(1, nc)
+
+    //val sampleProbability = randomDouble()
+    var i = 11
+    while (i > 0) {
+      popNextPending()
+      i -= 1
+    }
+  }
+
+  private def randomBits(bits: Int): Int = {
+    seed = (seed * 0x5DEECE66DL + 0xBL) & ((1L << 48) - 1);
+    (seed >>> (48 - bits)).toInt
+  }
+
+  private def randomDouble(): Double = {
+    val hi = randomBits(26)
+    val lo = randomBits(27)
+    val num = (hi.toLong << 27) + lo
+    val den = (1L << 53).toDouble
+    num / den
   }
 
   private def checkTerminated(forcedTermination: Boolean) {
