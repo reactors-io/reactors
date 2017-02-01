@@ -395,11 +395,11 @@ final class Frame(
         //   println(sampleCount + ": " + spinSpeculation +
         //     ", freq = " + samplingFrequency +
         //     ", hist = " + histogram.mkString(", "))
-        // }
-        // i = 0
-        // while (i < histogramSize) {
-        //   histogram(i) = 0
-        //   i += 1
+        //   i = 0
+        //   while (i < histogramSize) {
+        //     histogram(i) = 0
+        //     i += 1
+        //   }
         // }
       }
     }
