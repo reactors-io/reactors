@@ -387,12 +387,19 @@ final class Frame(
             bestdiff = cur
             besti = i
           }
+          histogram(i) = 0
           i += 1
         }
         spinSpeculation = besti
         // if (histogram != null) {
-        //   println(sampleCount + ": " + spinSpeculation + ", hist = " +
-        //     histogram.mkString(", "))
+        //   println(sampleCount + ": " + spinSpeculation +
+        //     ", freq = " + samplingFrequency +
+        //     ", hist = " + histogram.mkString(", "))
+        // }
+        // i = 0
+        // while (i < histogramSize) {
+        //   histogram(i) = 0
+        //   i += 1
         // }
       }
     }
