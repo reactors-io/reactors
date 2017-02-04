@@ -359,12 +359,14 @@ final class Frame(
     if (samplingProbability < samplingFrequency) {
       spins = 0
       samplingFrequency = math.max(minSamplingFrequency, samplingFrequency - 0.02)
-      while (spins < histogramSize * spinFactor) {
+      val maxSpins = histogramSize * spinFactor
+      while (spins < maxSpins) {
         if (spins % spinFactor == 0) {
           nc = popNextPending()
         }
         if (nc != null) {
-          samplingFrequency = math.min(maxSamplingFrequency, samplingFrequency + 0.06)
+          val fDiff = 0.06 * (maxSpins - spins) / maxSpins
+          samplingFrequency = math.min(maxSamplingFrequency, samplingFrequency + fDiff)
           if (histogram == null) histogram = new Array(histogramSize)
           while (spins < histogramSize * spinFactor) {
             histogram(spins / spinFactor) += 1
