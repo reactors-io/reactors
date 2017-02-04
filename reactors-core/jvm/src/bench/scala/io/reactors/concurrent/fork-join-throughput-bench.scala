@@ -46,11 +46,6 @@ class ForkJoinThroughputBench extends JBench.OfflineReport {
     val workers = (for (i <- 0 until ForkJoinThroughputBench.K) yield {
       system.spawn(Reactor[String] { self =>
         var count = 0
-        var batchCount = 0
-        self.sysEvents onMatch {
-          case ReactorPreempted => batchCount += 1
-          case ReactorTerminated => // println(1.0 * sz / batchCount)
-        }
         self.main.events.on {
           count += 1
           if (count == sz) {

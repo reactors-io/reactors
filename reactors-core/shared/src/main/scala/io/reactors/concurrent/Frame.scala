@@ -334,7 +334,7 @@ final class Frame(
       }
     }
 
-    var factor = 128
+    var factor = 512
     var nc = popNextPending()
     var j = 0
     while (nc != null) {
@@ -355,14 +355,14 @@ final class Frame(
     }
 
     val samplingProbability = randomDouble()
-    if (samplingProbability < samplingFrequency) {
+    if (samplingProbability < samplingFrequency + 0.1 / scheduleCount) {
       spins = 0
       while (spins < histogramSize * factor) {
         if (spins % factor == 0) {
           nc = popNextPending()
         }
         if (nc != null) {
-          samplingFrequency = math.min(maxSamplingFrequency, samplingFrequency + 0.03)
+          samplingFrequency = math.min(maxSamplingFrequency, samplingFrequency + 0.04)
           if (histogram == null) histogram = new Array(histogramSize)
           while (spins < histogramSize * factor) {
             histogram(spins / factor) += 1
@@ -412,7 +412,7 @@ final class Frame(
 
   private def maxSamplingFrequency: Double = 0.08
 
-  private def minSamplingFrequency: Double = 0.005
+  private def minSamplingFrequency: Double = 0.001
 
   private def randomBits(bits: Int): Int = {
     seed = (seed * 0x5DEECE66DL + 0xBL) & ((1L << 48) - 1);
