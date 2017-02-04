@@ -4,6 +4,7 @@ package concurrent
 
 
 import java.util.concurrent.atomic._
+import java.util.concurrent.ConcurrentHashMap
 import scala.annotation.tailrec
 import scala.collection._
 import scala.util.Random
@@ -35,22 +36,22 @@ final class Frame(
   @volatile var defaultConnector: Connector[_] = _
   @volatile var internalConnector: Connector[_] = _
   @volatile var schedulerState: Scheduler.State = _
+  @volatile private var spins = 0
 
   // Speculation state.
   private[reactors] var seed = (uid << 32) | System.identityHashCode(this)
   private[reactors] var scheduleCount = 0
   private[reactors] var sampleCount = 0
-  private[reactors] var histogram: Array[Int] = _
-  private[reactors] var samplingFrequency: Double = minSamplingFrequency
+  private[reactors] var histogram: Array[Int] = null
+  private[reactors] var samplingFrequency: Double = 0.0
   private[reactors] var spinSpeculation = 0
 
   // Spindown state.
-  private[reactors] var spindown = reactorSystem.bundle.schedulerConfig.spindownInitial
-  private[reactors] val schedulerConfig = reactorSystem.bundle.schedulerConfig
-  private[reactors] var totalBatches = 0L
-  private[reactors] var totalSpindownScore = 0L
-  private[reactors] var random = new Random
-  @volatile private var spins = 0
+  // private[reactors] var spindown = reactorSystem.bundle.schedulerConfig.spindownInitial
+  // private[reactors] val schedulerConfig = reactorSystem.bundle.schedulerConfig
+  // private[reactors] var totalBatches = 0L
+  // private[reactors] var totalSpindownScore = 0L
+  // private[reactors] var random = new Random
 
   def openConnector[@spec(Int, Long, Double) Q: Arrayable](
     channelName: String,
@@ -233,6 +234,7 @@ final class Frame(
     if (runCtor) {
       reactorSystem.debugApi.reactorStarted(this)
       reactor = proto.create()
+      samplingFrequency = computeInitialSamplingFrequency()
       sysEmitter.react(ReactorStarted)
     }
   }
@@ -334,17 +336,16 @@ final class Frame(
       }
     }
 
-    var factor = 512
     var nc = popNextPending()
     var j = 0
     while (nc != null) {
       j += 1
       if (drain(nc)) {
         nc = null
-        spins = spinSpeculation * factor
+        spins = spinSpeculation * spinFactor
         while (spins > 0) {
           spins -= 1
-          if (spins % factor == 0) {
+          if (spins % spinFactor == 0) {
             nc = popNextPending()
           }
           if (nc != null) spins = 0
@@ -355,18 +356,19 @@ final class Frame(
     }
 
     val samplingProbability = randomDouble()
-    if (samplingProbability < samplingFrequency + 0.1 / scheduleCount) {
+    if (samplingProbability < samplingFrequency) {
       spins = 0
-      while (spins < histogramSize * factor) {
-        if (spins % factor == 0) {
+      samplingFrequency = math.max(minSamplingFrequency, samplingFrequency - 0.02)
+      while (spins < histogramSize * spinFactor) {
+        if (spins % spinFactor == 0) {
           nc = popNextPending()
         }
         if (nc != null) {
-          samplingFrequency = math.min(maxSamplingFrequency, samplingFrequency + 0.04)
+          samplingFrequency = math.min(maxSamplingFrequency, samplingFrequency + 0.06)
           if (histogram == null) histogram = new Array(histogramSize)
-          while (spins < histogramSize * factor) {
-            histogram(spins / factor) += 1
-            spins += factor
+          while (spins < histogramSize * spinFactor) {
+            histogram(spins / spinFactor) += 1
+            spins += spinFactor
           }
           drain(nc)
         }
@@ -375,7 +377,7 @@ final class Frame(
       sampleCount += 1
       if (sampleCount == sampleSize) {
         sampleCount = 0
-        samplingFrequency = math.max(minSamplingFrequency, samplingFrequency - 0.01)
+        samplingFrequency = math.max(minSamplingFrequency, samplingFrequency - 0.02)
         var i = 0
         var bestdiff = 0.0
         var besti = 0
@@ -402,17 +404,30 @@ final class Frame(
         //   }
         // }
       }
+      if (randomDouble() < profileUpdateProbability) {
+        Frame.updateSamplingFrequencyProfile(reactor.getClass, samplingFrequency)
+      }
     }
     scheduleCount += 1
   }
+
+  private def spinFactor: Int = 512
 
   private def sampleSize: Int = 40
 
   private def histogramSize: Int = 8
 
-  private def maxSamplingFrequency: Double = 0.08
+  private def maxSamplingFrequency: Double = 0.15
 
   private def minSamplingFrequency: Double = 0.001
+
+  private def profileUpdateProbability: Double = 0.1
+
+  private def computeInitialSamplingFrequency(): Double = {
+    val profile = Frame.profiles.get(reactor.getClass)
+    if (profile == null) Frame.initialSamplingFrequency
+    else profile.samplingFrequency
+  }
 
   private def randomBits(bits: Int): Int = {
     seed = (seed * 0x5DEECE66DL + 0xBL) & ((1L << 48) - 1);
@@ -531,6 +546,30 @@ object Frame {
       }
       if (listeners.nonEmpty) Info(null, listeners)
       else null
+    }
+  }
+
+  private[reactors] def initialSamplingFrequency = 0.002
+
+  private[reactors] class Profile(val clazz: Class[_]) {
+    @volatile private var rawSamplingFrequency = initialSamplingFrequency
+
+    def samplingFrequency: Double = rawSamplingFrequency
+
+    def updateSamplingFrequency(f: Double): Unit = this.synchronized {
+      rawSamplingFrequency = 0.8 * rawSamplingFrequency + 0.2 * f
+    }
+  }
+
+  private[reactors] val profiles = new ConcurrentHashMap[Class[_], Profile]
+
+  @tailrec
+  private[reactors] def updateSamplingFrequencyProfile(c: Class[_], f: Double): Unit = {
+    val profile = profiles.get(c)
+    if (profile != null) profile.updateSamplingFrequency(f)
+    else {
+      profiles.putIfAbsent(c, new Profile(c))
+      updateSamplingFrequencyProfile(c, f)
     }
   }
 }
