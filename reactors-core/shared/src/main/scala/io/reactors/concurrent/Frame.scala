@@ -386,7 +386,7 @@ final class Frame(
         while (i < histogramSize && histogram != null) {
           val p = 1.0 * histogram(i) / sampleSize
           val d = 1.0 * i / histogramSize
-          val cur = 1.1 * d - p
+          val cur = 1.0 * d - p
           if (cur < bestdiff) {
             bestdiff = cur
             besti = i
@@ -413,11 +413,11 @@ final class Frame(
     scheduleCount += 1
   }
 
-  private def spinFactor: Int = 512
+  private def spinFactor: Int = 64
 
   private def sampleSize: Int = 40
 
-  private def histogramSize: Int = 8
+  private def histogramSize: Int = 32
 
   private def maxSamplingFrequency: Double = 0.15
 
@@ -428,9 +428,12 @@ final class Frame(
   private def profileUpdateProbability: Double = 0.1
 
   private def computeInitialSamplingFrequency(): Double = {
-    val profile = Frame.profiles.get(reactor.getClass)
-    if (profile == null) globalInitialSamplingFrequency
-    else profile.samplingFrequency
+    if (system.bundle.schedulerConfig.lagging == 0) -1.0
+    else {
+      val profile = Frame.profiles.get(reactor.getClass)
+      if (profile == null) globalInitialSamplingFrequency
+      else profile.samplingFrequency
+    }
   }
 
   private def randomBits(bits: Int): Int = {
