@@ -75,6 +75,7 @@ object JvmScheduler {
       super.onTermination(t)
     }
 
+    // Optimized version - postpone task creation and try to take over.
     @tailrec
     final def execute(frame: Frame) {
       val state = miniQueue.get
@@ -89,6 +90,12 @@ object JvmScheduler {
         }
       }
     }
+
+    // // Non-optimized version.
+    // final def execute(frame: Frame) {
+    //   val r = frame.schedulerState.asInstanceOf[Runnable]
+    //   ForkJoinTask.adapt(r).fork()
+    // }
 
     private def pollPool(fj: ReactorForkJoinPool): Boolean = {
       val task = fj.poll()
