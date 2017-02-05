@@ -385,8 +385,8 @@ final class Frame(
         var besti = 0
         while (i < histogramSize && histogram != null) {
           val p = 1.0 * histogram(i) / sampleSize
-          val r = 1.0 * i / histogramSize
-          val cur = r - p
+          val d = 1.0 * i / histogramSize
+          val cur = 1.1 * d - p
           if (cur < bestdiff) {
             bestdiff = cur
             besti = i
@@ -423,11 +423,13 @@ final class Frame(
 
   private def minSamplingFrequency: Double = 0.001
 
+  private def globalInitialSamplingFrequency = 0.002
+
   private def profileUpdateProbability: Double = 0.1
 
   private def computeInitialSamplingFrequency(): Double = {
     val profile = Frame.profiles.get(reactor.getClass)
-    if (profile == null) Frame.initialSamplingFrequency
+    if (profile == null) globalInitialSamplingFrequency
     else profile.samplingFrequency
   }
 
@@ -551,11 +553,10 @@ object Frame {
     }
   }
 
-  private[reactors] def initialSamplingFrequency = 0.002
-
-  private[reactors] class Profile(val clazz: Class[_]) {
-    @volatile private var rawSamplingFrequency = initialSamplingFrequency
-
+  private[reactors] class Profile(
+    val clazz: Class[_],
+    @volatile private var rawSamplingFrequency: Double
+  ) {
     def samplingFrequency: Double = rawSamplingFrequency
 
     def updateSamplingFrequency(f: Double): Unit = this.synchronized {
@@ -570,7 +571,7 @@ object Frame {
     val profile = profiles.get(c)
     if (profile != null) profile.updateSamplingFrequency(f)
     else {
-      profiles.putIfAbsent(c, new Profile(c))
+      profiles.putIfAbsent(c, new Profile(c, f))
       updateSamplingFrequencyProfile(c, f)
     }
   }

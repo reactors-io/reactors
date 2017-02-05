@@ -90,7 +90,7 @@ object Platform {
       }
       default = {
         budget = 64
-        postschedule-count = 50
+        postschedule-count = 100
       }
     }
     system = {
