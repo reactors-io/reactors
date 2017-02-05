@@ -110,14 +110,8 @@ object Platform {
       name = "io.reactors.DefaultErrorHandler"
     }
     scheduler = {
-      spindown = {
-        initial = 0
-        min = 0
-        max = 0
-        cooldown-rate = 8
-        mutation-rate = 0.15
-        test-threshold = 32
-        test-iterations = 3
+      lagging = {
+        enabled = 0
       }
       default = {
         budget = 50
