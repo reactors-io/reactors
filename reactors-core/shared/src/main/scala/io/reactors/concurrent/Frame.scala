@@ -428,7 +428,7 @@ final class Frame(
   private def profileUpdateProbability: Double = 0.1
 
   private def computeInitialSamplingFrequency(): Double = {
-    if (system.bundle.schedulerConfig.lagging == 0) -1.0
+    if (reactorSystem.bundle.schedulerConfig.speculativeLagging == 0) -1.0
     else {
       val profile = Frame.profiles.get(reactor.getClass)
       if (profile == null) globalInitialSamplingFrequency

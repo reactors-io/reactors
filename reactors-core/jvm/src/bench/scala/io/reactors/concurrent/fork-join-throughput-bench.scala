@@ -32,7 +32,7 @@ class ForkJoinThroughputBench extends JBench.OfflineReport {
     new MongoDbReporter[Double]
   )
 
-  val sizes = Gen.range("size")(25000, 25000, 500)
+  val sizes = Gen.range("size")(25000, 25000, 5000)
 
   @transient lazy val system = new ReactorSystem("reactor-bench")
 
