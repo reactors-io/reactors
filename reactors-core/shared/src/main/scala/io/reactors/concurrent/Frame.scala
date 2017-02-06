@@ -413,7 +413,7 @@ final class Frame(
     scheduleCount += 1
   }
 
-  private def spinFactor: Int = 64
+  private def spinFactor: Int = 128
 
   private def sampleSize: Int = 40
 
