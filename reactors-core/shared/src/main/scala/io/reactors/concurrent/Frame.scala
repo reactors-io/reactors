@@ -47,7 +47,8 @@ final class Frame(
   private[reactors] var spinSpeculation = 0
 
   // Spindown state.
-  // private[reactors] var spindown = reactorSystem.bundle.schedulerConfig.spindownInitial
+  // private[reactors] var spindown =
+  //   reactorSystem.bundle.schedulerConfig.spindownInitial
   // private[reactors] val schedulerConfig = reactorSystem.bundle.schedulerConfig
   // private[reactors] var totalBatches = 0L
   // private[reactors] var totalSpindownScore = 0L
@@ -300,7 +301,8 @@ final class Frame(
   //     val threshold = schedulerConfig.spindownTestThreshold
   //     val iters = schedulerConfig.spindownTestIterations
   //     if (totalBatches >= threshold) {
-  //       spindownCoefficient += math.max(0.0, 1.0 - (totalBatches - threshold) / iters)
+  //       spindownCoefficient +=
+  //         math.max(0.0, 1.0 - (totalBatches - threshold) / iters)
   //     }
   //     spindownCoefficient = math.min(1.0, spindownCoefficient)
   //     spindown = (schedulerConfig.spindownMax * spindownCoefficient).toInt
