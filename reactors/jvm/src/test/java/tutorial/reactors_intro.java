@@ -14,7 +14,7 @@ import org.junit.Test;
 
 
 
-public class reactors {
+public class reactors_intro {
 
   /*!begin-include!*/
   /*!begin-code!*/
