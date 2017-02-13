@@ -209,7 +209,7 @@ class LifecycleReactor extends Reactor[String] {
     case ReactorPreempted =>
       println("preempted")
       if (first) first = false
-      else throw new Exception
+      else throw new Exception("Manually thrown.")
     case ReactorDied(_) =>
       println("died")
     case ReactorTerminated =>
