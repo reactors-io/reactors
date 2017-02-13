@@ -4,6 +4,7 @@ package concurrent
 
 
 import java.util.concurrent.atomic._
+import java.util.concurrent.ConcurrentHashMap
 import scala.annotation.tailrec
 import scala.collection._
 import scala.util.Random
@@ -28,11 +29,6 @@ final class Frame(
   private[reactors] var lifecycleState: Frame.LifecycleState = Frame.Fresh
   private[reactors] val pendingQueues = new UnrolledRing[Connector[_]]
   private[reactors] val sysEmitter = new Events.Emitter[SysEvent]
-  private[reactors] var spindown = reactorSystem.bundle.schedulerConfig.spindownInitial
-  private[reactors] val schedulerConfig = reactorSystem.bundle.schedulerConfig
-  private[reactors] var totalBatches = 0L
-  private[reactors] var totalSpindownScore = 0L
-  private[reactors] var random = new Random
 
   @volatile var reactor: Reactor[_] = _
   @volatile var name: String = _
@@ -40,7 +36,23 @@ final class Frame(
   @volatile var defaultConnector: Connector[_] = _
   @volatile var internalConnector: Connector[_] = _
   @volatile var schedulerState: Scheduler.State = _
-  @volatile private var spinsLeft = 0
+  @volatile private var spins = 0
+
+  // Speculation state.
+  private[reactors] var seed = (uid << 32) | System.identityHashCode(this)
+  private[reactors] var scheduleCount = 0
+  private[reactors] var sampleCount = 0
+  private[reactors] var histogram: Array[Int] = null
+  private[reactors] var samplingFrequency: Double = 0.0
+  private[reactors] var spinSpeculation = 0
+
+  // Spindown state.
+  // private[reactors] var spindown =
+  //   reactorSystem.bundle.schedulerConfig.spindownInitial
+  // private[reactors] val schedulerConfig = reactorSystem.bundle.schedulerConfig
+  // private[reactors] var totalBatches = 0L
+  // private[reactors] var totalSpindownScore = 0L
+  // private[reactors] var random = new Random
 
   def openConnector[@spec(Int, Long, Double) Q: Arrayable](
     channelName: String,
@@ -223,6 +235,7 @@ final class Frame(
     if (runCtor) {
       reactorSystem.debugApi.reactorStarted(this)
       reactor = proto.create()
+      samplingFrequency = computeInitialSamplingFrequency()
       sysEmitter.react(ReactorStarted)
     }
   }
@@ -231,6 +244,72 @@ final class Frame(
     if (pendingQueues.nonEmpty) pendingQueues.dequeue()
     else null
   }
+
+  // private def processEvents() {
+  //   schedulerState.onBatchStart(this)
+
+  //   // Precondition: there is at least one pending event.
+  //   // Return value:
+  //   // - `false` iff stopped by preemption
+  //   // - `true` iff stopped because there are no events
+  //   @tailrec def drain(c: Connector[_]): Boolean = {
+  //     val remaining = c.dequeue()
+  //     if (schedulerState.onBatchEvent(this)) {
+  //       // Need to consume some more.
+  //       if (remaining > 0 && !c.localChannel.isSealed) {
+  //         drain(c)
+  //       } else {
+  //         val nc = popNextPending()
+  //         if (nc != null) drain(nc)
+  //         else true
+  //       }
+  //     } else {
+  //       // Done consuming -- see if the connector needs to be enqueued.
+  //       if (remaining > 0 && !c.localChannel.isSealed) monitor.synchronized {
+  //         pendingQueues.enqueue(c)
+  //       }
+  //       false
+  //     }
+  //   }
+
+  //   var nc = popNextPending()
+  //   var spindownScore = 0
+  //   while (nc != null) {
+  //     if (drain(nc)) {
+  //       // Wait a bit for additional events, since preemption is expensive.
+  //       nc = null
+  //       spins = spindown
+  //       while (spins > 0) {
+  //         spins -= 1
+  //         if (spins % 10 == 0) {
+  //           nc = popNextPending()
+  //           if (nc != null) spins = 0
+  //         }
+  //       }
+  //       if (nc != null) spindownScore += 1
+  //     } else {
+  //       nc = null
+  //     }
+  //   }
+
+  //   // Adjust spindown stochastically.
+  //   totalBatches += 1
+  //   totalSpindownScore += spindownScore
+  //   val spindownMutationRate = schedulerConfig.spindownMutationRate
+  //   if (random.nextDouble() < spindownMutationRate || spindownScore >= 1) {
+  //     var spindownCoefficient = 1.0 * totalSpindownScore / totalBatches
+  //     val threshold = schedulerConfig.spindownTestThreshold
+  //     val iters = schedulerConfig.spindownTestIterations
+  //     if (totalBatches >= threshold) {
+  //       spindownCoefficient +=
+  //         math.max(0.0, 1.0 - (totalBatches - threshold) / iters)
+  //     }
+  //     spindownCoefficient = math.min(1.0, spindownCoefficient)
+  //     spindown = (schedulerConfig.spindownMax * spindownCoefficient).toInt
+  //   }
+  //   spindown -= (spindown / schedulerConfig.spindownCooldownRate + 1)
+  //   spindown = math.max(schedulerConfig.spindownMin, spindown)
+  // }
 
   private def processEvents() {
     schedulerState.onBatchStart(this)
@@ -260,41 +339,116 @@ final class Frame(
     }
 
     var nc = popNextPending()
-    var spindownScore = 0
+    var j = 0
     while (nc != null) {
+      j += 1
       if (drain(nc)) {
-        // Wait a bit for additional events, since preemption is expensive.
         nc = null
-        spinsLeft = spindown
-        while (spinsLeft > 0) {
-          spinsLeft -= 1
-          if (spinsLeft % 10 == 0) {
+        spins = spinSpeculation * spinFactor
+        while (spins > 0) {
+          spins -= 1
+          if (spins % spinFactor == 0) {
             nc = popNextPending()
-            if (nc != null) spinsLeft = 0
           }
+          if (nc != null) spins = 0
         }
-        if (nc != null) spindownScore += 1
       } else {
         nc = null
       }
     }
-    totalBatches += 1
-    totalSpindownScore += spindownScore
-    val spindownMutationRate = schedulerConfig.spindownMutationRate
-    if (random.nextDouble() < spindownMutationRate || spindownScore >= 1) {
-      var spindownCoefficient = 1.0 * totalSpindownScore / totalBatches
-      val threshold = schedulerConfig.spindownTestThreshold
-      val iters = schedulerConfig.spindownTestIterations
-      if (totalBatches >= threshold) {
-        spindownCoefficient += math.max(0.0, 1.0 - (totalBatches - threshold) / iters)
+
+    val samplingProbability = randomDouble()
+    if (samplingProbability < samplingFrequency) {
+      spins = 0
+      samplingFrequency = math.max(minSamplingFrequency, samplingFrequency - 0.02)
+      val maxSpins = histogramSize * spinFactor
+      while (spins < maxSpins) {
+        if (spins % spinFactor == 0) {
+          nc = popNextPending()
+        }
+        if (nc != null) {
+          val fDiff = 0.06 * (maxSpins - spins) / maxSpins
+          samplingFrequency = math.min(maxSamplingFrequency, samplingFrequency + fDiff)
+          if (histogram == null) histogram = new Array(histogramSize)
+          while (spins < histogramSize * spinFactor) {
+            histogram(spins / spinFactor) += 1
+            spins += spinFactor
+          }
+          drain(nc)
+        }
+        spins += 1
       }
-      spindownCoefficient = math.min(1.0, spindownCoefficient)
-      spindown = (schedulerConfig.spindownMax * spindownCoefficient).toInt
+      sampleCount += 1
+      if (sampleCount == sampleSize) {
+        sampleCount = 0
+        samplingFrequency = math.max(minSamplingFrequency, samplingFrequency - 0.02)
+        var i = 0
+        var bestdiff = 0.0
+        var besti = 0
+        while (i < histogramSize && histogram != null) {
+          val p = 1.0 * histogram(i) / sampleSize
+          val d = 1.0 * i / histogramSize
+          val cur = 1.0 * d - p
+          if (cur < bestdiff) {
+            bestdiff = cur
+            besti = i
+          }
+          histogram(i) = 0
+          i += 1
+        }
+        spinSpeculation = besti
+        // if (histogram != null) {
+        //   println(sampleCount + ": " + spinSpeculation +
+        //     ", freq = " + samplingFrequency +
+        //     ", hist = " + histogram.mkString(", "))
+        //   i = 0
+        //   while (i < histogramSize) {
+        //     histogram(i) = 0
+        //     i += 1
+        //   }
+        // }
+      }
+      if (randomDouble() < profileUpdateProbability) {
+        Frame.updateSamplingFrequencyProfile(reactor.getClass, samplingFrequency)
+      }
     }
-    spindown -= (spindown / schedulerConfig.spindownCooldownRate + 1)
-    spindown = math.max(schedulerConfig.spindownMin, spindown)
-    // if (random.nextDouble() < 0.0001)
-    //   println(spindown, 1.0 * totalSpindownScore / totalBatches)
+    scheduleCount += 1
+  }
+
+  private def spinFactor: Int = 128
+
+  private def sampleSize: Int = 40
+
+  private def histogramSize: Int = 32
+
+  private def maxSamplingFrequency: Double = 0.15
+
+  private def minSamplingFrequency: Double = 0.001
+
+  private def globalInitialSamplingFrequency = 0.002
+
+  private def profileUpdateProbability: Double = 0.1
+
+  private def computeInitialSamplingFrequency(): Double = {
+    if (reactorSystem.bundle.schedulerConfig.speculativeLagging == 0) -1.0
+    else {
+      val profile = Frame.profiles.get(reactor.getClass)
+      if (profile == null) globalInitialSamplingFrequency
+      else profile.samplingFrequency
+    }
+  }
+
+  private def randomBits(bits: Int): Int = {
+    seed = (seed * 0x5DEECE66DL + 0xBL) & ((1L << 48) - 1);
+    (seed >>> (48 - bits)).toInt
+  }
+
+  private def randomDouble(): Double = {
+    val hi = randomBits(26)
+    val lo = randomBits(27)
+    val num = (hi.toLong << 27) + lo
+    val den = (1L << 53).toDouble
+    num / den
   }
 
   private def checkTerminated(forcedTermination: Boolean) {
@@ -401,6 +555,29 @@ object Frame {
       }
       if (listeners.nonEmpty) Info(null, listeners)
       else null
+    }
+  }
+
+  private[reactors] class Profile(
+    val clazz: Class[_],
+    @volatile private var rawSamplingFrequency: Double
+  ) {
+    def samplingFrequency: Double = rawSamplingFrequency
+
+    def updateSamplingFrequency(f: Double): Unit = this.synchronized {
+      rawSamplingFrequency = 0.8 * rawSamplingFrequency + 0.2 * f
+    }
+  }
+
+  private[reactors] val profiles = new ConcurrentHashMap[Class[_], Profile]
+
+  @tailrec
+  private[reactors] def updateSamplingFrequencyProfile(c: Class[_], f: Double): Unit = {
+    val profile = profiles.get(c)
+    if (profile != null) profile.updateSamplingFrequency(f)
+    else {
+      profiles.putIfAbsent(c, new Profile(c, f))
+      updateSamplingFrequencyProfile(c, f)
     }
   }
 }

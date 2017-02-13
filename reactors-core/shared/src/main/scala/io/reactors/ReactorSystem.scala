@@ -254,13 +254,7 @@ object ReactorSystem {
     object schedulerConfig {
       val defaultBudget = config.int("scheduler.default.budget")
       val postscheduleCount = config.int("scheduler.default.postschedule-count")
-      val spindownInitial = config.int("scheduler.spindown.initial")
-      val spindownMax = config.int("scheduler.spindown.max")
-      val spindownMin = config.int("scheduler.spindown.min")
-      val spindownCooldownRate = config.int("scheduler.spindown.cooldown-rate")
-      val spindownMutationRate = config.double("scheduler.spindown.mutation-rate")
-      val spindownTestThreshold = config.int("scheduler.spindown.test-threshold")
-      val spindownTestIterations = config.int("scheduler.spindown.test-iterations")
+      val speculativeLagging = config.int("scheduler.lagging.enabled")
     }
 
     val defaultTransports = Map(
