@@ -226,11 +226,11 @@ object JvmScheduler {
    *    key is the maximum number of attempts.  If removing is not successful,
    *    this immediately stops.
    *  - Each `ReactorForkJoinWorkerThread` has an associated mini-queue into which it
-   *    stores at most one scheduled `Frame`. Any frame must first be in the mini-queue
-   *    before getting converted into a task and sent to the queue. Before any such
-   *    worker thread returns control to the pool, it must flush its mini-queue.
-   *    Simultaneously, there is a reanimator thread that periodically traverses the
-   *    mini-queues of all the threads, and flushes them if necessary.
+   *    stores at most one scheduled `Frame`. Any frame must first be placed onto the
+   *    mini-queue before getting converted into a task and sent to the queue. Before
+   *    any such worker thread returns control to the pool, it must flush its
+   *    mini-queue. Simultaneously, there is a reanimator thread that periodically
+   *    traverses the mini-queues of all the threads, and flushes them if necessary.
    *
    *  @param executor       The `Executor` used to schedule reactor tasks.
    */
