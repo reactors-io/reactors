@@ -185,7 +185,7 @@ final class Frame(
     } catch {
       case t: Throwable => throwable = t
     } finally {
-      // Set active count back to 0.
+      // Set active count back to 0, *before* re-scheduling the reactor.
       activeCount.set(0)
 
       // Set the execution state to false if no more events, or otherwise re-schedule.
