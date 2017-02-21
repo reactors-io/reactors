@@ -129,17 +129,17 @@ object JvmScheduler {
     }
 
     def preschedule() {
-      if (state != UNSCHEDULING) state = AWAKE
+      if (state != POSTSCHEDULING) state = AWAKE
     }
 
     def postschedule(system: ReactorSystem, t: Throwable) {
-      if (state == UNSCHEDULING) return
+      if (state == POSTSCHEDULING) return
       if (t != null) {
         state = ASLEEP
         executeLater(popMiniQueue())
         return
       } else {
-        state = UNSCHEDULING
+        state = POSTSCHEDULING
       }
 
       try {
@@ -167,7 +167,7 @@ object JvmScheduler {
   private[reactors] object ReactorForkJoinWorkerThread { 
     val ASLEEP = new AnyRef {}
     val AWAKE = new AnyRef {}
-    val UNSCHEDULING = new AnyRef {}
+    val POSTSCHEDULING = new AnyRef {}
   }
 
   private[reactors] class ReactorForkJoinPool extends ForkJoinPool(
