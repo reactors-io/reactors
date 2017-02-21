@@ -22,6 +22,7 @@ after_script:
 gate-ubuntu:
   tags:
     - ubuntu
+    - gate
   script:
     - ~/.super-storm-enroute/tools/ci reactors $(pwd)
 
@@ -29,12 +30,14 @@ gate-ubuntu:
 gate-osx:
   tags:
     - osx
+    - gate
   script:
     - ~/.super-storm-enroute/tools/ci reactors $(pwd)
 
 
-bench:
+bench-ubuntu:
   tags:
     - ubuntu
+    - bench
   script:
     - ~/.super-storm-enroute/tools/ci --bench=True . $(pwd)
