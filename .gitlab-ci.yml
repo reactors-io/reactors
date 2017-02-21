@@ -33,6 +33,10 @@ gate-osx:
     - gate
   script:
     - ~/.super-storm-enroute/tools/ci reactors $(pwd)
+  cache:
+    paths:
+      - /root/.ivy2/
+      - /root/.sbt/
 
 
 bench-ubuntu:
@@ -41,3 +45,7 @@ bench-ubuntu:
     - bench
   script:
     - ~/.super-storm-enroute/tools/ci --bench=True . $(pwd)
+  cache:
+    paths:
+      - /root/.ivy2/
+      - /root/.sbt/
