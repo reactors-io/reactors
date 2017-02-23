@@ -354,7 +354,7 @@ object ReactorsBuild extends MechaRepoBuild {
       projectSettings("-http") ++ Seq(
         libraryDependencies ++= Seq(
           "org.scala-lang" % "scala-compiler" % "2.11.8",
-          "org.nanohttpd" % "nanohttpd" % "2.2.0",
+          "org.nanohttpd" % "nanohttpd" % "2.3.1",
           "org.scalatest" %%% "scalatest" % "3.0.0" % "test",
           "org.scalacheck" %%% "scalacheck" % "1.13.2" % "test",
           "org.seleniumhq.selenium" % "selenium-java" % "2.53.1" % "test",
