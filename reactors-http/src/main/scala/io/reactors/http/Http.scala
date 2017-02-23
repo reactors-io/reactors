@@ -19,10 +19,14 @@ class Http(val system: ReactorSystem) extends Protocol.Service {
   private def getOrCreateServer(port: Int): Http.Instance =
     servers.synchronized {
       if (!servers.contains(port)) {
-        val requests = system.channels.daemon.open[NanoHTTPD#ClientHandler]
-        requests.events.onEvent(handler => handler.run())
         val reactorUid = Reactor.self.uid
-        servers(port) = new Http.Instance(port, reactorUid, requests.channel)
+        val requests = system.channels.daemon.open[NanoHTTPD#ClientHandler]
+        val instance = new Http.Instance(port, reactorUid, requests.channel)
+        requests.events.onEvent(handler => handler.run())
+        Reactor.self.sysEvents onMatch {
+          case ReactorTerminated => instance.stop()
+        }
+        servers(port) = instance
       }
       servers(port)
     }
