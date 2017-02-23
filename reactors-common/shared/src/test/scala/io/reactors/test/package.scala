@@ -72,7 +72,7 @@ package object test {
     if (isLinuxOs) {
       val classpath = System.getProperty("java.class.path")
       val cmd = Seq("xvfb-run", "java", "-cp", classpath, mainClass)
-      val cwd = new File("../")
+      val cwd = new File(".")
       if (!sys.env.contains("TRAVIS")) assert(Process(cmd, cwd).! == 0)
       else println("Skipping UI test in Travis!")
     }

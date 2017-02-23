@@ -117,7 +117,8 @@ object Http {
     def text(path: String)(handler: Request => String): Unit = handlers.synchronized {
       val sessionHandler: IHTTPSession => Response = session => {
         val text = handler(new Request.Wrapper(session))
-        NanoHTTPD.newFixedLengthResponse(text)
+        NanoHTTPD.newFixedLengthResponse(
+          NanoHTTPD.Response.Status.OK, "text/plain", text)
       }
       handlers(path) = sessionHandler
     }

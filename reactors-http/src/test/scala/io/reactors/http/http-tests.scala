@@ -23,7 +23,7 @@ class HttpTest extends FunSuite {
 object HttpTest {
   def main(args: Array[String]) {
     // Initialize driver.
-    System.setProperty("webdriver.chrome.driver", "tools/chromedriver")
+    System.setProperty("webdriver.chrome.driver", "../tools/chromedriver")
     val options = new ChromeOptions
     options.setBinary("/usr/bin/chromium-browser")
     val driver = new ChromeDriver(options)
@@ -32,6 +32,11 @@ object HttpTest {
     val config = ReactorSystem.customConfig("")
     val bundle = new ReactorSystem.Bundle(JvmScheduler.default, config)
     val system = new ReactorSystem("http-test-system", bundle)
+
+    val server = Reactor[Unit] { self =>
+      self.system.service[Http].at(9500).text("/test-text") { req => "Test text." }
+    }
+    system.spawn(server)
 
     var error: Throwable = null
     try {
@@ -53,8 +58,7 @@ object HttpTest {
   }
 
   def runTests(driver: WebDriver, system: ReactorSystem) {
-    driver.get("localhost:9500")
-
-    // Run shell tests.
+    driver.get("localhost:9500/test-text")
+    assert(driver.getPageSource.contains("Test text."))
   }
 }
