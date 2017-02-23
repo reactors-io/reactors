@@ -347,6 +347,33 @@ object ReactorsBuild extends MechaRepoBuild {
     )
     .dependsOnSuperRepo
 
+  lazy val reactorsHttp = project
+    .copy(id = "reactors-http")
+    .in(file("reactors-http"))
+    .settings(
+      projectSettings("-http") ++ Seq(
+        libraryDependencies ++= Seq(
+          "org.scala-lang" % "scala-compiler" % "2.11.8",
+          "org.nanohttpd" % "nanohttpd" % "2.2.0",
+          "org.scalatest" %%% "scalatest" % "3.0.0" % "test",
+          "org.scalacheck" %%% "scalacheck" % "1.13.2" % "test",
+          "org.seleniumhq.selenium" % "selenium-java" % "2.53.1" % "test",
+          "org.seleniumhq.selenium" % "selenium-chrome-driver" % "2.53.1" % "test"
+        )
+      ): _*
+    )
+    .configs(Benchmark)
+    .settings(inConfig(Benchmark)(Defaults.testSettings): _*)
+    .settings(
+      (test in Test) <<= (test in Test).dependsOn(test in (reactorsCore.jvm, Test)),
+      publish <<= publish.dependsOn(publish in reactorsCore.jvm)
+    )
+    .dependsOn(
+      reactorsCore.jvm % "compile->compile;test->test",
+      reactorsProtocol.jvm % "compile->compile;test->test"
+    )
+    .dependsOnSuperRepo
+
   lazy val reactorsDebugger = project
     .copy(id = "reactors-debugger")
     .in(file("reactors-debugger"))
@@ -402,6 +429,7 @@ object ReactorsBuild extends MechaRepoBuild {
         .dependsOn(test in (reactorsContainer.jvm, Test))
         .dependsOn(test in (reactorsRemote.jvm, Test))
         .dependsOn(test in (reactorsProtocol.jvm, Test))
+        .dependsOn(test in (reactorsHttp, Test))
         .dependsOn(test in (reactorsDebugger, Test))
         .dependsOn(test in (reactorsExtra, Test)),
       publish <<= publish
@@ -410,6 +438,7 @@ object ReactorsBuild extends MechaRepoBuild {
         .dependsOn(publish in reactorsContainer.jvm)
         .dependsOn(publish in reactorsRemote.jvm)
         .dependsOn(publish in reactorsProtocol.jvm)
+        .dependsOn(publish in (reactorsHttp, Test))
         .dependsOn(publish in reactorsExtra),
       libraryDependencies ++= Seq(
         "com.novocode" % "junit-interface" % "0.11" % "test",
@@ -419,10 +448,12 @@ object ReactorsBuild extends MechaRepoBuild {
     .jvmConfigure(
       _.copy(id = "reactors-jvm").dependsOnSuperRepo
         .aggregate(
+          reactorsHttp,
           reactorsDebugger,
           reactorsExtra
         )
         .dependsOn(
+          reactorsHttp % "compile->compile;test->test",
           reactorsDebugger % "compile->compile;test->test",
           reactorsExtra % "compile->compile;test->test"
         )
