@@ -74,8 +74,8 @@ object Http {
   }
 
   trait Adapter {
-    def reactorUid: Long
-    def text(path: String)(handler: Request => String): Unit
+    def text(route: String)(handler: Request => String): Unit
+    def resource(route: String)(mime: String)(handler: Request => InputStream): Unit
   }
 
   private[reactors] class Instance (
@@ -111,20 +111,30 @@ object Http {
     }
 
     override def serve(session: IHTTPSession): Response = {
-      val path = session.getUri
-      handlers.get(path) match {
+      val route = session.getUri
+      handlers.get(route) match {
         case Some(handler) => handler(session)
         case None => errorHandler(session)
       }
     }
 
-    def text(path: String)(handler: Request => String): Unit = handlers.synchronized {
+    def text(route: String)(handler: Request => String): Unit = handlers.synchronized {
       val sessionHandler: IHTTPSession => Response = session => {
         val text = handler(new Request.Wrapper(session))
         NanoHTTPD.newFixedLengthResponse(
           NanoHTTPD.Response.Status.OK, "text/plain", text)
       }
-      handlers(path) = sessionHandler
+      handlers(route) = sessionHandler
     }
+
+    def resource(route: String)(mime: String)(handler: Request => InputStream): Unit =
+      handlers.synchronized {
+        val sessionHandler: IHTTPSession => Response = session => {
+          val inputStream = handler(new Request.Wrapper(session))
+          NanoHTTPD.newChunkedResponse(
+            NanoHTTPD.Response.Status.OK, mime, inputStream)
+        }
+        handlers(route) = sessionHandler
+      }
   }
 }

@@ -4,6 +4,7 @@ package http
 
 
 import io.reactors.test._
+import java.io.ByteArrayInputStream
 import org.openqa.selenium._
 import org.openqa.selenium.chrome._
 import org.openqa.selenium.interactions._
@@ -34,7 +35,14 @@ object HttpTest {
     val system = new ReactorSystem("http-test-system", bundle)
 
     val server = Reactor[Unit] { self =>
-      self.system.service[Http].at(9500).text("/test-text") { req => "Test text." }
+      self.system.service[Http].at(9500).text("/test-text") {
+        req =>
+        "Test text."
+      }
+      self.system.service[Http].at(9500).resource("/test-file")("text/javascript") {
+        req =>
+        new ByteArrayInputStream("var js = 'Test script.';".getBytes)
+      }
     }
     system.spawn(server)
 
@@ -60,5 +68,8 @@ object HttpTest {
   def runTests(driver: WebDriver, system: ReactorSystem) {
     driver.get("localhost:9500/test-text")
     assert(driver.getPageSource.contains("Test text."))
+
+    driver.get("localhost:9500/test-file")
+    assert(driver.getPageSource.contains("var js = 'Test script.';"))
   }
 }
