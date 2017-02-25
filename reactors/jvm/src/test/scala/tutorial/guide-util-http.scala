@@ -168,12 +168,12 @@ class GuideHttpService extends AsyncFunSuite {
     /*!end-code!*/
 
     /*!md
-    Now that we have our worker list, we can start the HTTP server,
+    Now that we have our worker list, we can start the parallel HTTP server,
     and spawn the server reactor:
     !*/
 
     /*!begin-code!*/
-      self.system.service[Http].at(9502, Some(workerChannel))
+      self.system.service[Http].parallel(9502, workerChannel)
         .text("/round") { req =>
           s"Round and round it goes -- ${Reactor.self.uid}!"
         }

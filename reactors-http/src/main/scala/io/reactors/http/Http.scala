@@ -37,8 +37,14 @@ class Http(val system: ReactorSystem) extends Protocol.Service {
     servers(port)
   }
 
-  def at(
-    port: Int, workers: Option[Channel[Http.Connection]] = None
+  def at(port: Int): Http.Adapter = getOrCreateAdapter(port, None)
+
+  def parallel(port: Int, workers: Channel[Http.Connection]): Http.Adapter = {
+    getOrCreateAdapter(port, Some(workers))
+  }
+
+  private[reactors] def getOrCreateAdapter(
+    port: Int, workers: Option[Channel[Http.Connection]]
   ): Http.Adapter = {
     val adapter = getOrCreateServer(port, workers)
     if (Reactor.self.uid != adapter.reactorUid)
