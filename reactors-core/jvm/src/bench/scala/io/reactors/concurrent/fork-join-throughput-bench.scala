@@ -20,8 +20,8 @@ import scala.util.Failure
 
 class ForkJoinThroughputBench extends JBench.OfflineReport {
   override def defaultConfig = Context(
-    exec.minWarmupRuns -> 80,
-    exec.maxWarmupRuns -> 120,
+    exec.minWarmupRuns -> 30,
+    exec.maxWarmupRuns -> 60,
     exec.benchRuns -> 72,
     exec.independentSamples -> 6,
     verbose -> true
