@@ -158,13 +158,18 @@ class GuideHttpService extends AsyncFunSuite {
     /*!end-code!*/
 
     /*!md
-    Now that we have our worker list, we can create the parallel server instance:
+    Now that we have our worker list, we can start the HTTP server,
+    and spawn the server reactor:
     !*/
 
     /*!begin-code!*/
-      self.system.service[Http].at(9502)
-        .text("/round") { req => "Round and round it goes!" }
+      self.system.service[Http].at(9502, Some(workerChannel))
+        .text("/round") { req =>
+          s"Round and round it goes -- ${Reactor.self.uid}!"
+        }
     }
+
+    system.spawn{parallelServer}
     /*!end-code!*/
 
     /*!md
@@ -173,7 +178,7 @@ class GuideHttpService extends AsyncFunSuite {
     by different workers.
     !*/
 
-    Thread.sleep(25000)
+    Thread.sleep(2500)
     system.shutdown()
 
     Promise.successful(assert(true)).future
