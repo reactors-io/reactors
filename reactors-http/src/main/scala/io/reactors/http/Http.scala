@@ -16,23 +16,31 @@ import scala.collection.JavaConverters._
 class Http(val system: ReactorSystem) extends Protocol.Service {
   private val servers = mutable.Map[Int, Http.Instance]()
 
-  private def getOrCreateServer(port: Int): Http.Instance =
-    servers.synchronized {
-      if (!servers.contains(port)) {
-        val reactorUid = Reactor.self.uid
-        val requests = system.channels.daemon.open[NanoHTTPD#ClientHandler]
-        val instance = new Http.Instance(port, reactorUid, requests.channel)
-        requests.events.onEvent(handler => handler.run())
-        Reactor.self.sysEvents onMatch {
-          case ReactorTerminated => instance.stop()
-        }
-        servers(port) = instance
+  private def getOrCreateServer(
+    port: Int, workers: Option[Channel[Http.Connection]]
+  ): Http.Instance = servers.synchronized {
+    if (!servers.contains(port)) {
+      val reactorUid = Reactor.self.uid
+      val requestChannel = if (workers != None) {
+        workers.get
+      } else {
+        val requests = system.channels.daemon.open[Http.Connection]
+        requests.events.onEvent(connection => connection.accept())
+        requests.channel
       }
-      servers(port)
+      val instance = new Http.Instance(port, reactorUid, requestChannel)
+      Reactor.self.sysEvents onMatch {
+        case ReactorTerminated => instance.stop()
+      }
+      servers(port) = instance
     }
+    servers(port)
+  }
 
-  def at(port: Int): Http.Adapter = {
-    val adapter = getOrCreateServer(port)
+  def at(
+    port: Int, workers: Option[Channel[Http.Connection]] = None
+  ): Http.Adapter = {
+    val adapter = getOrCreateServer(port, workers)
     if (Reactor.self.uid != adapter.reactorUid)
       sys.error("Server already at $port, and owned by reactor ${adapter.reactorUid}.")
     adapter
@@ -52,6 +60,17 @@ object Http {
   sealed trait Method
   case object Get extends Method
   case object Put extends Method
+
+  trait Connection {
+    def accept(): Unit
+  }
+
+  object Connection {
+    private[reactors] class Wrapper (val handler: NanoHTTPD#ClientHandler)
+    extends Connection {
+      def accept() = handler.run()
+    }
+  }
 
   trait Request {
     def headers: Map[String, String]
@@ -86,21 +105,22 @@ object Http {
   private[reactors] class Instance (
     val port: Int,
     val reactorUid: Long,
-    val requests: Channel[NanoHTTPD#ClientHandler]
+    val requests: Channel[Connection]
   ) extends NanoHTTPD(port) with Adapter {
     private val handlers = mutable.Map[String, IHTTPSession => Response]()
     private val runner = new NanoHTTPD.AsyncRunner {
       def closeAll() {}
       def closed(handler: NanoHTTPD#ClientHandler) {}
       def exec(handler: NanoHTTPD#ClientHandler) {
-        requests ! handler
+        requests ! new Connection.Wrapper(handler)
       }
     }
 
+    handlers("#") = defaultErrorHandler
     setAsyncRunner(runner)
     start(NanoHTTPD.SOCKET_READ_TIMEOUT, true)
 
-    private def errorHandler(session: IHTTPSession): Response = {
+    private def defaultErrorHandler(session: IHTTPSession): Response = {
       val content = """
       <html>
       <head><title>HTTP 404 Not Found</title>
@@ -117,10 +137,13 @@ object Http {
 
     override def serve(session: IHTTPSession): Response = {
       val route = session.getUri
-      handlers.get(route) match {
-        case Some(handler) => handler(session)
-        case None => errorHandler(session)
+      val handler = handlers.synchronized {
+        handlers.get(route) match {
+          case Some(handler) => handler
+          case None => handlers("#")
+        }
       }
+      handler(session)
     }
 
     def text(route: String)(handler: Request => String): Unit = handlers.synchronized {
