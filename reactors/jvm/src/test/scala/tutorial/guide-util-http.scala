@@ -147,7 +147,7 @@ class GuideHttpService extends AsyncFunSuite {
 
     It is also possible to create a server that forwards incoming messages
     to other workers. In this case, the parallelism of the server is improved,
-    but the workers are nort allowed to access the local state of the reactor.
+    but the workers are not allowed to access the local state of the reactor.
     To create such a server, we need to pass the worker channel to the `at` method
     the first time it gets called.
 
