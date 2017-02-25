@@ -23,7 +23,7 @@ class StreamingPingPongBench extends JBench.OfflineReport {
     exec.minWarmupRuns -> 150,
     exec.maxWarmupRuns -> 300,
     exec.benchRuns -> 120,
-    exec.independentSamples -> 4,
+    exec.independentSamples -> 6,
     verbose -> true
   )
 

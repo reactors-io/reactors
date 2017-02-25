@@ -23,7 +23,7 @@ class ForkJoinCreationBench extends JBench.OfflineReport {
     exec.minWarmupRuns -> 80,
     exec.maxWarmupRuns -> 120,
     exec.benchRuns -> 72,
-    exec.independentSamples -> 4,
+    exec.independentSamples -> 6,
     verbose -> true
   )
 

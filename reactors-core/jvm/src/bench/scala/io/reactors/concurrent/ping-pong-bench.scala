@@ -22,8 +22,8 @@ class PingPongBench extends JBench.OfflineReport {
   override def defaultConfig = Context(
     exec.minWarmupRuns -> 80,
     exec.maxWarmupRuns -> 120,
-    exec.benchRuns -> 48,
-    exec.independentSamples -> 4,
+    exec.benchRuns -> 72,
+    exec.independentSamples -> 6,
     verbose -> true
   )
 

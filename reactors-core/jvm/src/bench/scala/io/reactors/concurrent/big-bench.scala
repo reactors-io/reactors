@@ -23,8 +23,8 @@ class BigBench extends JBench.OfflineReport {
   override def defaultConfig = Context(
     exec.minWarmupRuns -> 20,
     exec.maxWarmupRuns -> 40,
-    exec.benchRuns -> 64,
-    exec.independentSamples -> 4,
+    exec.benchRuns -> 72,
+    exec.independentSamples -> 6,
     verbose -> true
   )
 
