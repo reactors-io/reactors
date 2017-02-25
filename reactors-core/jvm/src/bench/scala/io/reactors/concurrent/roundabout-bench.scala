@@ -23,8 +23,8 @@ class RoundaboutBench extends JBench.OfflineReport {
   override def defaultConfig = Context(
     exec.minWarmupRuns -> 80,
     exec.maxWarmupRuns -> 160,
-    exec.benchRuns -> 40,
-    exec.independentSamples -> 1,
+    exec.benchRuns -> 64,
+    exec.independentSamples -> 4,
     verbose -> false
   )
 

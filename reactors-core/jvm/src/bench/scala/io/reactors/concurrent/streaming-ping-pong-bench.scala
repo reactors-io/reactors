@@ -22,8 +22,8 @@ class StreamingPingPongBench extends JBench.OfflineReport {
   override def defaultConfig = Context(
     exec.minWarmupRuns -> 150,
     exec.maxWarmupRuns -> 300,
-    exec.benchRuns -> 96,
-    exec.independentSamples -> 1,
+    exec.benchRuns -> 120,
+    exec.independentSamples -> 4,
     verbose -> true
   )
 

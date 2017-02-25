@@ -23,7 +23,7 @@ class ThreadRingBench extends JBench.OfflineReport {
     exec.minWarmupRuns -> 80,
     exec.maxWarmupRuns -> 120,
     exec.benchRuns -> 72,
-    exec.independentSamples -> 1,
+    exec.independentSamples -> 4,
     verbose -> true
   )
 
