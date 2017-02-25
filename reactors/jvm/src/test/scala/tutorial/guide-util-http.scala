@@ -19,6 +19,7 @@ package tutorial
 import org.scalatest._
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Promise
+import scala.io.Source
 
 
 
@@ -123,6 +124,14 @@ class GuideHttpService extends AsyncFunSuite {
     system.spawn(server)
     /*!end-code!*/
 
+    Thread.sleep(500)
+    val hello = Source.fromURL("http://localhost:9500/hello?name=Pluto").mkString
+    assert(hello == "Hello, Pluto.")
+    val about = Source.fromURL("http://localhost:9500/about").mkString
+    assert(about.contains("<h2>About this website</h2>"))
+    val contact = Source.fromURL("http://localhost:9500/contact").mkString
+    assert(contact.contains("<website>http://reactors.io</website>"))
+
     /*!md
     If necessary, you can assign a custom scheduler to your server reactor.
     For example, if you want to ensure that your server gets a high priority,
@@ -171,6 +180,10 @@ class GuideHttpService extends AsyncFunSuite {
 
     system.spawn{parallelServer}
     /*!end-code!*/
+
+    Thread.sleep(500)
+    val round = Source.fromURL("http://localhost:9502/round").mkString
+    assert(round.contains("Round and round it goes --"))
 
     /*!md
     Again, note that the handler for `/round` is not allowed to access any local
