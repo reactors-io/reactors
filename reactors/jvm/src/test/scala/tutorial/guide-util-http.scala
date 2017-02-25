@@ -95,7 +95,7 @@ class GuideHttpService extends AsyncFunSuite {
         <body>
           <h2>About this website</h2>
           <p>
-            This website was server using the <pre>Http</pre> service,
+            This website was server using the <code>Http</code> service,
             and was created for you by a custom reactor.
           </p>
         </body>
@@ -138,7 +138,8 @@ class GuideHttpService extends AsyncFunSuite {
     you can use the custom thread scheduler. See the Schedulers section
     for more details.
 
-    You can now point your browser to `http://localhost:9500/hello`,
+    You can now point your browser to
+    [http://localhost:9500/hello](http://localhost:9500/hello),
     and see your web page in action.
 
 
