@@ -24,7 +24,7 @@ class BigBench extends JBench.OfflineReport {
     exec.minWarmupRuns -> 20,
     exec.maxWarmupRuns -> 40,
     exec.benchRuns -> 72,
-    exec.independentSamples -> 6,
+    exec.independentSamples -> 8,
     verbose -> true
   )
 
