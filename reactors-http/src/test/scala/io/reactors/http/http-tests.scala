@@ -56,7 +56,7 @@ object HttpTest {
         error = t
     } finally {
       // Quit.
-      Thread.sleep(2000)
+      Thread.sleep(1000)
       driver.quit()
       system.shutdown()
       Thread.sleep(1000)
@@ -68,6 +68,8 @@ object HttpTest {
   def runTests(driver: WebDriver, system: ReactorSystem) {
     driver.get("localhost:9500/test-text")
     assert(driver.getPageSource.contains("Test text."))
+
+    Thread.sleep(500)
 
     driver.get("localhost:9500/test-file")
     assert(driver.getPageSource.contains("var js = 'Test script.';"))

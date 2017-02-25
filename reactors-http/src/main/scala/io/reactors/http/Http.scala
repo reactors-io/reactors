@@ -55,6 +55,7 @@ object Http {
 
   trait Request {
     def headers: Map[String, String]
+    def parameters: Map[String, Seq[String]]
     def method: Method
     def uri: String
     def inputStream: InputStream
@@ -63,6 +64,9 @@ object Http {
   object Request {
     private[reactors] class Wrapper(val session: IHTTPSession) extends Request {
       def headers = session.getHeaders.asScala
+      def parameters = session.getParameters.asScala.map {
+        case (name, values) => (name, values.asScala)
+      }
       def method = session.getMethod match {
         case NanoHTTPD.Method.GET => Get
         case NanoHTTPD.Method.PUT => Put
@@ -75,6 +79,7 @@ object Http {
 
   trait Adapter {
     def text(route: String)(handler: Request => String): Unit
+    def html(route: String)(handler: Request => String): Unit
     def resource(route: String)(mime: String)(handler: Request => InputStream): Unit
   }
 
@@ -123,6 +128,15 @@ object Http {
         val text = handler(new Request.Wrapper(session))
         NanoHTTPD.newFixedLengthResponse(
           NanoHTTPD.Response.Status.OK, "text/plain", text)
+      }
+      handlers(route) = sessionHandler
+    }
+
+    def html(route: String)(handler: Request => String): Unit = handlers.synchronized {
+      val sessionHandler: IHTTPSession => Response = session => {
+        val text = handler(new Request.Wrapper(session))
+        NanoHTTPD.newFixedLengthResponse(
+          NanoHTTPD.Response.Status.OK, "text/html", text)
       }
       handlers(route) = sessionHandler
     }

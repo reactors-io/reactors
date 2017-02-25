@@ -1,0 +1,136 @@
+/*!md
+---
+layout: tutorial
+title: Http Service
+topic: reactors
+logoname: reactress-mini-logo-flat.png
+projectname: Reactors.IO
+homepage: http://reactors.io
+permalink: /reactors/util-http/index.html
+pagenum: 1
+pagetot: 40
+section: guide-util
+---
+!*/
+package tutorial
+
+
+
+import org.scalatest._
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Promise
+
+
+
+/*!md
+## Http Service
+
+In this section, we show how to use the `Http` service.
+The `Http` service allows each reactor to act as an HTTP server.
+To use this service, we need to add the `reactors-http` dependency:
+
+```scala
+libraryDependencies +=
+  "io.reactors" %% "reactors-http" % "<version>"
+```
+!*/
+class GuideHttpService extends AsyncFunSuite {
+
+  implicit override def executionContext = ExecutionContext.Implicits.global
+
+  test("simple server") {
+    /*!md
+    The `Http` service can be invoked by different reactors.
+    A server instance is associated with the first reactor
+    that requests a specific port. Until that reactor terminates,
+    other reactors cannot use that port (but they are allowed to request other ports).
+    After a reactor acquires a specific port, it effectively becomes the server
+    at that port. All incoming requests for that port are handled on this reactor.
+
+    To reply to user requests, the reactor then needs to define a set of routes.
+    Each route specifies how to respond to user requests coming on a different
+    path of the URI. Depending on the route, the reactor can respons with an HTML page,
+    with plain text, or with a resource that has a custom MIME type.
+
+    Let's start by importing the `io.reactors` and the `io.reactors.http` packages:
+    !*/
+
+    /*!begin-code!*/
+    import io.reactors._
+    import io.reactors.http._
+    /*!end-code!*/
+
+    /*!md
+    Next, we create a new reactor system, used to hold the server reactor.
+    !*/
+
+    /*!begin-code!*/
+    val system = ReactorSystem.default("test-system")
+    /*!end-code!*/
+
+    /*!md
+    We can now declare the server reactor.
+    Our reactor will first fetch the `Http` service singleton with the expression
+    `self.system.service[Http]`, and then invoke the `at` method combined with either
+    `text`, `html` or `resource` to install different routes. We will install three
+    different routes: `/hello`, `/about` and `/contact`, along with the corresponding
+    handlers. Note that in the case of the `/hello` handler, we read the `name`
+    parameter from the map of request parameters, and use it to greet the user.
+    !*/
+
+    /*!begin-code!*/
+    val server = Reactor[Unit] { self =>
+      val http = self.system.service[Http]
+      http.at(9500).text("/hello") { req =>
+        val name = req.parameters.getOrElse("name", "World").head
+        s"Hello, $name."
+      }
+      http.at(9500).html("/about") { req =>
+        """
+        <html>
+        <head>
+          <title>About</title>
+        </head>
+        <body>
+          <h2>About this website</h2>
+          <p>
+            This website was server using the <pre>Http</pre> service,
+            and was created for you by a custom reactor.
+          </p>
+        </body>
+        </html>
+        """
+      }
+      http.at(9500).resource("/contact")("text/xml") { req =>
+        val xml = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <note>
+          <website>http://reactors.io</website>
+          <source>https://github.com/reactors-io/reactors</source>
+        </note>
+        """.trim
+        new java.io.ByteArrayInputStream(xml.getBytes)
+      }
+    }
+    /*!end-code!*/
+
+    /*!md
+    Having defined the server reactor prototype, we next need to spawn it.
+    This is done as follows:
+    !*/
+
+    /*!begin-code!*/
+    system.spawn(server)
+    /*!end-code!*/
+
+    /*!md
+    You can now point your browser to `http://localhost:9500/hello`,
+    and see your web page in action.
+    !*/
+
+    Thread.sleep(2500)
+    system.shutdown()
+
+    Promise.successful(assert(true)).future
+  }
+}
