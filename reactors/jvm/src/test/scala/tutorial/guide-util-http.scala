@@ -1,7 +1,7 @@
 /*!md
 ---
 layout: tutorial
-title: Http Service
+title: HTTP Service
 topic: reactors
 logoname: reactress-mini-logo-flat.png
 projectname: Reactors.IO
