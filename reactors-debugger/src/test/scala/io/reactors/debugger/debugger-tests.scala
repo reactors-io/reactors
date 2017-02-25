@@ -23,7 +23,7 @@ class DebuggerTest extends FunSuite {
 object DebuggerTest {
   def main(args: Array[String]) {
     // Initialize driver.
-    System.setProperty("webdriver.chrome.driver", "tools/chromedriver")
+    System.setProperty("webdriver.chrome.driver", "../tools/chromedriver")
     val options = new ChromeOptions
     options.setBinary("/usr/bin/chromium-browser")
     val driver = new ChromeDriver(options)
