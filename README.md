@@ -18,7 +18,7 @@ on asynchronous event streams.
 Add the following line to your SBT project definition:
 
 ```
-libraryDependencies ++= Seq("com.storm-enroute" %% "reactors" % "0.6")
+libraryDependencies ++= Seq("io.reactors" %% "reactors" % "0.8")
 ```
 
 Then, import the `io.reactors` package in your project:
