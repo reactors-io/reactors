@@ -11,37 +11,56 @@ import scala.sys.process._
 
 
 class TcpRemoteTest extends FunSuite {
-  // test("tcp connection established") {
-  //   val socket = new Socket("localhost", "9500")
-  //   val bufferSize = 10000
-  //   val buffer = new Array[Byte](bufferSize)
+  test("tcp connection established") {
+    val proc = Seq("java", "-cp", sys.props("java.class.path"), "io.reactors.remote.TcpRemoteTest").run()
+    Thread.sleep(3000)
 
-  //   Seq("java", "-cp", "", "io.reactors.remote.TcpRemoteTest").run()
+    val socket = new Socket("localhost", 9500)
+    val bufferSize = TcpRemoteTest.bufferSize
+    val totalBatches = 1000000
+    val buffer = new Array[Byte](bufferSize)
+    try {
+      var j = 0
+      while (j < totalBatches) {
+        val os = socket.getOutputStream
+        var i = 0
+        while (i < bufferSize) {
+          buffer(i) = 1
+          i += 1
+        }
+        os.write(buffer, 0, bufferSize)
+        j += 1
+      }
+    } finally {
+      println("producer: sent all the batches")
+      Thread.sleep(3000)
+      proc.destroy()
+    }
 
-  //   while (i < 10000) {
-  //     val os = socket.getOutputStream
-  //     while (i < bufferSize) {
-  //       buffer(i) = 1
-  //       i += 1
-  //     }
-  //     os.write(buffer, 0, bufferSize)
-  //   }
-
-  //   assert(true)
-  // }
+    assert(true)
+  }
 }
 
 
 object TcpRemoteTest {
-  // def main(args: Array[String]) {
-  //   val serverSocket = new ServerSocket(9500)
-  //   val clientSocket = serverSocket.accept()
-  //   val is = clientSocket.getInputStream
-  //   val bufferSize = 10000
-  //   val buffer = new Array[Byte](bufferSize)
-  //   var count = 0
-  //   do {
-  //     count = is.read(buffer, 0, bufferSize)
-  //   } while (count > 0)
-  // }
+  val bufferSize = 10000
+
+  def main(args: Array[String]) {
+    val serverSocket = new ServerSocket(9500)
+    val clientSocket = serverSocket.accept()
+    val is = clientSocket.getInputStream
+    val buffer = new Array[Byte](bufferSize)
+    val check_period = 100
+    var round = 0L
+    var count = 0
+    val startTime = System.nanoTime()
+    do {
+      count = is.read(buffer, 0, bufferSize)
+      round += 1
+      if (round % check_period == 0) {
+        val totalTime = (System.nanoTime() - startTime) / 1000000.0
+        println(s"time: ${round * bufferSize / totalTime} bytes/ms")
+      }
+    } while (count > 0)
+  }
 }
