@@ -32,7 +32,7 @@ object LocalTransport {
   private[transport] class LocalChannel[@spec(Int, Long, Double) T](
     val transport: LocalTransport, val url: ChannelUrl
   ) extends Channel[T] {
-    def !(x: T): Unit = {
+    def send(x: T): Unit = {
       val isoName = url.reactorUrl.name
       val chName = url.anchor
       transport.system.channels.getLocal[T](isoName, chName) match {

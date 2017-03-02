@@ -2,8 +2,8 @@ package io.reactors
 
 
 
-import scala.collection._
 import io.reactors.concurrent.Frame
+import scala.collection._
 
 
 
@@ -15,18 +15,24 @@ import io.reactors.concurrent.Frame
  *
  *  @tparam T       type of the events propagated by this channel
  */
-trait Channel[@spec(Int, Long, Double) T] {
+trait Channel[@spec(Int, Long, Double) T] extends Channel.LowPriority[T] {
   /** Sends a single event on this channel.
    *
    *  @param x      event sent to the channel
    */
-  def !(x: T): Unit
+  def send(x: T): Unit
 }
 
 
 /** Default channel implementations.
  */
 object Channel {
+  /** Low priority supertype, used to hook the default implicit conversion for `!`.
+   */
+  trait LowPriority[@spec(Int, Long, Double) T] {
+    def send(x: T): Unit
+  }
+
   class Shared[@spec(Int, Long, Double) T: Arrayable](
     val url: ChannelUrl,
     @transient var underlying: Channel[T]
@@ -35,7 +41,7 @@ object Channel {
       underlying = system.remote.resolve[T](url)
     }
 
-    def !(x: T): Unit = {
+    def send(x: T): Unit = {
       // TODO: Make initialization thread-safe.
       if (underlying == null) {
         resolve(Reactor.self.system)
@@ -45,11 +51,11 @@ object Channel {
   }
 
   class Zero[@spec(Int, Long, Double) T] extends Channel[T] {
-    def !(x: T) = {}
+    def send(x: T) = {}
   }
 
   class Failed[@spec(Int, Long, Double) T] extends Channel[T] {
-    def !(x: T) = sys.error("Failed channel cannot deliver messages.")
+    def send(x: T) = sys.error("Failed channel cannot deliver messages.")
   }
 
   class Local[@spec(Int, Long, Double) T](
@@ -61,7 +67,7 @@ object Channel {
     private[reactors] var connector: Connector[T] = _
     private[reactors] var isOpen = true
 
-    def !(x: T): Unit = {
+    def send(x: T): Unit = {
       system.debugApi.eventSent(this, x)
       if (isOpen) {
         if (shortcut && (Reactor.currentFrame eq frame)) {

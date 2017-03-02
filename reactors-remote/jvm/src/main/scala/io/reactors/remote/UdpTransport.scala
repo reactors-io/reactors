@@ -164,7 +164,7 @@ object UdpTransport {
       val channelName = pickler.depickle[String](buffer)
       val event = pickler.depickle[AnyRef](buffer)
       udpTransport.system.channels.getLocal[AnyRef](isoName, channelName) match {
-        case Some(ch) => ch ! event
+        case Some(ch) => ch.send(event)
         case None => // Drop event -- no such channel here.
       }
     }
@@ -186,6 +186,6 @@ object UdpTransport {
   private class UdpChannel[@spec(Int, Long, Double) T](
     sender: UdpTransport.Sender[T], url: ChannelUrl
   ) extends Channel[T] {
-    def !(x: T): Unit = sender.enqueue(x, url)
+    def send(x: T): Unit = sender.enqueue(x, url)
   }
 }

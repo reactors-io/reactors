@@ -156,6 +156,15 @@ package object reactors {
       ChannelUrl(ReactorUrl(SystemUrl(schema, host, port), reactorName), channelName)
     }
   }
+
+  /* sends */
+
+  /** Default send operations for channel objects.
+   */
+  implicit class LowPriorityChannelOps[T](val ch: Channel.LowPriority[T])
+  extends AnyVal {
+    final def !(x: T) = ch.send(x)
+  }
 }
 
 

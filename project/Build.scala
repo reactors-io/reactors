@@ -289,7 +289,8 @@ object ReactorsBuild extends MechaRepoBuild {
       projectSettings("-remote") ++ Seq(
         libraryDependencies ++= Seq(
           "org.scalatest" %%% "scalatest" % "3.0.0" % "test",
-          "org.scalacheck" %%% "scalacheck" % "1.13.2" % "test"
+          "org.scalacheck" %%% "scalacheck" % "1.13.2" % "test",
+          "org.scala-lang" % "scala-reflect" % "2.11.8"
         ),
         unmanagedSourceDirectories in Compile +=
           baseDirectory.value.getParentFile / "shared" / "src" / "main" / "scala",

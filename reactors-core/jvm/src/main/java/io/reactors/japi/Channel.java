@@ -13,6 +13,6 @@ public class Channel<T> {
   }
 
   public void send(T event) {
-    this.self.$bang(event);
+    this.self.send(event);
   }
 }

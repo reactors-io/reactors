@@ -115,9 +115,9 @@ trait Reactor[@spec(Int, Long, Double) T] extends Platform.Reflectable {
 
 
 object Reactor {
-
   trait ReactorLocalThread {
     var currentFrame: Frame = null
+    var bufferCache: AnyRef = null
   }
 
   private[reactors] val currentFrameThreadLocal = new ThreadLocal[Frame] {
@@ -137,6 +137,15 @@ object Reactor {
   private[reactors] def currentReactor: Reactor[_] = {
     val f = currentFrame
     if (f == null) null else f.reactor
+  }
+
+  /** If the current worker thread is marked, returns that thread, otherwise `null`.
+   *
+   *  Used for optimizations.
+   */
+  def currentReactorLocalThread: ReactorLocalThread = Thread.currentThread match {
+    case rt: ReactorLocalThread => rt
+    case _ => null
   }
 
   /** Returns the current reactor.

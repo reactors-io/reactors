@@ -10,6 +10,4 @@ import java.net._
 
 
 class TcpTransport {
-  
-  assert(true)
 }
