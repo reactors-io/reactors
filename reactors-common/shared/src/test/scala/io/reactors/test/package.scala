@@ -84,7 +84,8 @@ package object test {
         val servernum = 44
         val xvfbCmd = Seq(
           "xvfb-run", "--listen-tcp", "--server-num", s"$servernum",
-          "--auth-file", "/home/axel22/.Xauthority",
+          "--auth-file", s"${sys.env("HOME")}/.Xauthority",
+          "-s", s"-screen 0 ${res}x16",
           "java", "-cp", classpath, mainClass)
         val xvfb = Process(xvfbCmd, cwd).run()
         Thread.sleep(1000)
@@ -93,18 +94,23 @@ package object test {
           if (!dirFile.exists) dirFile.mkdirs()
           val nowTime = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss").format(
             LocalDateTime.now())
-          val videoFileName = s"$dir/test-$nowTime-${UUID.randomUUID()}.mp4"
+          val buildId = sys.env.getOrElse("CI_BUILD_ID", "no-build-id")
+          val videoFileName =
+            s"$dir/test.$buildId.$mainClass.$nowTime-${UUID.randomUUID()}.mp4"
           println("Video file name: " + videoFileName)
           val ffmpegCmd = Seq(
-            "ffmpeg", "-f", "x11grab", "-video_size", res,
-            "-i", s"127.0.0.1:$servernum.0", "-codec:v", "libx264", "-r", "25",
+            "ffmpeg", // "-loglevel", "panic",
+            "-f", "x11grab", "-video_size", res,
+            "-i", s"127.0.0.1:$servernum.0", "-codec:v", "libx264", "-r", "24",
             videoFileName)
           val readyToKill = Promise[Boolean]()
           val io = new ProcessIO(
             in => {
               Await.ready(readyToKill.future, Duration.Inf)
+              println("Sending quit signal.")
               val writer = new PrintWriter(in)
               writer.print("q")
+              writer.flush()
             },
             out => Source.fromInputStream(out).getLines.foreach(println),
             err => Source.fromInputStream(err).getLines.foreach(println))
