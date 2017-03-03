@@ -16,7 +16,7 @@ import scala.collection.JavaConverters._
 
 class HttpTest extends FunSuite {
   test("test basic http scenarios") {
-    runXvfbTest("io.reactors.http.HttpTest")
+    runXvfbTest("io.reactors.http.HttpTest", Some("../target/videos"))
   }
 }
 
