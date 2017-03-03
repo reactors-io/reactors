@@ -2,10 +2,17 @@ package io.reactors
 
 
 
-import java.io.File
+import java.io._
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import java.util.UUID
 import org.scalacheck._
 import org.scalacheck.Gen._
 import org.scalacheck.Prop._
+import scala.concurrent.Await
+import scala.concurrent.Promise
+import scala.concurrent.duration.Duration
+import scala.io.Source
 import scala.sys.process._
 
 
@@ -68,13 +75,56 @@ package object test {
 
   def isWinOs: Boolean = osName.contains("win")
 
-  def runXvfbTest(mainClass: String): Unit = {
+  def runXvfbTest(mainClass: String, recordTo: Option[String] = None): Unit = {
     if (isLinuxOs) {
-      val classpath = System.getProperty("java.class.path")
-      val cmd = Seq("xvfb-run", "java", "-cp", classpath, mainClass)
-      val cwd = new File(".")
-      if (!sys.env.contains("TRAVIS")) assert(Process(cmd, cwd).! == 0)
-      else println("Skipping UI test in Travis!")
+      if (!sys.env.contains("TRAVIS")) {
+        val cwd = new File(".")
+        val classpath = System.getProperty("java.class.path")
+        val res = "1600x900"
+        val servernum = 44
+        val xvfbCmd = Seq(
+          "xvfb-run", "--listen-tcp", "--server-num", s"$servernum",
+          "--auth-file", s"${sys.env("HOME")}/.Xauthority",
+          "-s", s"-screen 0 ${res}x16",
+          "java", "-cp", classpath, mainClass)
+        val xvfb = Process(xvfbCmd, cwd).run()
+        Thread.sleep(1000)
+        val ffmpeg = recordTo.map { dir =>
+          val dirFile = new File(dir)
+          if (!dirFile.exists) dirFile.mkdirs()
+          val nowTime = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss").format(
+            LocalDateTime.now())
+          val buildId = sys.env.getOrElse("CI_BUILD_ID", "no-build-id")
+          val videoFileName =
+            s"$dir/test.$buildId.$mainClass.$nowTime-${UUID.randomUUID()}.mp4"
+          println("Video file name: " + videoFileName)
+          val ffmpegCmd = Seq(
+            "ffmpeg", "-loglevel", "panic",
+            "-f", "x11grab", "-video_size", res,
+            "-i", s"127.0.0.1:$servernum.0", "-codec:v", "libx264", "-r", "24",
+            videoFileName)
+          val readyToKill = Promise[Boolean]()
+          val io = new ProcessIO(
+            in => {
+              Await.ready(readyToKill.future, Duration.Inf)
+              println("Sending quit signal.")
+              val writer = new PrintWriter(in)
+              writer.print("q")
+              writer.flush()
+            },
+            out => Source.fromInputStream(out).getLines.foreach(println),
+            err => Source.fromInputStream(err).getLines.foreach(println))
+          (readyToKill, Process(ffmpegCmd, cwd).run(io))
+        }
+        try {
+          assert(xvfb.exitValue == 0)
+        } finally {
+          ffmpeg.foreach { case (readyToKill, proc) =>
+            readyToKill.success(true)
+            assert(proc.exitValue == 0)
+          }
+        }
+      } else println("Skipping UI test in Travis!")
     }
   }
 }

@@ -15,7 +15,7 @@ import scala.collection.JavaConverters._
 
 class DebuggerTest extends FunSuite {
   test("test basic debugger scenarios") {
-    runXvfbTest("io.reactors.debugger.DebuggerTest")
+    runXvfbTest("io.reactors.debugger.DebuggerTest", Some("../target/videos"))
   }
 }
 
