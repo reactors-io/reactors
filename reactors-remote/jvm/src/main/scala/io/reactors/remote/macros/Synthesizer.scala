@@ -22,14 +22,16 @@ class Synthesizer(val c: Context) {
     }
     val receiverBinding = TermName(c.freshName("channel"))
     val threadBinding = TermName(c.freshName("thread"))
+    val eventBinding = TermName(c.freshName("event"))
 
     q"""
+    val $eventBinding = $x
     val $receiverBinding = $receiver
     val $threadBinding = _root_.io.reactors.Reactor.currentReactorLocalThread
     if ($threadBinding != null && $threadBinding.bufferCache != null) {
       sys.error("Buffer cache optimization not implemented.")
     } else {
-      $receiverBinding.send($x)
+      $receiverBinding.send($eventBinding)
     }
     """
   }
