@@ -99,7 +99,7 @@ package object test {
             s"$dir/test.$buildId.$mainClass.$nowTime-${UUID.randomUUID()}.mp4"
           println("Video file name: " + videoFileName)
           val ffmpegCmd = Seq(
-            "ffmpeg", // "-loglevel", "panic",
+            "ffmpeg", "-loglevel", "panic",
             "-f", "x11grab", "-video_size", res,
             "-i", s"127.0.0.1:$servernum.0", "-codec:v", "libx264", "-r", "24",
             videoFileName)
