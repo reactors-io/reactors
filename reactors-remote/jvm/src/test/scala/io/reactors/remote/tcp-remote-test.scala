@@ -12,7 +12,9 @@ import scala.sys.process._
 
 class TcpRemoteTest extends FunSuite {
   test("tcp connection established") {
-    val proc = Seq("java", "-cp", sys.props("java.class.path"), "io.reactors.remote.TcpRemoteTest").run()
+    val proc = Seq(
+      "java", "-cp", sys.props("java.class.path"), "io.reactors.remote.TcpRemoteTest"
+    ).run()
     Thread.sleep(3000)
 
     val socket = new Socket("localhost", 9500)
