@@ -73,6 +73,8 @@ package object reactors {
     def test(obj: Any) = throw new TestControlException(obj.toString)
   }
 
+  /** Used in tests.
+   */
   case class TestControlException(msg: String)
   extends Throwable(msg) with NoStackTrace
 
