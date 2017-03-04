@@ -24,6 +24,10 @@ class Synthesizer(val c: Context) {
     val threadBinding = TermName(c.freshName("thread"))
     val eventBinding = TermName(c.freshName("event"))
 
+    x.tpe.baseClasses.map { cls =>
+      cls.isJava
+    }
+
     q"""
     val $eventBinding = $x
     val $receiverBinding = $receiver
