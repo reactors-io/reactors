@@ -117,7 +117,7 @@ trait Reactor[@spec(Int, Long, Double) T] extends Platform.Reflectable {
 object Reactor {
   trait ReactorLocalThread {
     var currentFrame: Frame = null
-    var bufferCache: AnyRef = null
+    var dataCache: Data = null
   }
 
   private[reactors] val currentFrameThreadLocal = new ThreadLocal[Frame] {

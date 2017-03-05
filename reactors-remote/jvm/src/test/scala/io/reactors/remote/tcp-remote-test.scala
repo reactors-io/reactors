@@ -41,6 +41,9 @@ class TcpRemoteTest extends FunSuite {
 
     assert(true)
   }
+
+  case class Baz(x: Boolean);
+  (null: Channel[Baz]) ! Baz(true)
 }
 
 
@@ -64,17 +67,17 @@ object TcpRemoteTest {
         println(s"time: ${round * bufferSize / totalTime} bytes/ms")
       }
     } while (count > 0)
-
-    val ch: Channel[Int] = null
-    ch ! 1
-
-    case class Foo(x: Int);
-    (null: Channel[Foo]) ! Foo(1)
-
-    trait Base {
-      var x: Int = 0
-    }
-    case class Bar(y: Int) extends Base;
-    (null: Channel[Bar]) ! Bar(2)
   }
+
+  val ch: Channel[Int] = null
+  ch ! 1
+
+  case class Foo(x: Int);
+  (null: Channel[Foo]) ! Foo(1)
+
+  trait Base {
+    var x: Int = 0
+  }
+  case class Bar(y: Int) extends Base;
+  (null: Channel[Bar]) ! Bar(2)
 }
