@@ -51,7 +51,9 @@ private[reactors] class Synthesizer(val c: Context) {
   }
 
   def createPlan(tpe: Type): Plan = {
-    Plan(ReflectiveKlass(tpe.typeSymbol, tpe), ReflectiveKlass(tpe.typeSymbol, tpe))
+    Plan(
+      ReflectiveKlass(tpe.typeSymbol, Some(tpe)),
+      ReflectiveKlass(tpe.typeSymbol, Some(tpe)))
   }
 
   def genMarshal(klass: Klass, x: Tree, data: Tree): Tree = {
@@ -60,10 +62,12 @@ private[reactors] class Synthesizer(val c: Context) {
         q"$x.marshal($data)"
       case NormalKlass(sym, fields, exact) =>
         q"???"
-      case ReflectiveKlass(sym, from) =>
+      case ReflectiveKlass(sym, Some(from)) =>
         val fromFullType = from.typeSymbol.asClass.toType
         val clazz = q"_root_.scala.Predef.classOf[${fromFullType}]"
         q"_root_.io.reactors.remote.RuntimeMarshaler.marshalAs($clazz, $x, $data)"
+      case ReflectiveKlass(sym, None) =>
+        q"_root_.io.reactors.remote.RuntimeMarshaler.marshalAs($x.getClass, $x, $data)"
     }
   }
 
@@ -75,7 +79,7 @@ private[reactors] class Synthesizer(val c: Context) {
 
   sealed trait Klass
 
-  case class ReflectiveKlass(symbol: Symbol, from: Type) extends Klass
+  case class ReflectiveKlass(symbol: Symbol, from: Option[Type]) extends Klass
 
   case class MarshalableKlass(symbol: Symbol) extends Klass
 
