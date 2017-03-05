@@ -9,7 +9,7 @@ import scala.reflect.macros.whitebox.Context
 
 
 
-class Synthesizer(val c: Context) {
+private[reactors] class Synthesizer(val c: Context) {
   import c.universe._
 
   def send(x: Tree): Tree = {
@@ -23,20 +23,64 @@ class Synthesizer(val c: Context) {
     val receiverBinding = TermName(c.freshName("channel"))
     val threadBinding = TermName(c.freshName("thread"))
     val eventBinding = TermName(c.freshName("event"))
+    val bufferBinding = TermName(c.freshName("buffer"))
 
-    x.tpe.baseClasses.map { cls =>
-      cls.isJava
+    println("------")
+    println(x.tpe)
+    for (m <- x.tpe.members) {
+      println(m, m.isMethod, m.isTerm, m.isPrivate, m.isPublic)
+    }
+    x.tpe.baseClasses.foreach { cls =>
+      println(cls, cls.isJava, cls.info.decls)
     }
 
-    q"""
-    val $eventBinding = $x
-    val $receiverBinding = $receiver
-    val $threadBinding = _root_.io.reactors.Reactor.currentReactorLocalThread
-    if ($threadBinding != null && $threadBinding.bufferCache != null) {
-      sys.error("Buffer cache optimization not implemented.")
-    } else {
-      $receiverBinding.send($eventBinding)
-    }
+    val plan = createPlan(x.tpe)
+
+    val sendTree = q"""
+      val $receiverBinding = $receiver
+      val $eventBinding = $x
+      val $threadBinding = _root_.io.reactors.Reactor.currentReactorLocalThread
+      if ($threadBinding != null && $threadBinding.bufferCache != null) {
+        val $bufferBinding = $threadBinding.bufferCache
+        ${genMarshal(plan.marshal, q"$eventBinding", q"$bufferBinding")}
+      } else {
+        $receiverBinding.send($eventBinding)
+      }
     """
+    sendTree
   }
+
+  def createPlan(tpe: Type): Plan = {
+    Plan(ReflectiveKlass(tpe.typeSymbol, tpe), ReflectiveKlass(tpe.typeSymbol, tpe))
+  }
+
+  def genMarshal(klass: Klass, x: Tree, buffer: Tree): Tree = {
+    klass match {
+      case MarshalableKlass(sym) =>
+        q"$x.marshal($buffer)"
+      case NormalKlass(sym, fields, exact) =>
+        q"???"
+      case ReflectiveKlass(sym, from) =>
+        val clazz = q"_root_.scala.Predef.classOf[${from.typeSymbol}]"
+        println(clazz)
+        q"_root_.io.reactors.remote.RuntimeMarshaler.marshalSuper($clazz, $x, $buffer)"
+    }
+  }
+
+  def genUnmarshal(klass: Klass, buffer: Tree): Tree = {
+    q""
+  }
+
+  case class Plan(marshal: Klass, unmarshal: Klass)
+
+  sealed trait Klass
+
+  case class ReflectiveKlass(symbol: Symbol, from: Type) extends Klass
+
+  case class MarshalableKlass(symbol: Symbol) extends Klass
+
+  case class NormalKlass(symbol: Symbol, fields: Seq[Field], exact: Boolean)
+  extends Klass
+
+  case class Field(symbol: Symbol, klass: Klass, reflective: Boolean)
 }
