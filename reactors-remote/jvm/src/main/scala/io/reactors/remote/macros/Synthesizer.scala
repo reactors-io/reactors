@@ -52,8 +52,8 @@ private[reactors] class Synthesizer(val c: Context) {
 
   def createPlan(tpe: Type): Plan = {
     Plan(
-      ReflectiveKlass(tpe.typeSymbol, Some(tpe)),
-      ReflectiveKlass(tpe.typeSymbol, Some(tpe)))
+      ReflectiveKlass(tpe.typeSymbol, None),
+      ReflectiveKlass(tpe.typeSymbol, None))
   }
 
   def genMarshal(klass: Klass, x: Tree, data: Tree): Tree = {
