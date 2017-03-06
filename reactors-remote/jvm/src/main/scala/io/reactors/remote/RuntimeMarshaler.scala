@@ -3,6 +3,7 @@ package remote
 
 
 
+import io.reactors.common.BloomMap
 import java.lang.reflect.Modifier
 
 
@@ -18,11 +19,11 @@ object RuntimeMarshaler {
   private val doubleClass = classOf[Double]
 
   def marshalAs[T](clazz: Class[_], obj: T, inputData: Data): Data = {
-    marshalAsInternal(clazz, obj, inputData)
+    marshalAsInternal(clazz, obj, inputData, Reactor.marshalSeen)
   }
 
   private def marshalAsInternal[T](
-    clazz: Class[_], obj: T, inputData: Data
+    clazz: Class[_], obj: T, inputData: Data, seen: BloomMap[AnyRef, Int]
   ): Data = {
     var data = inputData
     val fields = clazz.getDeclaredFields
@@ -109,7 +110,9 @@ object RuntimeMarshaler {
           sys.error("Array marshaling is currently not supported.")
         } else {
           val value = field.get(obj)
-          data = marshalInternal(value, data)
+          // TODO: Write class identifier.
+          ???
+          data = marshalInternal(value, data, seen)
         }
       }
       i += 1
@@ -120,14 +123,16 @@ object RuntimeMarshaler {
   }
 
   def marshal[T](obj: T, inputData: Data): Data = {
-    marshalInternal(obj, inputData)
+    marshalInternal(obj, inputData, Reactor.marshalSeen)
   }
 
-  private def marshalInternal[T](obj: T, inputData: Data): Data = {
+  private def marshalInternal[T](
+    obj: T, inputData: Data, seen: BloomMap[AnyRef, Int]
+  ): Data = {
     var data = inputData
     // TODO: Write class identifier.
     ???
     val clazz = obj.getClass
-    marshalAsInternal(clazz, obj, data)
+    marshalAsInternal(clazz, obj, data, seen)
   }
 }
