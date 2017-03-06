@@ -4,6 +4,7 @@ package io.reactors
 
 import scala.collection._
 import scala.util.DynamicVariable
+import io.reactors.common.BloomMap
 import io.reactors.concurrent._
 
 
@@ -115,10 +116,24 @@ trait Reactor[@spec(Int, Long, Double) T] extends Platform.Reflectable {
 
 
 object Reactor {
+  /** Mixin trait for workers that define a special thread-local variables.
+   */
   trait ReactorLocalThread {
     var currentFrame: Frame = null
     var dataCache: Data = null
+    var marshalSeen: BloomMap[AnyRef, Int] = marshalSeenThreadLocal.get
   }
+
+  private[reactors] val marshalSeenThreadLocal =
+    new ThreadLocal[BloomMap[AnyRef, Int]] {
+      override def initialValue = new BloomMap[AnyRef, Int]
+    }
+
+  private[reactors] def marshalSeen: BloomMap[AnyRef, Int] =
+    Thread.currentThread match {
+      case rt: ReactorLocalThread => rt.marshalSeen
+      case _ => marshalSeenThreadLocal.get
+    }
 
   private[reactors] val currentFrameThreadLocal = new ThreadLocal[Frame] {
     override def initialValue = null
