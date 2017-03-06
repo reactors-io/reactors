@@ -9,7 +9,7 @@ package common
 /** Support hash table for fast operations.
  */
 class FastHashTable[M >: Null <: AnyRef] {
-  protected[reactors] var table = new Array[Ref[M]](4)
+  protected[reactors] var table = new Array[Ref[M]](16)
   protected[reactors] var size = 0
   protected[reactors] var threshold = 4
 
