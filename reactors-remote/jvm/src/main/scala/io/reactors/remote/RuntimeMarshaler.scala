@@ -19,10 +19,10 @@ object RuntimeMarshaler {
   private val doubleClass = classOf[Double]
 
   def marshalAs[T](clazz: Class[_], obj: T, inputData: Data): Data = {
-    marshalAsInternal(clazz, obj, inputData, Reactor.marshalSeen)
+    internalMarshalAs(clazz, obj, inputData, Reactor.marshalSeen)
   }
 
-  private def marshalAsInternal[T](
+  private def internalMarshalAs[T](
     clazz: Class[_], obj: T, inputData: Data, seen: BloomMap[AnyRef, Int]
   ): Data = {
     var data = inputData
@@ -110,9 +110,7 @@ object RuntimeMarshaler {
           sys.error("Array marshaling is currently not supported.")
         } else {
           val value = field.get(obj)
-          // TODO: Write class identifier.
-          ???
-          data = marshalInternal(value, data, seen)
+          data = internalMarshal(value, data, seen)
         }
       }
       i += 1
@@ -123,16 +121,16 @@ object RuntimeMarshaler {
   }
 
   def marshal[T](obj: T, inputData: Data): Data = {
-    marshalInternal(obj, inputData, Reactor.marshalSeen)
+    internalMarshal(obj, inputData, Reactor.marshalSeen)
   }
 
-  private def marshalInternal[T](
+  private def internalMarshal[T](
     obj: T, inputData: Data, seen: BloomMap[AnyRef, Int]
   ): Data = {
     var data = inputData
     // TODO: Write class identifier.
     ???
     val clazz = obj.getClass
-    marshalAsInternal(clazz, obj, data, seen)
+    internalMarshalAs(clazz, obj, data, seen)
   }
 }
