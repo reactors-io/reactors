@@ -11,10 +11,11 @@ import scala.util.hashing.Hashing
 /** Bloom-filtered hash map that has fast checks when the key is not in the map.
  *
  *  The fast checks use reference checks. The map cannot contain `null` keys or values.
+ *  Values are specialized for integers and longs.
  */
-class BloomMap[K >: Null <: AnyRef: Arrayable, V >: Null <: AnyRef: Arrayable] {
+class BloomMap[K >: Null <: AnyRef: Arrayable, @specialized(Int, Long) V: Arrayable] {
   private var keytable = implicitly[Arrayable[K]].newRawArray(8)
-  private var valtable = implicitly[Arrayable[V]].newRawArray(8)
+  private var valtable = implicitly[Arrayable[V]].newArray(8)
   private var rawSize = 0
   private var bloom = new Array[Byte](4)
 
@@ -24,7 +25,7 @@ class BloomMap[K >: Null <: AnyRef: Arrayable, V >: Null <: AnyRef: Arrayable] {
     val pos = 1 << (hash & 0x7)
     val down = (bloom(idx) & pos) == 0
     if (down) false
-    else lookup(key) != null
+    else lookup(key) != implicitly[Arrayable[V]].nil
   }
 
   private def lookup(key: K): V = {
@@ -44,13 +45,13 @@ class BloomMap[K >: Null <: AnyRef: Arrayable, V >: Null <: AnyRef: Arrayable] {
     val idx = (hash >>> 3) % bloom.length
     val pos = 1 << (hash & 0x7)
     val down = (bloom(idx) & pos) == 0
-    if (down) null
+    if (down) implicitly[Arrayable[V]].nil
     else lookup(key)
   }
 
   private def insert(key: K, value: V): V = {
     assert(key != null)
-    checkResize()
+    checkResize(implicitly[Arrayable[V]].nil)
 
     var pos = System.identityHashCode(key) % keytable.length
     var curr = keytable(pos)
@@ -68,21 +69,27 @@ class BloomMap[K >: Null <: AnyRef: Arrayable, V >: Null <: AnyRef: Arrayable] {
     previousValue
   }
 
-  private def checkResize() {
+  private def checkResize(nil: V): Unit = {
     if (rawSize * 1000 / BloomMap.loadFactor > keytable.length) {
-      val okeytable = keytable
-      val ovaltable = valtable
-      val ncapacity = keytable.length * 2
-      keytable = implicitly[Arrayable[K]].newArray(ncapacity)
-      valtable = implicitly[Arrayable[V]].newArray(ncapacity)
-      rawSize = 0
+      resize(nil)
+    }
+  }
 
-      var pos = 0
-      while (pos < okeytable.length) {
-        val curr = okeytable(pos)
-        if (curr != null) insert(curr, ovaltable(pos))
-        pos += 1
+  private def resize(nil: V): Unit = {
+    val okeytable = keytable
+    val ovaltable = valtable
+    val ncapacity = keytable.length * 2
+    keytable = implicitly[Arrayable[K]].newRawArray(ncapacity)
+    valtable = implicitly[Arrayable[V]].newArray(ncapacity)
+    rawSize = 0
+
+    var pos = 0
+    while (pos < okeytable.length) {
+      val curr = okeytable(pos)
+      if (curr != null) {
+        val dummy = insert(curr, ovaltable(pos))
       }
+      pos += 1
     }
   }
 
@@ -113,7 +120,7 @@ class BloomMap[K >: Null <: AnyRef: Arrayable, V >: Null <: AnyRef: Arrayable] {
 
   def size = rawSize
 
-  private def before(i: Int, j: Int) = {
+  private def before(i: Int, j: Int): Boolean = {
     val d = keytable.length >> 1
     if (i <= j) j - i < d
     else i - j > d
@@ -129,7 +136,7 @@ class BloomMap[K >: Null <: AnyRef: Arrayable, V >: Null <: AnyRef: Arrayable] {
       curr = keytable(pos)
     }
 
-    if (curr == null) null
+    if (curr == null) implicitly[Arrayable[V]].nil
     else {
       val previousValue = valtable(pos)
 
@@ -146,7 +153,7 @@ class BloomMap[K >: Null <: AnyRef: Arrayable, V >: Null <: AnyRef: Arrayable] {
       }
 
       keytable(h0) = null
-      valtable(h0) = null
+      valtable(h0) = implicitly[Arrayable[V]].nil
       rawSize -= 1
 
       previousValue
@@ -155,11 +162,11 @@ class BloomMap[K >: Null <: AnyRef: Arrayable, V >: Null <: AnyRef: Arrayable] {
 
   def remove(key: K): V = delete(key)
 
-  def clear(): Unit = {
+  def clear()(implicit spec: BloomMap.Spec[V]): Unit = {
     var i = 0
     while (i < keytable.length) {
       keytable(i) = null
-      valtable(i) = null
+      valtable(i) = implicitly[Arrayable[V]].nil
       i += 1
     }
     i = 0
@@ -173,4 +180,14 @@ class BloomMap[K >: Null <: AnyRef: Arrayable, V >: Null <: AnyRef: Arrayable] {
 
 object BloomMap {
   val loadFactor = 400
+
+  class Spec[@specialized(Int, Long) T]
+
+  implicit val intSpec = new Spec[Int]
+
+  implicit val longSpec = new Spec[Long]
+
+  private val anySpecValue = new Spec[Any]
+
+  implicit def anySpec[T] = anySpecValue.asInstanceOf[Spec[T]]
 }
