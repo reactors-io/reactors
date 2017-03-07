@@ -10,7 +10,9 @@ import scala.util.hashing.Hashing
 
 /** Bloom-filtered hash map that has fast checks when the key is not in the map.
  *
- *  The fast checks use reference checks. The map cannot contain `null` keys or values.
+ *  Equality and hashing are reference-based.
+ *
+ *  The fast checks use identity hash. The map cannot contain `null` keys or values.
  *  Values are specialized for integers and longs.
  */
 class BloomMap[K >: Null <: AnyRef: Arrayable, @specialized(Int, Long) V: Arrayable] {
