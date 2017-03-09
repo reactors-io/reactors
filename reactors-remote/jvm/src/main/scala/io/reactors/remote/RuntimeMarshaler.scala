@@ -37,7 +37,7 @@ object RuntimeMarshaler {
           tpe match {
             case RuntimeMarshaler.this.intClass =>
               val v = field.getInt(obj)
-              if (data.spaceLeft < 4) data = data.flush()
+              if (data.spaceLeft < 4) data = data.flush(-1)
               val pos = data.pos
               data.raw(pos + 0) = (v & 0x000000ff).toByte
               data.raw(pos + 1) = (v & 0x0000ff00).toByte
@@ -46,7 +46,7 @@ object RuntimeMarshaler {
               data.pos += 4
             case RuntimeMarshaler.this.longClass =>
               val v = field.getLong(obj)
-              if (data.spaceLeft < 8) data = data.flush()
+              if (data.spaceLeft < 8) data = data.flush(-1)
               val pos = data.pos
               data.raw(pos + 0) = (v & 0x00000000000000ffL).toByte
               data.raw(pos + 1) = (v & 0x000000000000ff00L).toByte
@@ -59,7 +59,7 @@ object RuntimeMarshaler {
               data.pos += 8
             case RuntimeMarshaler.this.doubleClass =>
               val v = java.lang.Double.doubleToRawLongBits(field.getDouble(obj))
-              if (data.spaceLeft < 8) data = data.flush()
+              if (data.spaceLeft < 8) data = data.flush(-1)
               val pos = data.pos
               data.raw(pos + 0) = (v & 0x00000000000000ffL).toByte
               data.raw(pos + 1) = (v & 0x000000000000ff00L).toByte
@@ -72,7 +72,7 @@ object RuntimeMarshaler {
               data.pos += 8
             case RuntimeMarshaler.this.floatClass =>
               val v = java.lang.Float.floatToRawIntBits(field.getFloat(obj))
-              if (data.spaceLeft < 4) data = data.flush()
+              if (data.spaceLeft < 4) data = data.flush(-1)
               val pos = data.pos
               data.raw(pos + 0) = (v & 0x000000ff).toByte
               data.raw(pos + 1) = (v & 0x0000ff00).toByte
@@ -81,26 +81,26 @@ object RuntimeMarshaler {
               data.pos += 4
             case RuntimeMarshaler.this.byteClass =>
               val v = field.getByte(obj)
-              if (data.spaceLeft < 1) data = data.flush()
+              if (data.spaceLeft < 1) data = data.flush(-1)
               val pos = data.pos
               data.raw(pos + 0) = v
               data.pos += 1
             case RuntimeMarshaler.this.booleanClass =>
               val v = field.getBoolean(obj)
-              if (data.spaceLeft < 1) data = data.flush()
+              if (data.spaceLeft < 1) data = data.flush(-1)
               val pos = data.pos
               data.raw(pos) = if (v) 1 else 0
               data.pos += 1
             case RuntimeMarshaler.this.charClass =>
               val v = field.getChar(obj)
-              if (data.spaceLeft < 2) data = data.flush()
+              if (data.spaceLeft < 2) data = data.flush(-1)
               val pos = data.pos
               data.raw(pos + 0) = (v & 0x000000ff).toByte
               data.raw(pos + 1) = (v & 0x0000ff00).toByte
               data.pos += 2
             case RuntimeMarshaler.this.shortClass =>
               val v = field.getInt(obj)
-              if (data.spaceLeft < 2) data = data.flush()
+              if (data.spaceLeft < 2) data = data.flush(-1)
               val pos = data.pos
               data.raw(pos + 0) = (v & 0x000000ff).toByte
               data.raw(pos + 1) = (v & 0x0000ff00).toByte
@@ -110,7 +110,8 @@ object RuntimeMarshaler {
           sys.error("Array marshaling is currently not supported.")
         } else {
           val value = field.get(obj)
-          data = internalMarshal(value, data, seen)
+          val marshalType = Modifier.isFinal(field.getClass.getModifiers)
+          data = internalMarshal(value, data, marshalType, seen)
         }
       }
       i += 1
@@ -120,17 +121,28 @@ object RuntimeMarshaler {
     else data
   }
 
-  def marshal[T](obj: T, inputData: Data): Data = {
-    internalMarshal(obj, inputData, Reactor.marshalSeen)
+  def marshal[T](obj: T, inputData: Data, marshalType: Boolean = true): Data = {
+    internalMarshal(obj, inputData, marshalType, Reactor.marshalSeen)
   }
 
   private def internalMarshal[T](
-    obj: T, inputData: Data, seen: BloomMap[AnyRef, Int]
+    obj: T, inputData: Data, marshalType: Boolean, seen: BloomMap[AnyRef, Int]
   ): Data = {
     var data = inputData
-    // TODO: Write class identifier.
-    ???
     val clazz = obj.getClass
+    if (marshalType) {
+      val name = obj.getClass.getName
+      val typeLength = name.length + 1
+      if (typeLength > data.spaceLeft) data = data.flush(typeLength)
+      val pos = data.pos
+      var i = 0
+      while (i < name.length) {
+        data.raw(pos + i) = name.charAt(i).toByte
+        i += 1
+      }
+      data.raw(pos + i) = 0
+      data.pos += typeLength
+    }
     internalMarshalAs(clazz, obj, data, seen)
   }
 }

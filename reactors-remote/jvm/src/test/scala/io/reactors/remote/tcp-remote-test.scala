@@ -11,7 +11,7 @@ import scala.sys.process._
 
 
 class TcpRemoteTest extends FunSuite {
-  test("tcp connection established") {
+  test("local tcp connection established") {
     val proc = Seq(
       "java", "-cp", sys.props("java.class.path"), "io.reactors.remote.TcpRemoteTest"
     ).run()
@@ -41,9 +41,6 @@ class TcpRemoteTest extends FunSuite {
 
     assert(true)
   }
-
-  case class Baz(x: Boolean);
-  (null: Channel[Baz]) ! Baz(true)
 }
 
 
@@ -68,16 +65,4 @@ object TcpRemoteTest {
       }
     } while (count > 0)
   }
-
-  val ch: Channel[Int] = null
-  ch ! 1
-
-  case class Foo(x: Int);
-  (null: Channel[Foo]) ! Foo(1)
-
-  trait Base {
-    var x: Int = 0
-  }
-  case class Bar(y: Int) extends Base;
-  (null: Channel[Bar]) ! Bar(2)
 }

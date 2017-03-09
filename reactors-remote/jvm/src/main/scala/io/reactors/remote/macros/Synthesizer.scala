@@ -35,7 +35,6 @@ private[reactors] class Synthesizer(val c: Context) {
     // }
 
     val plan = createPlan(x.tpe)
-
     val sendTree = q"""
       val $receiverBinding = $receiver
       val $eventBinding = $x
@@ -47,6 +46,7 @@ private[reactors] class Synthesizer(val c: Context) {
         $receiverBinding.send($eventBinding)
       }
     """
+    println(sendTree)
     sendTree
   }
 
