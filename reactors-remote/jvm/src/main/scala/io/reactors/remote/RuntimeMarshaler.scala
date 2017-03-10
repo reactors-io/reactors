@@ -26,9 +26,18 @@ object RuntimeMarshaler {
   private val fieldComparator = new Comparator[Field] {
     def compare(x: Field, y: Field): Int = x.getName.compareTo(y.getName)
   }
+  private val isMarshalableField: Field => Boolean = f => {
+    !Modifier.isTransient(f.getModifiers)
+  }
 
   private def computeFieldsOf(klazz: Class[_]): Array[Field] = {
-    klazz.getDeclaredFields.filter(f => !Modifier.isTransient(f.getModifiers))
+    val fields = mutable.ArrayBuffer[Field]()
+    var ancestor = klazz
+    while (ancestor != null) {
+      fields ++= ancestor.getDeclaredFields.filter(isMarshalableField)
+      ancestor = ancestor.getSuperclass
+    }
+    fields.toArray
   }
 
   private def fieldsOf(klazz: Class[_]): Array[Field] = {
@@ -137,10 +146,7 @@ object RuntimeMarshaler {
       }
       i += 1
     }
-    // TODO: Remove once we cache all superclass fields.
-    val superclazz = klazz.getSuperclass
-    if (superclazz != null) marshalAs(superclazz, obj, data)
-    else data
+    data
   }
 
   def marshal[T](obj: T, inputData: Data, marshalType: Boolean = true): Data = {
