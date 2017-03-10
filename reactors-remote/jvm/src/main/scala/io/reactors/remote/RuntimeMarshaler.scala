@@ -68,73 +68,73 @@ object RuntimeMarshaler {
         tpe match {
           case RuntimeMarshaler.this.intClass =>
             val v = field.getInt(obj)
-            if (data.remainingWriteSize < 4) data = data.flush(-1)
+            if (data.remainingWriteSize < 4) data = data.flush(4)
             val pos = data.endPos
-            data(pos + 0) = (v & 0x000000ff).toByte
-            data(pos + 1) = (v & 0x0000ff00).toByte
-            data(pos + 2) = (v & 0x00ff0000).toByte
-            data(pos + 3) = (v & 0xff000000).toByte
+            data(pos + 0) = ((v & 0x000000ff) >>> 0).toByte
+            data(pos + 1) = ((v & 0x0000ff00) >>> 8).toByte
+            data(pos + 2) = ((v & 0x00ff0000) >>> 16).toByte
+            data(pos + 3) = ((v & 0xff000000) >>> 24).toByte
             data.endPos += 4
           case RuntimeMarshaler.this.longClass =>
             val v = field.getLong(obj)
-            if (data.remainingWriteSize < 8) data = data.flush(-1)
+            if (data.remainingWriteSize < 8) data = data.flush(8)
             val pos = data.endPos
-            data(pos + 0) = (v & 0x00000000000000ffL).toByte
-            data(pos + 1) = (v & 0x000000000000ff00L).toByte
-            data(pos + 2) = (v & 0x0000000000ff0000L).toByte
-            data(pos + 3) = (v & 0x00000000ff000000L).toByte
-            data(pos + 4) = (v & 0x000000ff00000000L).toByte
-            data(pos + 5) = (v & 0x0000ff0000000000L).toByte
-            data(pos + 6) = (v & 0x00ff000000000000L).toByte
-            data(pos + 7) = (v & 0xff00000000000000L).toByte
+            data(pos + 0) = ((v & 0x00000000000000ffL) >>> 0).toByte
+            data(pos + 1) = ((v & 0x000000000000ff00L) >>> 8).toByte
+            data(pos + 2) = ((v & 0x0000000000ff0000L) >>> 16).toByte
+            data(pos + 3) = ((v & 0x00000000ff000000L) >>> 24).toByte
+            data(pos + 4) = ((v & 0x000000ff00000000L) >>> 32).toByte
+            data(pos + 5) = ((v & 0x0000ff0000000000L) >>> 40).toByte
+            data(pos + 6) = ((v & 0x00ff000000000000L) >>> 48).toByte
+            data(pos + 7) = ((v & 0xff00000000000000L) >>> 56).toByte
             data.endPos += 8
           case RuntimeMarshaler.this.doubleClass =>
             val v = java.lang.Double.doubleToRawLongBits(field.getDouble(obj))
-            if (data.remainingWriteSize < 8) data = data.flush(-1)
+            if (data.remainingWriteSize < 8) data = data.flush(8)
             val pos = data.endPos
-            data(pos + 0) = (v & 0x00000000000000ffL).toByte
-            data(pos + 1) = (v & 0x000000000000ff00L).toByte
-            data(pos + 2) = (v & 0x0000000000ff0000L).toByte
-            data(pos + 3) = (v & 0x00000000ff000000L).toByte
-            data(pos + 4) = (v & 0x000000ff00000000L).toByte
-            data(pos + 5) = (v & 0x0000ff0000000000L).toByte
-            data(pos + 6) = (v & 0x00ff000000000000L).toByte
-            data(pos + 7) = (v & 0xff00000000000000L).toByte
+            data(pos + 0) = ((v & 0x00000000000000ffL) >>> 0).toByte
+            data(pos + 1) = ((v & 0x000000000000ff00L) >>> 8).toByte
+            data(pos + 2) = ((v & 0x0000000000ff0000L) >>> 16).toByte
+            data(pos + 3) = ((v & 0x00000000ff000000L) >>> 24).toByte
+            data(pos + 4) = ((v & 0x000000ff00000000L) >>> 32).toByte
+            data(pos + 5) = ((v & 0x0000ff0000000000L) >>> 40).toByte
+            data(pos + 6) = ((v & 0x00ff000000000000L) >>> 48).toByte
+            data(pos + 7) = ((v & 0xff00000000000000L) >>> 56).toByte
             data.endPos += 8
           case RuntimeMarshaler.this.floatClass =>
             val v = java.lang.Float.floatToRawIntBits(field.getFloat(obj))
-            if (data.remainingWriteSize < 4) data = data.flush(-1)
+            if (data.remainingWriteSize < 4) data = data.flush(4)
             val pos = data.endPos
-            data(pos + 0) = (v & 0x000000ff).toByte
-            data(pos + 1) = (v & 0x0000ff00).toByte
-            data(pos + 2) = (v & 0x00ff0000).toByte
-            data(pos + 3) = (v & 0xff000000).toByte
+            data(pos + 0) = ((v & 0x000000ff) >>> 0).toByte
+            data(pos + 1) = ((v & 0x0000ff00) >>> 8).toByte
+            data(pos + 2) = ((v & 0x00ff0000) >>> 16).toByte
+            data(pos + 3) = ((v & 0xff000000) >>> 24).toByte
             data.endPos += 4
           case RuntimeMarshaler.this.byteClass =>
             val v = field.getByte(obj)
-            if (data.remainingWriteSize < 1) data = data.flush(-1)
+            if (data.remainingWriteSize < 1) data = data.flush(1)
             val pos = data.endPos
             data(pos + 0) = v
             data.endPos += 1
           case RuntimeMarshaler.this.booleanClass =>
             val v = field.getBoolean(obj)
-            if (data.remainingWriteSize < 1) data = data.flush(-1)
+            if (data.remainingWriteSize < 1) data = data.flush(1)
             val pos = data.endPos
             data(pos) = if (v) 1 else 0
             data.endPos += 1
           case RuntimeMarshaler.this.charClass =>
             val v = field.getChar(obj)
-            if (data.remainingWriteSize < 2) data = data.flush(-1)
+            if (data.remainingWriteSize < 2) data = data.flush(2)
             val pos = data.endPos
-            data(pos + 0) = (v & 0x000000ff).toByte
-            data(pos + 1) = (v & 0x0000ff00).toByte
+            data(pos + 0) = ((v & 0x000000ff) >>> 0).toByte
+            data(pos + 1) = ((v & 0x0000ff00) >>> 8).toByte
             data.endPos += 2
           case RuntimeMarshaler.this.shortClass =>
             val v = field.getInt(obj)
-            if (data.remainingWriteSize < 2) data = data.flush(-1)
+            if (data.remainingWriteSize < 2) data = data.flush(2)
             val pos = data.endPos
-            data(pos + 0) = (v & 0x000000ff).toByte
-            data(pos + 1) = (v & 0x0000ff00).toByte
+            data(pos + 0) = ((v & 0x000000ff) >>> 0).toByte
+            data(pos + 1) = ((v & 0x0000ff00) >>> 8).toByte
             data.endPos += 2
         }
       } else if (tpe.isArray) {
@@ -202,27 +202,56 @@ object RuntimeMarshaler {
         if (last != 0) stringBuffer.append(last.toChar)
         i += 1
         if (i == until) {
-          data = data.fetch()
+          data.startPos += i - data.startPos
           if (last != 0) {
+            data = data.fetch()
             i = data.startPos
             until = data.startPos + data.remainingReadSize
           }
         }
       }
+      data.startPos += i - data.startPos
       val klazzName = stringBuffer.toString
       klazz = Class.forName(klazzName)
     }
     val obj = unsafe.allocateInstance(klazz)
-    internalUnmarshalAs(klazz, obj, data, context)
+    data = internalUnmarshalAs(klazz, obj, data, context)
     obj.asInstanceOf[T]
   }
 
   private def internalUnmarshalAs[T](
     klazz: Class[_], obj: T, inputData: Data, context: Reactor.MarshalContext
-  ): T = {
+  ): Data = {
     var data = inputData
     val fields = klazz.getDeclaredFields
-    // TODO: Unmarshal fields.
-    obj
+    var i = 0
+    while (i < fields.length) {
+      val field = fields(i)
+      field.setAccessible(true)
+      val tpe = field.getType
+      if (tpe.isPrimitive) {
+        tpe match {
+          case RuntimeMarshaler.this.intClass =>
+            if (data.remainingReadSize >= 4) {
+              val pos = data.startPos
+              val b0 = data(pos + 0) << 0
+              val b1 = data(pos + 1) << 8
+              val b2 = data(pos + 2) << 16
+              val b3 = data(pos + 3) << 24
+              field.setInt(obj, b3 | b2 | b1 | b0)
+            } else {
+              sys.error("Slow path not supported.")
+            }
+          case _ =>
+            sys.error(s"The type $tpe is not supported.")
+        }
+      } else if (tpe.isArray) {
+        sys.error("Array marshaling is currently not supported.")
+      } else {
+        sys.error("Object unmarshaling is currently not supported.")
+      }
+      i += 1
+    }
+    data
   }
 }
