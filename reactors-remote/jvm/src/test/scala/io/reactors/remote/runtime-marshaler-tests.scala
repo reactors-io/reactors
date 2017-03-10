@@ -31,6 +31,14 @@ class RuntimeMarshalerTest extends FunSuite {
     val obj = RuntimeMarshaler.unmarshal[NonFinalSingle](data)
     assert(obj.x == 15)
   }
+
+  test("marshal single integer field final class") {
+    val data = new Data.Linked(128, 128)
+    RuntimeMarshaler.marshal(new FinalSingle(15), data)
+    println(data.byteString)
+    val obj = RuntimeMarshaler.unmarshal[FinalSingle](data)
+    assert(obj.x == 15)
+  }
 }
 
 
@@ -41,3 +49,6 @@ final class FinalEmpty
 
 
 final class NonFinalSingle(val x: Int)
+
+
+final class FinalSingle(val x: Int)
