@@ -13,6 +13,7 @@ import scala.concurrent.blocking
 import scala.util.Success
 import scala.util.Failure
 import scala.util.Try
+import sun.misc.Unsafe
 
 
 
@@ -177,4 +178,10 @@ object Platform {
   private[reactors] trait Reflectable
 
   private[reactors] def newSnapshotMap[K, V] = new TrieMap[K, V]
+
+  val unsafe = {
+    val unsafeInstanceField = classOf[Unsafe].getDeclaredField("theUnsafe")
+    unsafeInstanceField.setAccessible(true)
+    unsafeInstanceField.get(null).asInstanceOf[Unsafe]
+  }
 }

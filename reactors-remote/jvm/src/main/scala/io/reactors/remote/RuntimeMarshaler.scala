@@ -214,7 +214,7 @@ object RuntimeMarshaler {
       val klazzName = stringBuffer.toString
       klazz = Class.forName(klazzName)
     }
-    val obj = unsafe.allocateInstance(klazz)
+    val obj = Platform.unsafe.allocateInstance(klazz)
     data = internalUnmarshalAs(klazz, obj, data, context)
     obj.asInstanceOf[T]
   }
