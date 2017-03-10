@@ -5,6 +5,7 @@ package remote
 
 import io.reactors.common.BloomMap
 import java.lang.reflect.Modifier
+import scala.reflect.ClassTag
 
 
 
@@ -144,5 +145,16 @@ object RuntimeMarshaler {
       data.pos += typeLength
     }
     internalMarshalAs(clazz, obj, data, seen)
+  }
+
+  def unmarshal[T: ClassTag](inputData: Data, unmarshalType: Boolean = true): T = {
+    var data = inputData
+    var klazz = implicitly[ClassTag[T]].runtimeClass
+    if (unmarshalType) {
+      // TODO: Unmarshal type.
+    }
+    val instance = unsafe.allocateInstance(klazz)
+    // TODO: Unmarshal fields.
+    instance.asInstanceOf[T]
   }
 }

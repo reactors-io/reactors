@@ -12,12 +12,14 @@ class RuntimeMarshalerTest extends FunSuite {
     val data = new Data.Linked(128, 128)
     RuntimeMarshaler.marshal(new NonFinalEmpty, data)
     println(data.raw.mkString(", "))
+    RuntimeMarshaler.unmarshal[NonFinalEmpty](data)
   }
 
   test("marshal empty final class") {
     val data = new Data.Linked(128, 128)
     RuntimeMarshaler.marshal(new FinalEmpty, data)
     println(data.raw.mkString(", "))
+    RuntimeMarshaler.unmarshal[FinalEmpty](data)
   }
 }
 
