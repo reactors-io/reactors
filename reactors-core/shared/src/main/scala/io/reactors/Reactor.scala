@@ -121,18 +121,22 @@ object Reactor {
   trait ReactorLocalThread {
     var currentFrame: Frame = null
     var dataCache: Data = null
-    var marshalSeen: BloomMap[AnyRef, Int] = marshalSeenThreadLocal.get
+    var marshalContext: MarshalContext = marshalContextThreadLocal.get
   }
 
-  private[reactors] val marshalSeenThreadLocal =
-    new ThreadLocal[BloomMap[AnyRef, Int]] {
-      override def initialValue = new BloomMap[AnyRef, Int]
-    }
+  class MarshalContext() {
+    val seen = new BloomMap[AnyRef, Int]
+    val stringBuffer = new StringBuilder
+  }
 
-  private[reactors] def marshalSeen: BloomMap[AnyRef, Int] =
+  private[reactors] val marshalContextThreadLocal = new ThreadLocal[MarshalContext] {
+    override def initialValue = new MarshalContext
+  }
+
+  private[reactors] def marshalContext: MarshalContext =
     Thread.currentThread match {
-      case rt: ReactorLocalThread => rt.marshalSeen
-      case _ => marshalSeenThreadLocal.get
+      case rt: ReactorLocalThread => rt.marshalContext
+      case _ => marshalContextThreadLocal.get
     }
 
   private[reactors] val currentFrameThreadLocal = new ThreadLocal[Frame] {

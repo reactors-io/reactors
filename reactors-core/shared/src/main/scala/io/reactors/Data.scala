@@ -5,25 +5,35 @@ package io.reactors
 
 
 
-abstract class Data(val raw: Array[Byte], var pos: Int) {
+abstract class Data(private val raw: Array[Byte], var startPos: Int, var endPos: Int) {
   def flush(minNextSize: Int): Data
 
   def fetch(): Data
 
-  final def spaceLeft: Int = raw.length - pos
+  def update(pos: Int, b: Byte): Unit = raw(pos) = b
+
+  def apply(pos: Int): Byte = raw(pos)
+
+  final def remainingWriteSize: Int = raw.length - endPos
+
+  final def remainingReadSize: Int = endPos - startPos
+
+  def byteString = raw.mkString(", ")
 }
 
 
 object Data {
   private[reactors] class Linked(val defaultBatchSize: Int, requestedBatchSize: Int)
-  extends Data(new Array(math.max(requestedBatchSize, defaultBatchSize)), 0) {
-    private var rawNext: Linked = null
+  extends Data(new Array(math.max(requestedBatchSize, defaultBatchSize)), 0, 0) {
+    private var next: Linked = null
 
     def flush(minNextSize: Int): Data = {
-      rawNext = new Linked(defaultBatchSize, requestedBatchSize)
-      rawNext
+      next = new Linked(defaultBatchSize, requestedBatchSize)
+      next
     }
 
-    def fetch(): Data = rawNext
+    def fetch(): Data = {
+      next
+    }
   }
 }
