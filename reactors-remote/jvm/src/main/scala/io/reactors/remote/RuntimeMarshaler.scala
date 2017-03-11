@@ -234,11 +234,26 @@ object RuntimeMarshaler {
           case RuntimeMarshaler.this.intClass =>
             if (data.remainingReadSize >= 4) {
               val pos = data.startPos
-              val b0 = data(pos + 0) << 0
-              val b1 = data(pos + 1) << 8
-              val b2 = data(pos + 2) << 16
-              val b3 = data(pos + 3) << 24
+              val b0 = data(pos + 0).toInt << 0
+              val b1 = data(pos + 1).toInt << 8
+              val b2 = data(pos + 2).toInt << 16
+              val b3 = data(pos + 3).toInt << 24
               field.setInt(obj, b3 | b2 | b1 | b0)
+            } else {
+              sys.error("Slow path not supported.")
+            }
+          case RuntimeMarshaler.this.longClass =>
+            if (data.remainingReadSize >= 8) {
+              val pos = data.startPos
+              val b0 = data(pos + 0).toLong << 0
+              val b1 = data(pos + 1).toLong << 8
+              val b2 = data(pos + 2).toLong << 16
+              val b3 = data(pos + 3).toLong << 24
+              val b4 = data(pos + 4).toLong << 32
+              val b5 = data(pos + 5).toLong << 40
+              val b6 = data(pos + 6).toLong << 48
+              val b7 = data(pos + 7).toLong << 56
+              field.setLong(obj, b7 | b6 | b5 | b4 | b3 | b2 | b1 | b0)
             } else {
               sys.error("Slow path not supported.")
             }
