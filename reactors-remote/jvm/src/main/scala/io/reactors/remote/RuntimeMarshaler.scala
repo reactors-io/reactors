@@ -191,7 +191,9 @@ object RuntimeMarshaler {
     var klazz = implicitly[ClassTag[T]].runtimeClass
     if (unmarshalType) {
       val stringBuffer = context.stringBuffer
-      if (data.remainingReadSize < 1) data = data.fetch()
+      if (data.remainingReadSize < 1) {
+        data = data.fetch()
+      }
       var last = data(data.startPos)
       if (last == 0) sys.error("Data does not contain a type signature.")
       var i = data.startPos
@@ -240,7 +242,16 @@ object RuntimeMarshaler {
               val b3 = data(pos + 3).toInt << 24
               field.setInt(obj, b3 | b2 | b1 | b0)
             } else {
-              sys.error("Slow path not supported.")
+              var i = 0
+              var x = 0
+              while (i < 4) {
+                if (data.remainingReadSize == 0) data = data.fetch()
+                val b = data(data.startPos)
+                x |= (b.toInt << (8 * i))
+                data.startPos += 1
+                i += 1
+              }
+              field.setInt(obj, x)
             }
           case RuntimeMarshaler.this.longClass =>
             if (data.remainingReadSize >= 8) {

@@ -28,7 +28,7 @@ object Data {
     private var next: Linked = null
 
     def flush(minNextSize: Int): Data = {
-      next = new Linked(defaultBatchSize, requestedBatchSize)
+      next = new Linked(defaultBatchSize, minNextSize)
       next
     }
 

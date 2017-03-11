@@ -26,17 +26,33 @@ class RuntimeMarshalerTest extends FunSuite {
 
   test("marshal single integer field non-final class") {
     val data = new Data.Linked(128, 128)
-    RuntimeMarshaler.marshal(new NonFinalSingle(15), data)
+    RuntimeMarshaler.marshal(new NonFinalSingleInt(15), data)
     println(data.byteString)
-    val obj = RuntimeMarshaler.unmarshal[NonFinalSingle](data)
+    val obj = RuntimeMarshaler.unmarshal[NonFinalSingleInt](data)
     assert(obj.x == 15)
   }
 
   test("marshal single integer field final class") {
     val data = new Data.Linked(128, 128)
-    RuntimeMarshaler.marshal(new FinalSingle(15), data)
+    RuntimeMarshaler.marshal(new FinalSingleInt(15), data)
     println(data.byteString)
-    val obj = RuntimeMarshaler.unmarshal[FinalSingle](data)
+    val obj = RuntimeMarshaler.unmarshal[FinalSingleInt](data)
+    assert(obj.x == 15)
+  }
+
+  test("marshal single long field class") {
+    val data = new Data.Linked(128, 128)
+    RuntimeMarshaler.marshal(new SingleLong(15), data)
+    println(data.byteString)
+    val obj = RuntimeMarshaler.unmarshal[SingleLong](data)
+    assert(obj.x == 15)
+  }
+
+  test("marshal single int field class, when buffer is small") {
+    val data = new Data.Linked(16, 16)
+    RuntimeMarshaler.marshal(new FinalSingleInt(15), data)
+    println(data.byteString)
+    val obj = RuntimeMarshaler.unmarshal[FinalSingleInt](data)
     assert(obj.x == 15)
   }
 }
@@ -48,7 +64,10 @@ class NonFinalEmpty
 final class FinalEmpty
 
 
-final class NonFinalSingle(val x: Int)
+class NonFinalSingleInt(val x: Int)
 
 
-final class FinalSingle(val x: Int)
+final class FinalSingleInt(val x: Int)
+
+
+class SingleLong(val x: Long)

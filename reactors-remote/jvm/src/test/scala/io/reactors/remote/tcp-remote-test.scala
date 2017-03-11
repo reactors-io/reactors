@@ -3,7 +3,6 @@ package remote
 
 
 
-import java.io._
 import java.net._
 import org.scalatest.FunSuite
 import scala.sys.process._
