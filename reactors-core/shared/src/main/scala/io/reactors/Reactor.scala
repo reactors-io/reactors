@@ -125,8 +125,25 @@ object Reactor {
   }
 
   class MarshalContext() {
+    private var lastReference = 0
     val written = new BloomMap[AnyRef, Int]
+    val seen = mutable.ArrayBuffer[AnyRef]()
     val stringBuffer = new StringBuilder
+
+    def createFreshReference(): Int = {
+      val ref = lastReference
+      lastReference += 1
+      ref
+    }
+
+    def resetMarshal(): Unit = {
+      if (written.nonEmpty) written.clear()
+      lastReference = 0
+    }
+
+    def resetUnmarshal(): Unit = {
+      if (seen.nonEmpty) seen.clear()
+    }
   }
 
   private[reactors] val marshalContextThreadLocal = new ThreadLocal[MarshalContext] {

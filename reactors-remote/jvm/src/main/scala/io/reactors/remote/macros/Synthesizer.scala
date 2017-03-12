@@ -65,9 +65,14 @@ private[reactors] class Synthesizer(val c: Context) {
       case ReflectiveKlass(sym, Some(from)) =>
         val fromFullType = from.typeSymbol.asClass.toType
         val clazz = q"_root_.scala.Predef.classOf[${fromFullType}]"
-        q"_root_.io.reactors.remote.RuntimeMarshaler.marshalAs($clazz, $x, $data)"
+        q"""
+          _root_.io.reactors.remote.RuntimeMarshaler.marshalAs($clazz, $x, $data, true)
+        """
       case ReflectiveKlass(sym, None) =>
-        q"_root_.io.reactors.remote.RuntimeMarshaler.marshalAs($x.getClass, $x, $data)"
+        q"""
+          _root_.io.reactors.remote.RuntimeMarshaler.marshalAs(
+          $x.getClass, $x, $data, false)
+        """
     }
   }
 

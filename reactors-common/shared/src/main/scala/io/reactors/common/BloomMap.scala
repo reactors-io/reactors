@@ -20,6 +20,7 @@ class BloomMap[K >: Null <: AnyRef: Arrayable, @specialized(Int, Long) V: Arraya
   private var valtable = implicitly[Arrayable[V]].newArray(8)
   private var rawSize = 0
   private var bloom = new Array[Byte](4)
+  private val rawNil = implicitly[Arrayable[V]].nil
 
   def contains(key: K): Boolean = {
     val hash = System.identityHashCode(key)
@@ -27,7 +28,7 @@ class BloomMap[K >: Null <: AnyRef: Arrayable, @specialized(Int, Long) V: Arraya
     val pos = 1 << (hash & 0x7)
     val down = (bloom(idx) & pos) == 0
     if (down) false
-    else lookup(key) != implicitly[Arrayable[V]].nil
+    else lookup(key) != rawNil
   }
 
   private def lookup(key: K): V = {
@@ -42,18 +43,20 @@ class BloomMap[K >: Null <: AnyRef: Arrayable, @specialized(Int, Long) V: Arraya
     valtable(pos)
   }
 
+  def nil: V = rawNil
+
   def get(key: K): V = {
     val hash = System.identityHashCode(key)
     val idx = (hash >>> 3) % bloom.length
     val pos = 1 << (hash & 0x7)
     val down = (bloom(idx) & pos) == 0
-    if (down) implicitly[Arrayable[V]].nil
+    if (down) rawNil
     else lookup(key)
   }
 
   private def insert(key: K, value: V): V = {
     assert(key != null)
-    checkResize(implicitly[Arrayable[V]].nil)
+    checkResize(rawNil)
 
     var pos = System.identityHashCode(key) % keytable.length
     var curr = keytable(pos)
@@ -142,7 +145,7 @@ class BloomMap[K >: Null <: AnyRef: Arrayable, @specialized(Int, Long) V: Arraya
       curr = keytable(pos)
     }
 
-    if (curr == null) implicitly[Arrayable[V]].nil
+    if (curr == null) rawNil
     else {
       val previousValue = valtable(pos)
 
@@ -159,7 +162,7 @@ class BloomMap[K >: Null <: AnyRef: Arrayable, @specialized(Int, Long) V: Arraya
       }
 
       keytable(h0) = null
-      valtable(h0) = implicitly[Arrayable[V]].nil
+      valtable(h0) = rawNil
       rawSize -= 1
 
       previousValue
@@ -172,7 +175,7 @@ class BloomMap[K >: Null <: AnyRef: Arrayable, @specialized(Int, Long) V: Arraya
     var i = 0
     while (i < keytable.length) {
       keytable(i) = null
-      valtable(i) = implicitly[Arrayable[V]].nil
+      valtable(i) = rawNil
       i += 1
     }
     i = 0

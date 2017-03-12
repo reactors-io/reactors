@@ -31,9 +31,9 @@ object RuntimeMarshaler {
     !Modifier.isTransient(f.getModifiers)
   }
 
-  private def classNameTerminator: Byte = 1
+  private def classNameTerminatorTag: Byte = 1
 
-  private def objectReference: Byte = 2
+  private def objectReferenceTag: Byte = 2
 
   private def computeFieldsOf(klazz: Class[_]): Array[Field] = {
     val fields = mutable.ArrayBuffer[Field]()
@@ -55,10 +55,14 @@ object RuntimeMarshaler {
     fields
   }
 
-  def marshalAs[T](klazz: Class[_], obj: T, inputData: Data): Data = {
+  def marshalAs[T](
+    klazz: Class[_], obj: T, inputData: Data, alreadyRecordedReference: Boolean
+  ): Data = {
     val context = Reactor.marshalContext
+    if (!alreadyRecordedReference)
+      context.written.put(obj.asInstanceOf[AnyRef], context.createFreshReference())
     val data = internalMarshalAs(klazz, obj, inputData, context)
-    if (context.written.nonEmpty) context.written.clear()
+    context.resetMarshal()
     data
   }
 
@@ -149,8 +153,22 @@ object RuntimeMarshaler {
         sys.error("Array marshaling is currently not supported.")
       } else {
         val value = field.get(obj)
-        val marshalType = !Modifier.isFinal(field.getClass.getModifiers)
-        data = internalMarshal(value, data, marshalType, context)
+        val ref = context.written.get(value)
+        if (ref != context.written.nil) {
+          if (data.remainingWriteSize < 5) data = data.flush(5)
+          val pos = data.endPos
+          data(pos + 0) = objectReferenceTag
+          data(pos + 1) = ((ref & 0x000000ff) >>> 0).toByte
+          data(pos + 2) = ((ref & 0x0000ff00) >>> 8).toByte
+          data(pos + 3) = ((ref & 0x00ff0000) >>> 16).toByte
+          data(pos + 4) = ((ref & 0xff000000) >>> 24).toByte
+          data.endPos += 5
+        } else {
+          val marshalType = !Modifier.isFinal(field.getClass.getModifiers)
+          val freshRef = context.createFreshReference()
+          context.written.put(value, freshRef)
+          data = internalMarshal(value, data, marshalType, context)
+        }
       }
       i += 1
     }
@@ -159,8 +177,9 @@ object RuntimeMarshaler {
 
   def marshal[T](obj: T, inputData: Data, marshalType: Boolean = true): Data = {
     val context = Reactor.marshalContext
+    context.written.put(obj.asInstanceOf[AnyRef], context.createFreshReference())
     val data = internalMarshal(obj, inputData, marshalType, context)
-    if (context.written.nonEmpty) context.written.clear()
+    context.resetMarshal()
     data
   }
 
@@ -179,11 +198,11 @@ object RuntimeMarshaler {
         data(pos + i) = name.charAt(i).toByte
         i += 1
       }
-      data(pos + i) = classNameTerminator
+      data(pos + i) = classNameTerminatorTag
       data.endPos += typeLength
     } else {
       if (data.remainingWriteSize < 1) data = data.flush(-1)
-      data(data.endPos) = classNameTerminator
+      data(data.endPos) = classNameTerminatorTag
       data.endPos += 1
     }
     internalMarshalAs(klazz, obj, data, context)
@@ -195,7 +214,7 @@ object RuntimeMarshaler {
     val context = Reactor.marshalContext
     val klazz = implicitly[ClassTag[T]].runtimeClass
     val obj = internalUnmarshal[T](klazz, inputData, unmarshalType, context)
-    if (context.written.nonEmpty) context.written.clear()
+    context.resetUnmarshal()
     obj
   }
 
@@ -205,39 +224,55 @@ object RuntimeMarshaler {
   ): T = {
     var data = inputData()
     var klazz = assumedKlazz
-    if (unmarshalType) {
-      val stringBuffer = context.stringBuffer
-      if (data.remainingReadSize < 1) data = data.fetch()
-      var last = data(data.startPos)
-      if (last == 0) sys.error("Data does not contain a type signature.")
-      var i = data.startPos
-      var until = data.startPos + data.remainingReadSize
-      stringBuffer.setLength(0)
-      while (last != classNameTerminator) {
-        last = data(i)
-        if (last != classNameTerminator) stringBuffer.append(last.toChar)
+    if (data.remainingReadSize < 1) data = data.fetch()
+    val initialByte = data(data.startPos)
+    if (initialByte == objectReferenceTag) {
+      var i = 0
+      var ref = 0
+      while (i < 4) {
+        if (data.remainingReadSize == 0) data = data.fetch()
+        val b = data(data.startPos)
+        ref |= (b.toInt & 0xff) << (8 * i)
+        data.startPos += 1
         i += 1
-        if (i == until) {
-          data.startPos += i - data.startPos
-          if (last != classNameTerminator) {
-            data = data.fetch()
-            i = data.startPos
-            until = data.startPos + data.remainingReadSize
+      }
+      val obj = context.seen(ref)
+      inputData := data
+      obj.asInstanceOf[T]
+    } else {
+      if (unmarshalType) {
+        val stringBuffer = context.stringBuffer
+        var last = initialByte
+        if (last == 0) sys.error("Data does not contain a type signature.")
+        var i = data.startPos
+        var until = data.startPos + data.remainingReadSize
+        stringBuffer.setLength(0)
+        while (last != classNameTerminatorTag) {
+          last = data(i)
+          if (last != classNameTerminatorTag) stringBuffer.append(last.toChar)
+          i += 1
+          if (i == until) {
+            data.startPos += i - data.startPos
+            if (last != classNameTerminatorTag) {
+              data = data.fetch()
+              i = data.startPos
+              until = data.startPos + data.remainingReadSize
+            }
           }
         }
+        data.startPos += i - data.startPos
+        val klazzName = stringBuffer.toString
+        klazz = Class.forName(klazzName)
+      } else {
+        assert(initialByte == classNameTerminatorTag)
+        data.startPos += 1
       }
-      data.startPos += i - data.startPos
-      val klazzName = stringBuffer.toString
-      klazz = Class.forName(klazzName)
-    } else {
-      if (data.remainingReadSize < 1) data = data.fetch()
-      assert(data(data.startPos) == classNameTerminator)
-      data.startPos += 1
+      val obj = Platform.unsafe.allocateInstance(klazz)
+      context.seen += obj
+      inputData := data
+      internalUnmarshalAs(klazz, obj, inputData, context)
+      obj.asInstanceOf[T]
     }
-    val obj = Platform.unsafe.allocateInstance(klazz)
-    inputData := data
-    internalUnmarshalAs(klazz, obj, inputData, context)
-    obj.asInstanceOf[T]
   }
 
   private def internalUnmarshalAs[T](
