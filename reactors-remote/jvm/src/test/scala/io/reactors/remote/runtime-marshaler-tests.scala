@@ -55,6 +55,30 @@ class RuntimeMarshalerTest extends FunSuite {
     val obj = RuntimeMarshaler.unmarshal[FinalSingleInt](data)
     assert(obj.x == 15)
   }
+
+  test("marshal single long field class, when buffer is small") {
+    val data = new Data.Linked(16, 16)
+    RuntimeMarshaler.marshal(new SingleLong(15), data)
+    println(data.byteString)
+    val obj = RuntimeMarshaler.unmarshal[SingleLong](data)
+    assert(obj.x == 15)
+  }
+
+  test("marshal single double field class") {
+    val data = new Data.Linked(128, 128)
+    RuntimeMarshaler.marshal(new SingleDouble(15.0), data)
+    println(data.byteString)
+    val obj = RuntimeMarshaler.unmarshal[SingleDouble](data)
+    assert(obj.x == 15.0)
+  }
+
+  test("marshal single double field class, when buffer is small") {
+    val data = new Data.Linked(16, 16)
+    RuntimeMarshaler.marshal(new SingleDouble(15.0), data)
+    println(data.byteString)
+    val obj = RuntimeMarshaler.unmarshal[SingleDouble](data)
+    assert(obj.x == 15.0)
+  }
 }
 
 
@@ -71,3 +95,6 @@ final class FinalSingleInt(val x: Int)
 
 
 class SingleLong(val x: Long)
+
+
+class SingleDouble(val x: Double)

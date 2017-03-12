@@ -247,7 +247,7 @@ object RuntimeMarshaler {
               while (i < 4) {
                 if (data.remainingReadSize == 0) data = data.fetch()
                 val b = data(data.startPos)
-                x |= (b.toInt << (8 * i))
+                x |= b.toInt << (8 * i)
                 data.startPos += 1
                 i += 1
               }
@@ -266,7 +266,43 @@ object RuntimeMarshaler {
               val b7 = data(pos + 7).toLong << 56
               field.setLong(obj, b7 | b6 | b5 | b4 | b3 | b2 | b1 | b0)
             } else {
-              sys.error("Slow path not supported.")
+              var i = 0
+              var x = 0L
+              while (i < 8) {
+                if (data.remainingReadSize == 0) data = data.fetch()
+                val b = data(data.startPos)
+                x |= b.toLong << (8 * i)
+                data.startPos += 1
+                i += 1
+              }
+              field.setLong(obj, x)
+            }
+          case RuntimeMarshaler.this.doubleClass =>
+            if (data.remainingReadSize >= 8) {
+              val pos = data.startPos
+              val b0 = data(pos + 0).toLong << 0
+              val b1 = data(pos + 1).toLong << 8
+              val b2 = data(pos + 2).toLong << 16
+              val b3 = data(pos + 3).toLong << 24
+              val b4 = data(pos + 4).toLong << 32
+              val b5 = data(pos + 5).toLong << 40
+              val b6 = data(pos + 6).toLong << 48
+              val b7 = data(pos + 7).toLong << 56
+              val bits = b7 | b6 | b5 | b4 | b3 | b2 | b1 | b0
+              val x = java.lang.Double.longBitsToDouble(bits)
+              field.setDouble(obj, x)
+            } else {
+              var i = 0
+              var bits = 0L
+              while (i < 8) {
+                if (data.remainingReadSize == 0) data = data.fetch()
+                val b = data(data.startPos)
+                bits |= b.toLong << (8 * i)
+                data.startPos += 1
+                i += 1
+              }
+              val x = java.lang.Double.longBitsToDouble(bits)
+              field.setDouble(obj, x)
             }
           case _ =>
             sys.error(s"The type $tpe is not supported.")
