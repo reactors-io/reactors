@@ -24,7 +24,7 @@ object RuntimeMarshaler {
   private val doubleClass = classOf[Double]
   private val fieldCache = new BloomMap[Class[_], Array[Field]]
   private val fieldComparator = new Comparator[Field] {
-    def compare(x: Field, y: Field): Int = x.getName.compareTo(y.getName)
+    def compare(x: Field, y: Field): Int = x.toString.compareTo(y.toString)
   }
   private val isMarshalableField: Field => Boolean = f => {
     !Modifier.isTransient(f.getModifiers)
@@ -225,7 +225,7 @@ object RuntimeMarshaler {
     klazz: Class[_], obj: T, inputData: Data, context: Reactor.MarshalContext
   ): Data = {
     var data = inputData
-    val fields = klazz.getDeclaredFields
+    val fields = fieldsOf(klazz)
     var i = 0
     while (i < fields.length) {
       val field = fields(i)
@@ -236,10 +236,10 @@ object RuntimeMarshaler {
           case RuntimeMarshaler.this.intClass =>
             if (data.remainingReadSize >= 4) {
               val pos = data.startPos
-              val b0 = data(pos + 0).toInt << 0
-              val b1 = data(pos + 1).toInt << 8
-              val b2 = data(pos + 2).toInt << 16
-              val b3 = data(pos + 3).toInt << 24
+              val b0 = (data(pos + 0).toInt << 0) & 0x000000ff
+              val b1 = (data(pos + 1).toInt << 8) & 0x0000ff00
+              val b2 = (data(pos + 2).toInt << 16) & 0x00ff0000
+              val b3 = (data(pos + 3).toInt << 24) & 0xff000000
               field.setInt(obj, b3 | b2 | b1 | b0)
               data.startPos = pos + 4
             } else {
@@ -248,7 +248,7 @@ object RuntimeMarshaler {
               while (i < 4) {
                 if (data.remainingReadSize == 0) data = data.fetch()
                 val b = data(data.startPos)
-                x |= b.toInt << (8 * i)
+                x |= (b.toInt & 0xff) << (8 * i)
                 data.startPos += 1
                 i += 1
               }
@@ -257,14 +257,14 @@ object RuntimeMarshaler {
           case RuntimeMarshaler.this.longClass =>
             if (data.remainingReadSize >= 8) {
               val pos = data.startPos
-              val b0 = data(pos + 0).toLong << 0
-              val b1 = data(pos + 1).toLong << 8
-              val b2 = data(pos + 2).toLong << 16
-              val b3 = data(pos + 3).toLong << 24
-              val b4 = data(pos + 4).toLong << 32
-              val b5 = data(pos + 5).toLong << 40
-              val b6 = data(pos + 6).toLong << 48
-              val b7 = data(pos + 7).toLong << 56
+              val b0 = (data(pos + 0).toLong << 0) & 0x00000000000000ffL
+              val b1 = (data(pos + 1).toLong << 8) & 0x000000000000ff00L
+              val b2 = (data(pos + 2).toLong << 16) & 0x0000000000ff0000L
+              val b3 = (data(pos + 3).toLong << 24) & 0x00000000ff000000L
+              val b4 = (data(pos + 4).toLong << 32) & 0x000000ff00000000L
+              val b5 = (data(pos + 5).toLong << 40) & 0x0000ff0000000000L
+              val b6 = (data(pos + 6).toLong << 48) & 0x00ff000000000000L
+              val b7 = (data(pos + 7).toLong << 56) & 0xff00000000000000L
               field.setLong(obj, b7 | b6 | b5 | b4 | b3 | b2 | b1 | b0)
               data.startPos = pos + 8
             } else {
@@ -273,7 +273,7 @@ object RuntimeMarshaler {
               while (i < 8) {
                 if (data.remainingReadSize == 0) data = data.fetch()
                 val b = data(data.startPos)
-                x |= b.toLong << (8 * i)
+                x |= (b.toLong & 0xff) << (8 * i)
                 data.startPos += 1
                 i += 1
               }
@@ -282,16 +282,17 @@ object RuntimeMarshaler {
           case RuntimeMarshaler.this.doubleClass =>
             if (data.remainingReadSize >= 8) {
               val pos = data.startPos
-              val b0 = data(pos + 0).toLong << 0
-              val b1 = data(pos + 1).toLong << 8
-              val b2 = data(pos + 2).toLong << 16
-              val b3 = data(pos + 3).toLong << 24
-              val b4 = data(pos + 4).toLong << 32
-              val b5 = data(pos + 5).toLong << 40
-              val b6 = data(pos + 6).toLong << 48
-              val b7 = data(pos + 7).toLong << 56
+              val b0 = (data(pos + 0).toLong << 0) & 0x00000000000000ffL
+              val b1 = (data(pos + 1).toLong << 8) & 0x000000000000ff00L
+              val b2 = (data(pos + 2).toLong << 16) & 0x0000000000ff0000L
+              val b3 = (data(pos + 3).toLong << 24) & 0x00000000ff000000L
+              val b4 = (data(pos + 4).toLong << 32) & 0x000000ff00000000L
+              val b5 = (data(pos + 5).toLong << 40) & 0x0000ff0000000000L
+              val b6 = (data(pos + 6).toLong << 48) & 0x00ff000000000000L
+              val b7 = (data(pos + 7).toLong << 56) & 0xff00000000000000L
               val bits = b7 | b6 | b5 | b4 | b3 | b2 | b1 | b0
               val x = java.lang.Double.longBitsToDouble(bits)
+              println(x)
               field.setDouble(obj, x)
               data.startPos = pos + 8
             } else {
@@ -300,7 +301,7 @@ object RuntimeMarshaler {
               while (i < 8) {
                 if (data.remainingReadSize == 0) data = data.fetch()
                 val b = data(data.startPos)
-                bits |= b.toLong << (8 * i)
+                bits |= (b.toLong & 0xff) << (8 * i)
                 data.startPos += 1
                 i += 1
               }
@@ -310,10 +311,10 @@ object RuntimeMarshaler {
           case RuntimeMarshaler.this.floatClass =>
             if (data.remainingReadSize >= 4) {
               val pos = data.startPos
-              val b0 = data(pos + 0).toInt << 0
-              val b1 = data(pos + 1).toInt << 8
-              val b2 = data(pos + 2).toInt << 16
-              val b3 = data(pos + 3).toInt << 24
+              val b0 = (data(pos + 0).toInt << 0) & 0x000000ff
+              val b1 = (data(pos + 1).toInt << 8) & 0x0000ff00
+              val b2 = (data(pos + 2).toInt << 16) & 0x00ff0000
+              val b3 = (data(pos + 3).toInt << 24) & 0xff000000
               val bits = b3 | b2 | b1 | b0
               val x = java.lang.Float.intBitsToFloat(bits)
               field.setFloat(obj, x)
@@ -324,7 +325,7 @@ object RuntimeMarshaler {
               while (i < 4) {
                 if (data.remainingReadSize == 0) data = data.fetch()
                 val b = data(data.startPos)
-                bits |= b.toInt << (8 * i)
+                bits |= (b.toInt & 0xff) << (8 * i)
                 data.startPos += 1
                 i += 1
               }
@@ -346,8 +347,8 @@ object RuntimeMarshaler {
           case RuntimeMarshaler.this.charClass =>
             if (data.remainingReadSize >= 2) {
               val pos = data.startPos
-              val b0 = data(pos + 0).toChar << 0
-              val b1 = data(pos + 1).toChar << 8
+              val b0 = (data(pos + 0).toChar << 0) & 0x000000ff
+              val b1 = (data(pos + 1).toChar << 8) & 0x0000ff00
               field.setChar(obj, (b1 | b0).toChar)
               data.startPos = pos + 2
             } else {
@@ -356,7 +357,7 @@ object RuntimeMarshaler {
               while (i < 2) {
                 if (data.remainingReadSize == 0) data = data.fetch()
                 val b = data(data.startPos)
-                x |= b.toInt << (8 * i)
+                x |= (b.toInt & 0xff) << (8 * i)
                 data.startPos += 1
                 i += 1
               }
@@ -365,8 +366,8 @@ object RuntimeMarshaler {
           case RuntimeMarshaler.this.shortClass =>
             if (data.remainingReadSize >= 2) {
               val pos = data.startPos
-              val b0 = data(pos + 0).toShort << 0
-              val b1 = data(pos + 1).toShort << 8
+              val b0 = (data(pos + 0).toShort << 0) & 0x000000ff
+              val b1 = (data(pos + 1).toShort << 8) & 0x0000ff00
               field.setShort(obj, (b1 | b0).toShort)
               data.startPos = pos + 2
             } else {
@@ -375,7 +376,7 @@ object RuntimeMarshaler {
               while (i < 2) {
                 if (data.remainingReadSize == 0) data = data.fetch()
                 val b = data(data.startPos)
-                x |= b.toInt << (8 * i)
+                x |= (b.toInt & 0xff) << (8 * i)
                 data.startPos += 1
                 i += 1
               }

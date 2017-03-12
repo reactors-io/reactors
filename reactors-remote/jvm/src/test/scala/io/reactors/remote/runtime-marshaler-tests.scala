@@ -97,7 +97,7 @@ class RuntimeMarshalerTest extends FunSuite {
   }
 
   test("marshal single byte field class") {
-    val data = new Data.Linked(16, 16)
+    val data = new Data.Linked(128, 128)
     RuntimeMarshaler.marshal(new SingleByte(7), data)
     println(data.byteString)
     val obj = RuntimeMarshaler.unmarshal[SingleByte](data)
@@ -105,7 +105,7 @@ class RuntimeMarshalerTest extends FunSuite {
   }
 
   test("marshal single boolean field class") {
-    val data = new Data.Linked(16, 16)
+    val data = new Data.Linked(128, 128)
     RuntimeMarshaler.marshal(new SingleBoolean(true), data)
     println(data.byteString)
     val obj = RuntimeMarshaler.unmarshal[SingleBoolean](data)
@@ -113,7 +113,7 @@ class RuntimeMarshalerTest extends FunSuite {
   }
 
   test("marshal single char field class") {
-    val data = new Data.Linked(16, 16)
+    val data = new Data.Linked(128, 128)
     RuntimeMarshaler.marshal(new SingleChar('a'), data)
     println(data.byteString)
     val obj = RuntimeMarshaler.unmarshal[SingleChar](data)
@@ -121,11 +121,23 @@ class RuntimeMarshalerTest extends FunSuite {
   }
 
   test("marshal single short field class") {
-    val data = new Data.Linked(16, 16)
+    val data = new Data.Linked(128, 128)
     RuntimeMarshaler.marshal(new SingleShort(17), data)
     println(data.byteString)
     val obj = RuntimeMarshaler.unmarshal[SingleShort](data)
     assert(obj.x == 17)
+  }
+
+  test("marshal mixed primitive field class") {
+    val data = new Data.Linked(128, 128)
+    RuntimeMarshaler.marshal(new MixedPrimitives(17, 9, 2.1, true, 8.11f), data)
+    println(data.byteString)
+    val obj = RuntimeMarshaler.unmarshal[MixedPrimitives](data)
+    assert(obj.x == 17)
+    assert(obj.y == 9)
+    assert(obj.z == 2.1)
+    assert(obj.b == true)
+    assert(obj.f == 8.11f)
   }
 }
 
@@ -161,3 +173,8 @@ class SingleChar(val x: Char)
 
 
 class SingleShort(val x: Short)
+
+
+class MixedPrimitives(
+  val x: Int, var y: Short, val z: Double, val b: Boolean, val f: Float
+)
