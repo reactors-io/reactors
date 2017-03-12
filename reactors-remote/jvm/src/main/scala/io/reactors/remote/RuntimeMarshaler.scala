@@ -54,7 +54,10 @@ object RuntimeMarshaler {
   }
 
   def marshalAs[T](klazz: Class[_], obj: T, inputData: Data): Data = {
-    internalMarshalAs(klazz, obj, inputData, Reactor.marshalContext)
+    val context = Reactor.marshalContext
+    val data = internalMarshalAs(klazz, obj, inputData, context)
+    if (context.seen.nonEmpty) context.seen.clear()
+    data
   }
 
   private def internalMarshalAs[T](
@@ -153,7 +156,10 @@ object RuntimeMarshaler {
   }
 
   def marshal[T](obj: T, inputData: Data, marshalType: Boolean = true): Data = {
-    internalMarshal(obj, inputData, marshalType, Reactor.marshalContext)
+    val context = Reactor.marshalContext
+    val data = internalMarshal(obj, inputData, marshalType, context)
+    if (context.seen.nonEmpty) context.seen.clear()
+    data
   }
 
   private def internalMarshal[T](
@@ -184,8 +190,11 @@ object RuntimeMarshaler {
   def unmarshal[T: ClassTag](
     inputData: Cell[Data], unmarshalType: Boolean = true
   ): T = {
+    val context = Reactor.marshalContext
     val klazz = implicitly[ClassTag[T]].runtimeClass
-    internalUnmarshal(klazz, inputData, unmarshalType, Reactor.marshalContext)
+    val obj = internalUnmarshal[T](klazz, inputData, unmarshalType, context)
+    if (context.seen.nonEmpty) context.seen.clear()
+    obj
   }
 
   private def internalUnmarshal[T](

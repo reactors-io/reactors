@@ -120,7 +120,11 @@ class BloomMap[K >: Null <: AnyRef: Arrayable, @specialized(Int, Long) V: Arraya
     } else resizeBloomFilter()
   }
 
-  def size = rawSize
+  def size: Int = rawSize
+
+  def isEmpty: Boolean = size == 0
+
+  def nonEmpty: Boolean = !isEmpty
 
   private def before(i: Int, j: Int): Boolean = {
     val d = keytable.length >> 1
