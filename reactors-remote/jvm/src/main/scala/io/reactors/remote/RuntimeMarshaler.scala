@@ -4,6 +4,7 @@ package remote
 
 
 import io.reactors.common.BloomMap
+import io.reactors.common.Cell
 import java.lang.reflect.Field
 import java.lang.reflect.Modifier
 import java.util.Arrays
@@ -29,6 +30,8 @@ object RuntimeMarshaler {
   private val isMarshalableField: Field => Boolean = f => {
     !Modifier.isTransient(f.getModifiers)
   }
+
+  private def classTerminator: Byte = 0
 
   private def computeFieldsOf(klazz: Class[_]): Array[Field] = {
     val fields = mutable.ArrayBuffer[Field]()
@@ -141,7 +144,7 @@ object RuntimeMarshaler {
         sys.error("Array marshaling is currently not supported.")
       } else {
         val value = field.get(obj)
-        val marshalType = Modifier.isFinal(field.getClass.getModifiers)
+        val marshalType = !Modifier.isFinal(field.getClass.getModifiers)
         data = internalMarshal(value, data, marshalType, context)
       }
       i += 1
@@ -172,28 +175,28 @@ object RuntimeMarshaler {
       data.endPos += typeLength
     } else {
       if (data.remainingWriteSize < 1) data = data.flush(-1)
-      data(data.endPos) = 0
+      data(data.endPos) = classTerminator
       data.endPos += 1
     }
     internalMarshalAs(klazz, obj, data, context)
   }
 
-  def unmarshal[T: ClassTag](inputData: Data, unmarshalType: Boolean = true): T = {
-    // TODO: Figure out what to do about the input data change.
-    internalUnmarshal(inputData, unmarshalType, Reactor.marshalContext)
+  def unmarshal[T: ClassTag](
+    inputData: Cell[Data], unmarshalType: Boolean = true
+  ): T = {
+    val klazz = implicitly[ClassTag[T]].runtimeClass
+    internalUnmarshal(klazz, inputData, unmarshalType, Reactor.marshalContext)
   }
 
-  private def internalUnmarshal[T: ClassTag](
-    inputData: Data, unmarshalType: Boolean, context: Reactor.MarshalContext
+  private def internalUnmarshal[T](
+    assumedKlazz: Class[_], inputData: Cell[Data], unmarshalType: Boolean,
+    context: Reactor.MarshalContext
   ): T = {
-    // TODO: Figure out what to do about the input data change.
-    var data = inputData
-    var klazz = implicitly[ClassTag[T]].runtimeClass
+    var data = inputData()
+    var klazz = assumedKlazz
     if (unmarshalType) {
       val stringBuffer = context.stringBuffer
-      if (data.remainingReadSize < 1) {
-        data = data.fetch()
-      }
+      if (data.remainingReadSize < 1) data = data.fetch()
       var last = data(data.startPos)
       if (last == 0) sys.error("Data does not contain a type signature.")
       var i = data.startPos
@@ -215,16 +218,21 @@ object RuntimeMarshaler {
       data.startPos += i - data.startPos
       val klazzName = stringBuffer.toString
       klazz = Class.forName(klazzName)
+    } else {
+      if (data.remainingReadSize < 1) data = data.fetch()
+      assert(data(data.startPos) == classTerminator)
+      data.startPos += 1
     }
     val obj = Platform.unsafe.allocateInstance(klazz)
-    data = internalUnmarshalAs(klazz, obj, data, context)
+    inputData := data
+    internalUnmarshalAs(klazz, obj, inputData, context)
     obj.asInstanceOf[T]
   }
 
   private def internalUnmarshalAs[T](
-    klazz: Class[_], obj: T, inputData: Data, context: Reactor.MarshalContext
-  ): Data = {
-    var data = inputData
+    klazz: Class[_], obj: T, inputData: Cell[Data], context: Reactor.MarshalContext
+  ): Unit = {
+    var data = inputData()
     val fields = fieldsOf(klazz)
     var i = 0
     while (i < fields.length) {
@@ -386,10 +394,14 @@ object RuntimeMarshaler {
       } else if (tpe.isArray) {
         sys.error("Array marshaling is currently not supported.")
       } else {
-        sys.error("Object unmarshaling is currently not supported.")
+        val unmarshalType = !Modifier.isFinal(tpe.getModifiers);
+        inputData := data
+        val x = internalUnmarshal[AnyRef](tpe, inputData, unmarshalType, context)
+        data = inputData()
+        field.set(obj, x)
       }
       i += 1
     }
-    data
+    inputData := data
   }
 }
