@@ -31,7 +31,9 @@ object RuntimeMarshaler {
     !Modifier.isTransient(f.getModifiers)
   }
 
-  private def classTerminator: Byte = 0
+  private def classNameTerminator: Byte = 1
+
+  private def objectReference: Byte = 2
 
   private def computeFieldsOf(klazz: Class[_]): Array[Field] = {
     val fields = mutable.ArrayBuffer[Field]()
@@ -56,7 +58,7 @@ object RuntimeMarshaler {
   def marshalAs[T](klazz: Class[_], obj: T, inputData: Data): Data = {
     val context = Reactor.marshalContext
     val data = internalMarshalAs(klazz, obj, inputData, context)
-    if (context.seen.nonEmpty) context.seen.clear()
+    if (context.written.nonEmpty) context.written.clear()
     data
   }
 
@@ -158,7 +160,7 @@ object RuntimeMarshaler {
   def marshal[T](obj: T, inputData: Data, marshalType: Boolean = true): Data = {
     val context = Reactor.marshalContext
     val data = internalMarshal(obj, inputData, marshalType, context)
-    if (context.seen.nonEmpty) context.seen.clear()
+    if (context.written.nonEmpty) context.written.clear()
     data
   }
 
@@ -177,11 +179,11 @@ object RuntimeMarshaler {
         data(pos + i) = name.charAt(i).toByte
         i += 1
       }
-      data(pos + i) = 0
+      data(pos + i) = classNameTerminator
       data.endPos += typeLength
     } else {
       if (data.remainingWriteSize < 1) data = data.flush(-1)
-      data(data.endPos) = classTerminator
+      data(data.endPos) = classNameTerminator
       data.endPos += 1
     }
     internalMarshalAs(klazz, obj, data, context)
@@ -193,7 +195,7 @@ object RuntimeMarshaler {
     val context = Reactor.marshalContext
     val klazz = implicitly[ClassTag[T]].runtimeClass
     val obj = internalUnmarshal[T](klazz, inputData, unmarshalType, context)
-    if (context.seen.nonEmpty) context.seen.clear()
+    if (context.written.nonEmpty) context.written.clear()
     obj
   }
 
@@ -211,13 +213,13 @@ object RuntimeMarshaler {
       var i = data.startPos
       var until = data.startPos + data.remainingReadSize
       stringBuffer.setLength(0)
-      while (last != 0) {
+      while (last != classNameTerminator) {
         last = data(i)
-        if (last != 0) stringBuffer.append(last.toChar)
+        if (last != classNameTerminator) stringBuffer.append(last.toChar)
         i += 1
         if (i == until) {
           data.startPos += i - data.startPos
-          if (last != 0) {
+          if (last != classNameTerminator) {
             data = data.fetch()
             i = data.startPos
             until = data.startPos + data.remainingReadSize
@@ -229,7 +231,7 @@ object RuntimeMarshaler {
       klazz = Class.forName(klazzName)
     } else {
       if (data.remainingReadSize < 1) data = data.fetch()
-      assert(data(data.startPos) == classTerminator)
+      assert(data(data.startPos) == classNameTerminator)
       data.startPos += 1
     }
     val obj = Platform.unsafe.allocateInstance(klazz)

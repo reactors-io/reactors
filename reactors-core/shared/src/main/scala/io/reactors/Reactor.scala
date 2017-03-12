@@ -125,7 +125,7 @@ object Reactor {
   }
 
   class MarshalContext() {
-    val seen = new BloomMap[AnyRef, Int]
+    val written = new BloomMap[AnyRef, Int]
     val stringBuffer = new StringBuilder
   }
 
