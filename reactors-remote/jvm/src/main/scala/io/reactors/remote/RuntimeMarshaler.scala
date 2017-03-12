@@ -241,6 +241,7 @@ object RuntimeMarshaler {
               val b2 = data(pos + 2).toInt << 16
               val b3 = data(pos + 3).toInt << 24
               field.setInt(obj, b3 | b2 | b1 | b0)
+              data.startPos = pos + 4
             } else {
               var i = 0
               var x = 0
@@ -265,6 +266,7 @@ object RuntimeMarshaler {
               val b6 = data(pos + 6).toLong << 48
               val b7 = data(pos + 7).toLong << 56
               field.setLong(obj, b7 | b6 | b5 | b4 | b3 | b2 | b1 | b0)
+              data.startPos = pos + 8
             } else {
               var i = 0
               var x = 0L
@@ -291,6 +293,7 @@ object RuntimeMarshaler {
               val bits = b7 | b6 | b5 | b4 | b3 | b2 | b1 | b0
               val x = java.lang.Double.longBitsToDouble(bits)
               field.setDouble(obj, x)
+              data.startPos = pos + 8
             } else {
               var i = 0
               var bits = 0L
@@ -304,8 +307,80 @@ object RuntimeMarshaler {
               val x = java.lang.Double.longBitsToDouble(bits)
               field.setDouble(obj, x)
             }
-          case _ =>
-            sys.error(s"The type $tpe is not supported.")
+          case RuntimeMarshaler.this.floatClass =>
+            if (data.remainingReadSize >= 4) {
+              val pos = data.startPos
+              val b0 = data(pos + 0).toInt << 0
+              val b1 = data(pos + 1).toInt << 8
+              val b2 = data(pos + 2).toInt << 16
+              val b3 = data(pos + 3).toInt << 24
+              val bits = b3 | b2 | b1 | b0
+              val x = java.lang.Float.intBitsToFloat(bits)
+              field.setFloat(obj, x)
+              data.startPos = pos + 4
+            } else {
+              var i = 0
+              var bits = 0
+              while (i < 4) {
+                if (data.remainingReadSize == 0) data = data.fetch()
+                val b = data(data.startPos)
+                bits |= b.toInt << (8 * i)
+                data.startPos += 1
+                i += 1
+              }
+              val x = java.lang.Float.intBitsToFloat(bits)
+              field.setFloat(obj, x)
+            }
+          case RuntimeMarshaler.this.byteClass =>
+            if (data.remainingReadSize < 1) data = data.fetch()
+            val pos = data.startPos
+            val b = data(pos)
+            field.setByte(obj, b)
+            data.startPos = pos + 1
+          case RuntimeMarshaler.this.booleanClass =>
+            if (data.remainingReadSize < 1) data = data.fetch()
+            val pos = data.startPos
+            val b = data(pos)
+            field.setBoolean(obj, if (b != 0) true else false)
+            data.startPos = pos + 1
+          case RuntimeMarshaler.this.charClass =>
+            if (data.remainingReadSize >= 2) {
+              val pos = data.startPos
+              val b0 = data(pos + 0).toChar << 0
+              val b1 = data(pos + 1).toChar << 8
+              field.setChar(obj, (b1 | b0).toChar)
+              data.startPos = pos + 2
+            } else {
+              var i = 0
+              var x = 0
+              while (i < 2) {
+                if (data.remainingReadSize == 0) data = data.fetch()
+                val b = data(data.startPos)
+                x |= b.toInt << (8 * i)
+                data.startPos += 1
+                i += 1
+              }
+              field.setChar(obj, x.toChar)
+            }
+          case RuntimeMarshaler.this.shortClass =>
+            if (data.remainingReadSize >= 2) {
+              val pos = data.startPos
+              val b0 = data(pos + 0).toShort << 0
+              val b1 = data(pos + 1).toShort << 8
+              field.setShort(obj, (b1 | b0).toShort)
+              data.startPos = pos + 2
+            } else {
+              var i = 0
+              var x = 0
+              while (i < 2) {
+                if (data.remainingReadSize == 0) data = data.fetch()
+                val b = data(data.startPos)
+                x |= b.toInt << (8 * i)
+                data.startPos += 1
+                i += 1
+              }
+              field.setShort(obj, x.toShort)
+            }
         }
       } else if (tpe.isArray) {
         sys.error("Array marshaling is currently not supported.")

@@ -79,6 +79,54 @@ class RuntimeMarshalerTest extends FunSuite {
     val obj = RuntimeMarshaler.unmarshal[SingleDouble](data)
     assert(obj.x == 15.0)
   }
+
+  test("marshal single float field class") {
+    val data = new Data.Linked(128, 128)
+    RuntimeMarshaler.marshal(new SingleFloat(15.0f), data)
+    println(data.byteString)
+    val obj = RuntimeMarshaler.unmarshal[SingleFloat](data)
+    assert(obj.x == 15.0f)
+  }
+
+  test("marshal single float field class, when buffer is small") {
+    val data = new Data.Linked(16, 16)
+    RuntimeMarshaler.marshal(new SingleFloat(15.0f), data)
+    println(data.byteString)
+    val obj = RuntimeMarshaler.unmarshal[SingleFloat](data)
+    assert(obj.x == 15.0f)
+  }
+
+  test("marshal single byte field class") {
+    val data = new Data.Linked(16, 16)
+    RuntimeMarshaler.marshal(new SingleByte(7), data)
+    println(data.byteString)
+    val obj = RuntimeMarshaler.unmarshal[SingleByte](data)
+    assert(obj.x == 7)
+  }
+
+  test("marshal single boolean field class") {
+    val data = new Data.Linked(16, 16)
+    RuntimeMarshaler.marshal(new SingleBoolean(true), data)
+    println(data.byteString)
+    val obj = RuntimeMarshaler.unmarshal[SingleBoolean](data)
+    assert(obj.x == true)
+  }
+
+  test("marshal single char field class") {
+    val data = new Data.Linked(16, 16)
+    RuntimeMarshaler.marshal(new SingleChar('a'), data)
+    println(data.byteString)
+    val obj = RuntimeMarshaler.unmarshal[SingleChar](data)
+    assert(obj.x == 'a')
+  }
+
+  test("marshal single short field class") {
+    val data = new Data.Linked(16, 16)
+    RuntimeMarshaler.marshal(new SingleShort(17), data)
+    println(data.byteString)
+    val obj = RuntimeMarshaler.unmarshal[SingleShort](data)
+    assert(obj.x == 17)
+  }
 }
 
 
@@ -98,3 +146,18 @@ class SingleLong(val x: Long)
 
 
 class SingleDouble(val x: Double)
+
+
+class SingleFloat(val x: Float)
+
+
+class SingleByte(val x: Byte)
+
+
+class SingleBoolean(val x: Boolean)
+
+
+class SingleChar(val x: Char)
+
+
+class SingleShort(val x: Short)
