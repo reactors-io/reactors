@@ -184,6 +184,18 @@ class RuntimeMarshalerTest extends FunSuite {
     val obj = RuntimeMarshaler.unmarshal[AnyRef](cell)
     assert(obj == null)
   }
+
+  test("marshal a cyclic object") {
+    val data = new Data.Linked(128, 128)
+    val cell = new Cell[Data](data)
+    val cyclic = new RecursiveObject(7, null)
+    cyclic.tail = cyclic
+    RuntimeMarshaler.marshal(cyclic, data)
+    println(data.byteString)
+    val obj = RuntimeMarshaler.unmarshal[RecursiveObject](cell)
+    assert(obj.tail eq obj)
+    assert(obj.x == 7)
+  }
 }
 
 
@@ -228,4 +240,4 @@ class MixedPrimitives(
 class FinalClassObject(val inner: FinalSingleInt)
 
 
-class RecursiveObject(val x: Int, val tail: RecursiveObject)
+class RecursiveObject(val x: Int, var tail: RecursiveObject)
