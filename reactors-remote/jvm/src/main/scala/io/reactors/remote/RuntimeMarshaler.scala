@@ -471,7 +471,7 @@ object RuntimeMarshaler {
       } else if (tpe.isArray) {
         sys.error("Array marshaling is currently not supported.")
       } else {
-        val unmarshalType = !Modifier.isFinal(tpe.getModifiers);
+        val unmarshalType = !Modifier.isFinal(tpe.getModifiers)
         inputData := data
         val x = internalUnmarshal[AnyRef](tpe, inputData, unmarshalType, context)
         data = inputData()
