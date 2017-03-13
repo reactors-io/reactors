@@ -60,12 +60,20 @@ object RuntimeMarshaler {
   def marshalAs[T](
     klazz: Class[_], obj: T, inputData: Data, alreadyRecordedReference: Boolean
   ): Data = {
-    val context = Reactor.marshalContext
-    if (!alreadyRecordedReference)
-      context.written.put(obj.asInstanceOf[AnyRef], context.createFreshReference())
-    val data = internalMarshalAs(klazz, obj, inputData, context)
-    context.resetMarshal()
-    data
+    if (obj == null) {
+      var data = inputData
+      if (data.remainingWriteSize < 1) data = data.flush(1)
+      data(data.endPos) = nullTag
+      data.endPos += 1
+      data
+    } else {
+      val context = Reactor.marshalContext
+      if (!alreadyRecordedReference)
+        context.written.put(obj.asInstanceOf[AnyRef], context.createFreshReference())
+      val data = internalMarshalAs(klazz, obj, inputData, context)
+      context.resetMarshal()
+      data
+    }
   }
 
   private def internalMarshalAs[T](
@@ -186,10 +194,18 @@ object RuntimeMarshaler {
 
   def marshal[T](obj: T, inputData: Data, marshalType: Boolean = true): Data = {
     val context = Reactor.marshalContext
-    context.written.put(obj.asInstanceOf[AnyRef], context.createFreshReference())
-    val data = internalMarshal(obj, inputData, marshalType, context)
-    context.resetMarshal()
-    data
+    if (obj == null) {
+      var data = inputData
+      if (data.remainingWriteSize < 1) data = data.flush(1)
+      data(data.endPos) = nullTag
+      data.endPos += 1
+      data
+    } else {
+      context.written.put(obj.asInstanceOf[AnyRef], context.createFreshReference())
+      val data = internalMarshal(obj, inputData, marshalType, context)
+      context.resetMarshal()
+      data
+    }
   }
 
   private def internalMarshal[T](

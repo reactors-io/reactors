@@ -175,6 +175,15 @@ class RuntimeMarshalerTest extends FunSuite {
     val obj = RuntimeMarshaler.unmarshal[RecursiveObject](cell)
     assert(obj.x == 7 && obj.tail.x == 5 && obj.tail.tail == null)
   }
+
+  test("marshal null") {
+    val data = new Data.Linked(128, 128)
+    val cell = new Cell[Data](data)
+    RuntimeMarshaler.marshal(null, data)
+    println(data.byteString)
+    val obj = RuntimeMarshaler.unmarshal[AnyRef](cell)
+    assert(obj == null)
+  }
 }
 
 
