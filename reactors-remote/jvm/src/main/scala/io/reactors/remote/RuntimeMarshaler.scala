@@ -35,6 +35,8 @@ object RuntimeMarshaler {
 
   private def objectReferenceTag: Byte = 2
 
+  private def nullTag: Byte = 3
+
   private def computeFieldsOf(klazz: Class[_]): Array[Field] = {
     val fields = mutable.ArrayBuffer[Field]()
     var ancestor = klazz
@@ -69,6 +71,7 @@ object RuntimeMarshaler {
   private def internalMarshalAs[T](
     klazz: Class[_], obj: T, inputData: Data, context: Reactor.MarshalContext
   ): Data = {
+    assert(obj != null)
     var data = inputData
     val fields = fieldsOf(klazz)
     var i = 0
@@ -153,21 +156,27 @@ object RuntimeMarshaler {
         sys.error("Array marshaling is currently not supported.")
       } else {
         val value = field.get(obj)
-        val ref = context.written.get(value)
-        if (ref != context.written.nil) {
-          if (data.remainingWriteSize < 5) data = data.flush(5)
-          val pos = data.endPos
-          data(pos + 0) = objectReferenceTag
-          data(pos + 1) = ((ref & 0x000000ff) >>> 0).toByte
-          data(pos + 2) = ((ref & 0x0000ff00) >>> 8).toByte
-          data(pos + 3) = ((ref & 0x00ff0000) >>> 16).toByte
-          data(pos + 4) = ((ref & 0xff000000) >>> 24).toByte
-          data.endPos += 5
+        if (value == null) {
+          if (data.remainingReadSize < 1) data = data.flush(1)
+          data(data.endPos) = nullTag
+          data.endPos += 1
         } else {
-          val marshalType = !Modifier.isFinal(field.getClass.getModifiers)
-          val freshRef = context.createFreshReference()
-          context.written.put(value, freshRef)
-          data = internalMarshal(value, data, marshalType, context)
+          val ref = context.written.get(value)
+          if (ref != context.written.nil) {
+            if (data.remainingWriteSize < 5) data = data.flush(5)
+            val pos = data.endPos
+            data(pos + 0) = objectReferenceTag
+            data(pos + 1) = ((ref & 0x000000ff) >>> 0).toByte
+            data(pos + 2) = ((ref & 0x0000ff00) >>> 8).toByte
+            data(pos + 3) = ((ref & 0x00ff0000) >>> 16).toByte
+            data(pos + 4) = ((ref & 0xff000000) >>> 24).toByte
+            data.endPos += 5
+          } else {
+            val marshalType = !Modifier.isFinal(field.getType.getModifiers)
+            val freshRef = context.createFreshReference()
+            context.written.put(value, freshRef)
+            data = internalMarshal(value, data, marshalType, context)
+          }
         }
       }
       i += 1
@@ -227,6 +236,7 @@ object RuntimeMarshaler {
     if (data.remainingReadSize < 1) data = data.fetch()
     val initialByte = data(data.startPos)
     if (initialByte == objectReferenceTag) {
+      data.startPos += 1
       var i = 0
       var ref = 0
       while (i < 4) {
@@ -239,11 +249,16 @@ object RuntimeMarshaler {
       val obj = context.seen(ref)
       inputData := data
       obj.asInstanceOf[T]
+    } else if (initialByte == nullTag) {
+      data.startPos += 1
+      inputData := data
+      null.asInstanceOf[T]
     } else {
       if (unmarshalType) {
         val stringBuffer = context.stringBuffer
         var last = initialByte
-        if (last == 0) sys.error("Data does not contain a type signature.")
+        if (last == classNameTerminatorTag)
+          sys.error("Data does not contain a type signature.")
         var i = data.startPos
         var until = data.startPos + data.remainingReadSize
         stringBuffer.setLength(0)
