@@ -196,6 +196,21 @@ class RuntimeMarshalerTest extends FunSuite {
     assert(obj.tail eq obj)
     assert(obj.x == 7)
   }
+
+  test("marshal a cyclic pair of objects") {
+    val data = new Data.Linked(128, 128)
+    val cell = new Cell[Data](data)
+    val a = new RecursiveObject(7, null)
+    val b = new RecursiveObject(11, null)
+    a.tail = b
+    b.tail = a
+    RuntimeMarshaler.marshal(a, data)
+    println(data.byteString)
+    val obj = RuntimeMarshaler.unmarshal[RecursiveObject](cell)
+    assert(obj.x == 7)
+    assert(obj.tail.x == 11)
+    assert(obj.tail.tail eq obj)
+  }
 }
 
 
