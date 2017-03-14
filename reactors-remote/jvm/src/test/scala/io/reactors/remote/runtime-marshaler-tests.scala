@@ -211,6 +211,25 @@ class RuntimeMarshalerTest extends FunSuite {
     assert(obj.tail.x == 11)
     assert(obj.tail.tail eq obj)
   }
+
+  test("marshal an object pair") {
+    val data = new Data.Linked(128, 128)
+    val cell = new Cell[Data](data)
+    val pair = new CyclicObjectPair(7,
+      new CyclicObjectPair(11, null, null),
+      new CyclicObjectPair(17, null, null)
+    )
+    pair.o1.o1 = pair
+    pair.o2.o2 = pair
+    RuntimeMarshaler.marshal(pair, data)
+    println(data.byteString)
+    val obj = RuntimeMarshaler.unmarshal[CyclicObjectPair](cell)
+    assert(obj.x == 7)
+    assert(obj.o1.x == 11)
+    assert(obj.o2.x == 17)
+    assert(obj.o1.o1 == obj)
+    assert(obj.o2.o2 == obj)
+  }
 }
 
 
@@ -256,3 +275,6 @@ class FinalClassObject(val inner: FinalSingleInt)
 
 
 class RecursiveObject(val x: Int, var tail: RecursiveObject)
+
+
+class CyclicObjectPair(val x: Int, var o1: CyclicObjectPair, var o2: CyclicObjectPair)
