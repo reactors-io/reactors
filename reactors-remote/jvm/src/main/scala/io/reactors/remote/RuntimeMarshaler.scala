@@ -377,7 +377,6 @@ object RuntimeMarshaler {
               val b7 = (data(pos + 7).toLong << 56) & 0xff00000000000000L
               val bits = b7 | b6 | b5 | b4 | b3 | b2 | b1 | b0
               val x = java.lang.Double.longBitsToDouble(bits)
-              println(x)
               field.setDouble(obj, x)
               data.startPos = pos + 8
             } else {
