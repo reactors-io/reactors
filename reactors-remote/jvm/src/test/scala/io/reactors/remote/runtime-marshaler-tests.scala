@@ -211,6 +211,17 @@ class RuntimeMarshalerTest extends FunSuite {
     assert(obj.tail.x == 11)
     assert(obj.tail.tail eq obj)
   }
+
+  test("marshal an inherited class") {
+    val data = new Data.Linked(128, 128)
+    val cell = new Cell[Data](data)
+    val obj = new InheritedClass(17, 11)
+    RuntimeMarshaler.marshal(obj, data)
+    println(data.byteString)
+    val result = RuntimeMarshaler.unmarshal[InheritedClass](cell)
+    assert(result.y == 17)
+    assert(result.x == 11)
+  }
 }
 
 
@@ -256,3 +267,9 @@ class FinalClassObject(val inner: FinalSingleInt)
 
 
 class RecursiveObject(val x: Int, var tail: RecursiveObject)
+
+
+class BaseClass(val x: Int)
+
+
+class InheritedClass(val y: Int, px: Int) extends BaseClass(px)
