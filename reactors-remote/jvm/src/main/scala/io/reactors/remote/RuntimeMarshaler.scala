@@ -37,6 +37,8 @@ object RuntimeMarshaler {
 
   private def nullTag: Byte = 3
 
+  private def arrayTag: Byte = 4
+
   private def computeFieldsOf(klazz: Class[_]): Array[Field] = {
     val fields = mutable.ArrayBuffer[Field]()
     var ancestor = klazz
@@ -162,6 +164,9 @@ object RuntimeMarshaler {
         }
       } else if (tpe.isArray) {
         sys.error("Array marshaling is currently not supported.")
+        if (data.remainingWriteSize < 5) data = data.flush(5)
+        val pos = data.endPos
+        val array = field.get(obj)
       } else {
         val value = field.get(obj)
         if (value == null) {
