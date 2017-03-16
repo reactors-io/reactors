@@ -39,6 +39,8 @@ object RuntimeMarshaler {
 
   private def arrayTag: Byte = 4
 
+  private def maxArrayChunk: Int = 1024
+
   private def computeFieldsOf(klazz: Class[_]): Array[Field] = {
     val fields = mutable.ArrayBuffer[Field]()
     var ancestor = klazz
@@ -189,7 +191,6 @@ object RuntimeMarshaler {
             storeShort(v)
         }
       } else if (tpe.isArray) {
-        sys.error("Array marshaling is currently not supported.")
         val pos = data.endPos
         val array = field.get(obj)
         if (array == null) {
@@ -197,7 +198,41 @@ object RuntimeMarshaler {
           data(data.endPos) = nullTag
           data.endPos += 1
         } else {
-          storeInt(java.lang.reflect.Array.getLength(array))
+          val length = java.lang.reflect.Array.getLength(array)
+          storeInt(length)
+          tpe.getComponentType match {
+            case RuntimeMarshaler.this.intClass =>
+              val intArray = array.asInstanceOf[Array[Int]]
+              var i = 0
+              while (i < length) {
+                val batchSize = math.min(data.remainingWriteSize / 4, length - i)
+                var j = i
+                while (j < i + batchSize) {
+                  val v = intArray(j)
+                  storeInt(v)
+                  j += 1
+                }
+                i += batchSize
+                data.endPos += batchSize
+                data.flush(math.min(4 * (length - i), maxArrayChunk))
+              }
+            case RuntimeMarshaler.this.longClass =>
+              sys.error("unsupported")
+            case RuntimeMarshaler.this.doubleClass =>
+              sys.error("unsupported")
+            case RuntimeMarshaler.this.floatClass =>
+              sys.error("unsupported")
+            case RuntimeMarshaler.this.byteClass =>
+              sys.error("unsupported")
+            case RuntimeMarshaler.this.booleanClass =>
+              sys.error("unsupported")
+            case RuntimeMarshaler.this.charClass =>
+              sys.error("unsupported")
+            case RuntimeMarshaler.this.shortClass =>
+              sys.error("unsupported")
+            case _ =>
+              sys.error("unsupported")
+          }
         }
       } else {
         val value = field.get(obj)
@@ -513,7 +548,47 @@ object RuntimeMarshaler {
             }
         }
       } else if (tpe.isArray) {
-        sys.error("Array marshaling is currently not supported.")
+//        if (array == null) {
+//          if (data.remainingWriteSize < 1) data = data.flush(1)
+//          data(data.endPos) = nullTag
+//          data.endPos += 1
+//        } else {
+//          val length = java.lang.reflect.Array.getLength(array)
+//          storeInt(length)
+//          tpe.getComponentType match {
+//            case RuntimeMarshaler.this.intClass =>
+//              val intArray = array.asInstanceOf[Array[Int]]
+//              var i = 0
+//              while (i < length) {
+//                val batchSize = math.min(data.remainingWriteSize / 4, length - i)
+//                var j = i
+//                while (j < i + batchSize) {
+//                  val v = intArray(j)
+//                  storeInt(v)
+//                  j += 1
+//                }
+//                i += batchSize
+//                data.endPos += batchSize
+//                data.flush(math.min(4 * (length - i), maxArrayChunk))
+//              }
+//            case RuntimeMarshaler.this.longClass =>
+//              sys.error("unsupported")
+//            case RuntimeMarshaler.this.doubleClass =>
+//              sys.error("unsupported")
+//            case RuntimeMarshaler.this.floatClass =>
+//              sys.error("unsupported")
+//            case RuntimeMarshaler.this.byteClass =>
+//              sys.error("unsupported")
+//            case RuntimeMarshaler.this.booleanClass =>
+//              sys.error("unsupported")
+//            case RuntimeMarshaler.this.charClass =>
+//              sys.error("unsupported")
+//            case RuntimeMarshaler.this.shortClass =>
+//              sys.error("unsupported")
+//            case _ =>
+//              sys.error("unsupported")
+//          }
+//        }
       } else {
         val unmarshalType = !Modifier.isFinal(tpe.getModifiers)
         inputData := data
