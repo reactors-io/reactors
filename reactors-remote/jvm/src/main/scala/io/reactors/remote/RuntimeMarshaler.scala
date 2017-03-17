@@ -41,7 +41,7 @@ object RuntimeMarshaler {
 
   private def arrayTag: Byte = 4
 
-  private def maxArrayChunk: Int = 1024
+  private def maxArrayChunk: Int = 2048
 
   private def computeFieldsOf(klazz: Class[_]): Array[Field] = monitor.synchronized {
     val fields = mutable.ArrayBuffer[Field]()
@@ -109,7 +109,29 @@ object RuntimeMarshaler {
           data = data.flush(math.min(4 * (length - i), maxArrayChunk))
         }
       case RuntimeMarshaler.this.longClass =>
-        sys.error("unsupported")
+        val longArray = array.asInstanceOf[Array[Long]]
+        var i = 0
+        while (i < length) {
+          val batchSize = math.min(data.remainingWriteSize / 8, length - i)
+          var j = i
+          var pos = data.endPos
+          while (j < i + batchSize) {
+            val v = longArray(j)
+            data(pos + 0) = ((v & 0x00000000000000ffL) >>> 0).toByte
+            data(pos + 1) = ((v & 0x000000000000ff00L) >>> 8).toByte
+            data(pos + 2) = ((v & 0x0000000000ff0000L) >>> 16).toByte
+            data(pos + 3) = ((v & 0x00000000ff000000L) >>> 24).toByte
+            data(pos + 4) = ((v & 0x000000ff00000000L) >>> 32).toByte
+            data(pos + 5) = ((v & 0x0000ff0000000000L) >>> 40).toByte
+            data(pos + 6) = ((v & 0x00ff000000000000L) >>> 48).toByte
+            data(pos + 7) = ((v & 0xff00000000000000L) >>> 56).toByte
+            pos += 8
+            j += 1
+          }
+          i += batchSize
+          data.endPos += batchSize * 8
+          data = data.flush(math.min(8 * (length - i), maxArrayChunk))
+        }
       case RuntimeMarshaler.this.doubleClass =>
         sys.error("unsupported")
       case RuntimeMarshaler.this.floatClass =>
@@ -502,7 +524,43 @@ object RuntimeMarshaler {
             }
           }
         case RuntimeMarshaler.this.longClass =>
-          sys.error("unsupported")
+          val longArray = array.asInstanceOf[Array[Long]]
+          var i = 0
+          while (i < length) {
+            val batchByteSize =
+              math.min(data.remainingReadSize / 8 * 8, (length - i) * 8)
+            var j = i
+            var pos = data.startPos
+            while (j < i + batchByteSize / 8) {
+              val b0 = (data(pos + 0).toLong << 0) & 0x00000000000000ffL
+              val b1 = (data(pos + 1).toLong << 8) & 0x000000000000ff00L
+              val b2 = (data(pos + 2).toLong << 16) & 0x0000000000ff0000L
+              val b3 = (data(pos + 3).toLong << 24) & 0x00000000ff000000L
+              val b4 = (data(pos + 4).toLong << 32) & 0x000000ff00000000L
+              val b5 = (data(pos + 5).toLong << 40) & 0x0000ff0000000000L
+              val b6 = (data(pos + 6).toLong << 48) & 0x00ff000000000000L
+              val b7 = (data(pos + 7).toLong << 56) & 0xff00000000000000L
+              val v = b7 | b6 | b5 | b4 | b3 | b2 | b1 | b0
+              longArray(j) = v
+              pos += 8
+              j += 1
+            }
+            i += batchByteSize / 8
+            data.startPos += batchByteSize
+            if (i < length) {
+              var x = 0L
+              var j = 0
+              while (j < 8) {
+                if (data.remainingReadSize == 0) data = data.fetch()
+                val b = data(data.startPos)
+                x |= (b.toLong & 0xff) << (8 * j)
+                data.startPos += 1
+                j += 1
+              }
+              longArray(i) = x
+              i += 1
+            }
+          }
         case RuntimeMarshaler.this.doubleClass =>
           sys.error("unsupported")
         case RuntimeMarshaler.this.floatClass =>
