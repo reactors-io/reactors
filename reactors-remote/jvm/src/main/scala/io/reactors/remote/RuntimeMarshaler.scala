@@ -82,11 +82,11 @@ object RuntimeMarshaler {
     }
   }
 
-  private def storeArray(array: AnyRef, tpe: Class[_], inputData: Data): Data = {
+  private def marshalArray(array: AnyRef, tpe: Class[_], inputData: Data): Data = {
     var data = inputData
     val length = java.lang.reflect.Array.getLength(array)
-    data = storeByte(arrayTag, data)
-    data = storeInt(length, data)
+    data = marshalByte(arrayTag, data)
+    data = marshalInt(length, data)
     tpe.getComponentType match {
       case RuntimeMarshaler.this.intClass =>
         val intArray = array.asInstanceOf[Array[Int]]
@@ -128,7 +128,7 @@ object RuntimeMarshaler {
     data
   }
 
-  private def storeInt(v: Int, inputData: Data): Data = {
+  private def marshalInt(v: Int, inputData: Data): Data = {
     var data = inputData
     if (data.remainingWriteSize < 4) data = data.flush(4)
     val pos = data.endPos
@@ -140,7 +140,7 @@ object RuntimeMarshaler {
     data
   }
 
-  private def storeLong(v: Long, inputData: Data): Data = {
+  private def marshalLong(v: Long, inputData: Data): Data = {
     var data = inputData
     if (data.remainingWriteSize < 8) data = data.flush(8)
     val pos = data.endPos
@@ -156,7 +156,7 @@ object RuntimeMarshaler {
     data
   }
 
-  private def storeDouble(v: Double, inputData: Data): Data = {
+  private def marshalDouble(v: Double, inputData: Data): Data = {
     var data = inputData
     val bits = java.lang.Double.doubleToRawLongBits(v)
     if (data.remainingWriteSize < 8) data = data.flush(8)
@@ -173,7 +173,7 @@ object RuntimeMarshaler {
     data
   }
 
-  private def storeFloat(v: Float, inputData: Data): Data = {
+  private def marshalFloat(v: Float, inputData: Data): Data = {
     var data = inputData
     val bits = java.lang.Float.floatToRawIntBits(v)
     if (data.remainingWriteSize < 4) data = data.flush(4)
@@ -186,7 +186,7 @@ object RuntimeMarshaler {
     data
   }
 
-  private def storeByte(v: Byte, inputData: Data): Data = {
+  private def marshalByte(v: Byte, inputData: Data): Data = {
     var data = inputData
     if (data.remainingWriteSize < 1) data = data.flush(1)
     val pos = data.endPos
@@ -195,7 +195,7 @@ object RuntimeMarshaler {
     data
   }
 
-  private def storeBoolean(v: Boolean, inputData: Data): Data = {
+  private def marshalBoolean(v: Boolean, inputData: Data): Data = {
     var data = inputData
     if (data.remainingWriteSize < 1) data = data.flush(1)
     val pos = data.endPos
@@ -204,7 +204,7 @@ object RuntimeMarshaler {
     data
   }
 
-  private def storeChar(v: Char, inputData: Data): Data = {
+  private def marshalChar(v: Char, inputData: Data): Data = {
     var data = inputData
     if (data.remainingWriteSize < 2) data = data.flush(2)
     val pos = data.endPos
@@ -214,7 +214,7 @@ object RuntimeMarshaler {
     data
   }
 
-  private def storeShort(v: Short, inputData: Data): Data = {
+  private def marshalShort(v: Short, inputData: Data): Data = {
     var data = inputData
     if (data.remainingWriteSize < 2) data = data.flush(2)
     val pos = data.endPos
@@ -239,35 +239,35 @@ object RuntimeMarshaler {
         tpe match {
           case RuntimeMarshaler.this.intClass =>
             val v = field.getInt(obj)
-            data = storeInt(v, data)
+            data = marshalInt(v, data)
           case RuntimeMarshaler.this.longClass =>
             val v = field.getLong(obj)
-            data = storeLong(v, data)
+            data = marshalLong(v, data)
           case RuntimeMarshaler.this.doubleClass =>
             val v = field.getDouble(obj)
-            data = storeDouble(v, data)
+            data = marshalDouble(v, data)
           case RuntimeMarshaler.this.floatClass =>
             val v = field.getFloat(obj)
-            data = storeFloat(v, data)
+            data = marshalFloat(v, data)
           case RuntimeMarshaler.this.byteClass =>
             val v = field.getByte(obj)
-            data = storeByte(v, data)
+            data = marshalByte(v, data)
           case RuntimeMarshaler.this.booleanClass =>
             val v = field.getBoolean(obj)
-            data = storeBoolean(v, data)
+            data = marshalBoolean(v, data)
           case RuntimeMarshaler.this.charClass =>
             val v = field.getChar(obj)
-            data = storeChar(v, data)
+            data = marshalChar(v, data)
           case RuntimeMarshaler.this.shortClass =>
             val v = field.getShort(obj)
-            data = storeShort(v, data)
+            data = marshalShort(v, data)
         }
       } else if (tpe.isArray) {
         val array = field.get(obj)
         if (array == null) {
-          data = storeByte(nullTag, data)
+          data = marshalByte(nullTag, data)
         } else {
-          data = storeArray(array, tpe, data)
+          data = marshalArray(array, tpe, data)
         }
       } else {
         val value = field.get(obj)
@@ -346,7 +346,7 @@ object RuntimeMarshaler {
     val klazz = obj.getClass
     if (klazz.isArray) {
       optionallyMarshalType(klazz, data, marshalType)
-      storeArray(obj.asInstanceOf[AnyRef], klazz, data)
+      marshalArray(obj.asInstanceOf[AnyRef], klazz, data)
     } else {
       data = optionallyMarshalType(klazz, data, marshalType)
       internalMarshalAs(klazz, obj, data, context)
@@ -430,7 +430,7 @@ object RuntimeMarshaler {
     }
   }
 
-  def loadArray(
+  def unmarshalArray(
     tpe: Class[_], inputData: Cell[Data], context: MarshalContext
   ): AnyRef = {
     var data = inputData()
@@ -684,7 +684,7 @@ object RuntimeMarshaler {
         }
       } else if (tpe.isArray) {
         inputData := data
-        val array = loadArray(tpe, inputData, context)
+        val array = unmarshalArray(tpe, inputData, context)
         data = inputData()
         field.set(obj, array)
      } else {
