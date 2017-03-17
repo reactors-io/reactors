@@ -265,6 +265,16 @@ class RuntimeMarshalerTest extends FunSuite {
     assert(obj.array != null)
     for (i <- 0 until 256) assert(input.array(i) == i + 17)
   }
+
+  test("marshal an object with a null array") {
+    val data = new Data.Linked(128, 128)
+    val cell = new Cell[Data](data)
+    val input = new VarArrayObject(null)
+    RuntimeMarshaler.marshal(input, data)
+    println(data.byteString)
+    val obj = RuntimeMarshaler.unmarshal[VarArrayObject](cell)
+    assert(obj.array == null)
+  }
 }
 
 
@@ -324,3 +334,5 @@ class CyclicObjectPair(val x: Int, var o1: CyclicObjectPair, var o2: CyclicObjec
 class ArrayObject(length: Int) {
   val array = new Array[Int](length)
 }
+
+class VarArrayObject(var array: Array[Int])

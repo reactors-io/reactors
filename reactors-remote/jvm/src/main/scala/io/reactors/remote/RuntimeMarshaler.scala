@@ -15,6 +15,7 @@ import scala.reflect.ClassTag
 
 
 object RuntimeMarshaler {
+  private val monitor = new AnyRef
   private val booleanClass = classOf[Boolean]
   private val byteClass = classOf[Byte]
   private val shortClass = classOf[Short]
@@ -41,7 +42,7 @@ object RuntimeMarshaler {
 
   private def maxArrayChunk: Int = 1024
 
-  private def computeFieldsOf(klazz: Class[_]): Array[Field] = {
+  private def computeFieldsOf(klazz: Class[_]): Array[Field] = monitor.synchronized {
     val fields = mutable.ArrayBuffer[Field]()
     var ancestor = klazz
     while (ancestor != null) {
