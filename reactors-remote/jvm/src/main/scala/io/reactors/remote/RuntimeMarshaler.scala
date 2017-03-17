@@ -3,6 +3,7 @@ package remote
 
 
 
+import io.reactors.Reactor.MarshalContext
 import io.reactors.common.BloomMap
 import io.reactors.common.Cell
 import java.lang.reflect.Field
@@ -417,12 +418,107 @@ object RuntimeMarshaler {
         assert(initialByte == classNameTerminatorTag)
         data.startPos += 1
       }
-      val obj = Platform.unsafe.allocateInstance(klazz)
-      context.seen += obj
-      inputData := data
-      internalUnmarshalAs(klazz, obj, inputData, context)
-      obj.asInstanceOf[T]
+      if (klazz.isArray) {
+        null.asInstanceOf[T]
+      } else {
+        val obj = Platform.unsafe.allocateInstance(klazz)
+        context.seen += obj
+        inputData := data
+        internalUnmarshalAs(klazz, obj, inputData, context)
+        obj.asInstanceOf[T]
+      }
     }
+  }
+
+  def loadArray(
+    tpe: Class[_], inputData: Cell[Data], context: MarshalContext
+  ): AnyRef = {
+    var data = inputData()
+    var array: AnyRef = null
+    if (data.remainingReadSize < 1) data = data.fetch()
+    val tag = data(data.startPos)
+    data.startPos += 1
+    if (tag == nullTag) {
+      array = null
+    } else {
+      assert(tag == arrayTag)
+      var length = 0
+      if (data.remainingReadSize >= 4) {
+        val pos = data.startPos
+        val b0 = (data(pos + 0).toInt << 0) & 0x000000ff
+        val b1 = (data(pos + 1).toInt << 8) & 0x0000ff00
+        val b2 = (data(pos + 2).toInt << 16) & 0x00ff0000
+        val b3 = (data(pos + 3).toInt << 24) & 0xff000000
+        data.startPos = pos + 4
+        length = b3 | b2 | b1 | b0
+      } else {
+        var i = 0
+        var x = 0
+        while (i < 4) {
+          if (data.remainingReadSize == 0) data = data.fetch()
+          val b = data(data.startPos)
+          x |= (b.toInt & 0xff) << (8 * i)
+          data.startPos += 1
+          i += 1
+        }
+        length = x
+      }
+      array = java.lang.reflect.Array.newInstance(tpe.getComponentType, length)
+      tpe.getComponentType match {
+        case RuntimeMarshaler.this.intClass =>
+          val intArray = array.asInstanceOf[Array[Int]]
+          var i = 0
+          while (i < length) {
+            val batchByteSize =
+              math.min(data.remainingReadSize / 4 * 4, (length - i) * 4)
+            var j = i
+            var pos = data.startPos
+            while (j < i + batchByteSize / 4) {
+              val b0 = (data(pos + 0).toInt << 0) & 0x000000ff
+              val b1 = (data(pos + 1).toInt << 8) & 0x0000ff00
+              val b2 = (data(pos + 2).toInt << 16) & 0x00ff0000
+              val b3 = (data(pos + 3).toInt << 24) & 0xff000000
+              val v = b3 | b2 | b1 | b0
+              intArray(j) = v
+              pos += 4
+              j += 1
+            }
+            i += batchByteSize / 4
+            data.startPos += batchByteSize
+            if (i < length) {
+              var x = 0
+              var j = 0
+              while (j < 4) {
+                if (data.remainingReadSize == 0) data = data.fetch()
+                val b = data(data.startPos)
+                x |= (b.toInt & 0xff) << (8 * j)
+                data.startPos += 1
+                j += 1
+              }
+              intArray(i) = x
+              i += 1
+            }
+          }
+        case RuntimeMarshaler.this.longClass =>
+          sys.error("unsupported")
+        case RuntimeMarshaler.this.doubleClass =>
+          sys.error("unsupported")
+        case RuntimeMarshaler.this.floatClass =>
+          sys.error("unsupported")
+        case RuntimeMarshaler.this.byteClass =>
+          sys.error("unsupported")
+        case RuntimeMarshaler.this.booleanClass =>
+          sys.error("unsupported")
+        case RuntimeMarshaler.this.charClass =>
+          sys.error("unsupported")
+        case RuntimeMarshaler.this.shortClass =>
+          sys.error("unsupported")
+        case _ =>
+          sys.error("unsupported")
+      }
+    }
+    inputData := data
+    array
   }
 
   private def internalUnmarshalAs[T](
@@ -587,90 +683,11 @@ object RuntimeMarshaler {
             }
         }
       } else if (tpe.isArray) {
-        if (data.remainingReadSize < 1) data = data.fetch()
-        val tag = data(data.startPos)
-        data.startPos += 1
-        if (tag == nullTag) {
-          field.set(obj, null)
-        } else {
-          assert(tag == arrayTag)
-          var length = 0
-          if (data.remainingReadSize >= 4) {
-            val pos = data.startPos
-            val b0 = (data(pos + 0).toInt << 0) & 0x000000ff
-            val b1 = (data(pos + 1).toInt << 8) & 0x0000ff00
-            val b2 = (data(pos + 2).toInt << 16) & 0x00ff0000
-            val b3 = (data(pos + 3).toInt << 24) & 0xff000000
-            data.startPos = pos + 4
-            length = b3 | b2 | b1 | b0
-          } else {
-            var i = 0
-            var x = 0
-            while (i < 4) {
-              if (data.remainingReadSize == 0) data = data.fetch()
-              val b = data(data.startPos)
-              x |= (b.toInt & 0xff) << (8 * i)
-              data.startPos += 1
-              i += 1
-            }
-            length = x
-          }
-          val array = java.lang.reflect.Array.newInstance(tpe.getComponentType, length)
-          tpe.getComponentType match {
-            case RuntimeMarshaler.this.intClass =>
-              val intArray = array.asInstanceOf[Array[Int]]
-              var i = 0
-              while (i < length) {
-                val batchByteSize =
-                  math.min(data.remainingReadSize / 4 * 4, (length - i) * 4)
-                var j = i
-                var pos = data.startPos
-                while (j < i + batchByteSize / 4) {
-                  val b0 = (data(pos + 0).toInt << 0) & 0x000000ff
-                  val b1 = (data(pos + 1).toInt << 8) & 0x0000ff00
-                  val b2 = (data(pos + 2).toInt << 16) & 0x00ff0000
-                  val b3 = (data(pos + 3).toInt << 24) & 0xff000000
-                  val v = b3 | b2 | b1 | b0
-                  intArray(j) = v
-                  pos += 4
-                  j += 1
-                }
-                i += batchByteSize / 4
-                data.startPos += batchByteSize
-                if (i < length) {
-                  var x = 0
-                  var j = 0
-                  while (j < 4) {
-                    if (data.remainingReadSize == 0) data = data.fetch()
-                    val b = data(data.startPos)
-                    x |= (b.toInt & 0xff) << (8 * j)
-                    data.startPos += 1
-                    j += 1
-                  }
-                  intArray(i) = x
-                  i += 1
-                }
-              }
-            case RuntimeMarshaler.this.longClass =>
-              sys.error("unsupported")
-            case RuntimeMarshaler.this.doubleClass =>
-              sys.error("unsupported")
-            case RuntimeMarshaler.this.floatClass =>
-              sys.error("unsupported")
-            case RuntimeMarshaler.this.byteClass =>
-              sys.error("unsupported")
-            case RuntimeMarshaler.this.booleanClass =>
-              sys.error("unsupported")
-            case RuntimeMarshaler.this.charClass =>
-              sys.error("unsupported")
-            case RuntimeMarshaler.this.shortClass =>
-              sys.error("unsupported")
-            case _ =>
-              sys.error("unsupported")
-          }
-          field.set(obj, array)
-        }
-      } else {
+        inputData := data
+        val array = loadArray(tpe, inputData, context)
+        data = inputData()
+        field.set(obj, array)
+     } else {
         val unmarshalType = !Modifier.isFinal(tpe.getModifiers)
         inputData := data
         val x = internalUnmarshal[AnyRef](tpe, inputData, unmarshalType, context)
