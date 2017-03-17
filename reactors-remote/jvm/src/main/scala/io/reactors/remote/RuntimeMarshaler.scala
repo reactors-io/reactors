@@ -419,7 +419,8 @@ object RuntimeMarshaler {
         data.startPos += 1
       }
       if (klazz.isArray) {
-        null.asInstanceOf[T]
+        inputData := data
+        unmarshalArray(klazz, inputData, context).asInstanceOf[T]
       } else {
         val obj = Platform.unsafe.allocateInstance(klazz)
         context.seen += obj
@@ -464,6 +465,7 @@ object RuntimeMarshaler {
         length = x
       }
       array = java.lang.reflect.Array.newInstance(tpe.getComponentType, length)
+      context.seen += array
       tpe.getComponentType match {
         case RuntimeMarshaler.this.intClass =>
           val intArray = array.asInstanceOf[Array[Int]]
