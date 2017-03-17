@@ -241,6 +241,18 @@ class RuntimeMarshalerTest extends FunSuite {
     assert(obj.o1.o1 == obj)
     assert(obj.o2.o2 == obj)
   }
+
+  test("marshal an object with an array") {
+    val data = new Data.Linked(128, 128)
+    val cell = new Cell[Data](data)
+    val input = new ArrayObject(10)
+    for (i <- 0 until 10) input.array(i) = i + 11
+    RuntimeMarshaler.marshal(input, data)
+    println(data.byteString)
+    val obj = RuntimeMarshaler.unmarshal[ArrayObject](cell)
+    assert(obj.array != null)
+    for (i <- 0 until 10) assert(input.array(i) == i + 11)
+  }
 }
 
 
@@ -295,3 +307,8 @@ class InheritedClass(val y: Int, px: Int) extends BaseClass(px)
 
 
 class CyclicObjectPair(val x: Int, var o1: CyclicObjectPair, var o2: CyclicObjectPair)
+
+
+class ArrayObject(length: Int) {
+  val array = new Array[Int](length)
+}
