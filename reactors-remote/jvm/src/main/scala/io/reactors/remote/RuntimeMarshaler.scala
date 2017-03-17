@@ -81,6 +81,148 @@ object RuntimeMarshaler {
     }
   }
 
+  private def storeArray(array: AnyRef, tpe: Class[_], inputData: Data): Data = {
+    var data = inputData
+    val length = java.lang.reflect.Array.getLength(array)
+    data = storeByte(arrayTag, data)
+    data = storeInt(length, data)
+    tpe.getComponentType match {
+      case RuntimeMarshaler.this.intClass =>
+        val intArray = array.asInstanceOf[Array[Int]]
+        var i = 0
+        while (i < length) {
+          val batchSize = math.min(data.remainingWriteSize / 4, length - i)
+          var j = i
+          var pos = data.endPos
+          while (j < i + batchSize) {
+            val v = intArray(j)
+            data(pos + 0) = ((v & 0x000000ff) >>> 0).toByte
+            data(pos + 1) = ((v & 0x0000ff00) >>> 8).toByte
+            data(pos + 2) = ((v & 0x00ff0000) >>> 16).toByte
+            data(pos + 3) = ((v & 0xff000000) >>> 24).toByte
+            pos += 4
+            j += 1
+          }
+          i += batchSize
+          data.endPos += batchSize * 4
+          data = data.flush(math.min(4 * (length - i), maxArrayChunk))
+        }
+      case RuntimeMarshaler.this.longClass =>
+        sys.error("unsupported")
+      case RuntimeMarshaler.this.doubleClass =>
+        sys.error("unsupported")
+      case RuntimeMarshaler.this.floatClass =>
+        sys.error("unsupported")
+      case RuntimeMarshaler.this.byteClass =>
+        sys.error("unsupported")
+      case RuntimeMarshaler.this.booleanClass =>
+        sys.error("unsupported")
+      case RuntimeMarshaler.this.charClass =>
+        sys.error("unsupported")
+      case RuntimeMarshaler.this.shortClass =>
+        sys.error("unsupported")
+      case _ =>
+        sys.error("unsupported")
+    }
+    data
+  }
+
+  def storeInt(v: Int, inputData: Data): Data = {
+    var data = inputData
+    if (data.remainingWriteSize < 4) data = data.flush(4)
+    val pos = data.endPos
+    data(pos + 0) = ((v & 0x000000ff) >>> 0).toByte
+    data(pos + 1) = ((v & 0x0000ff00) >>> 8).toByte
+    data(pos + 2) = ((v & 0x00ff0000) >>> 16).toByte
+    data(pos + 3) = ((v & 0xff000000) >>> 24).toByte
+    data.endPos += 4
+    data
+  }
+
+  def storeLong(v: Long, inputData: Data): Data = {
+    var data = inputData
+    if (data.remainingWriteSize < 8) data = data.flush(8)
+    val pos = data.endPos
+    data(pos + 0) = ((v & 0x00000000000000ffL) >>> 0).toByte
+    data(pos + 1) = ((v & 0x000000000000ff00L) >>> 8).toByte
+    data(pos + 2) = ((v & 0x0000000000ff0000L) >>> 16).toByte
+    data(pos + 3) = ((v & 0x00000000ff000000L) >>> 24).toByte
+    data(pos + 4) = ((v & 0x000000ff00000000L) >>> 32).toByte
+    data(pos + 5) = ((v & 0x0000ff0000000000L) >>> 40).toByte
+    data(pos + 6) = ((v & 0x00ff000000000000L) >>> 48).toByte
+    data(pos + 7) = ((v & 0xff00000000000000L) >>> 56).toByte
+    data.endPos += 8
+    data
+  }
+
+  def storeDouble(v: Double, inputData: Data): Data = {
+    var data = inputData
+    val bits = java.lang.Double.doubleToRawLongBits(v)
+    if (data.remainingWriteSize < 8) data = data.flush(8)
+    val pos = data.endPos
+    data(pos + 0) = ((bits & 0x00000000000000ffL) >>> 0).toByte
+    data(pos + 1) = ((bits & 0x000000000000ff00L) >>> 8).toByte
+    data(pos + 2) = ((bits & 0x0000000000ff0000L) >>> 16).toByte
+    data(pos + 3) = ((bits & 0x00000000ff000000L) >>> 24).toByte
+    data(pos + 4) = ((bits & 0x000000ff00000000L) >>> 32).toByte
+    data(pos + 5) = ((bits & 0x0000ff0000000000L) >>> 40).toByte
+    data(pos + 6) = ((bits & 0x00ff000000000000L) >>> 48).toByte
+    data(pos + 7) = ((bits & 0xff00000000000000L) >>> 56).toByte
+    data.endPos += 8
+    data
+  }
+
+  def storeFloat(v: Float, inputData: Data): Data = {
+    var data = inputData
+    val bits = java.lang.Float.floatToRawIntBits(v)
+    if (data.remainingWriteSize < 4) data = data.flush(4)
+    val pos = data.endPos
+    data(pos + 0) = ((bits & 0x000000ff) >>> 0).toByte
+    data(pos + 1) = ((bits & 0x0000ff00) >>> 8).toByte
+    data(pos + 2) = ((bits & 0x00ff0000) >>> 16).toByte
+    data(pos + 3) = ((bits & 0xff000000) >>> 24).toByte
+    data.endPos += 4
+    data
+  }
+
+  def storeByte(v: Byte, inputData: Data): Data = {
+    var data = inputData
+    if (data.remainingWriteSize < 1) data = data.flush(1)
+    val pos = data.endPos
+    data(pos + 0) = v
+    data.endPos += 1
+    data
+  }
+
+  def storeBoolean(v: Boolean, inputData: Data): Data = {
+    var data = inputData
+    if (data.remainingWriteSize < 1) data = data.flush(1)
+    val pos = data.endPos
+    data(pos) = if (v) 1 else 0
+    data.endPos += 1
+    data
+  }
+
+  def storeChar(v: Char, inputData: Data): Data = {
+    var data = inputData
+    if (data.remainingWriteSize < 2) data = data.flush(2)
+    val pos = data.endPos
+    data(pos + 0) = ((v & 0x000000ff) >>> 0).toByte
+    data(pos + 1) = ((v & 0x0000ff00) >>> 8).toByte
+    data.endPos += 2
+    data
+  }
+
+  def storeShort(v: Short, inputData: Data): Data = {
+    var data = inputData
+    if (data.remainingWriteSize < 2) data = data.flush(2)
+    val pos = data.endPos
+    data(pos + 0) = ((v & 0x000000ff) >>> 0).toByte
+    data(pos + 1) = ((v & 0x0000ff00) >>> 8).toByte
+    data.endPos += 2
+    data
+  }
+
   private def internalMarshalAs[T](
     klazz: Class[_], obj: T, inputData: Data, context: Reactor.MarshalContext
   ): Data = {
@@ -92,152 +234,40 @@ object RuntimeMarshaler {
       val field = fields(i)
       field.setAccessible(true)
       val tpe = field.getType
-      def storeInt(v: Int): Unit = {
-        if (data.remainingWriteSize < 4) data = data.flush(4)
-        val pos = data.endPos
-        data(pos + 0) = ((v & 0x000000ff) >>> 0).toByte
-        data(pos + 1) = ((v & 0x0000ff00) >>> 8).toByte
-        data(pos + 2) = ((v & 0x00ff0000) >>> 16).toByte
-        data(pos + 3) = ((v & 0xff000000) >>> 24).toByte
-        data.endPos += 4
-      }
-      def storeLong(v: Long): Unit = {
-        if (data.remainingWriteSize < 8) data = data.flush(8)
-        val pos = data.endPos
-        data(pos + 0) = ((v & 0x00000000000000ffL) >>> 0).toByte
-        data(pos + 1) = ((v & 0x000000000000ff00L) >>> 8).toByte
-        data(pos + 2) = ((v & 0x0000000000ff0000L) >>> 16).toByte
-        data(pos + 3) = ((v & 0x00000000ff000000L) >>> 24).toByte
-        data(pos + 4) = ((v & 0x000000ff00000000L) >>> 32).toByte
-        data(pos + 5) = ((v & 0x0000ff0000000000L) >>> 40).toByte
-        data(pos + 6) = ((v & 0x00ff000000000000L) >>> 48).toByte
-        data(pos + 7) = ((v & 0xff00000000000000L) >>> 56).toByte
-        data.endPos += 8
-      }
-      def storeDouble(v: Double): Unit = {
-        val bits = java.lang.Double.doubleToRawLongBits(v)
-        if (data.remainingWriteSize < 8) data = data.flush(8)
-        val pos = data.endPos
-        data(pos + 0) = ((bits & 0x00000000000000ffL) >>> 0).toByte
-        data(pos + 1) = ((bits & 0x000000000000ff00L) >>> 8).toByte
-        data(pos + 2) = ((bits & 0x0000000000ff0000L) >>> 16).toByte
-        data(pos + 3) = ((bits & 0x00000000ff000000L) >>> 24).toByte
-        data(pos + 4) = ((bits & 0x000000ff00000000L) >>> 32).toByte
-        data(pos + 5) = ((bits & 0x0000ff0000000000L) >>> 40).toByte
-        data(pos + 6) = ((bits & 0x00ff000000000000L) >>> 48).toByte
-        data(pos + 7) = ((bits & 0xff00000000000000L) >>> 56).toByte
-        data.endPos += 8
-      }
-      def storeFloat(v: Float): Unit = {
-        val bits = java.lang.Float.floatToRawIntBits(v)
-        if (data.remainingWriteSize < 4) data = data.flush(4)
-        val pos = data.endPos
-        data(pos + 0) = ((bits & 0x000000ff) >>> 0).toByte
-        data(pos + 1) = ((bits & 0x0000ff00) >>> 8).toByte
-        data(pos + 2) = ((bits & 0x00ff0000) >>> 16).toByte
-        data(pos + 3) = ((bits & 0xff000000) >>> 24).toByte
-        data.endPos += 4
-      }
-      def storeByte(v: Byte): Unit = {
-        if (data.remainingWriteSize < 1) data = data.flush(1)
-        val pos = data.endPos
-        data(pos + 0) = v
-        data.endPos += 1
-      }
-      def storeBoolean(v: Boolean): Unit = {
-        if (data.remainingWriteSize < 1) data = data.flush(1)
-        val pos = data.endPos
-        data(pos) = if (v) 1 else 0
-        data.endPos += 1
-      }
-      def storeChar(v: Char): Unit = {
-        if (data.remainingWriteSize < 2) data = data.flush(2)
-        val pos = data.endPos
-        data(pos + 0) = ((v & 0x000000ff) >>> 0).toByte
-        data(pos + 1) = ((v & 0x0000ff00) >>> 8).toByte
-        data.endPos += 2
-      }
-      def storeShort(v: Short): Unit = {
-        if (data.remainingWriteSize < 2) data = data.flush(2)
-        val pos = data.endPos
-        data(pos + 0) = ((v & 0x000000ff) >>> 0).toByte
-        data(pos + 1) = ((v & 0x0000ff00) >>> 8).toByte
-        data.endPos += 2
-      }
-      if (tpe.isPrimitive) {
+     if (tpe.isPrimitive) {
         tpe match {
           case RuntimeMarshaler.this.intClass =>
             val v = field.getInt(obj)
-            storeInt(v)
+            data = storeInt(v, data)
           case RuntimeMarshaler.this.longClass =>
             val v = field.getLong(obj)
-            storeLong(v)
+            data = storeLong(v, data)
           case RuntimeMarshaler.this.doubleClass =>
             val v = field.getDouble(obj)
-            storeDouble(v)
+            data = storeDouble(v, data)
           case RuntimeMarshaler.this.floatClass =>
             val v = field.getFloat(obj)
-            storeFloat(v)
+            data = storeFloat(v, data)
           case RuntimeMarshaler.this.byteClass =>
             val v = field.getByte(obj)
-            storeByte(v)
+            data = storeByte(v, data)
           case RuntimeMarshaler.this.booleanClass =>
             val v = field.getBoolean(obj)
-            storeBoolean(v)
+            data = storeBoolean(v, data)
           case RuntimeMarshaler.this.charClass =>
             val v = field.getChar(obj)
-            storeChar(v)
+            data = storeChar(v, data)
           case RuntimeMarshaler.this.shortClass =>
             val v = field.getShort(obj)
-            storeShort(v)
+            data = storeShort(v, data)
         }
       } else if (tpe.isArray) {
         val pos = data.endPos
         val array = field.get(obj)
         if (array == null) {
-          storeByte(nullTag)
+          data = storeByte(nullTag, data)
         } else {
-          val length = java.lang.reflect.Array.getLength(array)
-          storeByte(arrayTag)
-          storeInt(length)
-          tpe.getComponentType match {
-            case RuntimeMarshaler.this.intClass =>
-              val intArray = array.asInstanceOf[Array[Int]]
-              var i = 0
-              while (i < length) {
-                val batchSize = math.min(data.remainingWriteSize / 4, length - i)
-                var j = i
-                var pos = data.endPos
-                while (j < i + batchSize) {
-                  val v = intArray(j)
-                  data(pos + 0) = ((v & 0x000000ff) >>> 0).toByte
-                  data(pos + 1) = ((v & 0x0000ff00) >>> 8).toByte
-                  data(pos + 2) = ((v & 0x00ff0000) >>> 16).toByte
-                  data(pos + 3) = ((v & 0xff000000) >>> 24).toByte
-                  pos += 4
-                  j += 1
-                }
-                i += batchSize
-                data.endPos += batchSize * 4
-                data = data.flush(math.min(4 * (length - i), maxArrayChunk))
-              }
-            case RuntimeMarshaler.this.longClass =>
-              sys.error("unsupported")
-            case RuntimeMarshaler.this.doubleClass =>
-              sys.error("unsupported")
-            case RuntimeMarshaler.this.floatClass =>
-              sys.error("unsupported")
-            case RuntimeMarshaler.this.byteClass =>
-              sys.error("unsupported")
-            case RuntimeMarshaler.this.booleanClass =>
-              sys.error("unsupported")
-            case RuntimeMarshaler.this.charClass =>
-              sys.error("unsupported")
-            case RuntimeMarshaler.this.shortClass =>
-              sys.error("unsupported")
-            case _ =>
-              sys.error("unsupported")
-          }
+          data = storeArray(array, tpe, data)
         }
       } else {
         val value = field.get(obj)
@@ -314,8 +344,12 @@ object RuntimeMarshaler {
   ): Data = {
     var data = inputData
     val klazz = obj.getClass
-    data = optionallyMarshalType(klazz, data, marshalType)
-    internalMarshalAs(klazz, obj, data, context)
+    if (klazz.isArray) {
+      data
+    } else {
+      data = optionallyMarshalType(klazz, data, marshalType)
+      internalMarshalAs(klazz, obj, data, context)
+    }
   }
 
   def unmarshal[T: ClassTag](
