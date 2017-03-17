@@ -206,14 +206,19 @@ object RuntimeMarshaler {
               while (i < length) {
                 val batchSize = math.min(data.remainingWriteSize / 4, length - i)
                 var j = i
+                var pos = data.endPos
                 while (j < i + batchSize) {
                   val v = intArray(j)
-                  storeInt(v)
+                  data(pos + 0) = ((v & 0x000000ff) >>> 0).toByte
+                  data(pos + 1) = ((v & 0x0000ff00) >>> 8).toByte
+                  data(pos + 2) = ((v & 0x00ff0000) >>> 16).toByte
+                  data(pos + 3) = ((v & 0xff000000) >>> 24).toByte
+                  pos += 4
                   j += 1
                 }
                 i += batchSize
                 data.endPos += batchSize * 4
-                data.flush(math.min(4 * (length - i), maxArrayChunk))
+                data = data.flush(math.min(4 * (length - i), maxArrayChunk))
               }
             case RuntimeMarshaler.this.longClass =>
               sys.error("unsupported")

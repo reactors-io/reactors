@@ -253,6 +253,18 @@ class RuntimeMarshalerTest extends FunSuite {
     assert(obj.array != null)
     for (i <- 0 until 10) assert(input.array(i) == i + 11)
   }
+
+  test("marshal an object with a big array") {
+    val data = new Data.Linked(128, 128)
+    val cell = new Cell[Data](data)
+    val input = new ArrayObject(256)
+    for (i <- 0 until 256) input.array(i) = i + 17
+    RuntimeMarshaler.marshal(input, data)
+    println(data.byteString)
+    val obj = RuntimeMarshaler.unmarshal[ArrayObject](cell)
+    assert(obj.array != null)
+    for (i <- 0 until 256) assert(input.array(i) == i + 17)
+  }
 }
 
 
