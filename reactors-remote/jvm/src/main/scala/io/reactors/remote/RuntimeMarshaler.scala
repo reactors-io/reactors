@@ -178,9 +178,23 @@ object RuntimeMarshaler {
           data.endPos += batchSize * 4
           data = data.flush(math.min(4 * (length - i), maxArrayChunk))
         }
-
       case RuntimeMarshaler.this.byteClass =>
-        sys.error("unsupported")
+        val byteArray = array.asInstanceOf[Array[Byte]]
+        var i = 0
+        while (i < length) {
+          val batchSize = math.min(data.remainingWriteSize / 1, length - i)
+          var j = i
+          var pos = data.endPos
+          while (j < i + batchSize) {
+            val v = byteArray(j)
+            data(pos + 0) = v
+            pos += 1
+            j += 1
+          }
+          i += batchSize
+          data.endPos += batchSize * 1
+          data = data.flush(math.min(1 * (length - i), maxArrayChunk))
+        }
       case RuntimeMarshaler.this.booleanClass =>
         sys.error("unsupported")
       case RuntimeMarshaler.this.charClass =>
@@ -679,7 +693,23 @@ object RuntimeMarshaler {
             }
           }
         case RuntimeMarshaler.this.byteClass =>
-          sys.error("unsupported")
+          val byteArray = array.asInstanceOf[Array[Byte]]
+          var i = 0
+          while (i < length) {
+            if (data.remainingReadSize == 0) data = data.fetch()
+            val batchByteSize =
+              math.min(data.remainingReadSize / 1 * 1, (length - i) * 1)
+            var j = i
+            var pos = data.startPos
+            while (j < i + batchByteSize / 1) {
+              val v = data(pos + 0)
+              byteArray(j) = v
+              pos += 1
+              j += 1
+            }
+            i += batchByteSize / 1
+            data.startPos += batchByteSize
+          }
         case RuntimeMarshaler.this.booleanClass =>
           sys.error("unsupported")
         case RuntimeMarshaler.this.charClass =>
