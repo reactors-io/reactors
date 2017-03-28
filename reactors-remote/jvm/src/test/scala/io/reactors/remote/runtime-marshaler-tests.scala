@@ -371,6 +371,30 @@ class RuntimeMarshalerTest extends FunSuite {
     assert(obj.array.length == 256)
     for (i <- 0 until 256) assert(obj.array(i) == (i % 3 != 0))
   }
+
+  test("marshal an object with a char array") {
+    val data = new Data.Linked(128, 128)
+    val cell = new Cell[Data](data)
+    val input = new CharArrayObject(256)
+    for (i <- 0 until 256) input.array(i) = i.toChar
+    RuntimeMarshaler.marshal(input, data)
+    println(data.byteString)
+    val obj = RuntimeMarshaler.unmarshal[CharArrayObject](cell)
+    assert(obj.array.length == 256)
+    for (i <- 0 until 256) assert(obj.array(i) == i.toChar)
+  }
+
+  test("marshal an object with a short array") {
+    val data = new Data.Linked(128, 128)
+    val cell = new Cell[Data](data)
+    val input = new ShortArrayObject(256)
+    for (i <- 0 until 256) input.array(i) = i.toShort
+    RuntimeMarshaler.marshal(input, data)
+    println(data.byteString)
+    val obj = RuntimeMarshaler.unmarshal[ShortArrayObject](cell)
+    assert(obj.array.length == 256)
+    for (i <- 0 until 256) assert(obj.array(i) == i.toShort)
+  }
 }
 
 
@@ -451,4 +475,12 @@ class ByteArrayObject(length: Int) {
 
 class BooleanArrayObject(length: Int) {
   val array = new Array[Boolean](length)
+}
+
+class CharArrayObject(length: Int) {
+  val array = new Array[Char](length)
+}
+
+class ShortArrayObject(length: Int) {
+  val array = new Array[Short](length)
 }

@@ -213,9 +213,41 @@ object RuntimeMarshaler {
           data = data.flush(math.min(1 * (length - i), maxArrayChunk))
         }
       case RuntimeMarshaler.this.charClass =>
-        sys.error("unsupported")
+        val charArray = array.asInstanceOf[Array[Char]]
+        var i = 0
+        while (i < length) {
+          val batchSize = math.min(data.remainingWriteSize / 2, length - i)
+          var j = i
+          var pos = data.endPos
+          while (j < i + batchSize) {
+            val v = charArray(j)
+            data(pos + 0) = ((v & 0x000000ff) >>> 0).toByte
+            data(pos + 1) = ((v & 0x0000ff00) >>> 8).toByte
+            pos += 2
+            j += 1
+          }
+          i += batchSize
+          data.endPos += batchSize * 2
+          data = data.flush(math.min(2 * (length - i), maxArrayChunk))
+        }
       case RuntimeMarshaler.this.shortClass =>
-        sys.error("unsupported")
+        val shortArray = array.asInstanceOf[Array[Short]]
+        var i = 0
+        while (i < length) {
+          val batchSize = math.min(data.remainingWriteSize / 2, length - i)
+          var j = i
+          var pos = data.endPos
+          while (j < i + batchSize) {
+            val v = shortArray(j)
+            data(pos + 0) = ((v & 0x000000ff) >>> 0).toByte
+            data(pos + 1) = ((v & 0x0000ff00) >>> 8).toByte
+            pos += 2
+            j += 1
+          }
+          i += batchSize
+          data.endPos += batchSize * 2
+          data = data.flush(math.min(2 * (length - i), maxArrayChunk))
+        }
       case _ =>
         sys.error("unsupported")
     }
@@ -744,9 +776,69 @@ object RuntimeMarshaler {
             data.startPos += batchByteSize
           }
         case RuntimeMarshaler.this.charClass =>
-          sys.error("unsupported")
+          val charArray = array.asInstanceOf[Array[Char]]
+          var i = 0
+          while (i < length) {
+            val batchByteSize =
+              math.min(data.remainingReadSize / 2 * 2, (length - i) * 2)
+            var j = i
+            var pos = data.startPos
+            while (j < i + batchByteSize / 2) {
+              val b0 = (data(pos + 0).toInt << 0) & 0x000000ff
+              val b1 = (data(pos + 1).toInt << 8) & 0x0000ff00
+              val v = (b1 | b0).toChar
+              charArray(j) = v
+              pos += 2
+              j += 1
+            }
+            i += batchByteSize / 2
+            data.startPos += batchByteSize
+            if (i < length) {
+              var v = 0
+              var j = 0
+              while (j < 2) {
+                if (data.remainingReadSize == 0) data = data.fetch()
+                val b = data(data.startPos)
+                v |= (b.toInt & 0xff) << (8 * j)
+                data.startPos += 1
+                j += 1
+              }
+              charArray(i) = v.toChar
+              i += 1
+            }
+          }
         case RuntimeMarshaler.this.shortClass =>
-          sys.error("unsupported")
+          val shortArray = array.asInstanceOf[Array[Short]]
+          var i = 0
+          while (i < length) {
+            val batchByteSize =
+              math.min(data.remainingReadSize / 2 * 2, (length - i) * 2)
+            var j = i
+            var pos = data.startPos
+            while (j < i + batchByteSize / 2) {
+              val b0 = (data(pos + 0).toInt << 0) & 0x000000ff
+              val b1 = (data(pos + 1).toInt << 8) & 0x0000ff00
+              val v = (b1 | b0).toShort
+              shortArray(j) = v
+              pos += 2
+              j += 1
+            }
+            i += batchByteSize / 2
+            data.startPos += batchByteSize
+            if (i < length) {
+              var v = 0
+              var j = 0
+              while (j < 2) {
+                if (data.remainingReadSize == 0) data = data.fetch()
+                val b = data(data.startPos)
+                v |= (b.toInt & 0xff) << (8 * j)
+                data.startPos += 1
+                j += 1
+              }
+              shortArray(i) = v.toShort
+              i += 1
+            }
+          }
         case _ =>
           sys.error("unsupported")
       }
