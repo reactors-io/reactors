@@ -249,6 +249,11 @@ object RuntimeMarshaler {
           data = data.flush(math.min(2 * (length - i), maxArrayChunk))
         }
       case _ =>
+        val objectArray = array.asInstanceOf[Array[AnyRef]]
+        var i = 0
+        while (i < length) {
+          i += 1
+        }
         sys.error("unsupported")
     }
     data
