@@ -158,7 +158,27 @@ object RuntimeMarshaler {
           data = data.flush(math.min(8 * (length - i), maxArrayChunk))
         }
       case RuntimeMarshaler.this.floatClass =>
-        sys.error("unsupported")
+        val floatArray = array.asInstanceOf[Array[Float]]
+        var i = 0
+        while (i < length) {
+          val batchSize = math.min(data.remainingWriteSize / 4, length - i)
+          var j = i
+          var pos = data.endPos
+          while (j < i + batchSize) {
+            val v = floatArray(j)
+            val bits = java.lang.Float.floatToRawIntBits(v)
+            data(pos + 0) = ((bits & 0x000000ff) >>> 0).toByte
+            data(pos + 1) = ((bits & 0x0000ff00) >>> 8).toByte
+            data(pos + 2) = ((bits & 0x00ff0000) >>> 16).toByte
+            data(pos + 3) = ((bits & 0xff000000) >>> 24).toByte
+            pos += 4
+            j += 1
+          }
+          i += batchSize
+          data.endPos += batchSize * 4
+          data = data.flush(math.min(4 * (length - i), maxArrayChunk))
+        }
+
       case RuntimeMarshaler.this.byteClass =>
         sys.error("unsupported")
       case RuntimeMarshaler.this.booleanClass =>
@@ -624,7 +644,40 @@ object RuntimeMarshaler {
             }
           }
         case RuntimeMarshaler.this.floatClass =>
-          sys.error("unsupported")
+          val floatArray = array.asInstanceOf[Array[Float]]
+          var i = 0
+          while (i < length) {
+            val batchByteSize =
+              math.min(data.remainingReadSize / 4 * 4, (length - i) * 4)
+            var j = i
+            var pos = data.startPos
+            while (j < i + batchByteSize / 4) {
+              val b0 = (data(pos + 0).toInt << 0) & 0x000000ff
+              val b1 = (data(pos + 1).toInt << 8) & 0x0000ff00
+              val b2 = (data(pos + 2).toInt << 16) & 0x00ff0000
+              val b3 = (data(pos + 3).toInt << 24) & 0xff000000
+              val bits = b3 | b2 | b1 | b0
+              val v = java.lang.Float.intBitsToFloat(bits)
+              floatArray(j) = v
+              pos += 4
+              j += 1
+            }
+            i += batchByteSize / 4
+            data.startPos += batchByteSize
+            if (i < length) {
+              var bits = 0
+              var j = 0
+              while (j < 4) {
+                if (data.remainingReadSize == 0) data = data.fetch()
+                val b = data(data.startPos)
+                bits |= (b.toInt & 0xff) << (8 * j)
+                data.startPos += 1
+                j += 1
+              }
+              floatArray(i) = java.lang.Float.intBitsToFloat(bits)
+              i += 1
+            }
+          }
         case RuntimeMarshaler.this.byteClass =>
           sys.error("unsupported")
         case RuntimeMarshaler.this.booleanClass =>

@@ -328,12 +328,24 @@ class RuntimeMarshalerTest extends FunSuite {
     val data = new Data.Linked(128, 128)
     val cell = new Cell[Data](data)
     val input = new DoubleArrayObject(256)
-    for (i <- 0 until 256) input.array(i) = i + 3
+    for (i <- 0 until 256) input.array(i) = i + 3.5
     RuntimeMarshaler.marshal(input, data)
     println(data.byteString)
     val obj = RuntimeMarshaler.unmarshal[DoubleArrayObject](cell)
     assert(obj.array.length == 256)
-    for (i <- 0 until 256) assert(obj.array(i) == i + 3)
+    for (i <- 0 until 256) assert(obj.array(i) == i + 3.5)
+  }
+
+  test("marshal an object with a float array") {
+    val data = new Data.Linked(128, 128)
+    val cell = new Cell[Data](data)
+    val input = new FloatArrayObject(256)
+    for (i <- 0 until 256) input.array(i) = i + 3.5f
+    RuntimeMarshaler.marshal(input, data)
+    println(data.byteString)
+    val obj = RuntimeMarshaler.unmarshal[FloatArrayObject](cell)
+    assert(obj.array.length == 256)
+    for (i <- 0 until 256) assert(obj.array(i) == i + 3.5f)
   }
 }
 
@@ -402,5 +414,9 @@ class LongArrayObject(length: Int) {
 }
 
 class DoubleArrayObject(length: Int) {
+  val array = new Array[Double](length)
+}
+
+class FloatArrayObject(length: Int) {
   val array = new Array[Double](length)
 }
