@@ -254,8 +254,12 @@ object RuntimeMarshaler {
         }
       case _ =>
         val objectArray = array.asInstanceOf[Array[AnyRef]]
+        val marshalElementType =
+          marshalType || !Modifier.isFinal(componentType.getModifiers)
         var i = 0
         while (i < length) {
+          val elem = objectArray(i)
+          data = internalMarshal(elem, data, true, marshalElementType, context)
           i += 1
         }
         sys.error("unsupported")
@@ -370,7 +374,7 @@ object RuntimeMarshaler {
       val field = fields(i)
       field.setAccessible(true)
       val tpe = field.getType
-     if (tpe.isPrimitive) {
+      if (tpe.isPrimitive) {
         tpe match {
           case RuntimeMarshaler.this.intClass =>
             val v = field.getInt(obj)
@@ -402,7 +406,7 @@ object RuntimeMarshaler {
         if (array == null) {
           data = marshalByte(nullTag, data)
         } else {
-          data = marshalArray(array, tpe, true, data, context)
+          data = marshalArray(array, tpe, false, data, context)
         }
       } else {
         val value = field.get(obj)
