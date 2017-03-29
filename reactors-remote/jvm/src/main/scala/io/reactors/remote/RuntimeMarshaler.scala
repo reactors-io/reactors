@@ -602,7 +602,8 @@ object RuntimeMarshaler {
       }
       array = java.lang.reflect.Array.newInstance(tpe.getComponentType, length)
       context.seen += array
-      tpe.getComponentType match {
+      val componentType = tpe.getComponentType
+      componentType match {
         case RuntimeMarshaler.this.intClass =>
           val intArray = array.asInstanceOf[Array[Int]]
           var i = 0
@@ -850,6 +851,16 @@ object RuntimeMarshaler {
             }
           }
         case _ =>
+          val objectArray = array.asInstanceOf[Array[AnyRef]]
+          var i = 0
+          while (i < length) {
+            inputData := data
+            val unmarshalComponentType = true
+            val obj = internalUnmarshal(
+              componentType, inputData, unmarshalComponentType, context)
+            data = inputData()
+            i += 1
+          }
           sys.error("unsupported")
       }
     }
