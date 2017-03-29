@@ -82,12 +82,16 @@ object RuntimeMarshaler {
     }
   }
 
-  private def marshalArray(array: AnyRef, tpe: Class[_], inputData: Data): Data = {
+  private def marshalArray(
+    array: AnyRef, tpe: Class[_], marshalType: Boolean,
+    inputData: Data, context: Reactor.MarshalContext
+  ): Data = {
     var data = inputData
     val length = java.lang.reflect.Array.getLength(array)
     data = marshalByte(arrayTag, data)
     data = marshalInt(length, data)
-    tpe.getComponentType match {
+    val componentType = tpe.getComponentType
+    componentType match {
       case RuntimeMarshaler.this.intClass =>
         val intArray = array.asInstanceOf[Array[Int]]
         var i = 0
@@ -398,7 +402,7 @@ object RuntimeMarshaler {
         if (array == null) {
           data = marshalByte(nullTag, data)
         } else {
-          data = marshalArray(array, tpe, data)
+          data = marshalArray(array, tpe, true, data, context)
         }
       } else {
         val value = field.get(obj)
@@ -407,22 +411,8 @@ object RuntimeMarshaler {
           data(data.endPos) = nullTag
           data.endPos += 1
         } else {
-          val ref = context.written.get(value)
-          if (ref != context.written.nil) {
-            if (data.remainingWriteSize < 5) data = data.flush(5)
-            val pos = data.endPos
-            data(pos + 0) = objectReferenceTag
-            data(pos + 1) = ((ref & 0x000000ff) >>> 0).toByte
-            data(pos + 2) = ((ref & 0x0000ff00) >>> 8).toByte
-            data(pos + 3) = ((ref & 0x00ff0000) >>> 16).toByte
-            data(pos + 4) = ((ref & 0xff000000) >>> 24).toByte
-            data.endPos += 5
-          } else {
-            val marshalType = !Modifier.isFinal(field.getType.getModifiers)
-            val freshRef = context.createFreshReference()
-            context.written.put(value, freshRef)
-            data = internalMarshal(value, data, marshalType, context)
-          }
+          val marshalType = !Modifier.isFinal(field.getType.getModifiers)
+          data = internalMarshal(value, data, true, marshalType, context)
         }
       }
       i += 1
@@ -440,7 +430,7 @@ object RuntimeMarshaler {
       data
     } else {
       context.written.put(obj.asInstanceOf[AnyRef], context.createFreshReference())
-      val data = internalMarshal(obj, inputData, marshalType, context)
+      val data = internalMarshal(obj, inputData, false, marshalType, context)
       context.resetMarshal()
       data
     }
@@ -471,13 +461,28 @@ object RuntimeMarshaler {
   }
 
   private def internalMarshal[T](
-    obj: T, inputData: Data, marshalType: Boolean, context: Reactor.MarshalContext
+    obj: T, inputData: Data, checkRecorded: Boolean, marshalType: Boolean,
+    context: Reactor.MarshalContext
   ): Data = {
     var data = inputData
+    if (checkRecorded) {
+      val ref = context.written.get(obj.asInstanceOf[AnyRef])
+      if (ref != context.written.nil) {
+        if (data.remainingWriteSize < 5) data = data.flush(5)
+        val pos = data.endPos
+        data(pos + 0) = objectReferenceTag
+        data(pos + 1) = ((ref & 0x000000ff) >>> 0).toByte
+        data(pos + 2) = ((ref & 0x0000ff00) >>> 8).toByte
+        data(pos + 3) = ((ref & 0x00ff0000) >>> 16).toByte
+        data(pos + 4) = ((ref & 0xff000000) >>> 24).toByte
+        data.endPos += 5
+        return data
+      }
+    }
     val klazz = obj.getClass
     if (klazz.isArray) {
       optionallyMarshalType(klazz, data, marshalType)
-      marshalArray(obj.asInstanceOf[AnyRef], klazz, data)
+      marshalArray(obj.asInstanceOf[AnyRef], klazz, marshalType, data, context)
     } else {
       data = optionallyMarshalType(klazz, data, marshalType)
       internalMarshalAs(klazz, obj, data, context)
