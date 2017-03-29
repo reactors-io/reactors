@@ -90,8 +90,8 @@ object RuntimeMarshaler {
     val length = java.lang.reflect.Array.getLength(array)
     data = marshalByte(arrayTag, data)
     data = marshalInt(length, data)
-    val componentType = tpe.getComponentType
-    componentType match {
+    val elementType = tpe.getComponentType
+    elementType match {
       case RuntimeMarshaler.this.intClass =>
         val intArray = array.asInstanceOf[Array[Int]]
         var i = 0
@@ -254,15 +254,13 @@ object RuntimeMarshaler {
         }
       case _ =>
         val objectArray = array.asInstanceOf[Array[AnyRef]]
-        val marshalElementType =
-          marshalType || !Modifier.isFinal(componentType.getModifiers)
+        val marshalElementType = !Modifier.isFinal(elementType.getModifiers)
         var i = 0
         while (i < length) {
           val elem = objectArray(i)
           data = internalMarshal(elem, data, true, marshalElementType, context)
           i += 1
         }
-        sys.error("unsupported")
     }
     data
   }
@@ -606,8 +604,8 @@ object RuntimeMarshaler {
       }
       array = java.lang.reflect.Array.newInstance(tpe.getComponentType, length)
       context.seen += array
-      val componentType = tpe.getComponentType
-      componentType match {
+      val elementType = tpe.getComponentType
+      elementType match {
         case RuntimeMarshaler.this.intClass =>
           val intArray = array.asInstanceOf[Array[Int]]
           var i = 0
@@ -857,15 +855,15 @@ object RuntimeMarshaler {
         case _ =>
           val objectArray = array.asInstanceOf[Array[AnyRef]]
           var i = 0
+          inputData := data
           while (i < length) {
-            inputData := data
-            val unmarshalComponentType = true
-            val obj = internalUnmarshal(
-              componentType, inputData, unmarshalComponentType, context)
-            data = inputData()
+            val unmarshalElementType = !Modifier.isFinal(elementType.getModifiers)
+            val obj = internalUnmarshal[AnyRef](elementType, inputData,
+              unmarshalElementType, context)
+            objectArray(i) = obj
             i += 1
           }
-          sys.error("unsupported")
+          data = inputData()
       }
     }
     inputData := data
