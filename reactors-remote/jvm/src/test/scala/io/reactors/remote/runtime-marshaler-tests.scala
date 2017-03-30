@@ -419,6 +419,41 @@ class RuntimeMarshalerTest extends FunSuite {
     assert(obj.array.length == 256)
     for (i <- 0 until 256) assert(obj.array(i).x == i, s"$i == ${obj.array(i)}")
   }
+
+  test("marshal an array of repeated and null objects") {
+    val data = new Data.Linked(128, 128)
+    val cell = new Cell[Data](data)
+    val input = new Array[AnyRef](256)
+    for (i <- 0 until 256) input(i) = i match {
+      case i if i % 5 == 0 => null
+      case i if i % 6 == 0 => input(i - 5)
+      case i if i % 11 == 0 => new SingleLong(i)
+      case _ => new FinalSingleInt(i)
+    }
+    RuntimeMarshaler.marshal(input, data)
+    println(data.byteString)
+    val array = RuntimeMarshaler.unmarshal[Array[AnyRef]](cell)
+    assert(array.length == 256)
+    for (i <- 0 until 256) i match {
+      case i if i % 5 == 0 =>
+        assert(array(i) == null)
+      case i if i % 6 == 0 =>
+        assert(array(i) eq array(i - 5))
+        input(i) match {
+          case null =>
+            assert(array(i) == null)
+          case obj: FinalSingleInt =>
+            assert(array(i).asInstanceOf[FinalSingleInt].x == obj.x)
+          case obj: SingleLong =>
+            assert(array(i).asInstanceOf[SingleLong].x == obj.x)
+        }
+      case i if i % 11 == 0 =>
+        assert(array(i).isInstanceOf[SingleLong])
+        assert(array(i).asInstanceOf[SingleLong].x == i)
+      case _ =>
+        assert(array(i).asInstanceOf[FinalSingleInt].x == i)
+    }
+  }
 }
 
 
