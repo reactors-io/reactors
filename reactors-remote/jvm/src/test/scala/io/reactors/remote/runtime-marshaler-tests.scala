@@ -407,6 +407,18 @@ class RuntimeMarshalerTest extends FunSuite {
     assert(obj.array.length == 256)
     for (i <- 0 until 256) assert(obj.array(i).x == i, s"$i == ${obj.array(i)}")
   }
+
+  test("marshal an object with a final object array") {
+    val data = new Data.Linked(128, 128)
+    val cell = new Cell[Data](data)
+    val input = new FinalObjectArrayObject(256)
+    for (i <- 0 until 256) input.array(i) = new FinalSingleInt(i)
+    RuntimeMarshaler.marshal(input, data)
+    println(data.byteString)
+    val obj = RuntimeMarshaler.unmarshal[FinalObjectArrayObject](cell)
+    assert(obj.array.length == 256)
+    for (i <- 0 until 256) assert(obj.array(i).x == i, s"$i == ${obj.array(i)}")
+  }
 }
 
 
@@ -499,4 +511,8 @@ class ShortArrayObject(length: Int) {
 
 class ObjectArrayObject(length: Int) {
   val array = new Array[SingleLong](length)
+}
+
+class FinalObjectArrayObject(length: Int) {
+  val array = new Array[FinalSingleInt](length)
 }
