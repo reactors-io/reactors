@@ -454,6 +454,18 @@ class RuntimeMarshalerTest extends FunSuite {
         assert(array(i).asInstanceOf[FinalSingleInt].x == i)
     }
   }
+
+  test("marshal an array pointing to itself") {
+    val data = new Data.Linked(128, 128)
+    val cell = new Cell[Data](data)
+    val input = new Array[AnyRef](256)
+    for (i <- 0 until 256) input(i) = input
+    RuntimeMarshaler.marshal(input, data)
+    println(data.byteString)
+    val obj = RuntimeMarshaler.unmarshal[Array[AnyRef]](cell)
+    assert(obj.array.length == 256)
+    for (i <- 0 until 256) assert(obj(i) eq obj)
+  }
 }
 
 
