@@ -55,6 +55,8 @@ class GuideHelloWorld extends AsyncFunSuite {
         val system = ReactorSystem.default("test-system")
         val ch = system.spawn(welcomeReactor)
         ch ! "Alan"
+
+        Thread.sleep(1000)
       }
     }
     /*!end-code!*/
