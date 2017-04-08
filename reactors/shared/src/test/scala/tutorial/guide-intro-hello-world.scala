@@ -55,8 +55,6 @@ class GuideHelloWorld extends AsyncFunSuite {
         val system = ReactorSystem.default("test-system")
         val ch = system.spawn(welcomeReactor)
         ch ! "Alan"
-
-        Thread.sleep(1000)
       }
     }
     /*!end-code!*/
@@ -79,10 +77,24 @@ class GuideHelloWorld extends AsyncFunSuite {
     - Calling `main.seal()` terminates the reactor.
     - A reactor with a specific definition is started with the `spawn` method, which
       returns the reactor's default channel.
+    - The `withScheduler` method specifies that our reactor should get its own
+      dedicated thread.
     - Events are sent to the reactor by calling the `!` operator on its channels.
 
     The subsequent sections will explain these features in depth.
     !*/
+
+    /*!md
+    **Note:** If you are running the above example in IntelliJ or another IDE that runs
+    your Scala programs in a separate JVM process, you need to ensure that this new
+    JVM process does not die when the `main` function ends. Reactors run on daemon
+    threads by default, so they will not prevent the JVM from terminating. There are
+    several ways to fix this, and the easiest is to add a `Thread.sleep` at the end of
+    the `main` function. A more sophisticated approach is to start your `welcomeReactor`
+    on a dedicated thread instead of a thread pool:
+    !*/
+
+    /*!include-code JVM:reactors-scala-jvm-spawn-thread.html!*/
 
     done.future.map(s => assert(s == "Welcome, Alan!"))
   }
