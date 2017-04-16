@@ -17,8 +17,8 @@ object ReactorsBuild extends MechaRepoBuild {
 
   val reactorsScalaVersion = "2.11.8"
 
-  def projectSettings(suffix: String) = {
-    MechaRepoPlugin.defaultSettings ++ Seq(
+  def projectSettings(suffix: String, enableMecha) = {
+    Seq(
       name := s"reactors$suffix",
       organization := "io.reactors",
       scalaVersion := reactorsScalaVersion,
@@ -90,7 +90,7 @@ object ReactorsBuild extends MechaRepoBuild {
   }
 
   def jvmProjectSettings(suffix: String) =
-    Seq(
+    MechaRepoPlugin.defaultSettings ++ Seq(
       javaOptions in Test ++= Seq(
         "-Xmx2G",
         "-XX:MaxPermSize=384m",
