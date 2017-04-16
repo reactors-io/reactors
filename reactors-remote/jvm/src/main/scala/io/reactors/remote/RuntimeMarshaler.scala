@@ -408,14 +408,8 @@ object RuntimeMarshaler {
         }
       } else {
         val value = field.get(obj)
-        if (value == null) {
-          if (data.remainingWriteSize < 1) data = data.flush(1)
-          data(data.endPos) = nullTag
-          data.endPos += 1
-        } else {
-          val marshalType = !Modifier.isFinal(field.getType.getModifiers)
-          data = internalMarshal(value, data, true, marshalType, context)
-        }
+        val marshalType = !Modifier.isFinal(field.getType.getModifiers)
+        data = internalMarshal(value, data, true, marshalType, context)
       }
       i += 1
     }
@@ -424,18 +418,9 @@ object RuntimeMarshaler {
 
   def marshal[T](obj: T, inputData: Data, marshalType: Boolean = true): Data = {
     val context = Reactor.marshalContext
-    if (obj == null) {
-      var data = inputData
-      if (data.remainingWriteSize < 1) data = data.flush(1)
-      data(data.endPos) = nullTag
-      data.endPos += 1
-      data
-    } else {
-      context.written.put(obj.asInstanceOf[AnyRef], context.createFreshReference())
-      val data = internalMarshal(obj, inputData, false, marshalType, context)
-      context.resetMarshal()
-      data
-    }
+    val data = internalMarshal(obj, inputData, false, marshalType, context)
+    context.resetMarshal()
+    data
   }
 
   def optionallyMarshalType(
@@ -467,6 +452,12 @@ object RuntimeMarshaler {
     context: Reactor.MarshalContext
   ): Data = {
     var data = inputData
+    if (obj == null) {
+      if (data.remainingWriteSize < 1) data = data.flush(1)
+      data(data.endPos) = nullTag
+      data.endPos += 1
+      return data
+    }
     if (checkRecorded) {
       val ref = context.written.get(obj.asInstanceOf[AnyRef])
       if (ref != context.written.nil) {
@@ -481,6 +472,7 @@ object RuntimeMarshaler {
         return data
       }
     }
+    context.written.put(obj.asInstanceOf[AnyRef], context.createFreshReference())
     val klazz = obj.getClass
     if (klazz.isArray) {
       optionallyMarshalType(klazz, data, marshalType)
