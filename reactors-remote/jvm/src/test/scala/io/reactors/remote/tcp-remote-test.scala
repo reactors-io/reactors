@@ -3,7 +3,6 @@ package remote
 
 
 
-import java.io._
 import java.net._
 import org.scalatest.FunSuite
 import scala.sys.process._
@@ -11,7 +10,7 @@ import scala.sys.process._
 
 
 class TcpRemoteTest extends FunSuite {
-  test("tcp connection established") {
+  test("local tcp connection established") {
     val proc = Seq(
       "java", "-cp", sys.props("java.class.path"), "io.reactors.remote.TcpRemoteTest"
     ).run()
@@ -45,14 +44,14 @@ class TcpRemoteTest extends FunSuite {
 
 
 object TcpRemoteTest {
-  val bufferSize = 10000
+  val bufferSize = 50000
 
   def main(args: Array[String]) {
     val serverSocket = new ServerSocket(9500)
     val clientSocket = serverSocket.accept()
     val is = clientSocket.getInputStream
     val buffer = new Array[Byte](bufferSize)
-    val check_period = 100
+    val check_period = 50000
     var round = 0L
     var count = 0
     val startTime = System.nanoTime()

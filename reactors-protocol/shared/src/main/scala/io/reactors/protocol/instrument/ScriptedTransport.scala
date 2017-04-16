@@ -75,7 +75,7 @@ object ScriptedTransport {
   private[instrument] class ScriptedChannel[@spec(Int, Long, Double) T](
     val transport: ScriptedTransport, val url: ChannelUrl
   ) extends Channel[T] {
-    def !(x: T): Unit = {
+    def send(x: T): Unit = {
       val undermux = transport.multiplexer.asInstanceOf[Channel.Shared[T]].underlying
       if (this eq undermux) {
         transport.system.channels.getLocal[T](url).get ! x

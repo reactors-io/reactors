@@ -4,6 +4,7 @@ package io.reactors
 
 import scala.collection._
 import scala.util.DynamicVariable
+import io.reactors.common.BloomMap
 import io.reactors.concurrent._
 
 
@@ -115,10 +116,45 @@ trait Reactor[@spec(Int, Long, Double) T] extends Platform.Reflectable {
 
 
 object Reactor {
-
+  /** Mixin trait for workers that define a special thread-local variables.
+   */
   trait ReactorLocalThread {
     var currentFrame: Frame = null
+    var dataCache: Data = null
+    var marshalContext: MarshalContext = marshalContextThreadLocal.get
   }
+
+  class MarshalContext() {
+    private var lastReference = 0
+    val written = new BloomMap[AnyRef, Int]
+    val seen = mutable.ArrayBuffer[AnyRef]()
+    val stringBuffer = new StringBuilder
+
+    def createFreshReference(): Int = {
+      val ref = lastReference
+      lastReference += 1
+      ref
+    }
+
+    def resetMarshal(): Unit = {
+      if (written.nonEmpty) written.clear()
+      lastReference = 0
+    }
+
+    def resetUnmarshal(): Unit = {
+      if (seen.nonEmpty) seen.clear()
+    }
+  }
+
+  private[reactors] val marshalContextThreadLocal = new ThreadLocal[MarshalContext] {
+    override def initialValue = new MarshalContext
+  }
+
+  private[reactors] def marshalContext: MarshalContext =
+    Thread.currentThread match {
+      case rt: ReactorLocalThread => rt.marshalContext
+      case _ => marshalContextThreadLocal.get
+    }
 
   private[reactors] val currentFrameThreadLocal = new ThreadLocal[Frame] {
     override def initialValue = null
@@ -137,6 +173,15 @@ object Reactor {
   private[reactors] def currentReactor: Reactor[_] = {
     val f = currentFrame
     if (f == null) null else f.reactor
+  }
+
+  /** If the current worker thread is marked, returns that thread, otherwise `null`.
+   *
+   *  Used for optimizations.
+   */
+  def currentReactorLocalThread: ReactorLocalThread = Thread.currentThread match {
+    case rt: ReactorLocalThread => rt
+    case _ => null
   }
 
   /** Returns the current reactor.

@@ -8,7 +8,8 @@ import java.net._
 import java.nio._
 import org.scalatest.FunSuite
 import org.scalatest.Matchers
-import scala.concurrent._
+import scala.concurrent.Await
+import scala.concurrent.Promise
 import scala.concurrent.duration._
 
 

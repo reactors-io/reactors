@@ -17,7 +17,7 @@ object ReactorsBuild extends MechaRepoBuild {
 
   val reactorsScalaVersion = "2.11.8"
 
-  def projectSettings(suffix: String) = {
+  def projectSettings(suffix: String, enableMecha) = {
     Seq(
       name := s"reactors$suffix",
       organization := "io.reactors",
@@ -82,7 +82,7 @@ object ReactorsBuild extends MechaRepoBuild {
             <url>http://axel22.github.com/</url>
           </developer>
         </developers>,
-      mechaPublishKey := { publish.value },
+      mechaPublishKey <<= mechaPublishKey.dependsOn(publish),
       mechaDocsRepoKey := "git@github.com:storm-enroute/apidocs.git",
       mechaDocsBranchKey := "gh-pages",
       mechaDocsPathKey := "reactors"
@@ -90,7 +90,7 @@ object ReactorsBuild extends MechaRepoBuild {
   }
 
   def jvmProjectSettings(suffix: String) =
-    Seq(
+    MechaRepoPlugin.defaultSettings ++ Seq(
       javaOptions in Test ++= Seq(
         "-Xmx2G",
         "-XX:MaxPermSize=384m",
@@ -289,7 +289,8 @@ object ReactorsBuild extends MechaRepoBuild {
       projectSettings("-remote") ++ Seq(
         libraryDependencies ++= Seq(
           "org.scalatest" %%% "scalatest" % "3.0.0" % "test",
-          "org.scalacheck" %%% "scalacheck" % "1.13.2" % "test"
+          "org.scalacheck" %%% "scalacheck" % "1.13.2" % "test",
+          "org.scala-lang" % "scala-reflect" % "2.11.8"
         ),
         unmanagedSourceDirectories in Compile +=
           baseDirectory.value.getParentFile / "shared" / "src" / "main" / "scala",

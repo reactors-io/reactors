@@ -22,7 +22,7 @@ class RFlatHashMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
 ) extends RContainer[K] with RContainer.Modifiable {
   private var keytable: Array[K] = null
   private var valtable: Array[V] = null
-  private var sz = 0
+  private var rawSize = 0
   private[reactors] var insertsEmitter: Events.Emitter[K] = null
   private[reactors] var removesEmitter: Events.Emitter[K] = null
   private[reactors] var modifiedEmitter: Events.Emitter[Unit] = null
@@ -124,7 +124,7 @@ class RFlatHashMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
     
       val keyAdded = curr == nil
 
-      if (keyAdded) sz += 1
+      if (keyAdded) rawSize += 1
       else notifyRemove(k, previousValue, notify)
       notifyInsert(k, v, notify)
       notifyModified(notify)
@@ -183,7 +183,7 @@ class RFlatHashMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
 
         keytable(h0) = emptyKey.nil
         valtable(h0) = emptyVal.nil
-        sz -= 1
+        rawSize -= 1
         notifyRemove(k, previousValue, true)
         notifyModified(true)
 
@@ -193,13 +193,13 @@ class RFlatHashMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
   }
 
   private[reactors] def checkResize(self: RFlatHashMap[K, V]) {
-    if (sz * 1000 / RFlatHashMap.loadFactor > keytable.length) {
+    if (rawSize * 1000 / RFlatHashMap.loadFactor > keytable.length) {
       val okeytable = keytable
       val ovaltable = valtable
       val ncapacity = keytable.length * 2
       keytable = emptyKey.newArray(ncapacity)
       valtable = emptyVal.newArray(ncapacity)
-      sz = 0
+      rawSize = 0
 
       var pos = 0
       val nil = emptyKey.nil
@@ -265,7 +265,7 @@ class RFlatHashMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
 
         keytable(pos) = emptyKey.nil
         valtable(pos) = emptyVal.nil
-        sz -= 1
+        rawSize -= 1
         notifyRemove(k, v, true)
         notifyModified(true)
       }
@@ -274,7 +274,7 @@ class RFlatHashMap[@spec(Int, Long, Double) K, @spec(Int, Long, Double) V](
     }
   } finally releaseModify()
 
-  def size: Int = sz
+  def size: Int = rawSize
 }
 
 
