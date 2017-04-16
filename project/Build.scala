@@ -18,7 +18,7 @@ object ReactorsBuild extends MechaRepoBuild {
   val reactorsScalaVersion = "2.11.8"
 
   def projectSettings(suffix: String) = {
-    Seq(
+    MechaRepoPlugin.defaultSettings ++ Seq(
       name := s"reactors$suffix",
       organization := "io.reactors",
       scalaVersion := reactorsScalaVersion,
