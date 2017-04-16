@@ -82,7 +82,7 @@ object ReactorsBuild extends MechaRepoBuild {
             <url>http://axel22.github.com/</url>
           </developer>
         </developers>,
-      mechaPublishKey := { publish.value },
+      mechaPublishKey <<= mechaPublishKey.dependsOn(publish),
       mechaDocsRepoKey := "git@github.com:storm-enroute/apidocs.git",
       mechaDocsBranchKey := "gh-pages",
       mechaDocsPathKey := "reactors"
