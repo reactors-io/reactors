@@ -82,6 +82,18 @@ class GuideHelloWorld extends AsyncFunSuite {
     The subsequent sections will explain these features in depth.
     !*/
 
+    /*!md
+    **Note:** If you are running the above example in IntelliJ or another IDE that runs
+    your Scala programs in a separate JVM process, you need to ensure that this new
+    JVM process does not die when the `main` function ends. Reactors run on daemon
+    threads by default, so they will not prevent the JVM from terminating. There are
+    several ways to fix this, and the easiest is to add a `Thread.sleep` at the end of
+    the `main` function. A more sophisticated approach is to start your `welcomeReactor`
+    on a dedicated thread instead of a thread pool:
+    !*/
+
+    /*!include-code JVM:reactors-scala-jvm-spawn-thread.html!*/
+
     done.future.map(s => assert(s == "Welcome, Alan!"))
   }
 

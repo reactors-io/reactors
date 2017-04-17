@@ -163,7 +163,7 @@ class ReactorSystem(
             // This should only happen if `activate` scheduled the frame and then threw
             // an exception, OR if `initSchedule` of a custom scheduler schedules the
             // frame for execution, which is not allowed.
-            throw new IllegalStateException("Frame removed before being scheduled.")
+            throw new IllegalStateException("Frame removed before being scheduled.", t)
           } else {
             val ninfo = info.retainOnlyListeners
             done = {

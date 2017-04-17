@@ -82,7 +82,7 @@ object ReactorsBuild extends MechaRepoBuild {
             <url>http://axel22.github.com/</url>
           </developer>
         </developers>,
-      mechaPublishKey <<= mechaPublishKey.dependsOn(publish),
+      mechaPublishKey := { publish.value },
       mechaDocsRepoKey := "git@github.com:storm-enroute/apidocs.git",
       mechaDocsBranchKey := "gh-pages",
       mechaDocsPathKey := "reactors"
@@ -327,7 +327,7 @@ object ReactorsBuild extends MechaRepoBuild {
     .copy(id = "reactors-extra")
     .in(file("reactors-extra"))
     .settings(
-      projectSettings("-extra") ++ Seq(
+      jvmProjectSettings("-extra") ++ projectSettings("-extra") ++ Seq(
         libraryDependencies ++= Seq(
           "org.scala-lang" % "scala-reflect" % "2.11.4",
           "org.scalatest" %%% "scalatest" % "3.0.0" % "test",
@@ -352,7 +352,7 @@ object ReactorsBuild extends MechaRepoBuild {
     .copy(id = "reactors-http")
     .in(file("reactors-http"))
     .settings(
-      projectSettings("-http") ++ Seq(
+      jvmProjectSettings("-http") ++ projectSettings("-http") ++ Seq(
         libraryDependencies ++= Seq(
           "org.scala-lang" % "scala-compiler" % "2.11.8",
           "org.nanohttpd" % "nanohttpd" % "2.3.1",
@@ -379,7 +379,7 @@ object ReactorsBuild extends MechaRepoBuild {
     .copy(id = "reactors-debugger")
     .in(file("reactors-debugger"))
     .settings(
-      projectSettings("-debugger") ++ Seq(
+      jvmProjectSettings("-debugger") ++ projectSettings("-debugger") ++ Seq(
         libraryDependencies ++= Seq(
           "org.scala-lang" % "scala-compiler" % "2.11.8",
           "org.rapidoid" % "rapidoid-http-server" % "5.1.9",
@@ -424,27 +424,29 @@ object ReactorsBuild extends MechaRepoBuild {
     .configs(Benchmark)
     .settings(inConfig(Benchmark)(Defaults.testSettings): _*)
     .jvmSettings(
-      (test in Test) <<= (test in Test)
-        .dependsOn(test in (reactorsCommon.jvm, Test))
-        .dependsOn(test in (reactorsCore.jvm, Test))
-        .dependsOn(test in (reactorsContainer.jvm, Test))
-        .dependsOn(test in (reactorsRemote.jvm, Test))
-        .dependsOn(test in (reactorsProtocol.jvm, Test))
-        .dependsOn(test in (reactorsHttp, Test))
-        .dependsOn(test in (reactorsDebugger, Test))
-        .dependsOn(test in (reactorsExtra, Test)),
-      publish <<= publish
-        .dependsOn(publish in reactorsCommon.jvm)
-        .dependsOn(publish in reactorsCore.jvm)
-        .dependsOn(publish in reactorsContainer.jvm)
-        .dependsOn(publish in reactorsRemote.jvm)
-        .dependsOn(publish in reactorsProtocol.jvm)
-        .dependsOn(publish in (reactorsHttp, Test))
-        .dependsOn(publish in reactorsExtra),
-      libraryDependencies ++= Seq(
-        "com.novocode" % "junit-interface" % "0.11" % "test",
-        "junit" % "junit" % "4.12" % "test"
-      )
+      jvmProjectSettings("") ++ Seq(
+        (test in Test) <<= (test in Test)
+          .dependsOn(test in (reactorsCommon.jvm, Test))
+          .dependsOn(test in (reactorsCore.jvm, Test))
+          .dependsOn(test in (reactorsContainer.jvm, Test))
+          .dependsOn(test in (reactorsRemote.jvm, Test))
+          .dependsOn(test in (reactorsProtocol.jvm, Test))
+          .dependsOn(test in (reactorsHttp, Test))
+          .dependsOn(test in (reactorsDebugger, Test))
+          .dependsOn(test in (reactorsExtra, Test)),
+        publish <<= publish
+          .dependsOn(publish in reactorsCommon.jvm)
+          .dependsOn(publish in reactorsCore.jvm)
+          .dependsOn(publish in reactorsContainer.jvm)
+          .dependsOn(publish in reactorsRemote.jvm)
+          .dependsOn(publish in reactorsProtocol.jvm)
+          .dependsOn(publish in (reactorsHttp, Test))
+          .dependsOn(publish in reactorsExtra),
+        libraryDependencies ++= Seq(
+          "com.novocode" % "junit-interface" % "0.11" % "test",
+          "junit" % "junit" % "4.12" % "test"
+        )
+      ): _*
     )
     .jvmConfigure(
       _.copy(id = "reactors-jvm").dependsOnSuperRepo
