@@ -30,7 +30,7 @@ object RuntimeMarshaler {
     def compare(x: Field, y: Field): Int = x.toString.compareTo(y.toString)
   }
   private val isMarshalableField: Field => Boolean = f => {
-    !Modifier.isTransient(f.getModifiers)
+    !Modifier.isTransient(f.getModifiers) && !Modifier.isStatic(f.getModifiers)
   }
 
   private def classNameTerminatorTag: Byte = 1

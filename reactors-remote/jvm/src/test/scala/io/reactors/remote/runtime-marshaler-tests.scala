@@ -6,6 +6,8 @@ package remote
 import io.reactors.common.Cell
 import org.scalatest.FunSuite
 
+import scala.collection.mutable
+
 
 
 class RuntimeMarshalerTest extends FunSuite {
@@ -465,6 +467,18 @@ class RuntimeMarshalerTest extends FunSuite {
     val obj = RuntimeMarshaler.unmarshal[Array[AnyRef]](cell)
     assert(obj.array.length == 256)
     for (i <- 0 until 256) assert(obj(i) eq obj)
+  }
+
+  test("marshal an array buffer") {
+    val data = new Data.Linked(128, 128)
+    val cell = new Cell[Data](data)
+    val input = mutable.ArrayBuffer[Int]()
+    for (i <- 0 until 128) input += i
+    RuntimeMarshaler.marshal(input, data)
+    println(data.byteString)
+    val obj = RuntimeMarshaler.unmarshal[mutable.ArrayBuffer[Int]](cell)
+    assert(obj.length == 128)
+    for (i <- 0 until 128) assert(obj(i) == i)
   }
 }
 
