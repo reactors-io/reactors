@@ -4,8 +4,8 @@ package remote
 
 
 import io.reactors.common.Cell
+import io.reactors.marshal.Marshalee
 import org.scalatest.FunSuite
-
 import scala.collection.mutable
 
 
@@ -483,97 +483,98 @@ class RuntimeMarshalerTest extends FunSuite {
 }
 
 
-class NonFinalEmpty
+class NonFinalEmpty extends Marshalee
 
 
-final class FinalEmpty
+final class FinalEmpty extends Marshalee
 
 
-class NonFinalSingleInt(val x: Int)
+class NonFinalSingleInt(val x: Int) extends Marshalee
 
 
-final class FinalSingleInt(val x: Int)
+final class FinalSingleInt(val x: Int) extends Marshalee
 
 
-class SingleLong(val x: Long)
+class SingleLong(val x: Long) extends Marshalee
 
 
-class SingleDouble(val x: Double)
+class SingleDouble(val x: Double) extends Marshalee
 
 
-class SingleFloat(val x: Float)
+class SingleFloat(val x: Float) extends Marshalee
 
 
-class SingleByte(val x: Byte)
+class SingleByte(val x: Byte) extends Marshalee
 
 
-class SingleBoolean(val x: Boolean)
+class SingleBoolean(val x: Boolean) extends Marshalee
 
 
-class SingleChar(val x: Char)
+class SingleChar(val x: Char) extends Marshalee
 
 
-class SingleShort(val x: Short)
+class SingleShort(val x: Short) extends Marshalee
 
 
 class MixedPrimitives(
   val x: Int, var y: Short, val z: Double, val b: Boolean, val f: Float, val c: Char
-)
+) extends Marshalee
 
 
-class FinalClassObject(val inner: FinalSingleInt)
+class FinalClassObject(val inner: FinalSingleInt) extends Marshalee
 
 
-class RecursiveObject(val x: Int, var tail: RecursiveObject)
+class RecursiveObject(val x: Int, var tail: RecursiveObject) extends Marshalee
 
 
-class BaseClass(val x: Int)
+class BaseClass(val x: Int) extends Marshalee
 
 
-class InheritedClass(val y: Int, px: Int) extends BaseClass(px)
+class InheritedClass(val y: Int, px: Int) extends BaseClass(px) with Marshalee
 
 
 class CyclicObjectPair(val x: Int, var o1: CyclicObjectPair, var o2: CyclicObjectPair)
+extends Marshalee
 
 
-class ArrayObject(length: Int) {
+class ArrayObject(length: Int) extends Marshalee {
   val array = new Array[Int](length)
 }
 
-class VarArrayObject(var array: Array[Int])
+class VarArrayObject(var array: Array[Int]) extends Marshalee
 
-class LongArrayObject(length: Int) {
+class LongArrayObject(length: Int) extends Marshalee {
   val array = new Array[Long](length)
 }
 
-class DoubleArrayObject(length: Int) {
+class DoubleArrayObject(length: Int) extends Marshalee {
   val array = new Array[Double](length)
 }
 
-class FloatArrayObject(length: Int) {
+class FloatArrayObject(length: Int) extends Marshalee {
   val array = new Array[Float](length)
 }
 
-class ByteArrayObject(length: Int) {
+class ByteArrayObject(length: Int) extends Marshalee {
   val array = new Array[Byte](length)
 }
 
-class BooleanArrayObject(length: Int) {
+class BooleanArrayObject(length: Int) extends Marshalee {
   val array = new Array[Boolean](length)
 }
 
-class CharArrayObject(length: Int) {
+class CharArrayObject(length: Int) extends Marshalee {
   val array = new Array[Char](length)
 }
 
-class ShortArrayObject(length: Int) {
+class ShortArrayObject(length: Int) extends Marshalee {
   val array = new Array[Short](length)
 }
 
-class ObjectArrayObject(length: Int) {
+class ObjectArrayObject(length: Int) extends Marshalee {
   val array = new Array[SingleLong](length)
 }
 
-class FinalObjectArrayObject(length: Int) {
+class FinalObjectArrayObject(length: Int) extends Marshalee {
   val array = new Array[FinalSingleInt](length)
 }

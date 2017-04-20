@@ -6,6 +6,8 @@ package remote
 import io.reactors.Reactor.MarshalContext
 import io.reactors.common.BloomMap
 import io.reactors.common.Cell
+import io.reactors.marshal.Marshalable
+import io.reactors.marshal.Marshalee
 import java.lang.reflect.Field
 import java.lang.reflect.Modifier
 import java.util.Arrays
@@ -33,6 +35,16 @@ object RuntimeMarshaler {
     !Modifier.isTransient(f.getModifiers) && !Modifier.isStatic(f.getModifiers)
   }
 
+  private def canBeMarshaled(cls: Class[_]): Boolean = {
+    val isOk =
+      classOf[Marshalee].isAssignableFrom(cls) ||
+      classOf[Marshalable].isAssignableFrom(cls) ||
+      classOf[java.io.Serializable].isAssignableFrom(cls) ||
+      cls.isPrimitive ||
+      cls.isArray
+    isOk
+  }
+
   private def classNameTerminatorTag: Byte = 1
 
   private def objectReferenceTag: Byte = 2
@@ -44,6 +56,9 @@ object RuntimeMarshaler {
   private def maxArrayChunk: Int = 2048
 
   private def computeFieldsOf(klazz: Class[_]): Array[Field] = monitor.synchronized {
+    if (!canBeMarshaled(klazz)) {
+      throw new IllegalArgumentException(s"Class $klazz cannot be marshaled")
+    }
     val fields = mutable.ArrayBuffer[Field]()
     var ancestor = klazz
     while (ancestor != null) {
@@ -258,6 +273,9 @@ object RuntimeMarshaler {
         var i = 0
         while (i < length) {
           val elem = objectArray(i)
+          if (elem != null) {
+
+          }
           data = internalMarshal(elem, data, true, marshalElementType, context)
           i += 1
         }
