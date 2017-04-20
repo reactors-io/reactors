@@ -43,7 +43,7 @@ extends AsyncFunSuite with AsyncTimeLimitedTests {
     ch ! 11
     ch ! 17
     val done = Promise[Boolean]()
-    afterTime(400.millis) {
+    afterTime(600.millis) {
       assert(a2.future.value.get.get == 7)
       assert(a1.future.value == None)
       assert(a0.future.value == None)
