@@ -237,6 +237,7 @@ object JvmScheduler {
   class Executed(
     val executor: java.util.concurrent.Executor
   ) extends Scheduler {
+    def this(ec: ExecutionContext) = this(Executed.wrapExecutionContext(ec))
 
     def schedule(frame: Frame): Unit = {
       Thread.currentThread match {
@@ -275,6 +276,12 @@ object JvmScheduler {
         case _ =>
           return
       }
+    }
+  }
+
+  object Executed {
+    def wrapExecutionContext(ec: ExecutionContext): Executor = new Executor {
+      override def execute(r: Runnable): Unit = ec.execute(r)
     }
   }
 

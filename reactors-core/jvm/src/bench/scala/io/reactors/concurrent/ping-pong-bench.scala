@@ -77,7 +77,7 @@ class PingPongBench extends JBench.OfflineReport {
   }
 
   def akkaPingPongTeardown() {
-    actorSystem.shutdown()
+    actorSystem.terminate()
   }
 
   @gen("sizes")

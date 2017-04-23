@@ -20,6 +20,7 @@ object ReactorsBuild extends MechaRepoBuild {
   val scalaCheckVersion = "1.13.4"
   val akkaVersion = "2.5.0"
   val scalaParserCombinatorsVersion = "1.0.5"
+  val json4sJacksonVersion = "3.4.2"
 
   def projectSettings(suffix: String) = {
     Seq(
@@ -399,7 +400,7 @@ object ReactorsBuild extends MechaRepoBuild {
             "org.rapidoid" % "rapidoid-gui" % "5.1.9",
             "com.github.spullara.mustache.java" % "compiler" % "0.9.2",
             "commons-io" % "commons-io" % "2.4",
-            "org.json4s" %% "json4s-jackson" % "3.4.0",
+            "org.json4s" %% "json4s-jackson" % json4sJacksonVersion,
             "org.scalatest" %%% "scalatest" % scalaTestVersion % "test",
             "org.scalacheck" %%% "scalacheck" % scalaCheckVersion % "test",
             "org.seleniumhq.selenium" % "selenium-java" % "2.53.1" % "test",

@@ -70,7 +70,7 @@ class ForkJoinCreationBench extends JBench.OfflineReport {
   }
 
   def akkaTeardown() {
-    actorSystem.shutdown()
+    actorSystem.terminate()
   }
 
   @gen("sizes")

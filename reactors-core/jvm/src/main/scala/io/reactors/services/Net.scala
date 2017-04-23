@@ -7,7 +7,6 @@ import java.io._
 import java.net.URL
 import java.util.concurrent.ForkJoinPool
 import scala.concurrent._
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
