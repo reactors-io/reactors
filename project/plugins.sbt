@@ -8,8 +8,6 @@ resolvers ++= Seq(
   "Sonatype OSS Releases" at "https://oss.sonatype.org/content/repositories/releases"
 )
 
-addSbtPlugin("io.get-coursier" % "sbt-coursier" % "1.0.0-RC1")
-
 addSbtPlugin("me.lessis" % "bintray-sbt" % "0.1.1")
 
 addSbtPlugin("com.typesafe.sbt" % "sbt-pgp" % "0.8.1")
