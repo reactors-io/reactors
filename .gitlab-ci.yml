@@ -33,6 +33,7 @@ gate-standalone-ubuntu:
     - gate
   script:
     - sbt test
+    - sbt clean
     - sbt ++ 2.12.0 test
 
 
