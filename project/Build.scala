@@ -27,7 +27,7 @@ object ReactorsBuild extends MechaRepoBuild {
       name := s"reactors$suffix",
       organization := "io.reactors",
       scalaVersion := reactorsScalaVersion,
-      crossScalaVersions := Seq(reactorsScalaVersion, "2.12.0"),
+      crossScalaVersions := Seq(reactorsScalaVersion, "2.12.2"),
       testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
       parallelExecution in Test := false,
       parallelExecution in ThisBuild := false,

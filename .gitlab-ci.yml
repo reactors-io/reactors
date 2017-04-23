@@ -34,7 +34,7 @@ gate-standalone-ubuntu:
   script:
     - sbt test
     - sbt clean
-    - sbt ++ 2.12.0 test
+    - sbt ++2.12.2 test
 
 
 gate-osx:
