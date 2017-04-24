@@ -140,11 +140,6 @@ object Platform {
     }
 
     def instantiate[T](className: String, args: Seq[Any]): T = {
-//      val ctor = (js.Dynamic.global /: className.split("\\.")) {
-//        (prev, part) =>
-//        prev.selectDynamic(part)
-//      }
-//      js.Dynamic.newInstance(ctor)(args.asInstanceOf[Seq[js.Any]]: _*).asInstanceOf[T]
       val reflect = scala.scalajs.reflect.Reflect
       val cls = reflect.lookupInstantiatableClass(className).get
       val ctor = matchingConstructor(cls, args)
