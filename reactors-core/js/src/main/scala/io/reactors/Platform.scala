@@ -2,10 +2,9 @@ package io.reactors
 
 
 
-import scala.annotation.unchecked
 import scala.collection._
 import scala.scalajs._
-import scala.scalajs.js.annotation.JSExportDescendentClasses
+import scala.scalajs.reflect.annotation.EnableReflectiveInstantiation
 import scala.util.parsing.combinator._
 
 
@@ -147,7 +146,7 @@ object Platform {
     }
   }
 
-  @scala.scalajs.js.annotation.JSExportDescendentClasses(true)
+  @EnableReflectiveInstantiation
   trait Reflectable {
   }
 
