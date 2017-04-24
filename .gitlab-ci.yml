@@ -32,9 +32,9 @@ gate-standalone-ubuntu:
     - ubuntu
     - gate
   script:
-    - sbt test
-    - sbt clean
-    - sbt ++2.12.2 test
+    - ~/.super-storm-enroute/tools/sbt test
+    - ~/.super-storm-enroute/tools/sbt clean
+    - ~/.super-storm-enroute/tools/sbt ++2.12.2 test
 
 
 gate-osx:
