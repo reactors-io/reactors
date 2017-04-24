@@ -93,19 +93,19 @@ object MultiValve {
         c.events onEvent { x =>
           implementation() match {
             case null =>
-            case v: Valve[T] @unchecked => v.channel ! x
+            case v if v.isInstanceOf[Valve[_]] => v.asInstanceOf[Valve[T]].channel ! x
             case m: MultiValve[T] @unchecked => m.out.channel ! x
           }
         }
         val available = implementation.toEager.map({
           case null => RCell(true)
-          case v: Valve[_] => v.available
+          case v if v.isInstanceOf[Valve[_]] => v.asInstanceOf[Valve[T]].available
           case m: MultiValve[_] => m.out.available
         }).mux.changed(false).toEmpty
         val sub = Subscription(c.seal()).andThen {
           implementation() match {
             case null =>
-            case v: Valve[_] =>
+            case v if v.isInstanceOf[Valve[_]] =>
             case m: MultiValve[_] => m.out.subscription.unsubscribe()
           }
         }

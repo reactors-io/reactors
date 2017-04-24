@@ -78,7 +78,7 @@ class CountingActorBench extends JBench.OfflineReport {
   }
 
   def akkaCountingActorTeardown() {
-    actorSystem.shutdown()
+    actorSystem.terminate()
   }
 
   @gen("sizes")

@@ -71,7 +71,7 @@ class ThreadRingBench extends JBench.OfflineReport {
   }
 
   def akkaThreadRingTeardown() {
-    actorSystem.shutdown()
+    actorSystem.terminate()
   }
 
   @gen("sizes")

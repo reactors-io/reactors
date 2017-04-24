@@ -16,12 +16,18 @@ object ReactorsBuild extends MechaRepoBuild {
   def repoName = "reactors"
 
   val reactorsScalaVersion = "2.11.8"
+  val scalaTestVersion = "3.0.1"
+  val scalaCheckVersion = "1.13.4"
+  val akkaVersion = "2.5.0"
+  val scalaParserCombinatorsVersion = "1.0.5"
+  val json4sJacksonVersion = "3.4.2"
 
   def projectSettings(suffix: String) = {
     Seq(
       name := s"reactors$suffix",
       organization := "io.reactors",
       scalaVersion := reactorsScalaVersion,
+      crossScalaVersions := Seq(reactorsScalaVersion, "2.12.2"),
       testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
       parallelExecution in Test := false,
       parallelExecution in ThisBuild := false,
@@ -122,8 +128,8 @@ object ReactorsBuild extends MechaRepoBuild {
     .settings(
       projectSettings("-common") ++ Seq(
         libraryDependencies ++= Seq(
-          "org.scalatest" %%% "scalatest" % "3.0.0" % "test",
-          "org.scalacheck" %%% "scalacheck" % "1.13.2" % "test"
+          "org.scalatest" %%% "scalatest" % scalaTestVersion % "test",
+          "org.scalacheck" %%% "scalacheck" % scalaCheckVersion % "test"
         ),
         unmanagedSourceDirectories in Compile +=
           baseDirectory.value.getParentFile / "shared" / "src" / "main" / "scala",
@@ -136,7 +142,7 @@ object ReactorsBuild extends MechaRepoBuild {
     .jvmSettings(
       jvmProjectSettings("-common") ++ Seq(
         libraryDependencies ++= Seq(
-          "com.typesafe.akka" %% "akka-actor" % "2.3.15" % "test;bench"
+          "com.typesafe.akka" %% "akka-actor" % akkaVersion % "test;bench"
         ),
         libraryDependencies ++= superRepoDependencies(s"reactors-common-jvm")
       ): _*
@@ -162,8 +168,8 @@ object ReactorsBuild extends MechaRepoBuild {
             (dir, baseDir) => gitPropsContents(dir, baseDir)
           },
         libraryDependencies ++= Seq(
-          "org.scalatest" %%% "scalatest" % "3.0.0" % "test",
-          "org.scalacheck" %%% "scalacheck" % "1.13.2" % "test"
+          "org.scalatest" %%% "scalatest" % scalaTestVersion % "test",
+          "org.scalacheck" %%% "scalacheck" % scalaCheckVersion % "test"
         ),
         unmanagedSourceDirectories in Compile +=
           baseDirectory.value.getParentFile / "shared" / "src" / "main" / "scala",
@@ -179,7 +185,7 @@ object ReactorsBuild extends MechaRepoBuild {
         publish <<= publish.dependsOn(publish in reactorsCommon.jvm),
         libraryDependencies ++= Seq(
           "com.typesafe" % "config" % "1.2.1",
-          "com.typesafe.akka" %% "akka-actor" % "2.3.15" % "test;bench"
+          "com.typesafe.akka" %% "akka-actor" % akkaVersion % "test;bench"
         )
       ): _*
     )
@@ -191,7 +197,8 @@ object ReactorsBuild extends MechaRepoBuild {
       fork in run := false,
       scalaJSUseRhino in Global := false,
       libraryDependencies ++= Seq(
-        "org.scala-js" %%% "scala-parser-combinators" % "1.0.2"
+        "org.scala-lang.modules" %%% "scala-parser-combinators" %
+          scalaParserCombinatorsVersion
       )
     )
     .jsConfigure(_.copy(id = "reactors-core-js").dependsOnSuperRepo)
@@ -208,8 +215,8 @@ object ReactorsBuild extends MechaRepoBuild {
     .settings(
       projectSettings("-container") ++ Seq(
         libraryDependencies ++= Seq(
-          "org.scalatest" %%% "scalatest" % "3.0.0" % "test",
-          "org.scalacheck" %%% "scalacheck" % "1.13.2" % "test"
+          "org.scalatest" %%% "scalatest" % scalaTestVersion % "test",
+          "org.scalacheck" %%% "scalacheck" % scalaCheckVersion % "test"
         ),
         unmanagedSourceDirectories in Compile +=
           baseDirectory.value.getParentFile / "shared" / "src" / "main" / "scala",
@@ -247,8 +254,8 @@ object ReactorsBuild extends MechaRepoBuild {
     .settings(
       projectSettings("-protocol") ++ Seq(
         libraryDependencies ++= Seq(
-          "org.scalatest" %%% "scalatest" % "3.0.0" % "test",
-          "org.scalacheck" %%% "scalacheck" % "1.13.2" % "test"
+          "org.scalatest" %%% "scalatest" % scalaTestVersion % "test",
+          "org.scalacheck" %%% "scalacheck" % scalaCheckVersion % "test"
         ),
         unmanagedSourceDirectories in Compile +=
           baseDirectory.value.getParentFile / "shared" / "src" / "main" / "scala",
@@ -287,11 +294,13 @@ object ReactorsBuild extends MechaRepoBuild {
     .in(file("reactors-remote"))
     .settings(
       projectSettings("-remote") ++ Seq(
-        libraryDependencies ++= Seq(
-          "org.scalatest" %%% "scalatest" % "3.0.0" % "test",
-          "org.scalacheck" %%% "scalacheck" % "1.13.2" % "test",
-          "org.scala-lang" % "scala-reflect" % "2.11.8"
-        ),
+        libraryDependencies ++= {
+          Seq(
+            "org.scalatest" %%% "scalatest" % scalaTestVersion % "test",
+            "org.scalacheck" %%% "scalacheck" % scalaCheckVersion % "test",
+            "org.scala-lang" % "scala-reflect" % scalaVersion.value
+          )
+        },
         unmanagedSourceDirectories in Compile +=
           baseDirectory.value.getParentFile / "shared" / "src" / "main" / "scala",
         unmanagedSourceDirectories in Test +=
@@ -328,12 +337,14 @@ object ReactorsBuild extends MechaRepoBuild {
     .in(file("reactors-extra"))
     .settings(
       jvmProjectSettings("-extra") ++ projectSettings("-extra") ++ Seq(
-        libraryDependencies ++= Seq(
-          "org.scala-lang" % "scala-reflect" % "2.11.4",
-          "org.scalatest" %%% "scalatest" % "3.0.0" % "test",
-          "org.scalacheck" %%% "scalacheck" % "1.13.2" % "test",
-          "com.typesafe.akka" %% "akka-actor" % "2.3.15" % "test;bench"
-        )
+        libraryDependencies ++= {
+          Seq(
+            "org.scala-lang" % "scala-reflect" % scalaVersion.value,
+            "org.scalatest" %%% "scalatest" % scalaTestVersion % "test",
+            "org.scalacheck" %%% "scalacheck" % scalaCheckVersion % "test",
+            "com.typesafe.akka" %% "akka-actor" % akkaVersion % "test;bench"
+          )
+        }
       ): _*
     )
     .configs(Benchmark)
@@ -353,14 +364,16 @@ object ReactorsBuild extends MechaRepoBuild {
     .in(file("reactors-http"))
     .settings(
       jvmProjectSettings("-http") ++ projectSettings("-http") ++ Seq(
-        libraryDependencies ++= Seq(
-          "org.scala-lang" % "scala-compiler" % "2.11.8",
-          "org.nanohttpd" % "nanohttpd" % "2.3.1",
-          "org.scalatest" %%% "scalatest" % "3.0.0" % "test",
-          "org.scalacheck" %%% "scalacheck" % "1.13.2" % "test",
-          "org.seleniumhq.selenium" % "selenium-java" % "2.53.1" % "test",
-          "org.seleniumhq.selenium" % "selenium-chrome-driver" % "2.53.1" % "test"
-        )
+        libraryDependencies ++= {
+          Seq(
+            "org.scala-lang" % "scala-compiler" % scalaVersion.value,
+            "org.nanohttpd" % "nanohttpd" % "2.3.1",
+            "org.scalatest" %%% "scalatest" % scalaTestVersion % "test",
+            "org.scalacheck" %%% "scalacheck" % scalaCheckVersion % "test",
+            "org.seleniumhq.selenium" % "selenium-java" % "2.53.1" % "test",
+            "org.seleniumhq.selenium" % "selenium-chrome-driver" % "2.53.1" % "test"
+          )
+        }
       ): _*
     )
     .configs(Benchmark)
@@ -380,18 +393,20 @@ object ReactorsBuild extends MechaRepoBuild {
     .in(file("reactors-debugger"))
     .settings(
       jvmProjectSettings("-debugger") ++ projectSettings("-debugger") ++ Seq(
-        libraryDependencies ++= Seq(
-          "org.scala-lang" % "scala-compiler" % "2.11.8",
-          "org.rapidoid" % "rapidoid-http-server" % "5.1.9",
-          "org.rapidoid" % "rapidoid-gui" % "5.1.9",
-          "com.github.spullara.mustache.java" % "compiler" % "0.9.2",
-          "commons-io" % "commons-io" % "2.4",
-          "org.json4s" %% "json4s-jackson" % "3.4.0",
-          "org.scalatest" %%% "scalatest" % "3.0.0" % "test",
-          "org.scalacheck" %%% "scalacheck" % "1.13.2" % "test",
-          "org.seleniumhq.selenium" % "selenium-java" % "2.53.1" % "test",
-          "org.seleniumhq.selenium" % "selenium-chrome-driver" % "2.53.1" % "test"
-        )
+        libraryDependencies ++= {
+          Seq(
+            "org.scala-lang" % "scala-compiler" % scalaVersion.value,
+            "org.rapidoid" % "rapidoid-http-server" % "5.1.9",
+            "org.rapidoid" % "rapidoid-gui" % "5.1.9",
+            "com.github.spullara.mustache.java" % "compiler" % "0.9.2",
+            "commons-io" % "commons-io" % "2.4",
+            "org.json4s" %% "json4s-jackson" % json4sJacksonVersion,
+            "org.scalatest" %%% "scalatest" % scalaTestVersion % "test",
+            "org.scalacheck" %%% "scalacheck" % scalaCheckVersion % "test",
+            "org.seleniumhq.selenium" % "selenium-java" % "2.53.1" % "test",
+            "org.seleniumhq.selenium" % "selenium-chrome-driver" % "2.53.1" % "test"
+          )
+        }
       ): _*
     )
     .configs(Benchmark)
@@ -411,8 +426,8 @@ object ReactorsBuild extends MechaRepoBuild {
     .settings(
       projectSettings("") ++ Seq(
         libraryDependencies ++= Seq(
-          "org.scalatest" %%% "scalatest" % "3.0.0" % "test",
-          "org.scalacheck" %%% "scalacheck" % "1.13.2" % "test"
+          "org.scalatest" %%% "scalatest" % scalaTestVersion % "test",
+          "org.scalacheck" %%% "scalacheck" % scalaCheckVersion % "test"
         ),
         unmanagedSourceDirectories in Compile +=
           baseDirectory.value.getParentFile / "shared" / "src" / "main" / "scala",
