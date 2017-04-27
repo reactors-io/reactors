@@ -188,7 +188,7 @@ class BloomMap[K >: Null <: AnyRef: Arrayable, @specialized(Int, Long) V: Arraya
 
 
 object BloomMap {
-  val loadFactor = 400
+  val loadFactor = 200
 
   class Spec[@specialized(Int, Long) T]
 

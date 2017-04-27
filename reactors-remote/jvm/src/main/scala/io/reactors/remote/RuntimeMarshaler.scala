@@ -12,6 +12,7 @@ import java.lang.reflect.Field
 import java.lang.reflect.Modifier
 import java.util.Arrays
 import java.util.Comparator
+import scala.annotation.switch
 import scala.collection._
 import scala.reflect.ClassTag
 
@@ -27,12 +28,46 @@ object RuntimeMarshaler {
   private val floatClass = classOf[Float]
   private val longClass = classOf[Long]
   private val doubleClass = classOf[Double]
-  private val fieldCache = new BloomMap[Class[_], Array[Field]]
-  private val fieldComparator = new Comparator[Field] {
-    def compare(x: Field, y: Field): Int = x.toString.compareTo(y.toString)
+  private val fieldCache = new BloomMap[Class[_], Array[FieldDescriptor]]
+  private val fieldComparator = new Comparator[FieldDescriptor] {
+    def compare(x: FieldDescriptor, y: FieldDescriptor): Int =
+      x.field.toString.compareTo(y.field.toString)
   }
   private val isMarshalableField: Field => Boolean = f => {
     !Modifier.isTransient(f.getModifiers) && !Modifier.isStatic(f.getModifiers)
+  }
+
+  private class FieldDescriptor(val field: Field) {
+    val mask = {
+      val tpe = field.getType
+      val typeCode = {
+        if (tpe.isPrimitive) {
+          tpe match {
+            case RuntimeMarshaler.this.intClass => 1
+            case RuntimeMarshaler.this.longClass => 2
+            case RuntimeMarshaler.this.doubleClass => 3
+            case RuntimeMarshaler.this.floatClass => 4
+            case RuntimeMarshaler.this.byteClass => 5
+            case RuntimeMarshaler.this.booleanClass => 6
+            case RuntimeMarshaler.this.charClass => 7
+            case RuntimeMarshaler.this.shortClass => 8
+          }
+        } else if (tpe.isArray) {
+          9
+        } else {
+          10
+        }
+      }
+      val componentCode = {
+        val ctpe = tpe.getComponentType
+        if (ctpe == null) {
+          0
+        } else {
+
+        }
+      }
+      typeCode
+    }
   }
 
   private def canBeMarshaled(cls: Class[_]): Boolean = {
@@ -55,20 +90,25 @@ object RuntimeMarshaler {
 
   private def maxArrayChunk: Int = 2048
 
-  private def computeFieldsOf(klazz: Class[_]): Array[Field] = monitor.synchronized {
-    if (!canBeMarshaled(klazz)) {
-      throw new IllegalArgumentException(s"Class $klazz cannot be marshaled")
+  private def computeFieldsOf(klazz: Class[_]): Array[FieldDescriptor] =
+    monitor.synchronized {
+      if (!canBeMarshaled(klazz)) {
+        throw new IllegalArgumentException(s"Class $klazz cannot be marshaled")
+      }
+      val fields = mutable.ArrayBuffer[Field]()
+      var ancestor = klazz
+      while (ancestor != null) {
+        val marshalableFields = ancestor.getDeclaredFields.filter(isMarshalableField)
+        for (field <- marshalableFields) {
+          field.setAccessible(true)
+        }
+        fields ++= marshalableFields
+        ancestor = ancestor.getSuperclass
+      }
+      fields.map(f => new FieldDescriptor(f)).toArray
     }
-    val fields = mutable.ArrayBuffer[Field]()
-    var ancestor = klazz
-    while (ancestor != null) {
-      fields ++= ancestor.getDeclaredFields.filter(isMarshalableField)
-      ancestor = ancestor.getSuperclass
-    }
-    fields.toArray
-  }
 
-  private def fieldsOf(klazz: Class[_]): Array[Field] = {
+  private def descriptorsOf(klazz: Class[_]): Array[FieldDescriptor] = {
     var fields = fieldCache.get(klazz)
     if (fields == null) {
       fields = computeFieldsOf(klazz)
@@ -384,50 +424,48 @@ object RuntimeMarshaler {
   ): Data = {
     assert(obj != null)
     var data = inputData
-    val fields = fieldsOf(klazz)
+    val descriptors = descriptorsOf(klazz)
     var i = 0
-    while (i < fields.length) {
-      val field = fields(i)
-      field.setAccessible(true)
-      val tpe = field.getType
-      if (tpe.isPrimitive) {
-        tpe match {
-          case RuntimeMarshaler.this.intClass =>
-            val v = field.getInt(obj)
-            data = marshalInt(v, data)
-          case RuntimeMarshaler.this.longClass =>
-            val v = field.getLong(obj)
-            data = marshalLong(v, data)
-          case RuntimeMarshaler.this.doubleClass =>
-            val v = field.getDouble(obj)
-            data = marshalDouble(v, data)
-          case RuntimeMarshaler.this.floatClass =>
-            val v = field.getFloat(obj)
-            data = marshalFloat(v, data)
-          case RuntimeMarshaler.this.byteClass =>
-            val v = field.getByte(obj)
-            data = marshalByte(v, data)
-          case RuntimeMarshaler.this.booleanClass =>
-            val v = field.getBoolean(obj)
-            data = marshalBoolean(v, data)
-          case RuntimeMarshaler.this.charClass =>
-            val v = field.getChar(obj)
-            data = marshalChar(v, data)
-          case RuntimeMarshaler.this.shortClass =>
-            val v = field.getShort(obj)
-            data = marshalShort(v, data)
-        }
-      } else if (tpe.isArray) {
-        val array = field.get(obj)
-        if (array == null) {
-          data = marshalByte(nullTag, data)
-        } else {
-          data = marshalArray(array, tpe, false, data, context)
-        }
-      } else {
-        val value = field.get(obj)
-        val marshalType = !Modifier.isFinal(field.getType.getModifiers)
-        data = internalMarshal(value, data, true, marshalType, context)
+    while (i < descriptors.length) {
+      val descriptor = descriptors(i)
+      val field = descriptor.field
+      (descriptor.mask: @switch) match {
+        case 1 =>
+          val v = field.getInt(obj)
+          data = marshalInt(v, data)
+        case 2 =>
+          val v = field.getLong(obj)
+          data = marshalLong(v, data)
+        case 3 =>
+          val v = field.getDouble(obj)
+          data = marshalDouble(v, data)
+        case 4 =>
+          val v = field.getFloat(obj)
+          data = marshalFloat(v, data)
+        case 5 =>
+          val v = field.getByte(obj)
+          data = marshalByte(v, data)
+        case 6 =>
+          val v = field.getBoolean(obj)
+          data = marshalBoolean(v, data)
+        case 7 =>
+          val v = field.getChar(obj)
+          data = marshalChar(v, data)
+        case 8 =>
+          val v = field.getShort(obj)
+          data = marshalShort(v, data)
+        case 9 =>
+          val array = field.get(obj)
+          if (array == null) {
+            data = marshalByte(nullTag, data)
+          } else {
+            val tpe = field.getType
+            data = marshalArray(array, tpe, false, data, context)
+          }
+        case 10 =>
+          val value = field.get(obj)
+          val marshalType = !Modifier.isFinal(field.getType.getModifiers)
+          data = internalMarshal(value, data, true, marshalType, context)
       }
       i += 1
     }
@@ -437,7 +475,7 @@ object RuntimeMarshaler {
   def marshal[T](obj: T, inputData: Data, marshalType: Boolean = true): Data = {
     val context = Reactor.marshalContext
     val data = internalMarshal(obj, inputData, false, marshalType, context)
-    context.resetMarshal()
+    //context.resetMarshal()
     data
   }
 
@@ -490,7 +528,7 @@ object RuntimeMarshaler {
         return data
       }
     }
-    context.written.put(obj.asInstanceOf[AnyRef], context.createFreshReference())
+    //context.written.put(obj.asInstanceOf[AnyRef], context.createFreshReference())
     val klazz = obj.getClass
     if (klazz.isArray) {
       optionallyMarshalType(klazz, data, marshalType)
@@ -884,11 +922,10 @@ object RuntimeMarshaler {
     klazz: Class[_], obj: T, inputData: Cell[Data], context: Reactor.MarshalContext
   ): Unit = {
     var data = inputData()
-    val fields = fieldsOf(klazz)
+    val descriptors = descriptorsOf(klazz)
     var i = 0
-    while (i < fields.length) {
-      val field = fields(i)
-      field.setAccessible(true)
+    while (i < descriptors.length) {
+      val field = descriptors(i).field
       val tpe = field.getType
       if (tpe.isPrimitive) {
         tpe match {
