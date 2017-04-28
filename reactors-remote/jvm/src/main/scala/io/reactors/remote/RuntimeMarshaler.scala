@@ -3,83 +3,16 @@ package remote
 
 
 
-import io.reactors.Reactor.MarshalContext
-import io.reactors.common.BloomMap
-import io.reactors.common.Cell
-import io.reactors.marshal.Marshalable
-import io.reactors.marshal.Marshalee
-import java.lang.reflect.Field
 import java.lang.reflect.Modifier
-import java.util.Arrays
-import java.util.Comparator
+import io.reactors.Reactor.MarshalContext
+import io.reactors.common.Cell
+import io.reactors.marshal.ClassDescriptor
 import scala.annotation.switch
-import scala.collection._
 import scala.reflect.ClassTag
 
 
 
 object RuntimeMarshaler {
-  private val monitor = new AnyRef
-  private val booleanClass = classOf[Boolean]
-  private val byteClass = classOf[Byte]
-  private val shortClass = classOf[Short]
-  private val charClass = classOf[Char]
-  private val intClass = classOf[Int]
-  private val floatClass = classOf[Float]
-  private val longClass = classOf[Long]
-  private val doubleClass = classOf[Double]
-  private val fieldCache = new BloomMap[Class[_], Array[FieldDescriptor]]
-  private val fieldComparator = new Comparator[FieldDescriptor] {
-    def compare(x: FieldDescriptor, y: FieldDescriptor): Int =
-      x.field.toString.compareTo(y.field.toString)
-  }
-  private val isMarshalableField: Field => Boolean = f => {
-    !Modifier.isTransient(f.getModifiers) && !Modifier.isStatic(f.getModifiers)
-  }
-
-  private class FieldDescriptor(val field: Field) {
-    val mask = {
-      val tpe = field.getType
-      val typeCode = {
-        if (tpe.isPrimitive) {
-          tpe match {
-            case RuntimeMarshaler.this.intClass => 1
-            case RuntimeMarshaler.this.longClass => 2
-            case RuntimeMarshaler.this.doubleClass => 3
-            case RuntimeMarshaler.this.floatClass => 4
-            case RuntimeMarshaler.this.byteClass => 5
-            case RuntimeMarshaler.this.booleanClass => 6
-            case RuntimeMarshaler.this.charClass => 7
-            case RuntimeMarshaler.this.shortClass => 8
-          }
-        } else if (tpe.isArray) {
-          9
-        } else {
-          10
-        }
-      }
-      val componentCode = {
-        val ctpe = tpe.getComponentType
-        if (ctpe == null) {
-          0
-        } else {
-
-        }
-      }
-      typeCode
-    }
-  }
-
-  private def canBeMarshaled(cls: Class[_]): Boolean = {
-    val isOk =
-      classOf[Marshalee].isAssignableFrom(cls) ||
-      classOf[Marshalable].isAssignableFrom(cls) ||
-      classOf[java.io.Serializable].isAssignableFrom(cls) ||
-      cls.isPrimitive ||
-      cls.isArray
-    isOk
-  }
-
   private def classNameTerminatorTag: Byte = 1
 
   private def objectReferenceTag: Byte = 2
@@ -89,34 +22,6 @@ object RuntimeMarshaler {
   private def arrayTag: Byte = 4
 
   private def maxArrayChunk: Int = 2048
-
-  private def computeFieldsOf(klazz: Class[_]): Array[FieldDescriptor] =
-    monitor.synchronized {
-      if (!canBeMarshaled(klazz)) {
-        throw new IllegalArgumentException(s"Class $klazz cannot be marshaled")
-      }
-      val fields = mutable.ArrayBuffer[Field]()
-      var ancestor = klazz
-      while (ancestor != null) {
-        val marshalableFields = ancestor.getDeclaredFields.filter(isMarshalableField)
-        for (field <- marshalableFields) {
-          field.setAccessible(true)
-        }
-        fields ++= marshalableFields
-        ancestor = ancestor.getSuperclass
-      }
-      fields.map(f => new FieldDescriptor(f)).toArray
-    }
-
-  private def descriptorsOf(klazz: Class[_]): Array[FieldDescriptor] = {
-    var fields = fieldCache.get(klazz)
-    if (fields == null) {
-      fields = computeFieldsOf(klazz)
-      Arrays.sort(fields, fieldComparator)
-      fieldCache.put(klazz, fields)
-    }
-    fields
-  }
 
   def marshalAs[T](
     klazz: Class[_], obj: T, inputData: Data, alreadyRecordedReference: Boolean
@@ -131,7 +36,8 @@ object RuntimeMarshaler {
       val context = Reactor.marshalContext
       if (!alreadyRecordedReference)
         context.written.put(obj.asInstanceOf[AnyRef], context.createFreshReference())
-      val data = internalMarshalAs(klazz, obj, inputData, context)
+      val desc = Platform.Reflect.descriptorOf(klazz)
+      val data = internalMarshalAs(desc, obj, inputData, context)
       context.resetMarshal()
       data
     }
@@ -147,7 +53,7 @@ object RuntimeMarshaler {
     data = marshalInt(length, data)
     val elementType = tpe.getComponentType
     elementType match {
-      case RuntimeMarshaler.this.intClass =>
+      case Platform.Reflect.intClass =>
         val intArray = array.asInstanceOf[Array[Int]]
         var i = 0
         while (i < length) {
@@ -167,7 +73,7 @@ object RuntimeMarshaler {
           data.endPos += batchSize * 4
           data = data.flush(math.min(4 * (length - i), maxArrayChunk))
         }
-      case RuntimeMarshaler.this.longClass =>
+      case Platform.Reflect.longClass =>
         val longArray = array.asInstanceOf[Array[Long]]
         var i = 0
         while (i < length) {
@@ -191,7 +97,7 @@ object RuntimeMarshaler {
           data.endPos += batchSize * 8
           data = data.flush(math.min(8 * (length - i), maxArrayChunk))
         }
-      case RuntimeMarshaler.this.doubleClass =>
+      case Platform.Reflect.doubleClass =>
         val doubleArray = array.asInstanceOf[Array[Double]]
         var i = 0
         while (i < length) {
@@ -216,7 +122,7 @@ object RuntimeMarshaler {
           data.endPos += batchSize * 8
           data = data.flush(math.min(8 * (length - i), maxArrayChunk))
         }
-      case RuntimeMarshaler.this.floatClass =>
+      case Platform.Reflect.floatClass =>
         val floatArray = array.asInstanceOf[Array[Float]]
         var i = 0
         while (i < length) {
@@ -237,7 +143,7 @@ object RuntimeMarshaler {
           data.endPos += batchSize * 4
           data = data.flush(math.min(4 * (length - i), maxArrayChunk))
         }
-      case RuntimeMarshaler.this.byteClass =>
+      case Platform.Reflect.byteClass =>
         val byteArray = array.asInstanceOf[Array[Byte]]
         var i = 0
         while (i < length) {
@@ -254,7 +160,7 @@ object RuntimeMarshaler {
           data.endPos += batchSize * 1
           data = data.flush(math.min(1 * (length - i), maxArrayChunk))
         }
-      case RuntimeMarshaler.this.booleanClass =>
+      case Platform.Reflect.booleanClass =>
         val booleanArray = array.asInstanceOf[Array[Boolean]]
         var i = 0
         while (i < length) {
@@ -271,7 +177,7 @@ object RuntimeMarshaler {
           data.endPos += batchSize * 1
           data = data.flush(math.min(1 * (length - i), maxArrayChunk))
         }
-      case RuntimeMarshaler.this.charClass =>
+      case Platform.Reflect.charClass =>
         val charArray = array.asInstanceOf[Array[Char]]
         var i = 0
         while (i < length) {
@@ -289,7 +195,7 @@ object RuntimeMarshaler {
           data.endPos += batchSize * 2
           data = data.flush(math.min(2 * (length - i), maxArrayChunk))
         }
-      case RuntimeMarshaler.this.shortClass =>
+      case Platform.Reflect.shortClass =>
         val shortArray = array.asInstanceOf[Array[Short]]
         var i = 0
         while (i < length) {
@@ -313,9 +219,6 @@ object RuntimeMarshaler {
         var i = 0
         while (i < length) {
           val elem = objectArray(i)
-          if (elem != null) {
-
-          }
           data = internalMarshal(elem, data, true, marshalElementType, context)
           i += 1
         }
@@ -420,41 +323,46 @@ object RuntimeMarshaler {
   }
 
   private def internalMarshalAs[T](
-    klazz: Class[_], obj: T, inputData: Data, context: Reactor.MarshalContext
+    classDescriptor: ClassDescriptor, obj: T, inputData: Data,
+    context: Reactor.MarshalContext
   ): Data = {
     assert(obj != null)
     var data = inputData
-    val descriptors = descriptorsOf(klazz)
+    val descriptors = classDescriptor.fields
     var i = 0
     while (i < descriptors.length) {
       val descriptor = descriptors(i)
       val field = descriptor.field
-      (descriptor.mask: @switch) match {
-        case 1 =>
+      (descriptor.tag: @switch) match {
+        case 0x01 =>
           val v = field.getInt(obj)
           data = marshalInt(v, data)
-        case 2 =>
+        case 0x02 =>
           val v = field.getLong(obj)
           data = marshalLong(v, data)
-        case 3 =>
+        case 0x03 =>
           val v = field.getDouble(obj)
           data = marshalDouble(v, data)
-        case 4 =>
+        case 0x04 =>
           val v = field.getFloat(obj)
           data = marshalFloat(v, data)
-        case 5 =>
+        case 0x05 =>
           val v = field.getByte(obj)
           data = marshalByte(v, data)
-        case 6 =>
+        case 0x06 =>
           val v = field.getBoolean(obj)
           data = marshalBoolean(v, data)
-        case 7 =>
+        case 0x07 =>
           val v = field.getChar(obj)
           data = marshalChar(v, data)
-        case 8 =>
+        case 0x08 =>
           val v = field.getShort(obj)
           data = marshalShort(v, data)
-        case 9 =>
+        case 0x0a =>
+          val value = field.get(obj)
+          val marshalType = !Modifier.isFinal(field.getType.getModifiers)
+          data = internalMarshal(value, data, true, marshalType, context)
+        case _ =>
           val array = field.get(obj)
           if (array == null) {
             data = marshalByte(nullTag, data)
@@ -462,10 +370,6 @@ object RuntimeMarshaler {
             val tpe = field.getType
             data = marshalArray(array, tpe, false, data, context)
           }
-        case 10 =>
-          val value = field.get(obj)
-          val marshalType = !Modifier.isFinal(field.getType.getModifiers)
-          data = internalMarshal(value, data, true, marshalType, context)
       }
       i += 1
     }
@@ -535,7 +439,8 @@ object RuntimeMarshaler {
       marshalArray(obj.asInstanceOf[AnyRef], klazz, marshalType, data, context)
     } else {
       data = optionallyMarshalType(klazz, data, marshalType)
-      internalMarshalAs(klazz, obj, data, context)
+      val desc = Platform.Reflect.descriptorOf(klazz)
+      internalMarshalAs(desc, obj, data, context)
     }
   }
 
@@ -654,7 +559,7 @@ object RuntimeMarshaler {
       context.seen += array
       val elementType = tpe.getComponentType
       elementType match {
-        case RuntimeMarshaler.this.intClass =>
+        case Platform.Reflect.intClass =>
           val intArray = array.asInstanceOf[Array[Int]]
           var i = 0
           while (i < length) {
@@ -688,7 +593,7 @@ object RuntimeMarshaler {
               i += 1
             }
           }
-        case RuntimeMarshaler.this.longClass =>
+        case Platform.Reflect.longClass =>
           val longArray = array.asInstanceOf[Array[Long]]
           var i = 0
           while (i < length) {
@@ -726,7 +631,7 @@ object RuntimeMarshaler {
               i += 1
             }
           }
-        case RuntimeMarshaler.this.doubleClass =>
+        case Platform.Reflect.doubleClass =>
           val doubleArray = array.asInstanceOf[Array[Double]]
           var i = 0
           while (i < length) {
@@ -765,7 +670,7 @@ object RuntimeMarshaler {
               i += 1
             }
           }
-        case RuntimeMarshaler.this.floatClass =>
+        case Platform.Reflect.floatClass =>
           val floatArray = array.asInstanceOf[Array[Float]]
           var i = 0
           while (i < length) {
@@ -800,7 +705,7 @@ object RuntimeMarshaler {
               i += 1
             }
           }
-        case RuntimeMarshaler.this.byteClass =>
+        case Platform.Reflect.byteClass =>
           val byteArray = array.asInstanceOf[Array[Byte]]
           var i = 0
           while (i < length) {
@@ -818,7 +723,7 @@ object RuntimeMarshaler {
             i += batchByteSize / 1
             data.startPos += batchByteSize
           }
-        case RuntimeMarshaler.this.booleanClass =>
+        case Platform.Reflect.booleanClass =>
           val booleanArray = array.asInstanceOf[Array[Boolean]]
           var i = 0
           while (i < length) {
@@ -836,7 +741,7 @@ object RuntimeMarshaler {
             i += batchByteSize / 1
             data.startPos += batchByteSize
           }
-        case RuntimeMarshaler.this.charClass =>
+        case Platform.Reflect.charClass =>
           val charArray = array.asInstanceOf[Array[Char]]
           var i = 0
           while (i < length) {
@@ -868,7 +773,7 @@ object RuntimeMarshaler {
               i += 1
             }
           }
-        case RuntimeMarshaler.this.shortClass =>
+        case Platform.Reflect.shortClass =>
           val shortArray = array.asInstanceOf[Array[Short]]
           var i = 0
           while (i < length) {
@@ -922,14 +827,14 @@ object RuntimeMarshaler {
     klazz: Class[_], obj: T, inputData: Cell[Data], context: Reactor.MarshalContext
   ): Unit = {
     var data = inputData()
-    val descriptors = descriptorsOf(klazz)
+    val descriptors = Platform.Reflect.descriptorOf(klazz).fields
     var i = 0
     while (i < descriptors.length) {
       val field = descriptors(i).field
       val tpe = field.getType
       if (tpe.isPrimitive) {
         tpe match {
-          case RuntimeMarshaler.this.intClass =>
+          case Platform.Reflect.intClass =>
             if (data.remainingReadSize >= 4) {
               val pos = data.startPos
               val b0 = (data(pos + 0).toInt << 0) & 0x000000ff
@@ -950,7 +855,7 @@ object RuntimeMarshaler {
               }
               field.setInt(obj, x)
             }
-          case RuntimeMarshaler.this.longClass =>
+          case Platform.Reflect.longClass =>
             if (data.remainingReadSize >= 8) {
               val pos = data.startPos
               val b0 = (data(pos + 0).toLong << 0) & 0x00000000000000ffL
@@ -975,7 +880,7 @@ object RuntimeMarshaler {
               }
               field.setLong(obj, x)
             }
-          case RuntimeMarshaler.this.doubleClass =>
+          case Platform.Reflect.doubleClass =>
             if (data.remainingReadSize >= 8) {
               val pos = data.startPos
               val b0 = (data(pos + 0).toLong << 0) & 0x00000000000000ffL
@@ -1003,7 +908,7 @@ object RuntimeMarshaler {
               val x = java.lang.Double.longBitsToDouble(bits)
               field.setDouble(obj, x)
             }
-          case RuntimeMarshaler.this.floatClass =>
+          case Platform.Reflect.floatClass =>
             if (data.remainingReadSize >= 4) {
               val pos = data.startPos
               val b0 = (data(pos + 0).toInt << 0) & 0x000000ff
@@ -1027,19 +932,19 @@ object RuntimeMarshaler {
               val x = java.lang.Float.intBitsToFloat(bits)
               field.setFloat(obj, x)
             }
-          case RuntimeMarshaler.this.byteClass =>
+          case Platform.Reflect.byteClass =>
             if (data.remainingReadSize < 1) data = data.fetch()
             val pos = data.startPos
             val b = data(pos)
             field.setByte(obj, b)
             data.startPos = pos + 1
-          case RuntimeMarshaler.this.booleanClass =>
+          case Platform.Reflect.booleanClass =>
             if (data.remainingReadSize < 1) data = data.fetch()
             val pos = data.startPos
             val b = data(pos)
             field.setBoolean(obj, if (b != 0) true else false)
             data.startPos = pos + 1
-          case RuntimeMarshaler.this.charClass =>
+          case Platform.Reflect.charClass =>
             if (data.remainingReadSize >= 2) {
               val pos = data.startPos
               val b0 = (data(pos + 0).toChar << 0) & 0x000000ff
@@ -1058,7 +963,7 @@ object RuntimeMarshaler {
               }
               field.setChar(obj, x.toChar)
             }
-          case RuntimeMarshaler.this.shortClass =>
+          case Platform.Reflect.shortClass =>
             if (data.remainingReadSize >= 2) {
               val pos = data.startPos
               val b0 = (data(pos + 0).toShort << 0) & 0x000000ff

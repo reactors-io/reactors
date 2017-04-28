@@ -5,14 +5,15 @@ package io.reactors
 import com.typesafe.config._
 import java.net.InetSocketAddress
 import java.lang.reflect._
+import java.util.Arrays
+import java.util.Comparator
+import io.reactors.common.BloomMap
+import io.reactors.marshal.ClassDescriptor
+import io.reactors.marshal.Marshalable
+import io.reactors.marshal.Marshalee
+import scala.collection._
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-import scala.concurrent.blocking
-import scala.util.Success
-import scala.util.Failure
-import scala.util.Try
 import sun.misc.Unsafe
 
 
@@ -109,6 +110,65 @@ object Platform {
     new InetSocketAddress(host, port)
 
   private[reactors] object Reflect {
+    private val monitor = new AnyRef
+    private val classCache = new BloomMap[Class[_], ClassDescriptor]
+    private val fieldComparator = new Comparator[FieldDescriptor] {
+      def compare(x: FieldDescriptor, y: FieldDescriptor): Int =
+        x.field.toString.compareTo(y.field.toString)
+    }
+    private val isMarshalableField: Field => Boolean = f => {
+      !Modifier.isTransient(f.getModifiers) && !Modifier.isStatic(f.getModifiers)
+    }
+    val booleanClass = classOf[Boolean]
+    val byteClass = classOf[Byte]
+    val shortClass = classOf[Short]
+    val charClass = classOf[Char]
+    val intClass = classOf[Int]
+    val floatClass = classOf[Float]
+    val longClass = classOf[Long]
+    val doubleClass = classOf[Double]
+
+    private def canBeMarshaled(cls: Class[_]): Boolean = {
+      val isOk =
+        classOf[Marshalee].isAssignableFrom(cls) ||
+          classOf[Marshalable].isAssignableFrom(cls) ||
+          classOf[java.io.Serializable].isAssignableFrom(cls) ||
+          cls.isPrimitive ||
+          cls.isArray
+      isOk
+    }
+
+    private def computeFieldsOf(klazz: Class[_]): ClassDescriptor =
+      monitor.synchronized {
+        if (!canBeMarshaled(klazz)) {
+          throw new IllegalArgumentException(s"Class $klazz cannot be marshaled")
+        }
+        val fields = mutable.ArrayBuffer[Field]()
+        var ancestor = klazz
+        while (ancestor != null) {
+          val marshalableFields = ancestor.getDeclaredFields.filter(isMarshalableField)
+          for (field <- marshalableFields) {
+            field.setAccessible(true)
+          }
+          fields ++= marshalableFields
+          ancestor = ancestor.getSuperclass
+        }
+        val fieldDescriptors = fields.map(f => {
+          new Platform.Reflect.FieldDescriptor(f)
+        }).toArray
+        Arrays.sort(fieldDescriptors, fieldComparator)
+        new ClassDescriptor(fieldDescriptors)
+      }
+
+    def descriptorOf(klazz: Class[_]): ClassDescriptor = {
+      var desc = classCache.get(klazz)
+      if (desc == null) {
+        desc = computeFieldsOf(klazz)
+        classCache.put(klazz, desc)
+      }
+      desc
+    }
+
     def instantiate[T](clazz: Class[T], args: scala.Array[Any]): T = {
       // Java-only version.
       instantiate(clazz, args.toSeq)
@@ -171,6 +231,59 @@ object Platform {
 
     private def boxedVersion(cls: Class[_]) =
       if (!cls.isPrimitive) cls else boxedMapping(cls)
+
+    class FieldDescriptor(val field: Field) {
+      val tag = {
+        val tpe = field.getType
+        val tagMask = {
+          if (tpe.isPrimitive) {
+            tpe match {
+              case Platform.Reflect.intClass =>
+                0x01
+              case Platform.Reflect.longClass =>
+                0x02
+              case Platform.Reflect.doubleClass =>
+                0x03
+              case Platform.Reflect.floatClass =>
+                0x04
+              case Platform.Reflect.byteClass =>
+                0x05
+              case Platform.Reflect.booleanClass =>
+                0x06
+              case Platform.Reflect.charClass =>
+                0x07
+              case Platform.Reflect.shortClass =>
+                0x08
+            }
+          } else if (tpe.isArray) {
+            val ctpe = tpe.getComponentType
+            tpe match {
+              case Platform.Reflect.intClass =>
+                0x11
+              case Platform.Reflect.longClass =>
+                0x12
+              case Platform.Reflect.doubleClass =>
+                0x13
+              case Platform.Reflect.floatClass =>
+                0x14
+              case Platform.Reflect.byteClass =>
+                0x15
+              case Platform.Reflect.booleanClass =>
+                0x16
+              case Platform.Reflect.charClass =>
+                0x17
+              case Platform.Reflect.shortClass =>
+                0x18
+              case _ =>
+                0x1a
+            }
+          } else {
+            0x0a
+          }
+        }
+        tagMask
+      }
+    }
   }
 
   private[reactors] def javaReflect = Reflect
