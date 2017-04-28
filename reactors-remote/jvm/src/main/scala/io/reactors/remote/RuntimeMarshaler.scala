@@ -13,6 +13,8 @@ import scala.reflect.ClassTag
 
 
 object RuntimeMarshaler {
+  private val unsafe = Platform.unsafe
+
   private def classNameTerminatorTag: Byte = 1
 
   private def objectReferenceTag: Byte = 2
@@ -26,6 +28,13 @@ object RuntimeMarshaler {
   def marshalAs[T](
     klazz: Class[_], obj: T, inputData: Data, alreadyRecordedReference: Boolean
   ): Data = {
+    val desc = Platform.Reflect.descriptorOf(klazz)
+    marshalAs(desc, obj, inputData, alreadyRecordedReference)
+  }
+
+  def marshalAs[T](
+    desc: ClassDescriptor, obj: T, inputData: Data, alreadyRecordedReference: Boolean
+  ): Data = {
     if (obj == null) {
       var data = inputData
       if (data.remainingWriteSize < 1) data = data.flush(1)
@@ -34,11 +43,10 @@ object RuntimeMarshaler {
       data
     } else {
       val context = Reactor.marshalContext
-      if (!alreadyRecordedReference)
-        context.written.put(obj.asInstanceOf[AnyRef], context.createFreshReference())
-      val desc = Platform.Reflect.descriptorOf(klazz)
+//      if (!alreadyRecordedReference)
+//        context.written.put(obj.asInstanceOf[AnyRef], context.createFreshReference())
       val data = internalMarshalAs(desc, obj, inputData, context)
-      context.resetMarshal()
+//      context.resetMarshal()
       data
     }
   }
@@ -326,48 +334,47 @@ object RuntimeMarshaler {
     classDescriptor: ClassDescriptor, obj: T, inputData: Data,
     context: Reactor.MarshalContext
   ): Data = {
-    assert(obj != null)
+    //assert(obj != null)
     var data = inputData
     val descriptors = classDescriptor.fields
     var i = 0
     while (i < descriptors.length) {
       val descriptor = descriptors(i)
-      val field = descriptor.field
       (descriptor.tag: @switch) match {
         case 0x01 =>
-          val v = field.getInt(obj)
+          val v = unsafe.getInt(obj, descriptor.offset)
           data = marshalInt(v, data)
         case 0x02 =>
-          val v = field.getLong(obj)
+          val v = unsafe.getLong(obj, descriptor.offset)
           data = marshalLong(v, data)
         case 0x03 =>
-          val v = field.getDouble(obj)
+          val v = unsafe.getDouble(obj, descriptor.offset)
           data = marshalDouble(v, data)
         case 0x04 =>
-          val v = field.getFloat(obj)
+          val v = unsafe.getFloat(obj, descriptor.offset)
           data = marshalFloat(v, data)
         case 0x05 =>
-          val v = field.getByte(obj)
+          val v = unsafe.getByte(obj, descriptor.offset)
           data = marshalByte(v, data)
         case 0x06 =>
-          val v = field.getBoolean(obj)
+          val v = unsafe.getBoolean(obj, descriptor.offset)
           data = marshalBoolean(v, data)
         case 0x07 =>
-          val v = field.getChar(obj)
+          val v = unsafe.getChar(obj, descriptor.offset)
           data = marshalChar(v, data)
         case 0x08 =>
-          val v = field.getShort(obj)
+          val v = unsafe.getShort(obj, descriptor.offset)
           data = marshalShort(v, data)
         case 0x0a =>
-          val value = field.get(obj)
-          val marshalType = !Modifier.isFinal(field.getType.getModifiers)
+          val value = unsafe.getObject(obj, descriptor.offset)
+          val marshalType = !descriptor.isFinal
           data = internalMarshal(value, data, true, marshalType, context)
         case _ =>
-          val array = field.get(obj)
+          val array = unsafe.getObject(obj, descriptor.offset)
           if (array == null) {
             data = marshalByte(nullTag, data)
           } else {
-            val tpe = field.getType
+            val tpe = descriptor.field.getType
             data = marshalArray(array, tpe, false, data, context)
           }
       }

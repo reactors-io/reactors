@@ -233,6 +233,8 @@ object Platform {
       if (!cls.isPrimitive) cls else boxedMapping(cls)
 
     class FieldDescriptor(val field: Field) {
+      val offset = unsafe.objectFieldOffset(field)
+      val isFinal = Modifier.isFinal(field.getType.getModifiers)
       val tag = {
         val tpe = field.getType
         val tagMask = {
