@@ -27,20 +27,20 @@ object RuntimeMarshaler {
 
   def marshal[T](obj: T, inputData: Data, marshalType: Boolean = true): Data = {
     val context = Reactor.marshalContext
-    val data = internalMarshal(obj, inputData, false, marshalType, context)
+    val data = internalMarshal(obj, inputData, false, marshalType, true, context)
     context.resetMarshal()
     data
   }
 
   def marshalAs[T](
-    klazz: Class[_], obj: T, inputData: Data, alreadyRecordedReference: Boolean
+    klazz: Class[_], obj: T, inputData: Data, alreadyRecorded: Boolean
   ): Data = {
     val desc = Platform.Reflect.descriptorOf(klazz)
-    marshalAs(desc, obj, inputData, alreadyRecordedReference)
+    marshalAs(desc, obj, inputData, alreadyRecorded)
   }
 
   def marshalAs[T](
-    desc: ClassDescriptor, obj: T, inputData: Data, alreadyRecordedReference: Boolean
+    desc: ClassDescriptor, obj: T, inputData: Data, alreadyRecorded: Boolean
   ): Data = {
     if (obj == null) {
       var data = inputData
@@ -49,16 +49,14 @@ object RuntimeMarshaler {
       data.endPos += 1
       data
     } else {
-      val context = Reactor.marshalContext
-      if (!alreadyRecordedReference)
-        context.written.put(obj.asInstanceOf[AnyRef], context.createFreshReference())
-      val data = internalMarshalAs(desc, obj, inputData, context)
-      context.resetMarshal()
+      val ctx = Reactor.marshalContext
+      val data = internalMarshalAs(desc, obj, inputData, true, alreadyRecorded, ctx)
+      ctx.resetMarshal()
       data
     }
   }
 
-  private def marshalArray(
+  private def internalMarshalArray(
     array: AnyRef, tpe: Class[_], marshalType: Boolean,
     inputData: Data, context: Reactor.MarshalContext
   ): Data = {
@@ -234,7 +232,7 @@ object RuntimeMarshaler {
         var i = 0
         while (i < length) {
           val elem = objectArray(i)
-          data = internalMarshal(elem, data, true, marshalElementType, context)
+          data = internalMarshal(elem, data, true, marshalElementType, false, context)
           i += 1
         }
     }
@@ -338,10 +336,15 @@ object RuntimeMarshaler {
   }
 
   private def internalMarshalAs[T](
-    classDescriptor: ClassDescriptor, obj: T, inputData: Data,
-    context: Reactor.MarshalContext
+    classDescriptor: ClassDescriptor, obj: T, inputData: Data, topLevel: Boolean,
+    alreadyRecorded: Boolean, ctx: Reactor.MarshalContext
   ): Data = {
     //assert(obj != null)
+    var recorded = alreadyRecorded
+    if (!topLevel && !recorded) {
+      ctx.written.put(obj.asInstanceOf[AnyRef], ctx.createFreshReference())
+      recorded = true
+    }
     var data = inputData
     val descriptors = classDescriptor.fields
     var i = 0
@@ -375,14 +378,22 @@ object RuntimeMarshaler {
         case 0x0a =>
           val value = unsafe.getObject(obj, descriptor.offset)
           val marshalType = !descriptor.isFinal
-          data = internalMarshal(value, data, true, marshalType, context)
+          if (!recorded) {
+            ctx.written.put(obj.asInstanceOf[AnyRef], ctx.createFreshReference())
+            recorded = true
+          }
+          data = internalMarshal(value, data, true, marshalType, false, ctx)
         case _ =>
           val array = unsafe.getObject(obj, descriptor.offset)
           if (array == null) {
             data = marshalByte(nullTag, data)
           } else {
+            if (!recorded) {
+              ctx.written.put(obj.asInstanceOf[AnyRef], ctx.createFreshReference())
+              recorded = true
+            }
             val tpe = descriptor.field.getType
-            data = marshalArray(array, tpe, false, data, context)
+            data = internalMarshalArray(array, tpe, false, data, ctx)
           }
       }
       i += 1
@@ -416,7 +427,7 @@ object RuntimeMarshaler {
 
   private def internalMarshal[T](
     obj: T, inputData: Data, checkRecorded: Boolean, marshalType: Boolean,
-    context: Reactor.MarshalContext
+    topLevel: Boolean, context: Reactor.MarshalContext
   ): Data = {
     var data = inputData
     if (obj == null) {
@@ -439,15 +450,17 @@ object RuntimeMarshaler {
         return data
       }
     }
-    context.written.put(obj.asInstanceOf[AnyRef], context.createFreshReference())
     val klazz = obj.getClass
     if (klazz.isArray) {
+      if (!topLevel || obj.isInstanceOf[Array[AnyRef]]) {
+        context.written.put(obj.asInstanceOf[AnyRef], context.createFreshReference())
+      }
       optionallyMarshalType(klazz, data, marshalType)
-      marshalArray(obj.asInstanceOf[AnyRef], klazz, marshalType, data, context)
+      internalMarshalArray(obj.asInstanceOf[AnyRef], klazz, marshalType, data, context)
     } else {
       data = optionallyMarshalType(klazz, data, marshalType)
       val desc = Platform.Reflect.descriptorOf(klazz)
-      internalMarshalAs(desc, obj, data, context)
+      internalMarshalAs(desc, obj, data, topLevel, false, context)
     }
   }
 

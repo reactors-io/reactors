@@ -6,4 +6,6 @@ package marshal
 
 
 
-class ClassDescriptor(val fields: Array[Platform.Reflect.FieldDescriptor])
+class ClassDescriptor(
+  val fields: Array[Platform.Reflect.FieldDescriptor]
+)

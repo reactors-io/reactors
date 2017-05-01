@@ -170,7 +170,7 @@ class BloomMap[K >: Null <: AnyRef: Arrayable, @specialized(Int, Long) V: Arraya
 
   def remove(key: K): V = delete(key)
 
-  def clear()(implicit spec: BloomMap.Spec[V]): Unit = {
+  def clear()(implicit spec: BloomMap.Spec[V]): Unit = if (rawSize > 0) {
     var i = 0
     while (i < keytable.length) {
       keytable(i) = null
