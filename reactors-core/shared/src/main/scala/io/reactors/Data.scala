@@ -25,7 +25,7 @@ abstract class Data(private val raw: Array[Byte], var startPos: Int, var endPos:
 object Data {
   private[reactors] class Linked(val defaultBatchSize: Int, requestedBatchSize: Int)
   extends Data(new Array(math.max(requestedBatchSize, defaultBatchSize)), 0, 0) {
-    private var next: Linked = null
+    private[reactors] var next: Linked = null
 
     def flush(minNextSize: Int): Data = {
       next = new Linked(defaultBatchSize, minNextSize)
