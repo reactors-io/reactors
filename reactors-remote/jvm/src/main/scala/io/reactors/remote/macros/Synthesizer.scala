@@ -46,33 +46,48 @@ private[reactors] class Synthesizer(val c: Context) {
         $receiverBinding.send($eventBinding)
       }
     """
-    //println(sendTree)
+    println(sendTree)
     sendTree
   }
 
   def createPlan(tpe: Type): Plan = {
     Plan(
-      ReflectiveKlass(tpe.typeSymbol, None),
-      ReflectiveKlass(tpe.typeSymbol, None))
+      NormalKlass(tpe.typeSymbol, Nil, tpe.typeSymbol.isFinal, None),
+      NormalKlass(tpe.typeSymbol, Nil, tpe.typeSymbol.isFinal, None))
   }
 
   def genMarshal(klass: Klass, x: Tree, data: Tree): Tree = {
     klass match {
       case MarshalableKlass(sym) =>
         q"$x.marshal($data)"
-      case NormalKlass(sym, fields, exact) =>
-        q"???"
-      case ReflectiveKlass(sym, Some(from)) =>
-        val fromFullType = from.typeSymbol.asClass.toType
-        val clazz = q"_root_.scala.Predef.classOf[${fromFullType}]"
-        q"""
-          _root_.io.reactors.remote.RuntimeMarshaler.marshalAs($clazz, $x, $data, true)
-        """
-      case ReflectiveKlass(sym, None) =>
-        q"""
-          _root_.io.reactors.remote.RuntimeMarshaler.marshalAs(
-          $x.getClass, $x, $data, false)
-        """
+      case NormalKlass(sym, fields, exact, superclass) =>
+        val staticPart = q"???"
+        val dynamicPart = superclass match {
+          case Some(s) => q"""
+            _root_.io.reactors.remote.RuntimeMarshaler.marshalAs(
+              $s, $x, $data, false)
+          """
+          case None => q"()"
+        }
+        if (exact) {
+          q"""
+            $staticPart
+            $dynamicPart
+          """
+        } else {
+          q"""
+            if ($x.getClass ne classOf[${sym.asClass.toType}]) {
+              if ($x.isInstanceOf[_root_.io.reactors.marshal.Marshalable]) {
+                $x.asInstanceOf[_root_.io.reactors.marshal.Marshalable].marshal($data)
+              } else {
+                _root_.io.reactors.remote.RuntimeMarshaler.marshal($x, $data)
+              }
+            } else {
+              $staticPart
+              $dynamicPart
+            }
+          """
+        }
     }
   }
 
@@ -84,12 +99,12 @@ private[reactors] class Synthesizer(val c: Context) {
 
   sealed trait Klass
 
-  case class ReflectiveKlass(symbol: Symbol, from: Option[Type]) extends Klass
-
   case class MarshalableKlass(symbol: Symbol) extends Klass
 
-  case class NormalKlass(symbol: Symbol, fields: Seq[Field], exact: Boolean)
-  extends Klass
+  case class NormalKlass(
+    symbol: Symbol, fields: Seq[Field], exact: Boolean,
+    superclass: Option[Type]
+  ) extends Klass
 
   case class Field(symbol: Symbol, klass: Klass, reflective: Boolean)
 }
