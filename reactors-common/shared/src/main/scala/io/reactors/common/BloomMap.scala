@@ -3,8 +3,6 @@ package common
 
 
 
-import java.util.HashMap
-import scala.util.hashing.Hashing
 
 
 
@@ -12,46 +10,89 @@ import scala.util.hashing.Hashing
  *
  *  Equality and hashing are reference-based.
  *
- *  The fast checks use identity hash. The map cannot contain `null` keys or values.
+ *  The fast checks use the identity hash. The map cannot contain `null` keys or values.
  *  Values are specialized for integers and longs.
+ *
+ *  The internal representation is a linear array when there are `4` keys or less,
+ *  and it switches to the slightly slower hash-based variant only after inserting
+ *  more than `4` keys.
  */
 class BloomMap[K >: Null <: AnyRef: Arrayable, @specialized(Int, Long) V: Arrayable] {
-  private var keytable = implicitly[Arrayable[K]].newRawArray(8)
-  private var valtable = implicitly[Arrayable[V]].newArray(8)
+  private var keytable = implicitly[Arrayable[K]].newRawArray(4)
+  private var valtable = implicitly[Arrayable[V]].newArray(4)
   private var rawSize = 0
   private var bloom = new Array[Byte](4)
   private val rawNil = implicitly[Arrayable[V]].nil
 
   def contains(key: K): Boolean = {
-    val hash = System.identityHashCode(key)
-    val idx = (hash >>> 3) % bloom.length
-    val pos = 1 << (hash & 0x7)
-    val down = (bloom(idx) & pos) == 0
-    if (down) false
-    else lookup(key, hash) != rawNil
+    if (keytable.length <= 4) {
+      fastlookup(key) != rawNil
+    } else {
+      val hash = System.identityHashCode(key)
+      val idx = (hash >>> 3) % bloom.length
+      val pos = 1 << (hash & 0x7)
+      val down = (bloom(idx) & pos) == 0
+      if (down) false
+      else lookup(key, hash) != rawNil
+    }
+  }
+
+  private def fastlookup(key: K): V = {
+    var pos = 0
+    while (pos < 4) {
+      val curr = keytable(pos)
+      if (curr eq key) {
+        return valtable(pos)
+      }
+      pos += 1
+    }
+    rawNil
   }
 
   private def lookup(key: K, hash: Int): V = {
     var pos = hash % keytable.length
     var curr = keytable(pos)
-
     while (curr != null && (curr ne key)) {
       pos = (pos + 1) % keytable.length
       curr = keytable(pos)
     }
-
     valtable(pos)
   }
 
   def nil: V = rawNil
 
   def get(key: K): V = {
-    val hash = System.identityHashCode(key)
-    val idx = (hash >>> 3) % bloom.length
-    val pos = 1 << (hash & 0x7)
-    val down = (bloom(idx) & pos) == 0
-    if (down) rawNil
-    else lookup(key, hash)
+    if (keytable.length <= 4) {
+      fastlookup(key)
+    } else {
+      val hash = System.identityHashCode(key)
+      val idx = (hash >>> 3) % bloom.length
+      val pos = 1 << (hash & 0x7)
+      val down = (bloom(idx) & pos) == 0
+      if (down) rawNil
+      else lookup(key, hash)
+    }
+  }
+
+  private def fastinsert(key: K, value: V): V = {
+    var pos = 0
+    while (pos < 4) {
+      val curr = keytable(pos)
+      if (curr eq key) {
+        val previousValue = valtable(pos)
+        keytable(pos) = key
+        valtable(pos) = value
+        return previousValue
+      }
+      if (curr eq null) {
+        keytable(pos) = key
+        valtable(pos) = value
+        rawSize += 1
+        return rawNil
+      }
+      pos += 1
+    }
+    sys.error("Should not reach here.")
   }
 
   private def insert(key: K, value: V): V = {
@@ -89,7 +130,7 @@ class BloomMap[K >: Null <: AnyRef: Arrayable, @specialized(Int, Long) V: Arraya
     while (pos < okeytable.length) {
       val curr = okeytable(pos)
       if (curr != null) {
-        val dummy = insert(curr, ovaltable(pos))
+        val specializationDummy = insert(curr, ovaltable(pos))
       }
       pos += 1
     }
@@ -111,15 +152,20 @@ class BloomMap[K >: Null <: AnyRef: Arrayable, @specialized(Int, Long) V: Arraya
   }
 
   def put(key: K, value: V): Unit = {
-    checkResize(rawNil)
-    insert(key, value)
-    if (bloom.length < keytable.length / 4) {
-      resizeBloomFilter()
+    assert(key != null)
+    if (keytable.length <= 4 && rawSize < 4) {
+      fastinsert(key, value)
+    } else {
+      checkResize(rawNil)
+      insert(key, value)
+      if (bloom.length < keytable.length / 4) {
+        resizeBloomFilter()
+      }
+      val hash = System.identityHashCode(key)
+      val idx = (hash >>> 3) % bloom.length
+      val pos = 1 << (hash & 0x7)
+      bloom(idx) = (bloom(idx) | pos).toByte
     }
-    val hash = System.identityHashCode(key)
-    val idx = (hash >>> 3) % bloom.length
-    val pos = 1 << (hash & 0x7)
-    bloom(idx) = (bloom(idx) | pos).toByte
   }
 
   def size: Int = rawSize
@@ -136,35 +182,42 @@ class BloomMap[K >: Null <: AnyRef: Arrayable, @specialized(Int, Long) V: Arraya
 
   private def delete(key: K): V = {
     assert(key != null)
-    var pos = System.identityHashCode(key) % keytable.length
-    var curr = keytable(pos)
-
-    while (curr != null && (curr ne key)) {
-      pos = (pos + 1) % keytable.length
-      curr = keytable(pos)
-    }
-
-    if (curr == null) rawNil
-    else {
-      val previousValue = valtable(pos)
-
-      var h0 = pos
-      var h1 = (h0 + 1) % keytable.length
-      while (keytable(h1) != null) {
-        val h2 = System.identityHashCode(keytable(h1)) % keytable.length
-        if (h2 != h1 && before(h2, h0)) {
-          keytable(h0) = keytable(h1)
-          valtable(h0) = valtable(h1)
-          h0 = h1
+    if (keytable.length <= 4) {
+      var pos = 0
+      while (pos < 4) {
+        val curr = keytable(pos)
+        if (curr eq key) {
+          return valtable(pos)
         }
-        h1 = (h1 + 1) % keytable.length
+        pos += 1
       }
-
-      keytable(h0) = null
-      valtable(h0) = rawNil
-      rawSize -= 1
-
-      previousValue
+      rawNil
+    } else {
+      var pos = System.identityHashCode(key) % keytable.length
+      var curr = keytable(pos)
+      while (curr != null && (curr ne key)) {
+        pos = (pos + 1) % keytable.length
+        curr = keytable(pos)
+      }
+      if (curr == null) rawNil
+      else {
+        val previousValue = valtable(pos)
+        var h0 = pos
+        var h1 = (h0 + 1) % keytable.length
+        while (keytable(h1) != null) {
+          val h2 = System.identityHashCode(keytable(h1)) % keytable.length
+          if (h2 != h1 && before(h2, h0)) {
+            keytable(h0) = keytable(h1)
+            valtable(h0) = valtable(h1)
+            h0 = h1
+          }
+          h1 = (h1 + 1) % keytable.length
+        }
+        keytable(h0) = null
+        valtable(h0) = rawNil
+        rawSize -= 1
+        previousValue
+      }
     }
   }
 
