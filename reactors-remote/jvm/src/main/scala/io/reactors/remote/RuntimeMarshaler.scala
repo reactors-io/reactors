@@ -25,6 +25,13 @@ object RuntimeMarshaler {
 
   private def maxArrayChunk: Int = 2048
 
+  def marshal[T](obj: T, inputData: Data, marshalType: Boolean = true): Data = {
+    val context = Reactor.marshalContext
+    val data = internalMarshal(obj, inputData, false, marshalType, context)
+    context.resetMarshal()
+    data
+  }
+
   def marshalAs[T](
     klazz: Class[_], obj: T, inputData: Data, alreadyRecordedReference: Boolean
   ): Data = {
@@ -43,10 +50,10 @@ object RuntimeMarshaler {
       data
     } else {
       val context = Reactor.marshalContext
-//      if (!alreadyRecordedReference)
-//        context.written.put(obj.asInstanceOf[AnyRef], context.createFreshReference())
+      if (!alreadyRecordedReference)
+        context.written.put(obj.asInstanceOf[AnyRef], context.createFreshReference())
       val data = internalMarshalAs(desc, obj, inputData, context)
-//      context.resetMarshal()
+      context.resetMarshal()
       data
     }
   }
@@ -383,13 +390,6 @@ object RuntimeMarshaler {
     data
   }
 
-  def marshal[T](obj: T, inputData: Data, marshalType: Boolean = true): Data = {
-    val context = Reactor.marshalContext
-    val data = internalMarshal(obj, inputData, false, marshalType, context)
-    //context.resetMarshal()
-    data
-  }
-
   def optionallyMarshalType(
     klazz: Class[_], inputData: Data, marshalType: Boolean
   ): Data = {
@@ -439,7 +439,7 @@ object RuntimeMarshaler {
         return data
       }
     }
-    //context.written.put(obj.asInstanceOf[AnyRef], context.createFreshReference())
+    context.written.put(obj.asInstanceOf[AnyRef], context.createFreshReference())
     val klazz = obj.getClass
     if (klazz.isArray) {
       optionallyMarshalType(klazz, data, marshalType)

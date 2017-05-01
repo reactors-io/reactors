@@ -28,11 +28,11 @@ class BloomMap[K >: Null <: AnyRef: Arrayable, @specialized(Int, Long) V: Arraya
     val pos = 1 << (hash & 0x7)
     val down = (bloom(idx) & pos) == 0
     if (down) false
-    else lookup(key) != rawNil
+    else lookup(key, hash) != rawNil
   }
 
-  private def lookup(key: K): V = {
-    var pos = System.identityHashCode(key) % keytable.length
+  private def lookup(key: K, hash: Int): V = {
+    var pos = hash % keytable.length
     var curr = keytable(pos)
 
     while (curr != null && (curr ne key)) {
@@ -51,13 +51,10 @@ class BloomMap[K >: Null <: AnyRef: Arrayable, @specialized(Int, Long) V: Arraya
     val pos = 1 << (hash & 0x7)
     val down = (bloom(idx) & pos) == 0
     if (down) rawNil
-    else lookup(key)
+    else lookup(key, hash)
   }
 
   private def insert(key: K, value: V): V = {
-    assert(key != null)
-    checkResize(rawNil)
-
     var pos = System.identityHashCode(key) % keytable.length
     var curr = keytable(pos)
     while (curr != null && (curr ne key)) {
@@ -75,7 +72,7 @@ class BloomMap[K >: Null <: AnyRef: Arrayable, @specialized(Int, Long) V: Arraya
   }
 
   private def checkResize(nil: V): Unit = {
-    if (rawSize * 1000 / BloomMap.loadFactor > keytable.length) {
+    if (rawSize > keytable.length.toLong * BloomMap.loadFactor / 1000) {
       resize(nil)
     }
   }
@@ -114,13 +111,15 @@ class BloomMap[K >: Null <: AnyRef: Arrayable, @specialized(Int, Long) V: Arraya
   }
 
   def put(key: K, value: V): Unit = {
+    checkResize(rawNil)
     insert(key, value)
-    if (bloom.length > keytable.length / 4) {
-      val hash = System.identityHashCode(key)
-      val idx = (hash >>> 3) % bloom.length
-      val pos = 1 << (hash & 0x7)
-      bloom(idx) = (bloom(idx) | pos).toByte
-    } else resizeBloomFilter()
+    if (bloom.length < keytable.length / 4) {
+      resizeBloomFilter()
+    }
+    val hash = System.identityHashCode(key)
+    val idx = (hash >>> 3) % bloom.length
+    val pos = 1 << (hash & 0x7)
+    bloom(idx) = (bloom(idx) | pos).toByte
   }
 
   def size: Int = rawSize
@@ -183,6 +182,7 @@ class BloomMap[K >: Null <: AnyRef: Arrayable, @specialized(Int, Long) V: Arraya
       bloom(i) = 0
       i += 1
     }
+    rawSize = 0
   }
 }
 

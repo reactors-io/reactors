@@ -38,12 +38,13 @@ class BloomMapCheck extends Properties("BloomMap") with ExtendedProperties {
     stackTraced {
       val map = new BloomMap[String, String]
 
-      val elems = (0 to size).map(_.toString)
+      val elems = (0 to size).map(x => "num: " + x)
       for (i <- 0 until size) {
         map.put(elems(i), elems(i))
+        assert(map.contains(elems(i)))
       }
       for (i <- 0 until size) {
-        assert(map.contains(elems(i)))
+        assert(map.contains(elems(i)), i)
         assert(map.remove(elems(i)) == elems(i))
         assert(!map.contains(elems(i)))
       }
