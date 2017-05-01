@@ -21,7 +21,7 @@ class BloomMap[K >: Null <: AnyRef: Arrayable, @specialized(Int, Long) V: Arraya
   private var keytable = implicitly[Arrayable[K]].newRawArray(4)
   private var valtable = implicitly[Arrayable[V]].newArray(4)
   private var rawSize = 0
-  private var bloom = new Array[Byte](4)
+  private var bloom = new Array[Byte](0)
   private val rawNil = implicitly[Arrayable[V]].nil
 
   def contains(key: K): Boolean = {
