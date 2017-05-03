@@ -614,4 +614,19 @@ extends Properties("RuntimeMarshaler") with ExtendedProperties {
     }
   }
 
+  property("should serialize object arrays") = forAllNoShrink(sizes) {
+    size =>
+    stackTraced {
+      val data = new Data.Linked(128, 128)
+      val cell = new Cell[Data](data)
+      val array = new Array[AnyRef](size)
+      for (i <- 0 until size) array(i) = i.toString
+      RuntimeMarshaler.marshal(array, data)
+      val result = RuntimeMarshaler.unmarshal[Array[AnyRef]](cell)
+      assert(result.length == size)
+      for (i <- 0 until size) assert(array(i) == i.toString)
+      true
+    }
+  }
+
 }
