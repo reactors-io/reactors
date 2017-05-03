@@ -599,9 +599,17 @@ extends Properties("RuntimeMarshaler") with ExtendedProperties {
 
   val sizes = detChoose(0, 1000)
 
-  property("should serialize arrays of various sizes") = forAllNoShrink(sizes) {
+  property("should serialize integer arrays") = forAllNoShrink(sizes) {
     size =>
     stackTraced {
+      val data = new Data.Linked(128, 128)
+      val cell = new Cell[Data](data)
+      val array = new Array[Int](size)
+      for (i <- 0 until size) array(i) = i
+      RuntimeMarshaler.marshal(array, data)
+      val result = RuntimeMarshaler.unmarshal[Array[Int]](cell)
+      assert(result.length == size)
+      for (i <- 0 until size) assert(array(i) == i)
       true
     }
   }
