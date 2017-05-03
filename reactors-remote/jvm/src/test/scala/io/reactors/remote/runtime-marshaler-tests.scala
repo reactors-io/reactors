@@ -5,6 +5,9 @@ package remote
 
 import io.reactors.common.Cell
 import io.reactors.marshal.Marshalee
+import io.reactors.test._
+import org.scalacheck.Prop.forAllNoShrink
+import org.scalacheck.Properties
 import org.scalatest.FunSuite
 import scala.collection.mutable
 
@@ -588,4 +591,19 @@ class ObjectArrayObject(length: Int) extends Marshalee {
 
 class FinalObjectArrayObject(length: Int) extends Marshalee {
   val array = new Array[FinalSingleInt](length)
+}
+
+
+class RuntimeMarshalerCheck
+extends Properties("RuntimeMarshaler") with ExtendedProperties {
+
+  val sizes = detChoose(0, 1000)
+
+  property("should serialize arrays of various sizes") = forAllNoShrink(sizes) {
+    size =>
+    stackTraced {
+      true
+    }
+  }
+
 }
