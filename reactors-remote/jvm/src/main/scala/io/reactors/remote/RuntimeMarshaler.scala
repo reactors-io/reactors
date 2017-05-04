@@ -57,7 +57,7 @@ object RuntimeMarshaler {
   }
 
   private def internalMarshalArray(
-    array: AnyRef, tpe: Class[_], marshalType: Boolean,
+    array: AnyRef, tpe: Class[_],
     inputData: Data, context: Reactor.MarshalContext
   ): Data = {
     var data = inputData
@@ -393,7 +393,7 @@ object RuntimeMarshaler {
               recorded = true
             }
             val tpe = descriptor.field.getType
-            data = internalMarshalArray(array, tpe, false, data, ctx)
+            data = internalMarshalArray(array, tpe, data, ctx)
           }
       }
       i += 1
@@ -455,8 +455,8 @@ object RuntimeMarshaler {
       if (!topLevel || obj.isInstanceOf[Array[AnyRef]]) {
         context.written.put(obj.asInstanceOf[AnyRef], context.createFreshReference())
       }
-      optionallyMarshalType(klazz, data, marshalType)
-      internalMarshalArray(obj.asInstanceOf[AnyRef], klazz, marshalType, data, context)
+      data = optionallyMarshalType(klazz, data, marshalType)
+      internalMarshalArray(obj.asInstanceOf[AnyRef], klazz, data, context)
     } else {
       data = optionallyMarshalType(klazz, data, marshalType)
       val desc = Platform.Reflect.descriptorOf(klazz)
@@ -511,7 +511,9 @@ object RuntimeMarshaler {
         stringBuffer.setLength(0)
         while (last != classNameTerminatorTag) {
           last = data(i)
-          if (last != classNameTerminatorTag) stringBuffer.append(last.toChar)
+          if (last != classNameTerminatorTag && last != arrayTag) {
+            stringBuffer.append(last.toChar)
+          }
           i += 1
           if (i == until) {
             data.startPos += i - data.startPos
@@ -831,11 +833,6 @@ object RuntimeMarshaler {
           inputData := data
           while (i < length) {
             val unmarshalElementType = !Modifier.isFinal(elementType.getModifiers)
-            println(i)
-            if (i == 35) {
-              println(inputData().startPos)
-              println(inputData().raw.zipWithIndex.mkString("\n"))
-            }
             val obj = internalUnmarshal[AnyRef](elementType, inputData,
               unmarshalElementType, context)
             objectArray(i) = obj

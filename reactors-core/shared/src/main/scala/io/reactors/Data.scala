@@ -5,7 +5,7 @@ package io.reactors
 
 
 
-abstract class Data(val raw: Array[Byte], var startPos: Int, var endPos: Int) {
+abstract class Data(private val raw: Array[Byte], var startPos: Int, var endPos: Int) {
   def flush(minNextSize: Int): Data
 
   def fetch(): Data
