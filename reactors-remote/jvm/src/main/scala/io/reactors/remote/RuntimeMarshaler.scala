@@ -831,6 +831,11 @@ object RuntimeMarshaler {
           inputData := data
           while (i < length) {
             val unmarshalElementType = !Modifier.isFinal(elementType.getModifiers)
+            println(i)
+            if (i == 35) {
+              println(inputData().startPos)
+              println(inputData().raw.zipWithIndex.mkString("\n"))
+            }
             val obj = internalUnmarshal[AnyRef](elementType, inputData,
               unmarshalElementType, context)
             objectArray(i) = obj

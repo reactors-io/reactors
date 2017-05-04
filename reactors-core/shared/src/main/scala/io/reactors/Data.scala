@@ -5,7 +5,7 @@ package io.reactors
 
 
 
-abstract class Data(private val raw: Array[Byte], var startPos: Int, var endPos: Int) {
+abstract class Data(val raw: Array[Byte], var startPos: Int, var endPos: Int) {
   def flush(minNextSize: Int): Data
 
   def fetch(): Data
@@ -19,6 +19,19 @@ abstract class Data(private val raw: Array[Byte], var startPos: Int, var endPos:
   final def remainingReadSize: Int = endPos - startPos
 
   def byteString = raw.map(b => s"$b(${b.toChar})").mkString(", ")
+
+  def fullByteString: String = {
+    var curr = this
+    var s = ""
+    while (curr != null) {
+      s += curr.byteString + "\n -> "
+      curr = curr match {
+        case linked: Data.Linked => linked.next
+        case _ => null
+      }
+    }
+    s
+  }
 }
 
 
