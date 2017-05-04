@@ -613,6 +613,8 @@ extends Properties("RuntimeMarshaler") with ExtendedProperties {
 
   val smallSizes = detChoose(0, 100)
 
+  val depths = detChoose(0, 12)
+
   property("serialize integer arrays") = forAllNoShrink(sizes) { size =>
     stackTraced {
       val data = new Data.Linked(128, 128)
@@ -674,6 +676,38 @@ extends Properties("RuntimeMarshaler") with ExtendedProperties {
         result = result.tail
       }
       assert(result == null, result.tail)
+      true
+    }
+  }
+
+  property("serialize trees") = forAllNoShrink(depths) { maxDepth =>
+    stackTraced {
+      val data = new Data.Linked(128, 128)
+      val cell = new Cell[Data](data)
+      val root = new Array[AnyRef](3)
+      def generate(node: Array[AnyRef], depth: Int): Unit = if (depth < maxDepth) {
+        val left = new Array[AnyRef](3)
+        val right = new Array[AnyRef](3)
+        left(2) = depth.toString
+        right(2) = depth.toString
+        node(0) = left
+        node(1) = right
+        generate(left, depth + 1)
+        generate(right, depth + 1)
+      }
+      generate(root, 0)
+      RuntimeMarshaler.marshal(root, data)
+      var result = RuntimeMarshaler.unmarshal[Array[AnyRef]](cell)
+      def compare(before: Array[AnyRef], after: Array[AnyRef]): Unit = {
+        if (before == null) assert(after == null)
+        else {
+          def asNode(x: AnyRef) = x.asInstanceOf[Array[AnyRef]]
+          assert(before(2) == after(2))
+          compare(asNode(before(0)), asNode(after(0)))
+          compare(asNode(before(1)), asNode(after(1)))
+        }
+      }
+      compare(root, result)
       true
     }
   }
