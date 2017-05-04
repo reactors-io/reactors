@@ -615,7 +615,7 @@ extends Properties("RuntimeMarshaler") with ExtendedProperties {
 
   val depths = detChoose(0, 12)
 
-  property("serialize integer arrays") = forAllNoShrink(sizes) { size =>
+  property("integer arrays") = forAllNoShrink(sizes) { size =>
     stackTraced {
       val data = new Data.Linked(128, 128)
       val cell = new Cell[Data](data)
@@ -629,7 +629,7 @@ extends Properties("RuntimeMarshaler") with ExtendedProperties {
     }
   }
 
-  property("serialize object arrays") = forAllNoShrink(sizes) { size =>
+  property("object arrays") = forAllNoShrink(sizes) { size =>
     stackTraced {
       val data = new Data.Linked(128, 128)
       val cell = new Cell[Data](data)
@@ -643,7 +643,7 @@ extends Properties("RuntimeMarshaler") with ExtendedProperties {
     }
   }
 
-  property("serialize circular arrays") = forAllNoShrink(sizes) { size =>
+  property("circular arrays") = forAllNoShrink(sizes) { size =>
     stackTraced {
       val data = new Data.Linked(128, 128)
       val cell = new Cell[Data](data)
@@ -663,7 +663,7 @@ extends Properties("RuntimeMarshaler") with ExtendedProperties {
     }
   }
 
-  property("serialize linked lists") = forAllNoShrink(smallSizes) { size =>
+  property("linked lists") = forAllNoShrink(smallSizes) { size =>
     stackTraced {
       val data = new Data.Linked(128, 128)
       val cell = new Cell[Data](data)
@@ -680,7 +680,7 @@ extends Properties("RuntimeMarshaler") with ExtendedProperties {
     }
   }
 
-  property("serialize trees") = forAllNoShrink(depths) { maxDepth =>
+  property("trees") = forAllNoShrink(depths) { maxDepth =>
     stackTraced {
       val data = new Data.Linked(128, 128)
       val cell = new Cell[Data](data)
@@ -708,6 +708,20 @@ extends Properties("RuntimeMarshaler") with ExtendedProperties {
         }
       }
       compare(root, result)
+      true
+    }
+  }
+
+  property("array buffers") = forAllNoShrink(sizes) { size =>
+    stackTraced {
+      val data = new Data.Linked(128, 128)
+      val cell = new Cell[Data](data)
+      val buffer = mutable.ArrayBuffer[Int]()
+      for (i <- 0 until size) buffer += i
+      RuntimeMarshaler.marshal(buffer, data)
+      var result = RuntimeMarshaler.unmarshal[mutable.ArrayBuffer[Int]](cell)
+      assert(result.length == size)
+      for (i <- 0 until size) assert(result(i) == buffer(i))
       true
     }
   }
