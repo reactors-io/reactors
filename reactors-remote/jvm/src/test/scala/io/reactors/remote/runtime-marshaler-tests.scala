@@ -596,10 +596,9 @@ class FinalObjectArrayObject(length: Int) extends Marshalee {
 
 class RuntimeMarshalerCheck
 extends Properties("RuntimeMarshaler") with ExtendedProperties {
-
   val sizes = detChoose(0, 1000)
 
-  property("should serialize integer arrays") = forAllNoShrink(sizes) {
+  property("serialize integer arrays") = forAllNoShrink(sizes) {
     size =>
     stackTraced {
       val data = new Data.Linked(128, 128)
@@ -614,7 +613,7 @@ extends Properties("RuntimeMarshaler") with ExtendedProperties {
     }
   }
 
-  property("should serialize object arrays") = forAllNoShrink(sizes) {
+  property("serialize object arrays") = forAllNoShrink(sizes) {
     size =>
     stackTraced {
       val data = new Data.Linked(128, 128)
@@ -629,4 +628,24 @@ extends Properties("RuntimeMarshaler") with ExtendedProperties {
     }
   }
 
+//  property("serialize circular arrays") = forAllNoShrink(sizes) {
+//    size =>
+//      stackTraced {
+//        val data = new Data.Linked(128, 128)
+//        val cell = new Cell[Data](data)
+//        val array = new Array[AnyRef](size)
+//        for (i <- 0 until size) {
+//          if (i % 2 == 0) array(i) = array
+//          else array(i) = new Array[Int](0)
+//        }
+//        RuntimeMarshaler.marshal(array, data)
+//        val result = RuntimeMarshaler.unmarshal[Array[AnyRef]](cell)
+//        assert(result.length == size)
+//        for (i <- 0 until size) {
+//          if (i % 2 == 0) assert(array(i) == array)
+//          else assert(array(i).asInstanceOf[Array[Int]].length == 0)
+//        }
+//        true
+//      }
+//  }
 }
