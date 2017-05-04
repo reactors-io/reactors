@@ -555,48 +555,63 @@ class ArrayObject(length: Int) extends Marshalee {
   val array = new Array[Int](length)
 }
 
+
 class VarArrayObject(var array: Array[Int]) extends Marshalee
+
 
 class LongArrayObject(length: Int) extends Marshalee {
   val array = new Array[Long](length)
 }
 
+
 class DoubleArrayObject(length: Int) extends Marshalee {
   val array = new Array[Double](length)
 }
+
 
 class FloatArrayObject(length: Int) extends Marshalee {
   val array = new Array[Float](length)
 }
 
+
 class ByteArrayObject(length: Int) extends Marshalee {
   val array = new Array[Byte](length)
 }
+
 
 class BooleanArrayObject(length: Int) extends Marshalee {
   val array = new Array[Boolean](length)
 }
 
+
 class CharArrayObject(length: Int) extends Marshalee {
   val array = new Array[Char](length)
 }
+
 
 class ShortArrayObject(length: Int) extends Marshalee {
   val array = new Array[Short](length)
 }
 
+
 class ObjectArrayObject(length: Int) extends Marshalee {
   val array = new Array[SingleLong](length)
 }
+
 
 class FinalObjectArrayObject(length: Int) extends Marshalee {
   val array = new Array[FinalSingleInt](length)
 }
 
 
+class LinkedList(val head: Int, val tail: LinkedList) extends Marshalee
+
+
 class RuntimeMarshalerCheck
 extends Properties("RuntimeMarshaler") with ExtendedProperties {
   val sizes = detChoose(0, 1000)
+
+  val smallSizes = detChoose(0, 100)
 
   property("serialize integer arrays") = forAllNoShrink(sizes) { size =>
     stackTraced {
@@ -642,6 +657,23 @@ extends Properties("RuntimeMarshaler") with ExtendedProperties {
         if (i % 2 == 0) assert(array(i) == array)
         else assert(array(i).asInstanceOf[Array[Int]].length == 0)
       }
+      true
+    }
+  }
+
+  property("serialize linked lists") = forAllNoShrink(smallSizes) { size =>
+    stackTraced {
+      val data = new Data.Linked(128, 128)
+      val cell = new Cell[Data](data)
+      var list: LinkedList = null
+      for (i <- 0 until size) list = new LinkedList(i, list)
+      RuntimeMarshaler.marshal(list, data)
+      var result = RuntimeMarshaler.unmarshal[LinkedList](cell)
+      for (i <- (0 until size).reverse) {
+        assert(result.head == i)
+        result = result.tail
+      }
+      assert(result == null, result.tail)
       true
     }
   }
