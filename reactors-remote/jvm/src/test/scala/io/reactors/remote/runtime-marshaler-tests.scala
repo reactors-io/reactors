@@ -9,7 +9,7 @@ import io.reactors.test._
 import org.scalacheck.Prop.forAllNoShrink
 import org.scalacheck.Properties
 import org.scalatest.FunSuite
-import scala.collection.mutable
+import scala.collection._
 
 
 
@@ -719,9 +719,23 @@ extends Properties("RuntimeMarshaler") with ExtendedProperties {
       val buffer = mutable.ArrayBuffer[Int]()
       for (i <- 0 until size) buffer += i
       RuntimeMarshaler.marshal(buffer, data)
-      var result = RuntimeMarshaler.unmarshal[mutable.ArrayBuffer[Int]](cell)
+      val result = RuntimeMarshaler.unmarshal[mutable.ArrayBuffer[Int]](cell)
       assert(result.length == size)
       for (i <- 0 until size) assert(result(i) == buffer(i))
+      true
+    }
+  }
+
+  property("hash tries") = forAllNoShrink(sizes) { size =>
+    stackTraced {
+      val data = new Data.Linked(128, 128)
+      val cell = new Cell[Data](data)
+      var map = immutable.HashMap[Int, String]()
+      for (i <- 0 until size) map += i -> i.toString
+      RuntimeMarshaler.marshal(map, data)
+      val result = RuntimeMarshaler.unmarshal[immutable.HashMap[Int, String]](cell)
+      assert(result.size == size, s"${result.size}, expected $size")
+      for (i <- 0 until size) assert(result(i) == i.toString)
       true
     }
   }

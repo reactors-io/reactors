@@ -157,7 +157,7 @@ object Platform {
           new Platform.Reflect.FieldDescriptor(f)
         }).toArray
         Arrays.sort(fieldDescriptors, fieldComparator)
-        new ClassDescriptor(fieldDescriptors)
+        new ClassDescriptor(klazz, fieldDescriptors)
       }
 
     def descriptorOf(klazz: Class[_]): ClassDescriptor = {
