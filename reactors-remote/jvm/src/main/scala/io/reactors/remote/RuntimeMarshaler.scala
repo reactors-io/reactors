@@ -474,6 +474,13 @@ object RuntimeMarshaler {
     obj
   }
 
+  def unmarshalAs[T](
+    classDescriptor: ClassDescriptor, obj: T, inputData: Cell[Data],
+    context: Reactor.MarshalContext
+  )(implicit tag: ClassTag[T]): Unit = {
+    internalUnmarshalAs(classDescriptor, obj, inputData, context)
+  }
+
   private def internalUnmarshal[T](
     assumedKlazz: Class[_], inputData: Cell[Data], unmarshalType: Boolean,
     context: Reactor.MarshalContext
@@ -538,7 +545,8 @@ object RuntimeMarshaler {
         val obj = Platform.unsafe.allocateInstance(klazz)
         context.seen += obj
         inputData := data
-        internalUnmarshalAs(klazz, obj, inputData, context)
+        val desc = Platform.Reflect.descriptorOf(klazz)
+        internalUnmarshalAs(desc, obj, inputData, context)
         obj.asInstanceOf[T]
       }
     }
@@ -846,10 +854,11 @@ object RuntimeMarshaler {
   }
 
   private def internalUnmarshalAs[T](
-    klazz: Class[_], obj: T, inputData: Cell[Data], context: Reactor.MarshalContext
+    classDescriptor: ClassDescriptor, obj: T, inputData: Cell[Data],
+    context: Reactor.MarshalContext
   ): Unit = {
     var data = inputData()
-    val descriptors = Platform.Reflect.descriptorOf(klazz).fields
+    val descriptors = classDescriptor.fields
     var i = 0
     while (i < descriptors.length) {
       val descriptor = descriptors(i)
