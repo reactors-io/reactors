@@ -464,11 +464,11 @@ object RuntimeMarshaler {
     }
   }
 
-  def unmarshal[T: ClassTag](
+  def unmarshal[T](
     inputData: Cell[Data], unmarshalType: Boolean = true
-  ): T = {
+  )(implicit tag: ClassTag[T]): T = {
     val context = Reactor.marshalContext
-    val klazz = implicitly[ClassTag[T]].runtimeClass
+    val klazz = tag.runtimeClass
     val obj = internalUnmarshal[T](klazz, inputData, unmarshalType, context)
     context.resetUnmarshal()
     obj
@@ -852,170 +852,171 @@ object RuntimeMarshaler {
     val descriptors = Platform.Reflect.descriptorOf(klazz).fields
     var i = 0
     while (i < descriptors.length) {
-      val field = descriptors(i).field
-      val tpe = field.getType
-      if (tpe.isPrimitive) {
-        tpe match {
-          case Platform.Reflect.intClass =>
-            if (data.remainingReadSize >= 4) {
-              val pos = data.startPos
-              val b0 = (data(pos + 0).toInt << 0) & 0x000000ff
-              val b1 = (data(pos + 1).toInt << 8) & 0x0000ff00
-              val b2 = (data(pos + 2).toInt << 16) & 0x00ff0000
-              val b3 = (data(pos + 3).toInt << 24) & 0xff000000
-              data.startPos = pos + 4
-              field.setInt(obj, b3 | b2 | b1 | b0)
-            } else {
-              var i = 0
-              var x = 0
-              while (i < 4) {
-                if (data.remainingReadSize == 0) data = data.fetch()
-                val b = data(data.startPos)
-                x |= (b.toInt & 0xff) << (8 * i)
-                data.startPos += 1
-                i += 1
-              }
-              field.setInt(obj, x)
-            }
-          case Platform.Reflect.longClass =>
-            if (data.remainingReadSize >= 8) {
-              val pos = data.startPos
-              val b0 = (data(pos + 0).toLong << 0) & 0x00000000000000ffL
-              val b1 = (data(pos + 1).toLong << 8) & 0x000000000000ff00L
-              val b2 = (data(pos + 2).toLong << 16) & 0x0000000000ff0000L
-              val b3 = (data(pos + 3).toLong << 24) & 0x00000000ff000000L
-              val b4 = (data(pos + 4).toLong << 32) & 0x000000ff00000000L
-              val b5 = (data(pos + 5).toLong << 40) & 0x0000ff0000000000L
-              val b6 = (data(pos + 6).toLong << 48) & 0x00ff000000000000L
-              val b7 = (data(pos + 7).toLong << 56) & 0xff00000000000000L
-              field.setLong(obj, b7 | b6 | b5 | b4 | b3 | b2 | b1 | b0)
-              data.startPos = pos + 8
-            } else {
-              var i = 0
-              var x = 0L
-              while (i < 8) {
-                if (data.remainingReadSize == 0) data = data.fetch()
-                val b = data(data.startPos)
-                x |= (b.toLong & 0xff) << (8 * i)
-                data.startPos += 1
-                i += 1
-              }
-              field.setLong(obj, x)
-            }
-          case Platform.Reflect.doubleClass =>
-            if (data.remainingReadSize >= 8) {
-              val pos = data.startPos
-              val b0 = (data(pos + 0).toLong << 0) & 0x00000000000000ffL
-              val b1 = (data(pos + 1).toLong << 8) & 0x000000000000ff00L
-              val b2 = (data(pos + 2).toLong << 16) & 0x0000000000ff0000L
-              val b3 = (data(pos + 3).toLong << 24) & 0x00000000ff000000L
-              val b4 = (data(pos + 4).toLong << 32) & 0x000000ff00000000L
-              val b5 = (data(pos + 5).toLong << 40) & 0x0000ff0000000000L
-              val b6 = (data(pos + 6).toLong << 48) & 0x00ff000000000000L
-              val b7 = (data(pos + 7).toLong << 56) & 0xff00000000000000L
-              val bits = b7 | b6 | b5 | b4 | b3 | b2 | b1 | b0
-              val x = java.lang.Double.longBitsToDouble(bits)
-              field.setDouble(obj, x)
-              data.startPos = pos + 8
-            } else {
-              var i = 0
-              var bits = 0L
-              while (i < 8) {
-                if (data.remainingReadSize == 0) data = data.fetch()
-                val b = data(data.startPos)
-                bits |= (b.toLong & 0xff) << (8 * i)
-                data.startPos += 1
-                i += 1
-              }
-              val x = java.lang.Double.longBitsToDouble(bits)
-              field.setDouble(obj, x)
-            }
-          case Platform.Reflect.floatClass =>
-            if (data.remainingReadSize >= 4) {
-              val pos = data.startPos
-              val b0 = (data(pos + 0).toInt << 0) & 0x000000ff
-              val b1 = (data(pos + 1).toInt << 8) & 0x0000ff00
-              val b2 = (data(pos + 2).toInt << 16) & 0x00ff0000
-              val b3 = (data(pos + 3).toInt << 24) & 0xff000000
-              val bits = b3 | b2 | b1 | b0
-              val x = java.lang.Float.intBitsToFloat(bits)
-              field.setFloat(obj, x)
-              data.startPos = pos + 4
-            } else {
-              var i = 0
-              var bits = 0
-              while (i < 4) {
-                if (data.remainingReadSize == 0) data = data.fetch()
-                val b = data(data.startPos)
-                bits |= (b.toInt & 0xff) << (8 * i)
-                data.startPos += 1
-                i += 1
-              }
-              val x = java.lang.Float.intBitsToFloat(bits)
-              field.setFloat(obj, x)
-            }
-          case Platform.Reflect.byteClass =>
-            if (data.remainingReadSize < 1) data = data.fetch()
+      val descriptor = descriptors(i)
+      (descriptor.tag: @switch) match {
+        case 0x01 =>
+          if (data.remainingReadSize >= 4) {
             val pos = data.startPos
-            val b = data(pos)
-            field.setByte(obj, b)
-            data.startPos = pos + 1
-          case Platform.Reflect.booleanClass =>
-            if (data.remainingReadSize < 1) data = data.fetch()
+            val b0 = (data(pos + 0).toInt << 0) & 0x000000ff
+            val b1 = (data(pos + 1).toInt << 8) & 0x0000ff00
+            val b2 = (data(pos + 2).toInt << 16) & 0x00ff0000
+            val b3 = (data(pos + 3).toInt << 24) & 0xff000000
+            val x = b3 | b2 | b1 | b0
+            unsafe.putInt(obj, descriptor.offset, x)
+            data.startPos = pos + 4
+          } else {
+            var i = 0
+            var x = 0
+            while (i < 4) {
+              if (data.remainingReadSize == 0) data = data.fetch()
+              val b = data(data.startPos)
+              x |= (b.toInt & 0xff) << (8 * i)
+              data.startPos += 1
+              i += 1
+            }
+            unsafe.putInt(obj, descriptor.offset, x)
+          }
+        case 0x02 =>
+          if (data.remainingReadSize >= 8) {
             val pos = data.startPos
-            val b = data(pos)
-            field.setBoolean(obj, if (b != 0) true else false)
-            data.startPos = pos + 1
-          case Platform.Reflect.charClass =>
-            if (data.remainingReadSize >= 2) {
-              val pos = data.startPos
-              val b0 = (data(pos + 0).toChar << 0) & 0x000000ff
-              val b1 = (data(pos + 1).toChar << 8) & 0x0000ff00
-              field.setChar(obj, (b1 | b0).toChar)
-              data.startPos = pos + 2
-            } else {
-              var i = 0
-              var x = 0
-              while (i < 2) {
-                if (data.remainingReadSize == 0) data = data.fetch()
-                val b = data(data.startPos)
-                x |= (b.toInt & 0xff) << (8 * i)
-                data.startPos += 1
-                i += 1
-              }
-              field.setChar(obj, x.toChar)
+            val b0 = (data(pos + 0).toLong << 0) & 0x00000000000000ffL
+            val b1 = (data(pos + 1).toLong << 8) & 0x000000000000ff00L
+            val b2 = (data(pos + 2).toLong << 16) & 0x0000000000ff0000L
+            val b3 = (data(pos + 3).toLong << 24) & 0x00000000ff000000L
+            val b4 = (data(pos + 4).toLong << 32) & 0x000000ff00000000L
+            val b5 = (data(pos + 5).toLong << 40) & 0x0000ff0000000000L
+            val b6 = (data(pos + 6).toLong << 48) & 0x00ff000000000000L
+            val b7 = (data(pos + 7).toLong << 56) & 0xff00000000000000L
+            val x = b7 | b6 | b5 | b4 | b3 | b2 | b1 | b0
+            unsafe.putLong(obj, descriptor.offset, x)
+            data.startPos = pos + 8
+          } else {
+            var i = 0
+            var x = 0L
+            while (i < 8) {
+              if (data.remainingReadSize == 0) data = data.fetch()
+              val b = data(data.startPos)
+              x |= (b.toLong & 0xff) << (8 * i)
+              data.startPos += 1
+              i += 1
             }
-          case Platform.Reflect.shortClass =>
-            if (data.remainingReadSize >= 2) {
-              val pos = data.startPos
-              val b0 = (data(pos + 0).toShort << 0) & 0x000000ff
-              val b1 = (data(pos + 1).toShort << 8) & 0x0000ff00
-              field.setShort(obj, (b1 | b0).toShort)
-              data.startPos = pos + 2
-            } else {
-              var i = 0
-              var x = 0
-              while (i < 2) {
-                if (data.remainingReadSize == 0) data = data.fetch()
-                val b = data(data.startPos)
-                x |= (b.toInt & 0xff) << (8 * i)
-                data.startPos += 1
-                i += 1
-              }
-              field.setShort(obj, x.toShort)
+            unsafe.putLong(obj, descriptor.offset, x)
+          }
+        case 0x03 =>
+          if (data.remainingReadSize >= 8) {
+            val pos = data.startPos
+            val b0 = (data(pos + 0).toLong << 0) & 0x00000000000000ffL
+            val b1 = (data(pos + 1).toLong << 8) & 0x000000000000ff00L
+            val b2 = (data(pos + 2).toLong << 16) & 0x0000000000ff0000L
+            val b3 = (data(pos + 3).toLong << 24) & 0x00000000ff000000L
+            val b4 = (data(pos + 4).toLong << 32) & 0x000000ff00000000L
+            val b5 = (data(pos + 5).toLong << 40) & 0x0000ff0000000000L
+            val b6 = (data(pos + 6).toLong << 48) & 0x00ff000000000000L
+            val b7 = (data(pos + 7).toLong << 56) & 0xff00000000000000L
+            val bits = b7 | b6 | b5 | b4 | b3 | b2 | b1 | b0
+            val x = java.lang.Double.longBitsToDouble(bits)
+            unsafe.putDouble(obj, descriptor.offset, x)
+            data.startPos = pos + 8
+          } else {
+            var i = 0
+            var bits = 0L
+            while (i < 8) {
+              if (data.remainingReadSize == 0) data = data.fetch()
+              val b = data(data.startPos)
+              bits |= (b.toLong & 0xff) << (8 * i)
+              data.startPos += 1
+              i += 1
             }
-        }
-      } else if (tpe.isArray) {
-        inputData := data
-        val array = unmarshalArray(tpe, inputData, context)
-        data = inputData()
-        field.set(obj, array)
-     } else {
-        val unmarshalType = !Modifier.isFinal(tpe.getModifiers)
-        inputData := data
-        val x = internalUnmarshal[AnyRef](tpe, inputData, unmarshalType, context)
-        data = inputData()
-        field.set(obj, x)
+            val x = java.lang.Double.longBitsToDouble(bits)
+            unsafe.putDouble(obj, descriptor.offset, x)
+          }
+        case 0x04 =>
+          if (data.remainingReadSize >= 4) {
+            val pos = data.startPos
+            val b0 = (data(pos + 0).toInt << 0) & 0x000000ff
+            val b1 = (data(pos + 1).toInt << 8) & 0x0000ff00
+            val b2 = (data(pos + 2).toInt << 16) & 0x00ff0000
+            val b3 = (data(pos + 3).toInt << 24) & 0xff000000
+            val bits = b3 | b2 | b1 | b0
+            val x = java.lang.Float.intBitsToFloat(bits)
+            unsafe.putFloat(obj, descriptor.offset, x)
+            data.startPos = pos + 4
+          } else {
+            var i = 0
+            var bits = 0
+            while (i < 4) {
+              if (data.remainingReadSize == 0) data = data.fetch()
+              val b = data(data.startPos)
+              bits |= (b.toInt & 0xff) << (8 * i)
+              data.startPos += 1
+              i += 1
+            }
+            val x = java.lang.Float.intBitsToFloat(bits)
+            unsafe.putFloat(obj, descriptor.offset, x)
+          }
+        case 0x05 =>
+          if (data.remainingReadSize < 1) data = data.fetch()
+          val pos = data.startPos
+          val b = data(pos)
+          unsafe.putByte(obj, descriptor.offset, b)
+          data.startPos = pos + 1
+        case 0x06 =>
+          if (data.remainingReadSize < 1) data = data.fetch()
+          val pos = data.startPos
+          val b = data(pos)
+          unsafe.putBoolean(obj, descriptor.offset, if (b != 0) true else false)
+          data.startPos = pos + 1
+        case 0x07 =>
+          if (data.remainingReadSize >= 2) {
+            val pos = data.startPos
+            val b0 = (data(pos + 0).toChar << 0) & 0x000000ff
+            val b1 = (data(pos + 1).toChar << 8) & 0x0000ff00
+            unsafe.putChar(obj, descriptor.offset, (b1 | b0).toChar)
+            data.startPos = pos + 2
+          } else {
+            var i = 0
+            var x = 0
+            while (i < 2) {
+              if (data.remainingReadSize == 0) data = data.fetch()
+              val b = data(data.startPos)
+              x |= (b.toInt & 0xff) << (8 * i)
+              data.startPos += 1
+              i += 1
+            }
+            unsafe.putChar(obj, descriptor.offset, x.toChar)
+          }
+        case 0x08 =>
+          if (data.remainingReadSize >= 2) {
+            val pos = data.startPos
+            val b0 = (data(pos + 0).toShort << 0) & 0x000000ff
+            val b1 = (data(pos + 1).toShort << 8) & 0x0000ff00
+            unsafe.putShort(obj, descriptor.offset, (b1 | b0).toShort)
+            data.startPos = pos + 2
+          } else {
+            var i = 0
+            var x = 0
+            while (i < 2) {
+              if (data.remainingReadSize == 0) data = data.fetch()
+              val b = data(data.startPos)
+              x |= (b.toInt & 0xff) << (8 * i)
+              data.startPos += 1
+              i += 1
+            }
+            unsafe.putShort(obj, descriptor.offset, x.toShort)
+          }
+        case 0x0a =>
+          val unmarshalType = !descriptor.isFinal
+          val tpe = descriptor.field.getType
+          inputData := data
+          val x = internalUnmarshal[AnyRef](tpe, inputData, unmarshalType, context)
+          data = inputData()
+          unsafe.putObject(obj, descriptor.offset, x)
+        case _ =>
+          val tpe = descriptor.field.getType
+          inputData := data
+          val array = unmarshalArray(tpe, inputData, context)
+          data = inputData()
+          unsafe.putObject(obj, descriptor.offset, array)
       }
       i += 1
     }

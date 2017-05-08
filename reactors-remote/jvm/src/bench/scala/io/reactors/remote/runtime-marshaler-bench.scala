@@ -72,7 +72,6 @@ class RuntimeMarshalerBench extends JBench.OfflineReport {
 //    var i = 0
 //    var data: Data = new Data.Linked(bufferSize, bufferSize)
 //    val cell = new Cell[Data](data)
-//    val desc = Platform.Reflect.descriptorOf(classOf[SingleField])
 //    while (i < repetitions) {
 //      val obj = new SingleField(i)
 //      val v = obj.x

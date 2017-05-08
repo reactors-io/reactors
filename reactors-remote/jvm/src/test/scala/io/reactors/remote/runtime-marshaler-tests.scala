@@ -720,7 +720,7 @@ extends Properties("RuntimeMarshaler") with ExtendedProperties {
       for (i <- 0 until size) buffer += i
       RuntimeMarshaler.marshal(buffer, data)
       val result = RuntimeMarshaler.unmarshal[mutable.ArrayBuffer[Int]](cell)
-      assert(result.length == size)
+      assert(result.length == size, s"${result.length}, expected $size")
       for (i <- 0 until size) assert(result(i) == buffer(i))
       true
     }
