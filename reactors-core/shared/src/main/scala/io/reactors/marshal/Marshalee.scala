@@ -1,4 +1,5 @@
-package io.reactors.marshal
+package io.reactors
+package marshal
 
 
 
@@ -7,4 +8,6 @@ package io.reactors.marshal
 
 /** Used to annotate classes that can be automatically marshaled.
  */
-trait Marshalee extends Serializable
+trait Marshalee extends Serializable {
+  def descriptor: ClassDescriptor = Platform.Reflect.descriptorOf(getClass)
+}
