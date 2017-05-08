@@ -4,6 +4,7 @@ package macros
 
 
 
+import io.reactors.marshal.Marshalable
 import scala.language.experimental.macros
 import scala.reflect.macros.whitebox.Context
 
@@ -34,14 +35,13 @@ private[reactors] class Synthesizer(val c: Context) {
     //   println(cls, cls.isJava, cls.info.decls)
     // }
 
-    val plan = createPlan(x.tpe)
     val sendTree = q"""
       val $receiverBinding = $receiver
       val $eventBinding = $x
       val $threadBinding = _root_.io.reactors.Reactor.currentReactorLocalThread
       if ($threadBinding != null && $threadBinding.dataCache != null) {
         val $dataBinding = $threadBinding.dataCache
-        ${genMarshal(plan.marshal, q"$eventBinding", q"$dataBinding")}
+        ${genMarshal(x.tpe, q"$eventBinding", q"$dataBinding")}
       } else {
         $receiverBinding.send($eventBinding)
       }
@@ -50,61 +50,46 @@ private[reactors] class Synthesizer(val c: Context) {
     sendTree
   }
 
-  def createPlan(tpe: Type): Plan = {
-    Plan(
-      NormalKlass(tpe.typeSymbol, Nil, tpe.typeSymbol.isFinal, None),
-      NormalKlass(tpe.typeSymbol, Nil, tpe.typeSymbol.isFinal, None))
+  def findDynamicSuperclass(klass: Type): Option[Type] = {
+    ???
+//    klass.typeSymbol.asClass.baseClasses.filter
   }
 
-  def genMarshal(klass: Klass, x: Tree, data: Tree): Tree = {
-    klass match {
-      case MarshalableKlass(sym) =>
-        q"$x.marshal($data)"
-      case NormalKlass(sym, fields, exact, superclass) =>
-        val staticPart = q"???"
-        val dynamicPart = superclass match {
-          case Some(s) => q"""
-            _root_.io.reactors.remote.RuntimeMarshaler.marshalAs(
-              $s, $x, $data, false)
-          """
-          case None => q"()"
-        }
-        if (exact) {
-          q"""
+  def genMarshal(klass: Type, x: Tree, data: Tree): Tree = {
+    if (klass <:< typeOf[Marshalable]) {
+      q"$x.marshal($data)"
+    } else {
+      val staticPart = q"???"
+      val dynamicPart = findDynamicSuperclass(klass) match {
+        case Some(s) => q"""
+          _root_.io.reactors.remote.RuntimeMarshaler.marshalAs(
+            $s, $x, $data, false)
+        """
+        case None => q"()"
+      }
+      if (klass.typeSymbol.asClass.isFinal) {
+        q"""
+          $staticPart
+          $dynamicPart
+        """
+      } else {
+        q"""
+          if ($x.getClass ne classOf[${klass}]) {
+            if ($x.isInstanceOf[_root_.io.reactors.marshal.Marshalable]) {
+              $x.asInstanceOf[_root_.io.reactors.marshal.Marshalable].marshal($data)
+            } else {
+              _root_.io.reactors.remote.RuntimeMarshaler.marshal($x, $data)
+            }
+          } else {
             $staticPart
             $dynamicPart
-          """
-        } else {
-          q"""
-            if ($x.getClass ne classOf[${sym.asClass.toType}]) {
-              if ($x.isInstanceOf[_root_.io.reactors.marshal.Marshalable]) {
-                $x.asInstanceOf[_root_.io.reactors.marshal.Marshalable].marshal($data)
-              } else {
-                _root_.io.reactors.remote.RuntimeMarshaler.marshal($x, $data)
-              }
-            } else {
-              $staticPart
-              $dynamicPart
-            }
-          """
-        }
+          }
+        """
+      }
     }
   }
 
-  def genUnmarshal(klass: Klass, data: Tree): Tree = {
+  def genUnmarshal(klass: Class[_], data: Tree): Tree = {
     ???
   }
-
-  case class Plan(marshal: Klass, unmarshal: Klass)
-
-  sealed trait Klass
-
-  case class MarshalableKlass(symbol: Symbol) extends Klass
-
-  case class NormalKlass(
-    symbol: Symbol, fields: Seq[Field], exact: Boolean,
-    superclass: Option[Type]
-  ) extends Klass
-
-  case class Field(symbol: Symbol, klass: Klass, reflective: Boolean)
 }
