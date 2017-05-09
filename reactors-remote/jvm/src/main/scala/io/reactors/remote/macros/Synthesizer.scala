@@ -51,8 +51,9 @@ private[reactors] class Synthesizer(val c: Context) {
   }
 
   def findDynamicSuperclass(klass: Type): Option[Type] = {
-    ???
-//    klass.typeSymbol.asClass.baseClasses.filter
+    klass.baseClasses.filter(!_.asClass.isTrait).find { pred =>
+      pred.isJava
+    }.map(_.asType.toType)
   }
 
   def genMarshal(klass: Type, x: Tree, data: Tree): Tree = {
@@ -63,7 +64,7 @@ private[reactors] class Synthesizer(val c: Context) {
       val dynamicPart = findDynamicSuperclass(klass) match {
         case Some(s) => q"""
           _root_.io.reactors.remote.RuntimeMarshaler.marshalAs(
-            $s, $x, $data, false)
+            classOf[$s], $x, $data, false)
         """
         case None => q"()"
       }
