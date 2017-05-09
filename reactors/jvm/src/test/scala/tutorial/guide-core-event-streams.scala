@@ -78,10 +78,8 @@ class EventStreams extends FunSuite with Matchers {
   Here is an event stream `myEvents`, which produces string events:
   !*/
 
-  def createEventStream() = new Events.Never[String]
-
   /*!begin-code!*/
-  val myEvents: Events[String] = createEventStream()
+  val myEvents: Events[String] = new Events.Emitter[String]
   /*!end-code!*/
   /*!include-code Java:reactors-java-event-streams-create.html!*/
 
