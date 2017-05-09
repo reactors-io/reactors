@@ -46,7 +46,7 @@ private[reactors] class Synthesizer(val c: Context) {
         $receiverBinding.send($eventBinding)
       }
     """
-    println(sendTree)
+    //println(sendTree)
     sendTree
   }
 

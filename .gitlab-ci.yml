@@ -27,6 +27,16 @@ gate-ubuntu:
     - ~/.super-storm-enroute/tools/ci reactors $(pwd)
 
 
+gate-standalone-ubuntu:
+  tags:
+    - ubuntu
+    - gate
+  script:
+    - ~/.super-storm-enroute/tools/sbt test
+    - ~/.super-storm-enroute/tools/sbt clean
+    - ~/.super-storm-enroute/tools/sbt ++2.12.2 test
+
+
 gate-osx:
   tags:
     - osx

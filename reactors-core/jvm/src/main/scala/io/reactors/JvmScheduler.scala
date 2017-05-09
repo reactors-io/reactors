@@ -17,7 +17,7 @@ object JvmScheduler {
   /** Scheduler that shares the global Scala execution context.
    */
   lazy val globalExecutionContext: Scheduler =
-    new Executed(ExecutionContext.Implicits.global)
+    Executed.from(ExecutionContext.Implicits.global)
 
   private[reactors] class ReactorForkJoinReanimatorThread(
     val pool: ReactorForkJoinPool
@@ -237,7 +237,6 @@ object JvmScheduler {
   class Executed(
     val executor: java.util.concurrent.Executor
   ) extends Scheduler {
-
     def schedule(frame: Frame): Unit = {
       Thread.currentThread match {
         case t: ReactorForkJoinWorkerThread if t.getPool eq executor =>
@@ -275,6 +274,15 @@ object JvmScheduler {
         case _ =>
           return
       }
+    }
+  }
+
+  object Executed {
+    def from(ec: ExecutionContext): Executed = {
+      val executor = new Executor {
+        override def execute(r: Runnable): Unit = ec.execute(r)
+      }
+      new Executed(executor)
     }
   }
 

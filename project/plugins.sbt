@@ -12,6 +12,6 @@ addSbtPlugin("me.lessis" % "bintray-sbt" % "0.1.1")
 
 addSbtPlugin("com.typesafe.sbt" % "sbt-pgp" % "0.8.1")
 
-addSbtPlugin("org.scala-js" % "sbt-scalajs" % "0.6.12")
+addSbtPlugin("org.scala-js" % "sbt-scalajs" % "0.6.15")
 
 addSbtPlugin("com.github.mpeltonen" % "sbt-idea" % "1.6.0")

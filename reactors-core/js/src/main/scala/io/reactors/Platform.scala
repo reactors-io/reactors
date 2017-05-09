@@ -2,10 +2,11 @@ package io.reactors
 
 
 
-import scala.annotation.unchecked
 import scala.collection._
 import scala.scalajs._
-import scala.scalajs.js.annotation.JSExportDescendentClasses
+import scala.scalajs.reflect.InstantiatableClass
+import scala.scalajs.reflect.InvokableConstructor
+import scala.scalajs.reflect.annotation.EnableReflectiveInstantiation
 import scala.util.parsing.combinator._
 
 
@@ -139,15 +140,63 @@ object Platform {
     }
 
     def instantiate[T](className: String, args: Seq[Any]): T = {
-      val ctor = (js.Dynamic.global /: className.split("\\.")) {
-        (prev, part) =>
-        prev.selectDynamic(part)
+//      val ctor = (js.Dynamic.global /: className.split("\\.")) {
+//        (prev, part) =>
+//        prev.selectDynamic(part)
+//      }
+//      js.Dynamic.newInstance(ctor)(args.asInstanceOf[Seq[js.Any]]: _*).asInstanceOf[T]
+      val reflect = scala.scalajs.reflect.Reflect
+      val cls = reflect.lookupInstantiatableClass(className).get
+      val ctor = matchingConstructor(cls, args)
+      ctor.newInstance(args: _*).asInstanceOf[T]
+    }
+
+    private val boxedMapping = Map[Class[_], Class[_]](
+      classOf[Boolean] -> classOf[java.lang.Boolean],
+      classOf[Byte] -> classOf[java.lang.Byte],
+      classOf[Char] -> classOf[java.lang.Character],
+      classOf[Short] -> classOf[java.lang.Short],
+      classOf[Int] -> classOf[java.lang.Integer],
+      classOf[Long] -> classOf[java.lang.Long],
+      classOf[Float] -> classOf[java.lang.Float],
+      classOf[Double] -> classOf[java.lang.Double]
+    )
+
+    private def boxedVersion(cls: Class[_]) =
+      if (!cls.isPrimitive) cls else boxedMapping(cls)
+
+    private def matchingConstructor[T](
+      cls: InstantiatableClass, args: Seq[Any]
+    ): InvokableConstructor = {
+      if (args.isEmpty) cls.getConstructor().get
+      else {
+        def matches(c: InvokableConstructor): Boolean = {
+          val cargs = c.parameterTypes
+          cargs.length == args.length && {
+            val cit = cargs.iterator
+            val pit = args.iterator
+            while (cit.hasNext) {
+              val cls = cit.next()
+              val obj = pit.next()
+              if (
+                !cls.isInstance(obj) &&
+                !boxedVersion(cls).isInstance(obj) &&
+                !(obj == null && !cls.isPrimitive)
+              ) return false
+            }
+            true
+          }
+        }
+        val cs = cls.declaredConstructors.filter(matches)
+        if (cs.length == 0) exception.illegalArg(s"No match for $cls and $args.")
+        else if (cs.length > 1) {
+          exception.illegalArg(s"Multiple matches for $cls and $args.")
+        } else cs.head
       }
-      js.Dynamic.newInstance(ctor)(args.asInstanceOf[Seq[js.Any]]: _*).asInstanceOf[T]
     }
   }
 
-  @scala.scalajs.js.annotation.JSExportDescendentClasses(true)
+  @EnableReflectiveInstantiation
   trait Reflectable {
   }
 

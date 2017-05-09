@@ -109,32 +109,32 @@ object Platform {
     new InetSocketAddress(host, port)
 
   private[reactors] object Reflect {
-    def instantiate[T](clazz: Class[T], params: scala.Array[Any]): T = {
+    def instantiate[T](clazz: Class[T], args: scala.Array[Any]): T = {
       // Java-only version.
-      instantiate(clazz, params.toSeq)
+      instantiate(clazz, args.toSeq)
     }
 
-    def instantiate[T](clazz: Class[T], params: Seq[Any]): T = {
-      val ctor = matchingConstructor(clazz, params)
+    def instantiate[T](clazz: Class[T], args: Seq[Any]): T = {
+      val ctor = matchingConstructor(clazz, args)
       ctor.setAccessible(true)
-      ctor.newInstance(params.asInstanceOf[Seq[AnyRef]]: _*)
+      ctor.newInstance(args.asInstanceOf[Seq[AnyRef]]: _*)
     }
 
-    def instantiate[T](name: String, params: Seq[Any]): T = {
+    def instantiate[T](name: String, args: Seq[Any]): T = {
       val clazz = Class.forName(name).asInstanceOf[Class[T]]
-      instantiate(clazz, params)
+      instantiate(clazz, args)
     }
 
     private def matchingConstructor[T](
-      cls: Class[T], params: Seq[Any]
+      cls: Class[T], args: Seq[Any]
     ): Constructor[T] = try {
-      if (params.isEmpty) cls.getDeclaredConstructor()
+      if (args.isEmpty) cls.getDeclaredConstructor()
       else {
         def matches(c: Constructor[_]): Boolean = {
           val cargs = c.getParameterTypes
-          cargs.length == params.length && {
+          cargs.length == args.length && {
             val cit = cargs.iterator
-            val pit = params.iterator
+            val pit = args.iterator
             while (cit.hasNext) {
               val cls = cit.next()
               val obj = pit.next()
@@ -148,9 +148,9 @@ object Platform {
           }
         }
         val cs = cls.getDeclaredConstructors.filter(matches)
-        if (cs.length == 0) exception.illegalArg(s"No match for $cls and $params")
+        if (cs.length == 0) exception.illegalArg(s"No match for $cls and $args.")
         else if (cs.length > 1)
-          exception.illegalArg(s"Multiple matches for $cls and $params")
+          exception.illegalArg(s"Multiple matches for $cls and $args.")
         else cs.head.asInstanceOf[Constructor[T]]
       }
     } catch {
