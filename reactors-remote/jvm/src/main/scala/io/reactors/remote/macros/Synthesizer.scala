@@ -13,7 +13,7 @@ import scala.reflect.macros.whitebox.Context
 private[reactors] class Synthesizer(val c: Context) {
   import c.universe._
 
-  def send(x: Tree): Tree = {
+  def synthesizeSend(x: Tree): Tree = {
     val receiver: Tree = c.macroApplication match {
       case q"$qual.this.`package`.ChannelOps[$_]($receiver).!($_)" =>
         receiver
@@ -51,9 +51,10 @@ private[reactors] class Synthesizer(val c: Context) {
   }
 
   def findDynamicSuperclass(klass: Type): Option[Type] = {
-    klass.baseClasses.filter(!_.asClass.isTrait).find { pred =>
+    val firstJavaAncestor = klass.baseClasses.filter(!_.asClass.isTrait).find { pred =>
       pred.isJava
     }.map(_.asType.toType)
+    firstJavaAncestor
   }
 
   def genMarshal(klass: Type, x: Tree, data: Tree): Tree = {
