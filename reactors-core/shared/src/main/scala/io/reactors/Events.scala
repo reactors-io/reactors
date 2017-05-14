@@ -1027,40 +1027,41 @@ trait Events[@spec(Int, Long, Double) T] {
     new Events.Incremental(this, () => state)
   }
   
-    /** Pushes farther every `count` value.
-    *
-    * If `count` is set to `2`, result will be as follows:
-    *  {{{
-    *  time   ----------------------------->
-    *  this   ----1--2---3----4-------5---->
-    *  that   ----1------3------------5---->
-    *  }}}
-    *
-    */
+  /** Pushes farther every `count` value.
+   *
+   * If `count` is set to `2`, result will be as follows:
+   *  {{{
+   *  time   ----------------------------->
+   *  this   ----1--2---3----4-------5---->
+   *  that   ----1------3------------5---->
+   *  }}}
+   *
+   */
   def each(count: Int): Events[T] = {
     new Events.Each[T](this, count)
   }
 
   /** Repeat each value every `count` times.
-    *
-    * If `count` is set to `2`, result will be as follows:
-    *  {{{
-    *  time   --------------------------------->
-    *  this   ----1-----2-----3------4----5---->
-    *  that   ----1-1---2--2--3-3----4-4--5-5-->
-    *  }}}
-    *
-    */
+   *
+   * If `count` is set to `2`, result will be as follows:
+   *  {{{
+   *  time   --------------------------------->
+   *  this   ----1-----2-----3------4----5---->
+   *  that   ----1-1---2--2--3-3----4-4--5-5-->
+   *  }}}
+   *
+   */
   def repeat(count: Int): Events[T] = {
     new Events.Repeat[T](this, count)
   }
   
   /** Partitions this events stream in two events streams according to a predicate.
-    * 
-    * @return a pair of the first events stream consists of all elements that satisfy the predicate `p`
-    *         and the second event stream consists of all elements that don't.
-    *         The relative order of the elements in the resulting events streams is the same as in the original
-    */
+   * 
+   * @return a pair of the first events stream consists of all elements that satisfy the predicate `p`
+   *         and the second event stream consists of all elements that don't.
+   *         The relative order of the elements in the resulting events streams
+   *         is the same as in the original
+   */
   def partition(p: T => Boolean): (Events[T], Events[T]) = {
     val trueEmitter = new Events.Emitter[T]
     val falseEmitter = new Events.Emitter[T]
