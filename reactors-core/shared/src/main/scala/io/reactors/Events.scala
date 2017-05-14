@@ -1057,10 +1057,10 @@ trait Events[@spec(Int, Long, Double) T] {
   
   /** Partitions this events stream in two events streams according to a predicate.
    * 
-   * @return a pair of the first events stream consists of all elements that satisfy the predicate `p`
-   *         and the second event stream consists of all elements that don't.
-   *         The relative order of the elements in the resulting events streams
-   *         is the same as in the original
+   * @return a pair of the first events stream consists of all elements that 
+   *         satisfy the predicate `p`, and the second event stream consists
+   *         of all elements that don't. The relative order of the elements
+   *         in the resulting events streams is the same as in the original
    */
   def partition(p: T => Boolean): (Events[T], Events[T]) = {
     val trueEmitter = new Events.Emitter[T]
