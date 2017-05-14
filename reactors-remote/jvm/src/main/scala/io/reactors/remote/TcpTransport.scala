@@ -31,7 +31,11 @@ object TcpTransport {
       val reactorThread = Reactor.currentReactorThread
       val context = reactorThread.marshalContext
       val dataCache = reactorThread.dataCache
+      
+      // Obtain a data object from the pool if necessary.
       ???
+
+      // Use the runtime marshaler to serialize the object.
     }
   }
 }
