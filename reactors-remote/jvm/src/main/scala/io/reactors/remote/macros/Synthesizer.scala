@@ -38,7 +38,7 @@ private[reactors] class Synthesizer(val c: Context) {
     val sendTree = q"""
       val $receiverBinding = $receiver
       val $eventBinding = $x
-      val $threadBinding = _root_.io.reactors.Reactor.currentReactorLocalThread
+      val $threadBinding = _root_.io.reactors.Reactor.currentReactorThread
       if ($threadBinding != null && $threadBinding.dataCache != null) {
         val $dataBinding = $threadBinding.dataCache
         ${genMarshal(x.tpe, q"$eventBinding", q"$dataBinding")}
@@ -46,7 +46,7 @@ private[reactors] class Synthesizer(val c: Context) {
         $receiverBinding.send($eventBinding)
       }
     """
-    println(sendTree)
+    // println(sendTree)
     sendTree
   }
 

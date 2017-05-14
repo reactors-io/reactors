@@ -118,7 +118,7 @@ trait Reactor[@spec(Int, Long, Double) T] extends Platform.Reflectable {
 object Reactor {
   /** Mixin trait for workers that define a special thread-local variables.
    */
-  trait ReactorLocalThread {
+  trait ReactorThread {
     var currentFrame: Frame = null
     var dataCache: Data = null
     var marshalContext: MarshalContext = marshalContextThreadLocal.get
@@ -152,7 +152,7 @@ object Reactor {
 
   private[reactors] def marshalContext: MarshalContext =
     Thread.currentThread match {
-      case rt: ReactorLocalThread => rt.marshalContext
+      case rt: ReactorThread => rt.marshalContext
       case _ => marshalContextThreadLocal.get
     }
 
@@ -161,12 +161,12 @@ object Reactor {
   }
 
   private[reactors] def currentFrame: Frame = Thread.currentThread match {
-    case rt: ReactorLocalThread => rt.currentFrame
+    case rt: ReactorThread => rt.currentFrame
     case _ => currentFrameThreadLocal.get
   }
 
   private[reactors] def currentFrame_=(f: Frame): Unit = Thread.currentThread match {
-    case rt: ReactorLocalThread => rt.currentFrame = f
+    case rt: ReactorThread => rt.currentFrame = f
     case _ => currentFrameThreadLocal.set(f)
   }
 
@@ -179,8 +179,8 @@ object Reactor {
    *
    *  Used for optimizations.
    */
-  def currentReactorLocalThread: ReactorLocalThread = Thread.currentThread match {
-    case rt: ReactorLocalThread => rt
+  def currentReactorThread: ReactorThread = Thread.currentThread match {
+    case rt: ReactorThread => rt
     case _ => null
   }
 

@@ -58,7 +58,7 @@ object JvmScheduler {
 
   private[reactors] class ReactorForkJoinWorkerThread(
     val reactorPool: ReactorForkJoinPool
-  ) extends ForkJoinWorkerThread(reactorPool) with Reactor.ReactorLocalThread {
+  ) extends ForkJoinWorkerThread(reactorPool) with Reactor.ReactorThread {
     import ReactorForkJoinWorkerThread._
     val miniQueue = new AtomicReference[Frame](null)
     private var state: AnyRef = ASLEEP
