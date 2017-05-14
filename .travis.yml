@@ -16,7 +16,7 @@ install:
 
 script:
   - nvm use $NODE_VERSION
-  - ./tools/validate-pr.sh ${TRAVIS_SCALA_VERSION}
+  - sbt test
   - git clone https://github.com/storm-enroute/dev-tools.git ~/.dev-tools
   - ~/.dev-tools/lint -p .
 
