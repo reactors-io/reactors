@@ -3342,22 +3342,15 @@ object Events {
     ))
     private var c = 1
     def react(x: T, hint: Any): Unit = {
-      try{
         if(c == count){
           target.react(x, hint)
           c = 1
         }
         else c += 1
-      } catch{
-        case t if isNonLethal(t) =>
-          target.except(t)
-          return
-      }
     }
     def except(t: Throwable) = target.except(t)
     def unreact() = target.unreact()
   }
-
   private[reactors] class Repeat[@spec(Int, Long, Double) T](
     val self: Events[T],
     val count: Int,
