@@ -15,10 +15,10 @@ install:
   - nvm install $NODE_VERSION
 
 script:
-  - nvm use $NODE_VERSION
-  - sbt test
   - git clone https://github.com/storm-enroute/dev-tools.git ~/.dev-tools
   - ~/.dev-tools/lint -p .
+  - nvm use $NODE_VERSION
+  - sbt test
 
 branches:
   only:
