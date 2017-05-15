@@ -1029,7 +1029,8 @@ trait Events[@spec(Int, Long, Double) T] {
   
   /** Pushes farther every `count` value.
    *
-   * If `count` is set to `2`, result will be as follows:
+   *  If `count` is set to `2`, result will be as follows:
+   *
    *  {{{
    *  time   ----------------------------->
    *  this   ----1--2---3----4-------5---->
@@ -1041,26 +1042,31 @@ trait Events[@spec(Int, Long, Double) T] {
     new Events.Each[T](this, count)
   }
 
-  /** Repeat each value every `count` times.
+  /** Repeat each value every `count` times. 
    *
-   * If `count` is set to `2`, result will be as follows:
+   *  Assumed of shared state between repeated values.
+   *  If there is a need of separate states, e.g. for
+   *  mutable objects, consider to implement 
+   *  `copy' method. 
+   *
+   *  If `count` is set to `2`, result will be as follows:
+   
    *  {{{
    *  time   --------------------------------->
    *  this   ----1-----2-----3------4----5---->
    *  that   ----1-1---2--2--3-3----4-4--5-5-->
    *  }}}
-   *
    */
-  def repeat(count: Int): Events[T] = {
-    new Events.Repeat[T](this, count)
+  def repeat(count: Int)(copy: (T) => T = state => state): Events[T] = {
+    new Events.Repeat[T](this, count, copy)
   }
   
   /** Partitions this events stream in two events streams according to a predicate.
    * 
-   * @return a pair of the first events stream consists of all elements that 
-   *         satisfy the predicate `p`, and the second event stream consists
-   *         of all elements that don't. The relative order of the elements
-   *         in the resulting events streams is the same as in the original
+   *  @return a pair of the first events stream consists of all elements that 
+   *          satisfy the predicate `p`, and the second event stream consists
+   *          of all elements that don't. The relative order of the elements
+   *          in the resulting events streams is the same as in the original.
    */
   def partition(p: T => Boolean): (Events[T], Events[T]) = {
     val trueEmitter = new Events.Emitter[T]
@@ -3325,6 +3331,15 @@ object Events {
     val target: Observer[T],
     val count: Int
   ) extends Observer[T]{
+    if(count < 1) target.except(new AssertionError(
+      StringBuilder.newBuilder
+        .append("The parameter `count` of method")
+        .append(System.lineSeparator())
+        .append("each(count: Int): T")
+        .append(System.lineSeparator())
+        .append("should be more than 1 or equal it")
+        .mkString
+    ))
     private var c = 1
     def react(x: T, hint: Any): Unit = {
       try{
@@ -3345,30 +3360,35 @@ object Events {
 
   private[reactors] class Repeat[@spec(Int, Long, Double) T](
     val self: Events[T],
-    val count: Int
+    val count: Int,
+    val copy: (T) => T
   ) extends Events[T]{
     def onReaction(obs: Observer[T]): Subscription = {
-      self.onReaction(new RepeatObserver[T](obs, count))
+      self.onReaction(new RepeatObserver[T](obs, count, copy))
     }
   }
 
   private[reactors] class RepeatObserver[@spec(Int, Long, Double) T](
     val target: Observer[T],
-    val count: Int
+    val count: Int,
+    val copy: (T) => T
   ) extends Observer[T]{
-    private var c = 0
+      if(count < 1) target.except(new AssertionError(
+        StringBuilder.newBuilder
+          .append("The parameter `count` of method")
+          .append(System.lineSeparator())
+          .append("repeat(count: Int)(copy: (T) => T): T")
+          .append(System.lineSeparator())
+          .append("should be more than 1 or equal it")
+          .mkString
+      ))
     def react(x: T, hint: Any): Unit = {
-      try{
+        var c = 0
         while(c != count){
-          target.react(x, hint)
+          if(c == 0) target.react(x, hint)
+          else target.react(copy(x), hint)
           c += 1
         }
-        c = 0
-      } catch{
-        case t if isNonLethal(t) =>
-          target.except(t)
-          return
-      }
     }
     def except(t: Throwable) = target.except(t)
     def unreact() = target.unreact()
@@ -3379,17 +3399,16 @@ object Events {
     val falseTarget: Events.Emitter[T],
     val p: (T) => Boolean
   ) extends Observer[T]{
-
     def react(x: T, hint: Any): Unit = {
       val left =
-      try{
-        p(x)
-      } catch {
-        case t if isNonLethal(t) =>
-          trueTarget.except(t)
-          falseTarget.except(t)
-          return
-      }
+        try{
+          p(x)
+        } catch {
+          case t if isNonLethal(t) =>
+            trueTarget.except(t)
+            falseTarget.except(t)
+            return
+        }
       if(left) trueTarget.react(x, hint) else falseTarget.react(x, hint)
     }
     def except(t: Throwable) = {
