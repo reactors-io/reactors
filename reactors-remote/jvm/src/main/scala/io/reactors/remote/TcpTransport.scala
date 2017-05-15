@@ -25,12 +25,6 @@ class TcpTransport extends Remote.Transport {
 
 
 object TcpTransport {
-  private[reactors] class Buffer extends DataBuffer {
-    def readChunk: Data = ???
-
-    def writeChunk: Data = ???
-  }
-
   private[reactors] class TcpChannel[@spec(Int, Long, Double) T](
   ) extends Channel[T] {
     def send(x: T): Unit = {

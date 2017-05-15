@@ -25,32 +25,32 @@ object RuntimeMarshaler {
 
   private def maxArrayChunk: Int = 2048
 
-  def marshal[T](obj: T, inputData: Data, marshalType: Boolean = true): Data = {
+  def marshal[T](obj: T, buffer: DataBuffer, marshalType: Boolean = true): Unit = {
     val context = Reactor.marshalContext
-    val data = internalMarshal(obj, inputData, false, marshalType, true, context)
+    val data = internalMarshal(obj, buffer.output, false, marshalType, true, context)
     context.resetMarshal()
     data
   }
 
   def marshalAs[T](
-    klazz: Class[_], obj: T, inputData: Data, alreadyRecorded: Boolean
-  ): Data = {
+    klazz: Class[_], obj: T, buffer: DataBuffer, alreadyRecorded: Boolean
+  ): Unit = {
     val desc = Platform.Reflect.descriptorOf(klazz)
-    marshalAs(desc, obj, inputData, alreadyRecorded)
+    marshalAs(desc, obj, buffer, alreadyRecorded)
   }
 
   def marshalAs[T](
-    desc: ClassDescriptor, obj: T, inputData: Data, alreadyRecorded: Boolean
-  ): Data = {
+    desc: ClassDescriptor, obj: T, buffer: DataBuffer, alreadyRecorded: Boolean
+  ): Unit = {
     if (obj == null) {
-      var data = inputData
+      var data = buffer.output
       if (data.remainingWriteSize < 1) data = data.flush(1)
       data(data.endPos) = nullTag
       data.endPos += 1
       data
     } else {
       val ctx = Reactor.marshalContext
-      val data = internalMarshalAs(desc, obj, inputData, true, alreadyRecorded, ctx)
+      val data = internalMarshalAs(desc, obj, buffer.output, true, alreadyRecorded, ctx)
       ctx.resetMarshal()
       data
     }
