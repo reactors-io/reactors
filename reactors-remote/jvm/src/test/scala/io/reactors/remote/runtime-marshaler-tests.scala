@@ -301,104 +301,95 @@ class RuntimeMarshalerTest extends FunSuite {
   }
 
   test("marshal an object with a double array") {
-    val data = new Data.Linked(128, 128)
-    val cell = new Cell[Data](data)
+    val buffer = DataBuffer.streaming(128)
     val input = new DoubleArrayObject(256)
     for (i <- 0 until 256) input.array(i) = i + 3.5
-    RuntimeMarshaler.marshal(input, data)
-    println(data.byteString)
-    val obj = RuntimeMarshaler.unmarshal[DoubleArrayObject](cell)
+    RuntimeMarshaler.marshal(input, buffer)
+    println(buffer.input.byteString)
+    val obj = RuntimeMarshaler.unmarshal[DoubleArrayObject](buffer)
     assert(obj.array.length == 256)
     for (i <- 0 until 256) assert(obj.array(i) == i + 3.5)
   }
 
   test("marshal an object with a float array") {
-    val data = new Data.Linked(128, 128)
-    val cell = new Cell[Data](data)
+    val buffer = DataBuffer.streaming(128)
     val input = new FloatArrayObject(256)
     for (i <- 0 until 256) input.array(i) = i + 3.5f
-    RuntimeMarshaler.marshal(input, data)
-    println(data.byteString)
-    val obj = RuntimeMarshaler.unmarshal[FloatArrayObject](cell)
+    RuntimeMarshaler.marshal(input, buffer)
+    println(buffer.input.byteString)
+    val obj = RuntimeMarshaler.unmarshal[FloatArrayObject](buffer)
     assert(obj.array.length == 256)
     for (i <- 0 until 256) assert(obj.array(i) == i + 3.5f)
   }
 
   test("marshal an object with a byte array") {
-    val data = new Data.Linked(128, 128)
-    val cell = new Cell[Data](data)
+    val buffer = DataBuffer.streaming(128)
     val input = new ByteArrayObject(256)
     for (i <- 0 until 256) input.array(i) = (i + 3).toByte
-    RuntimeMarshaler.marshal(input, data)
-    println(data.byteString)
-    val obj = RuntimeMarshaler.unmarshal[ByteArrayObject](cell)
+    RuntimeMarshaler.marshal(input, buffer)
+    println(buffer.input.byteString)
+    val obj = RuntimeMarshaler.unmarshal[ByteArrayObject](buffer)
     assert(obj.array.length == 256)
     for (i <- 0 until 256) assert(obj.array(i) == (i + 3).toByte)
   }
 
   test("marshal an object with a boolean array") {
-    val data = new Data.Linked(128, 128)
-    val cell = new Cell[Data](data)
+    val buffer = DataBuffer.streaming(128)
     val input = new BooleanArrayObject(256)
     for (i <- 0 until 256) input.array(i) = i % 3 != 0
-    RuntimeMarshaler.marshal(input, data)
-    println(data.byteString)
-    val obj = RuntimeMarshaler.unmarshal[BooleanArrayObject](cell)
+    RuntimeMarshaler.marshal(input, buffer)
+    println(buffer.input.byteString)
+    val obj = RuntimeMarshaler.unmarshal[BooleanArrayObject](buffer)
     assert(obj.array.length == 256)
     for (i <- 0 until 256) assert(obj.array(i) == (i % 3 != 0))
   }
 
   test("marshal an object with a char array") {
-    val data = new Data.Linked(128, 128)
-    val cell = new Cell[Data](data)
+    val buffer = DataBuffer.streaming(128)
     val input = new CharArrayObject(256)
     for (i <- 0 until 256) input.array(i) = i.toChar
-    RuntimeMarshaler.marshal(input, data)
-    println(data.byteString)
-    val obj = RuntimeMarshaler.unmarshal[CharArrayObject](cell)
+    RuntimeMarshaler.marshal(input, buffer)
+    println(buffer.input.byteString)
+    val obj = RuntimeMarshaler.unmarshal[CharArrayObject](buffer)
     assert(obj.array.length == 256)
     for (i <- 0 until 256) assert(obj.array(i) == i.toChar)
   }
 
   test("marshal an object with a short array") {
-    val data = new Data.Linked(128, 128)
-    val cell = new Cell[Data](data)
+    val buffer = DataBuffer.streaming(128)
     val input = new ShortArrayObject(256)
     for (i <- 0 until 256) input.array(i) = i.toShort
-    RuntimeMarshaler.marshal(input, data)
-    println(data.byteString)
-    val obj = RuntimeMarshaler.unmarshal[ShortArrayObject](cell)
+    RuntimeMarshaler.marshal(input, buffer)
+    println(buffer.input.byteString)
+    val obj = RuntimeMarshaler.unmarshal[ShortArrayObject](buffer)
     assert(obj.array.length == 256)
     for (i <- 0 until 256) assert(obj.array(i) == i.toShort)
   }
 
   test("marshal an object with a object array") {
-    val data = new Data.Linked(128, 128)
-    val cell = new Cell[Data](data)
+    val buffer = DataBuffer.streaming(128)
     val input = new ObjectArrayObject(256)
     for (i <- 0 until 256) input.array(i) = new SingleLong(i)
-    RuntimeMarshaler.marshal(input, data)
-    println(data.byteString)
-    val obj = RuntimeMarshaler.unmarshal[ObjectArrayObject](cell)
+    RuntimeMarshaler.marshal(input, buffer)
+    println(buffer.input.byteString)
+    val obj = RuntimeMarshaler.unmarshal[ObjectArrayObject](buffer)
     assert(obj.array.length == 256)
     for (i <- 0 until 256) assert(obj.array(i).x == i, s"$i == ${obj.array(i)}")
   }
 
   test("marshal an object with a final object array") {
-    val data = new Data.Linked(128, 128)
-    val cell = new Cell[Data](data)
+    val buffer = DataBuffer.streaming(128)
     val input = new FinalObjectArrayObject(256)
     for (i <- 0 until 256) input.array(i) = new FinalSingleInt(i)
-    RuntimeMarshaler.marshal(input, data)
-    println(data.byteString)
-    val obj = RuntimeMarshaler.unmarshal[FinalObjectArrayObject](cell)
+    RuntimeMarshaler.marshal(input, buffer)
+    println(buffer.input.byteString)
+    val obj = RuntimeMarshaler.unmarshal[FinalObjectArrayObject](buffer)
     assert(obj.array.length == 256)
     for (i <- 0 until 256) assert(obj.array(i).x == i, s"$i == ${obj.array(i)}")
   }
 
   test("marshal an array of repeated and null objects") {
-    val data = new Data.Linked(128, 128)
-    val cell = new Cell[Data](data)
+    val buffer = DataBuffer.streaming(128)
     val input = new Array[AnyRef](256)
     for (i <- 0 until 256) input(i) = i match {
       case i if i % 5 == 0 => null
@@ -406,9 +397,9 @@ class RuntimeMarshalerTest extends FunSuite {
       case i if i % 11 == 0 => new SingleLong(i)
       case _ => new FinalSingleInt(i)
     }
-    RuntimeMarshaler.marshal(input, data)
-    println(data.byteString)
-    val array = RuntimeMarshaler.unmarshal[Array[AnyRef]](cell)
+    RuntimeMarshaler.marshal(input, buffer)
+    println(buffer.input.byteString)
+    val array = RuntimeMarshaler.unmarshal[Array[AnyRef]](buffer)
     assert(array.length == 256)
     for (i <- 0 until 256) i match {
       case i if i % 5 == 0 =>
@@ -432,36 +423,33 @@ class RuntimeMarshalerTest extends FunSuite {
   }
 
   test("marshal an array pointing to itself") {
-    val data = new Data.Linked(128, 128)
-    val cell = new Cell[Data](data)
+    val buffer = DataBuffer.streaming(128)
     val input = new Array[AnyRef](256)
     for (i <- 0 until 256) input(i) = input
-    RuntimeMarshaler.marshal(input, data)
-    println(data.byteString)
-    val obj = RuntimeMarshaler.unmarshal[Array[AnyRef]](cell)
+    RuntimeMarshaler.marshal(input, buffer)
+    println(buffer.input.byteString)
+    val obj = RuntimeMarshaler.unmarshal[Array[AnyRef]](buffer)
     assert(obj.array.length == 256)
     for (i <- 0 until 256) assert(obj(i) eq obj)
   }
 
   test("marshal an array buffer") {
-    val data = new Data.Linked(128, 128)
-    val cell = new Cell[Data](data)
+    val buffer = DataBuffer.streaming(128)
     val input = mutable.ArrayBuffer[Int]()
     for (i <- 0 until 128) input += i
-    RuntimeMarshaler.marshal(input, data)
-    println(data.byteString)
-    val obj = RuntimeMarshaler.unmarshal[mutable.ArrayBuffer[Int]](cell)
+    RuntimeMarshaler.marshal(input, buffer)
+    println(buffer.input.byteString)
+    val obj = RuntimeMarshaler.unmarshal[mutable.ArrayBuffer[Int]](buffer)
     assert(obj.length == 128)
     for (i <- 0 until 128) assert(obj(i) == i)
   }
 
   test("marshal a list") {
-    val data = new Data.Linked(128, 128)
-    val cell = new Cell[Data](data)
+    val buffer = DataBuffer.streaming(128)
     val input = (0 until 100).toList
-    RuntimeMarshaler.marshal(input, data)
-    println(data.byteString)
-    val obj = RuntimeMarshaler.unmarshal[List[Int]](cell)
+    RuntimeMarshaler.marshal(input, buffer)
+    println(buffer.input.byteString)
+    val obj = RuntimeMarshaler.unmarshal[List[Int]](buffer)
     assert(obj.length == 100)
     for (i <- 0 until 100) assert(obj(i) == i)
   }
@@ -588,12 +576,11 @@ extends Properties("RuntimeMarshaler") with ExtendedProperties {
 
   property("integer arrays") = forAllNoShrink(sizes) { size =>
     stackTraced {
-      val data = new Data.Linked(128, 128)
-      val cell = new Cell[Data](data)
+      val buffer = DataBuffer.streaming(128)
       val array = new Array[Int](size)
       for (i <- 0 until size) array(i) = i
-      RuntimeMarshaler.marshal(array, data)
-      val result = RuntimeMarshaler.unmarshal[Array[Int]](cell)
+      RuntimeMarshaler.marshal(array, buffer)
+      val result = RuntimeMarshaler.unmarshal[Array[Int]](buffer)
       assert(result.length == size)
       for (i <- 0 until size) assert(array(i) == i)
       true
@@ -602,12 +589,11 @@ extends Properties("RuntimeMarshaler") with ExtendedProperties {
 
   property("object arrays") = forAllNoShrink(sizes) { size =>
     stackTraced {
-      val data = new Data.Linked(128, 128)
-      val cell = new Cell[Data](data)
+      val buffer = DataBuffer.streaming(128)
       val array = new Array[AnyRef](size)
       for (i <- 0 until size) array(i) = i.toString
-      RuntimeMarshaler.marshal(array, data)
-      val result = RuntimeMarshaler.unmarshal[Array[AnyRef]](cell)
+      RuntimeMarshaler.marshal(array, buffer)
+      val result = RuntimeMarshaler.unmarshal[Array[AnyRef]](buffer)
       assert(result.length == size)
       for (i <- 0 until size) assert(array(i) == i.toString)
       true
@@ -616,15 +602,14 @@ extends Properties("RuntimeMarshaler") with ExtendedProperties {
 
   property("circular arrays") = forAllNoShrink(sizes) { size =>
     stackTraced {
-      val data = new Data.Linked(128, 128)
-      val cell = new Cell[Data](data)
+      val buffer = DataBuffer.streaming(128)
       val array = new Array[AnyRef](size)
       for (i <- 0 until size) {
         if (i % 2 == 0) array(i) = array
         else array(i) = new Array[Int](0)
       }
-      RuntimeMarshaler.marshal(array, data)
-      val result = RuntimeMarshaler.unmarshal[Array[AnyRef]](cell)
+      RuntimeMarshaler.marshal(array, buffer)
+      val result = RuntimeMarshaler.unmarshal[Array[AnyRef]](buffer)
       assert(result.length == size)
       for (i <- 0 until size) {
         if (i % 2 == 0) assert(array(i) == array)
@@ -636,12 +621,11 @@ extends Properties("RuntimeMarshaler") with ExtendedProperties {
 
   property("linked lists") = forAllNoShrink(smallSizes) { size =>
     stackTraced {
-      val data = new Data.Linked(128, 128)
-      val cell = new Cell[Data](data)
+      val buffer = DataBuffer.streaming(128)
       var list: LinkedList = null
       for (i <- 0 until size) list = new LinkedList(i, list)
-      RuntimeMarshaler.marshal(list, data)
-      var result = RuntimeMarshaler.unmarshal[LinkedList](cell)
+      RuntimeMarshaler.marshal(list, buffer)
+      var result = RuntimeMarshaler.unmarshal[LinkedList](buffer)
       for (i <- (0 until size).reverse) {
         assert(result.head == i)
         result = result.tail
@@ -653,8 +637,7 @@ extends Properties("RuntimeMarshaler") with ExtendedProperties {
 
   property("trees") = forAllNoShrink(depths) { maxDepth =>
     stackTraced {
-      val data = new Data.Linked(128, 128)
-      val cell = new Cell[Data](data)
+      val buffer = DataBuffer.streaming(128)
       val root = new Array[AnyRef](3)
       def generate(node: Array[AnyRef], depth: Int): Unit = if (depth < maxDepth) {
         val left = new Array[AnyRef](3)
@@ -667,8 +650,8 @@ extends Properties("RuntimeMarshaler") with ExtendedProperties {
         generate(right, depth + 1)
       }
       generate(root, 0)
-      RuntimeMarshaler.marshal(root, data)
-      var result = RuntimeMarshaler.unmarshal[Array[AnyRef]](cell)
+      RuntimeMarshaler.marshal(root, buffer)
+      var result = RuntimeMarshaler.unmarshal[Array[AnyRef]](buffer)
       def compare(before: Array[AnyRef], after: Array[AnyRef]): Unit = {
         if (before == null) assert(after == null)
         else {
@@ -685,26 +668,24 @@ extends Properties("RuntimeMarshaler") with ExtendedProperties {
 
   property("array buffers") = forAllNoShrink(sizes) { size =>
     stackTraced {
-      val data = new Data.Linked(128, 128)
-      val cell = new Cell[Data](data)
-      val buffer = mutable.ArrayBuffer[Int]()
-      for (i <- 0 until size) buffer += i
-      RuntimeMarshaler.marshal(buffer, data)
-      val result = RuntimeMarshaler.unmarshal[mutable.ArrayBuffer[Int]](cell)
+      val buffer = DataBuffer.streaming(128)
+      val arrayBuffer = mutable.ArrayBuffer[Int]()
+      for (i <- 0 until size) arrayBuffer += i
+      RuntimeMarshaler.marshal(arrayBuffer, buffer)
+      val result = RuntimeMarshaler.unmarshal[mutable.ArrayBuffer[Int]](buffer)
       assert(result.length == size, s"${result.length}, expected $size")
-      for (i <- 0 until size) assert(result(i) == buffer(i))
+      for (i <- 0 until size) assert(result(i) == arrayBuffer(i))
       true
     }
   }
 
   property("hash tries") = forAllNoShrink(sizes) { size =>
     stackTraced {
-      val data = new Data.Linked(128, 128)
-      val cell = new Cell[Data](data)
+      val buffer = DataBuffer.streaming(128)
       var map = immutable.HashMap[Int, String]()
       for (i <- 0 until size) map += i -> i.toString
-      RuntimeMarshaler.marshal(map, data)
-      val result = RuntimeMarshaler.unmarshal[immutable.HashMap[Int, String]](cell)
+      RuntimeMarshaler.marshal(map, buffer)
+      val result = RuntimeMarshaler.unmarshal[immutable.HashMap[Int, String]](buffer)
       assert(result.size == size, s"${result.size}, expected $size")
       for (i <- 0 until size) assert(result(i) == i.toString)
       true
