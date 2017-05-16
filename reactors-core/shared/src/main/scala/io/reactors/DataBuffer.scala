@@ -13,6 +13,8 @@ abstract class DataBuffer {
 
 
 object DataBuffer {
+  def streaming(batchSize: Int): DataBuffer = new Streaming(batchSize)
+
   private[reactors] class Streaming(val batchSize: Int) extends DataBuffer {
     private[remote] var rawOutput = new LinkedData(this, batchSize, batchSize)
     private[remote] var rawInput = new LinkedData(this, batchSize, batchSize)

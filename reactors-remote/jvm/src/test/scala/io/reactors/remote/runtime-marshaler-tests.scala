@@ -15,146 +15,130 @@ import scala.collection._
 
 class RuntimeMarshalerTest extends FunSuite {
   test("marshal empty non-final class") {
-    val data = new Data.Linked(128, 128)
-    val cell = new Cell[Data](data)
-    RuntimeMarshaler.marshal(new NonFinalEmpty, data)
-    println(data.byteString)
-    val obj = RuntimeMarshaler.unmarshal[NonFinalEmpty](cell)
+    val buffer = DataBuffer.streaming(128)
+    RuntimeMarshaler.marshal(new NonFinalEmpty, buffer)
+    println(buffer.input.byteString)
+    val obj = RuntimeMarshaler.unmarshal[NonFinalEmpty](buffer)
     assert(obj.isInstanceOf[NonFinalEmpty])
   }
 
   test("marshal empty final class") {
-    val data = new Data.Linked(128, 128)
-    val cell = new Cell[Data](data)
-    RuntimeMarshaler.marshal(new FinalEmpty, data)
-    println(data.byteString)
-    val obj = RuntimeMarshaler.unmarshal[FinalEmpty](cell)
+    val buffer = DataBuffer.streaming(128)
+    RuntimeMarshaler.marshal(new FinalEmpty, buffer)
+    println(buffer.input.byteString)
+    val obj = RuntimeMarshaler.unmarshal[FinalEmpty](buffer)
     assert(obj.isInstanceOf[FinalEmpty])
   }
 
   test("marshal single integer field non-final class") {
-    val data = new Data.Linked(128, 128)
-    val cell = new Cell[Data](data)
-    RuntimeMarshaler.marshal(new NonFinalSingleInt(15), data)
-    println(data.byteString)
-    val obj = RuntimeMarshaler.unmarshal[NonFinalSingleInt](cell)
+    val buffer = DataBuffer.streaming(128)
+    RuntimeMarshaler.marshal(new NonFinalSingleInt(15), buffer)
+    println(buffer.input.byteString)
+    val obj = RuntimeMarshaler.unmarshal[NonFinalSingleInt](buffer)
     assert(obj.x == 15)
   }
 
   test("marshal single integer field final class") {
-    val data = new Data.Linked(128, 128)
-    val cell = new Cell[Data](data)
-    RuntimeMarshaler.marshal(new FinalSingleInt(15), data)
-    println(data.byteString)
-    val obj = RuntimeMarshaler.unmarshal[FinalSingleInt](cell)
+    val buffer = DataBuffer.streaming(128)
+    RuntimeMarshaler.marshal(new FinalSingleInt(15), buffer)
+    println(buffer.input.byteString)
+    val obj = RuntimeMarshaler.unmarshal[FinalSingleInt](buffer)
     assert(obj.x == 15)
   }
 
   test("marshal single long field class") {
-    val data = new Data.Linked(128, 128)
-    val cell = new Cell[Data](data)
-    RuntimeMarshaler.marshal(new SingleLong(15), data)
-    println(data.byteString)
-    val obj = RuntimeMarshaler.unmarshal[SingleLong](cell)
+    val buffer = DataBuffer.streaming(128)
+    RuntimeMarshaler.marshal(new SingleLong(15), buffer)
+    println(buffer.input.byteString)
+    val obj = RuntimeMarshaler.unmarshal[SingleLong](buffer)
     assert(obj.x == 15)
   }
 
   test("marshal single int field class, when buffer is small") {
-    val data = new Data.Linked(16, 16)
-    val cell = new Cell[Data](data)
-    RuntimeMarshaler.marshal(new FinalSingleInt(15), data)
-    println(data.byteString)
-    val obj = RuntimeMarshaler.unmarshal[FinalSingleInt](cell)
+    val buffer = DataBuffer.streaming(128)
+    RuntimeMarshaler.marshal(new FinalSingleInt(15), buffer)
+    println(buffer.input.byteString)
+    val obj = RuntimeMarshaler.unmarshal[FinalSingleInt](buffer)
     assert(obj.x == 15)
   }
 
   test("marshal single long field class, when buffer is small") {
-    val data = new Data.Linked(16, 16)
-    val cell = new Cell[Data](data)
-    RuntimeMarshaler.marshal(new SingleLong(15), data)
-    println(data.byteString)
-    val obj = RuntimeMarshaler.unmarshal[SingleLong](cell)
+    val buffer = DataBuffer.streaming(128)
+    RuntimeMarshaler.marshal(new SingleLong(15), buffer)
+    println(buffer.input.byteString)
+    val obj = RuntimeMarshaler.unmarshal[SingleLong](buffer)
     assert(obj.x == 15)
   }
 
   test("marshal single double field class") {
-    val data = new Data.Linked(128, 128)
-    val cell = new Cell[Data](data)
-    RuntimeMarshaler.marshal(new SingleDouble(15.0), data)
-    println(data.byteString)
-    val obj = RuntimeMarshaler.unmarshal[SingleDouble](cell)
+    val buffer = DataBuffer.streaming(128)
+    RuntimeMarshaler.marshal(new SingleDouble(15.0), buffer)
+    println(buffer.input.byteString)
+    val obj = RuntimeMarshaler.unmarshal[SingleDouble](buffer)
     assert(obj.x == 15.0)
   }
 
   test("marshal single double field class, when buffer is small") {
-    val data = new Data.Linked(16, 16)
-    val cell = new Cell[Data](data)
-    RuntimeMarshaler.marshal(new SingleDouble(15.0), data)
-    println(data.byteString)
-    val obj = RuntimeMarshaler.unmarshal[SingleDouble](cell)
+    val buffer = DataBuffer.streaming(128)
+    RuntimeMarshaler.marshal(new SingleDouble(15.0), buffer)
+    println(buffer.input.byteString)
+    val obj = RuntimeMarshaler.unmarshal[SingleDouble](buffer)
     assert(obj.x == 15.0)
   }
 
   test("marshal single float field class") {
-    val data = new Data.Linked(128, 128)
-    val cell = new Cell[Data](data)
-    RuntimeMarshaler.marshal(new SingleFloat(15.0f), data)
-    println(data.byteString)
-    val obj = RuntimeMarshaler.unmarshal[SingleFloat](cell)
+    val buffer = DataBuffer.streaming(128)
+    RuntimeMarshaler.marshal(new SingleFloat(15.0f), buffer)
+    println(buffer.input.byteString)
+    val obj = RuntimeMarshaler.unmarshal[SingleFloat](buffer)
     assert(obj.x == 15.0f)
   }
 
   test("marshal single float field class, when buffer is small") {
-    val data = new Data.Linked(16, 16)
-    val cell = new Cell[Data](data)
-    RuntimeMarshaler.marshal(new SingleFloat(15.0f), data)
-    println(data.byteString)
-    val obj = RuntimeMarshaler.unmarshal[SingleFloat](cell)
+    val buffer = DataBuffer.streaming(128)
+    RuntimeMarshaler.marshal(new SingleFloat(15.0f), buffer)
+    println(buffer.input.byteString)
+    val obj = RuntimeMarshaler.unmarshal[SingleFloat](buffer)
     assert(obj.x == 15.0f)
   }
 
   test("marshal single byte field class") {
-    val data = new Data.Linked(128, 128)
-    val cell = new Cell[Data](data)
-    RuntimeMarshaler.marshal(new SingleByte(7), data)
-    println(data.byteString)
-    val obj = RuntimeMarshaler.unmarshal[SingleByte](cell)
+    val buffer = DataBuffer.streaming(128)
+    RuntimeMarshaler.marshal(new SingleByte(7), buffer)
+    println(buffer.input.byteString)
+    val obj = RuntimeMarshaler.unmarshal[SingleByte](buffer)
     assert(obj.x == 7)
   }
 
   test("marshal single boolean field class") {
-    val data = new Data.Linked(128, 128)
-    val cell = new Cell[Data](data)
-    RuntimeMarshaler.marshal(new SingleBoolean(true), data)
-    println(data.byteString)
-    val obj = RuntimeMarshaler.unmarshal[SingleBoolean](cell)
+    val buffer = DataBuffer.streaming(128)
+    RuntimeMarshaler.marshal(new SingleBoolean(true), buffer)
+    println(buffer.input.byteString)
+    val obj = RuntimeMarshaler.unmarshal[SingleBoolean](buffer)
     assert(obj.x == true)
   }
 
   test("marshal single char field class") {
-    val data = new Data.Linked(128, 128)
-    val cell = new Cell[Data](data)
-    RuntimeMarshaler.marshal(new SingleChar('a'), data)
-    println(data.byteString)
-    val obj = RuntimeMarshaler.unmarshal[SingleChar](cell)
+    val buffer = DataBuffer.streaming(128)
+    RuntimeMarshaler.marshal(new SingleChar('a'), buffer)
+    println(buffer.input.byteString)
+    val obj = RuntimeMarshaler.unmarshal[SingleChar](buffer)
     assert(obj.x == 'a')
   }
 
   test("marshal single short field class") {
-    val data = new Data.Linked(128, 128)
-    val cell = new Cell[Data](data)
-    RuntimeMarshaler.marshal(new SingleShort(17), data)
-    println(data.byteString)
-    val obj = RuntimeMarshaler.unmarshal[SingleShort](cell)
+    val buffer = DataBuffer.streaming(128)
+    RuntimeMarshaler.marshal(new SingleShort(17), buffer)
+    println(buffer.input.byteString)
+    val obj = RuntimeMarshaler.unmarshal[SingleShort](buffer)
     assert(obj.x == 17)
   }
 
   test("marshal mixed primitive field class") {
-    val data = new Data.Linked(128, 128)
-    val cell = new Cell[Data](data)
-    RuntimeMarshaler.marshal(new MixedPrimitives(17, 9, 2.1, true, 8.11f, 'd'), data)
-    println(data.byteString)
-    val obj = RuntimeMarshaler.unmarshal[MixedPrimitives](cell)
+    val buffer = DataBuffer.streaming(128)
+    RuntimeMarshaler.marshal(new MixedPrimitives(17, 9, 2.1, true, 8.11f, 'd'), buffer)
+    println(buffer.input.byteString)
+    val obj = RuntimeMarshaler.unmarshal[MixedPrimitives](buffer)
     assert(obj.x == 17)
     assert(obj.y == 9)
     assert(obj.z == 2.1)
@@ -164,82 +148,76 @@ class RuntimeMarshalerTest extends FunSuite {
   }
 
   test("marshal object with a final class object field") {
-    val data = new Data.Linked(128, 128)
-    val cell = new Cell[Data](data)
-    RuntimeMarshaler.marshal(new FinalClassObject(new FinalSingleInt(17)), data)
-    println(data.byteString)
-    val obj = RuntimeMarshaler.unmarshal[FinalClassObject](cell)
+    val buffer = DataBuffer.streaming(128)
+    RuntimeMarshaler.marshal(new FinalClassObject(new FinalSingleInt(17)), buffer)
+    println(buffer.input.byteString)
+    val obj = RuntimeMarshaler.unmarshal[FinalClassObject](buffer)
     assert(obj.inner.x == 17)
   }
 
   test("marshal recursive object") {
-    val data = new Data.Linked(128, 128)
-    val cell = new Cell[Data](data)
-    RuntimeMarshaler.marshal(new RecursiveObject(7, new RecursiveObject(5, null)), data)
-    println(data.byteString)
-    val obj = RuntimeMarshaler.unmarshal[RecursiveObject](cell)
+    val buffer = DataBuffer.streaming(128)
+    RuntimeMarshaler.marshal(
+      new RecursiveObject(7, new RecursiveObject(5, null)), buffer)
+    println(buffer.input.byteString)
+    val obj = RuntimeMarshaler.unmarshal[RecursiveObject](buffer)
     assert(obj.x == 7 && obj.tail.x == 5 && obj.tail.tail == null)
   }
 
   test("marshal null") {
-    val data = new Data.Linked(128, 128)
-    val cell = new Cell[Data](data)
-    RuntimeMarshaler.marshal(null, data)
-    println(data.byteString)
-    val obj = RuntimeMarshaler.unmarshal[AnyRef](cell)
+    val buffer = DataBuffer.streaming(128)
+    RuntimeMarshaler.marshal(null, buffer)
+    println(buffer.input.byteString)
+    val obj = RuntimeMarshaler.unmarshal[AnyRef](buffer)
     assert(obj == null)
   }
 
   test("marshal a cyclic object") {
-    val data = new Data.Linked(128, 128)
-    val cell = new Cell[Data](data)
+    val buffer = DataBuffer.streaming(128)
     val cyclic = new RecursiveObject(7, null)
     cyclic.tail = cyclic
-    RuntimeMarshaler.marshal(cyclic, data)
-    println(data.byteString)
-    val obj = RuntimeMarshaler.unmarshal[RecursiveObject](cell)
+    RuntimeMarshaler.marshal(cyclic, buffer)
+    println(buffer.input.byteString)
+    val obj = RuntimeMarshaler.unmarshal[RecursiveObject](buffer)
     assert(obj.tail eq obj)
     assert(obj.x == 7)
   }
 
   test("marshal a cyclic pair of objects") {
-    val data = new Data.Linked(128, 128)
-    val cell = new Cell[Data](data)
+    val buffer = DataBuffer.streaming(128)
     val a = new RecursiveObject(7, null)
     val b = new RecursiveObject(11, null)
     a.tail = b
     b.tail = a
-    RuntimeMarshaler.marshal(a, data)
-    println(data.byteString)
-    val obj = RuntimeMarshaler.unmarshal[RecursiveObject](cell)
+    RuntimeMarshaler.marshal(a, buffer)
+    println(buffer.input.byteString)
+    val obj = RuntimeMarshaler.unmarshal[RecursiveObject](buffer)
     assert(obj.x == 7)
     assert(obj.tail.x == 11)
     assert(obj.tail.tail eq obj)
   }
 
   test("marshal an inherited class") {
-    val data = new Data.Linked(128, 128)
-    val cell = new Cell[Data](data)
+    val buffer = DataBuffer.streaming(128)
     val obj = new InheritedClass(17, 11)
-    RuntimeMarshaler.marshal(obj, data)
-    println(data.byteString)
-    val result = RuntimeMarshaler.unmarshal[InheritedClass](cell)
+    RuntimeMarshaler.marshal(obj, buffer)
+    println(buffer.input.byteString)
+    val result = RuntimeMarshaler.unmarshal[InheritedClass](buffer)
     assert(result.y == 17)
     assert(result.x == 11)
   }
 
   test("marshal an object pair") {
-    val data = new Data.Linked(128, 128)
-    val cell = new Cell[Data](data)
+    val buffer = DataBuffer.streaming(128)
     val pair = new CyclicObjectPair(7,
       new CyclicObjectPair(11, null, null),
       new CyclicObjectPair(17, null, null)
     )
     pair.o1.o1 = pair
     pair.o2.o2 = pair
-    RuntimeMarshaler.marshal(pair, data)
-    println(data.byteString)
-    val obj = RuntimeMarshaler.unmarshal[CyclicObjectPair](cell)
+    RuntimeMarshaler.marshal(pair, buffer)
+    println(buffer.input.byteString)
+    val obj = RuntimeMarshaler.unmarshal[CyclicObjectPair](buffer)
     assert(obj.x == 7)
     assert(obj.o1.x == 11)
     assert(obj.o2.x == 17)
@@ -248,83 +226,76 @@ class RuntimeMarshalerTest extends FunSuite {
   }
 
   test("marshal an object with an array") {
-    val data = new Data.Linked(128, 128)
-    val cell = new Cell[Data](data)
+    val buffer = DataBuffer.streaming(128)
     val input = new ArrayObject(10)
     for (i <- 0 until 10) input.array(i) = i + 11
-    RuntimeMarshaler.marshal(input, data)
-    println(data.byteString)
-    val obj = RuntimeMarshaler.unmarshal[ArrayObject](cell)
+    RuntimeMarshaler.marshal(input, buffer)
+    println(buffer.input.byteString)
+    val obj = RuntimeMarshaler.unmarshal[ArrayObject](buffer)
     assert(obj.array != null)
     for (i <- 0 until 10) assert(input.array(i) == i + 11)
   }
 
   test("marshal an object with a big array") {
-    val data = new Data.Linked(128, 128)
-    val cell = new Cell[Data](data)
+    val buffer = DataBuffer.streaming(128)
     val input = new ArrayObject(256)
     for (i <- 0 until 256) input.array(i) = i + 17
-    RuntimeMarshaler.marshal(input, data)
-    println(data.byteString)
-    val obj = RuntimeMarshaler.unmarshal[ArrayObject](cell)
+    RuntimeMarshaler.marshal(input, buffer)
+    println(buffer.input.byteString)
+    val obj = RuntimeMarshaler.unmarshal[ArrayObject](buffer)
     assert(obj.array != null)
     for (i <- 0 until 256) assert(input.array(i) == i + 17)
   }
 
   test("marshal an object with a null array") {
-    val data = new Data.Linked(128, 128)
-    val cell = new Cell[Data](data)
+    val buffer = DataBuffer.streaming(128)
     val input = new VarArrayObject(null)
-    RuntimeMarshaler.marshal(input, data)
-    println(data.byteString)
-    val obj = RuntimeMarshaler.unmarshal[VarArrayObject](cell)
+    RuntimeMarshaler.marshal(input, buffer)
+    println(buffer.input.byteString)
+    val obj = RuntimeMarshaler.unmarshal[VarArrayObject](buffer)
     assert(obj.array == null)
   }
 
   test("marshal an int array") {
-    val data = new Data.Linked(128, 128)
-    val cell = new Cell[Data](data)
+    val buffer = DataBuffer.streaming(128)
     val input = new Array[Int](10)
     for (i <- 0 until 10) input(i) = i + 3
-    RuntimeMarshaler.marshal(input, data)
-    println(data.byteString)
-    val obj = RuntimeMarshaler.unmarshal[Array[Int]](cell)
+    RuntimeMarshaler.marshal(input, buffer)
+    println(buffer.input.byteString)
+    val obj = RuntimeMarshaler.unmarshal[Array[Int]](buffer)
     assert(obj.length == 10)
     for (i <- 0 until 10) assert(obj(i) == i + 3)
   }
 
   test("marshal a big int array") {
-    val data = new Data.Linked(128, 128)
-    val cell = new Cell[Data](data)
+    val buffer = DataBuffer.streaming(128)
     val input = new Array[Int](256)
     for (i <- 0 until 256) input(i) = i + 3
-    RuntimeMarshaler.marshal(input, data)
-    println(data.byteString)
-    val obj = RuntimeMarshaler.unmarshal[Array[Int]](cell)
+    RuntimeMarshaler.marshal(input, buffer)
+    println(buffer.input.byteString)
+    val obj = RuntimeMarshaler.unmarshal[Array[Int]](buffer)
     assert(obj.length == 256)
     for (i <- 0 until 256) assert(obj(i) == i + 3)
   }
 
   test("marshal a long array") {
-    val data = new Data.Linked(128, 128)
-    val cell = new Cell[Data](data)
+    val buffer = DataBuffer.streaming(128)
     val input = new Array[Long](256)
     for (i <- 0 until 256) input(i) = i + 3
-    RuntimeMarshaler.marshal(input, data)
-    println(data.byteString)
-    val obj = RuntimeMarshaler.unmarshal[Array[Long]](cell)
+    RuntimeMarshaler.marshal(input, buffer)
+    println(buffer.input.byteString)
+    val obj = RuntimeMarshaler.unmarshal[Array[Long]](buffer)
     assert(obj.length == 256)
     for (i <- 0 until 256) assert(obj(i) == i + 3)
   }
 
   test("marshal an object with a long array") {
-    val data = new Data.Linked(128, 128)
-    val cell = new Cell[Data](data)
+    val buffer = DataBuffer.streaming(128)
     val input = new LongArrayObject(256)
     for (i <- 0 until 256) input.array(i) = i + 3
-    RuntimeMarshaler.marshal(input, data)
-    println(data.byteString)
-    val obj = RuntimeMarshaler.unmarshal[LongArrayObject](cell)
+    RuntimeMarshaler.marshal(input, buffer)
+    println(buffer.input.byteString)
+    val obj = RuntimeMarshaler.unmarshal[LongArrayObject](buffer)
     assert(obj.array.length == 256)
     for (i <- 0 until 256) assert(obj.array(i) == i + 3)
   }
