@@ -19,9 +19,10 @@ before_script:
 
 script:
   - nvm use $NODE_VERSION
-  - sbt test
   - git clone https://github.com/storm-enroute/dev-tools.git ~/.dev-tools
   - ~/.dev-tools/lint -p .
+  - sbt scalastyle
+  - sbt test
 
 branches:
   only:
