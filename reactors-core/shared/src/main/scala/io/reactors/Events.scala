@@ -1050,7 +1050,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  `copy' method. 
    *
    *  If `count` is set to `2`, result will be as follows:
-   
+   *
    *  {{{
    *  time   --------------------------------->
    *  this   ----1-----2-----3------4----5---->
@@ -3331,7 +3331,7 @@ object Events {
     val target: Observer[T],
     val count: Int
   ) extends Observer[T]{
-    if(count < 1) target.except(new AssertionError(
+    if (count < 1) target.except(new IllegalArgumentException(
       StringBuilder.newBuilder
         .append("The parameter `count` of method")
         .append(System.lineSeparator())
@@ -3340,9 +3340,9 @@ object Events {
         .append("should be more than 1 or equal it")
         .mkString
     ))
-    private var c = 1
+    private var c = count
     def react(x: T, hint: Any): Unit = {
-        if(c == count){
+        if (c == count){
           target.react(x, hint)
           c = 1
         }
@@ -3366,7 +3366,7 @@ object Events {
     val count: Int,
     val copy: (T) => T
   ) extends Observer[T]{
-      if(count < 1) target.except(new AssertionError(
+      if (count < 1) target.except(new IllegalArgumentException(
         StringBuilder.newBuilder
           .append("The parameter `count` of method")
           .append(System.lineSeparator())
@@ -3378,7 +3378,7 @@ object Events {
     def react(x: T, hint: Any): Unit = {
         var c = 0
         while(c != count){
-          if(c == 0) target.react(x, hint)
+          if (c == 0) target.react(x, hint)
           else target.react(copy(x), hint)
           c += 1
         }
@@ -3394,7 +3394,7 @@ object Events {
   ) extends Observer[T]{
     def react(x: T, hint: Any): Unit = {
       val left =
-        try{
+        try {
           p(x)
         } catch {
           case t if isNonLethal(t) =>
@@ -3402,7 +3402,7 @@ object Events {
             falseTarget.except(t)
             return
         }
-      if(left) trueTarget.react(x, hint) else falseTarget.react(x, hint)
+      if (left) trueTarget.react(x, hint) else falseTarget.react(x, hint)
     }
     def except(t: Throwable) = {
       trueTarget.except(t)
