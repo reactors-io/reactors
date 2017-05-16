@@ -1047,7 +1047,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  Assumed of shared state between repeated values.
    *  If there is a need of separate states, e.g. for
    *  mutable objects, consider to implement 
-   *  `copy' method. 
+   *  `copy` method.
    *
    *  If `count` is set to `2`, result will be as follows:
    *
@@ -1057,7 +1057,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  that   ----1-1---2--2--3-3----4-4--5-5-->
    *  }}}
    */
-  def repeat(count: Int)(copy: (T) => T = state => state): Events[T] = {
+  def repeat(count: Int)(copy: T => T = state => state): Events[T] = {
     new Events.Repeat[T](this, count, copy)
   }
   
@@ -3318,7 +3318,7 @@ object Events {
     }
   }
   
-    private[reactors] class Each[@spec(Int, Long, Double) T](
+  private[reactors] class Each[@spec(Int, Long, Double) T](
     val self: Events[T],
     val count: Int
   ) extends Events[T]{
@@ -3331,30 +3331,27 @@ object Events {
     val target: Observer[T],
     val count: Int
   ) extends Observer[T]{
-    if (count < 1) target.except(new IllegalArgumentException(
-      StringBuilder.newBuilder
-        .append("The parameter `count` of method")
-        .append(System.lineSeparator())
-        .append("each(count: Int): T")
-        .append(System.lineSeparator())
-        .append("should be more than 1 or equal it")
-        .mkString
-    ))
-    private var c = count
+    private var c = 0
+    def init(self: EachObserver[T]): Unit = {
+      if (count < 1) throw new IllegalArgumentException(
+        s"The parameter `count` should be greater than 0, got $count")
+    }
+    init(this)
     def react(x: T, hint: Any): Unit = {
-        if (c == count){
-          target.react(x, hint)
-          c = 1
-        }
-        else c += 1
+      c += 1
+      if (c == count) {
+        target.react(x, hint)
+        c = 0
+      }
     }
     def except(t: Throwable) = target.except(t)
     def unreact() = target.unreact()
   }
+
   private[reactors] class Repeat[@spec(Int, Long, Double) T](
     val self: Events[T],
     val count: Int,
-    val copy: (T) => T
+    val copy: T => T
   ) extends Events[T]{
     def onReaction(obs: Observer[T]): Subscription = {
       self.onReaction(new RepeatObserver[T](obs, count, copy))
@@ -3364,24 +3361,19 @@ object Events {
   private[reactors] class RepeatObserver[@spec(Int, Long, Double) T](
     val target: Observer[T],
     val count: Int,
-    val copy: (T) => T
+    val copy: T => T
   ) extends Observer[T]{
-      if (count < 1) target.except(new IllegalArgumentException(
-        StringBuilder.newBuilder
-          .append("The parameter `count` of method")
-          .append(System.lineSeparator())
-          .append("repeat(count: Int)(copy: (T) => T): T")
-          .append(System.lineSeparator())
-          .append("should be more than 1 or equal it")
-          .mkString
-      ))
+    def init(self: EachObserver[T]): Unit = {
+      if (count < 1) throw new IllegalArgumentException(
+        s"The parameter `count` should be greater than 0, got $count")
+    }
     def react(x: T, hint: Any): Unit = {
-        var c = 0
-        while(c != count){
-          if (c == 0) target.react(x, hint)
-          else target.react(copy(x), hint)
-          c += 1
-        }
+      var c = 0
+      while (c != count) {
+        if (c == 0) target.react(x, hint)
+        else target.react(copy(x), hint)
+        c += 1
+      }
     }
     def except(t: Throwable) = target.except(t)
     def unreact() = target.unreact()
@@ -3390,19 +3382,19 @@ object Events {
   private[reactors] class PartitionObserver[@spec(Int, Long, Double) T](
     val trueTarget: Events.Emitter[T],
     val falseTarget: Events.Emitter[T],
-    val p: (T) => Boolean
+    val p: T => Boolean
   ) extends Observer[T]{
     def react(x: T, hint: Any): Unit = {
-      val left =
-        try {
-          p(x)
-        } catch {
-          case t if isNonLethal(t) =>
-            trueTarget.except(t)
-            falseTarget.except(t)
-            return
-        }
-      if (left) trueTarget.react(x, hint) else falseTarget.react(x, hint)
+      val isTrue = try {
+        p(x)
+      } catch {
+        case t if isNonLethal(t) =>
+          trueTarget.except(t)
+          falseTarget.except(t)
+          return
+      }
+      if (isTrue) trueTarget.react(x, hint)
+      else falseTarget.react(x, hint)
     }
     def except(t: Throwable) = {
       trueTarget.except(t)

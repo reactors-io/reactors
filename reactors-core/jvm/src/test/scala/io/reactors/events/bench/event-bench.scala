@@ -253,6 +253,21 @@ class EventBoxingBench extends JBench.Forked[Long] {
       ss(0)()
     }
 
+    // each
+    var eachSum = 0
+    emitter.each(3).onEvent(x => eachSum += x)
+
+    // repeat
+    var repeatCount = 0
+    emitter.repeat(3)().onEvent(x => repeatCount += 1)
+
+    // partition
+    var oddCount = 0
+    var evenCount = 0
+    val (odd, even) = emitter.partition(_ % 2 != 0)
+    odd.onEvent(x => oddCount += 1)
+    even.onEvent(x => evenCount += 1)
+
     var i = 0
     while (i < sz) {
       assert(filterCount == i / 2)
