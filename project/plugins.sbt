@@ -15,3 +15,5 @@ addSbtPlugin("com.typesafe.sbt" % "sbt-pgp" % "0.8.1")
 addSbtPlugin("org.scala-js" % "sbt-scalajs" % "0.6.15")
 
 addSbtPlugin("com.github.mpeltonen" % "sbt-idea" % "1.6.0")
+
+addSbtPlugin("org.scalastyle" %% "scalastyle-sbt-plugin" % "0.8.0")

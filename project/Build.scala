@@ -1,14 +1,12 @@
 
 
 
-import java.io._
 import org.stormenroute.mecha._
 import sbt._
 import sbt.Keys._
-import sbt.Process._
-import org.scalajs.sbtplugin.ScalaJSPlugin
 import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport._
 import org.scalajs.sbtplugin.cross.CrossProject
+import org.scalastyle.sbt.ScalastylePlugin
 
 
 
@@ -23,7 +21,7 @@ object ReactorsBuild extends MechaRepoBuild {
   val json4sJacksonVersion = "3.4.2"
 
   def projectSettings(suffix: String) = {
-    Seq(
+    ScalastylePlugin.projectSettings ++ Seq(
       name := s"reactors$suffix",
       organization := "io.reactors",
       scalaVersion := reactorsScalaVersion,

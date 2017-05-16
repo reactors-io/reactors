@@ -164,7 +164,7 @@ object JvmScheduler {
     }
   }
 
-  private[reactors] object ReactorForkJoinWorkerThread { 
+  private[reactors] object ReactorForkJoinWorkerThread {
     val ASLEEP = new AnyRef {}
     val AWAKE = new AnyRef {}
     val POSTSCHEDULING = new AnyRef {}

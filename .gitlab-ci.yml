@@ -32,6 +32,7 @@ gate-standalone-ubuntu:
     - ubuntu
     - gate
   script:
+    - ~/.super-storm-enroute/tools/sbt scalastyle
     - ~/.super-storm-enroute/tools/sbt test
     - ~/.super-storm-enroute/tools/sbt clean
     - ~/.super-storm-enroute/tools/sbt ++2.12.2 test
