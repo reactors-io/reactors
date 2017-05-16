@@ -5,7 +5,6 @@ package remote
 
 import java.lang.reflect.Modifier
 import io.reactors.Reactor.MarshalContext
-import io.reactors.common.Cell
 import io.reactors.marshal.ClassDescriptor
 import scala.annotation.switch
 import scala.reflect.ClassTag
@@ -465,27 +464,27 @@ object RuntimeMarshaler {
   }
 
   def unmarshal[T](
-    inputData: Cell[Data], unmarshalType: Boolean = true
+    buffer: DataBuffer, unmarshalType: Boolean = true
   )(implicit tag: ClassTag[T]): T = {
     val context = Reactor.marshalContext
     val klazz = tag.runtimeClass
-    val obj = internalUnmarshal[T](klazz, inputData, unmarshalType, context)
+    val obj = internalUnmarshal[T](klazz, buffer, unmarshalType, context)
     context.resetUnmarshal()
     obj
   }
 
   def unmarshalAs[T](
-    classDescriptor: ClassDescriptor, obj: T, inputData: Cell[Data],
+    classDescriptor: ClassDescriptor, obj: T, buffer: DataBuffer,
     context: Reactor.MarshalContext
   )(implicit tag: ClassTag[T]): Unit = {
-    internalUnmarshalAs(classDescriptor, obj, inputData, context)
+    internalUnmarshalAs(classDescriptor, obj, buffer, context)
   }
 
   private def internalUnmarshal[T](
-    assumedKlazz: Class[_], inputData: Cell[Data], unmarshalType: Boolean,
+    assumedKlazz: Class[_], buffer: DataBuffer, unmarshalType: Boolean,
     context: Reactor.MarshalContext
   ): T = {
-    var data = inputData()
+    var data = buffer.input
     var klazz = assumedKlazz
     if (data.remainingReadSize < 1) data = data.fetch()
     val initialByte = data(data.startPos)
@@ -501,11 +500,9 @@ object RuntimeMarshaler {
         i += 1
       }
       val obj = context.seen(ref)
-      inputData := data
       obj.asInstanceOf[T]
     } else if (initialByte == nullTag) {
       data.startPos += 1
-      inputData := data
       null.asInstanceOf[T]
     } else {
       if (unmarshalType) {
@@ -539,23 +536,21 @@ object RuntimeMarshaler {
         data.startPos += 1
       }
       if (klazz.isArray) {
-        inputData := data
-        unmarshalArray(klazz, inputData, context).asInstanceOf[T]
+        unmarshalArray(klazz, buffer, context).asInstanceOf[T]
       } else {
         val obj = Platform.unsafe.allocateInstance(klazz)
         context.seen += obj
-        inputData := data
         val desc = Platform.Reflect.descriptorOf(klazz)
-        internalUnmarshalAs(desc, obj, inputData, context)
+        internalUnmarshalAs(desc, obj, buffer, context)
         obj.asInstanceOf[T]
       }
     }
   }
 
   def unmarshalArray(
-    tpe: Class[_], inputData: Cell[Data], context: MarshalContext
+    tpe: Class[_], buffer: DataBuffer, context: MarshalContext
   ): AnyRef = {
-    var data = inputData()
+    var data = buffer.input
     var array: AnyRef = null
     if (data.remainingReadSize < 1) data = data.fetch()
     val tag = data(data.startPos)
@@ -838,26 +833,24 @@ object RuntimeMarshaler {
         case _ =>
           val objectArray = array.asInstanceOf[Array[AnyRef]]
           var i = 0
-          inputData := data
           while (i < length) {
             val unmarshalElementType = !Modifier.isFinal(elementType.getModifiers)
-            val obj = internalUnmarshal[AnyRef](elementType, inputData,
+            val obj = internalUnmarshal[AnyRef](elementType, buffer,
               unmarshalElementType, context)
             objectArray(i) = obj
             i += 1
           }
-          data = inputData()
+          data = buffer.input
       }
     }
-    inputData := data
     array
   }
 
   private def internalUnmarshalAs[T](
-    classDescriptor: ClassDescriptor, obj: T, inputData: Cell[Data],
+    classDescriptor: ClassDescriptor, obj: T, buffer: DataBuffer,
     context: Reactor.MarshalContext
   ): Unit = {
-    var data = inputData()
+    var data = buffer.input
     val descriptors = classDescriptor.fields
     var i = 0
     while (i < descriptors.length) {
@@ -1016,19 +1009,16 @@ object RuntimeMarshaler {
         case 0x0a =>
           val unmarshalType = !descriptor.isFinal
           val tpe = descriptor.field.getType
-          inputData := data
-          val x = internalUnmarshal[AnyRef](tpe, inputData, unmarshalType, context)
-          data = inputData()
+          val x = internalUnmarshal[AnyRef](tpe, buffer, unmarshalType, context)
+          data = buffer.input
           unsafe.putObject(obj, descriptor.offset, x)
         case _ =>
           val tpe = descriptor.field.getType
-          inputData := data
-          val array = unmarshalArray(tpe, inputData, context)
-          data = inputData()
+          val array = unmarshalArray(tpe, buffer, context)
+          data = buffer.input
           unsafe.putObject(obj, descriptor.offset, array)
       }
       i += 1
     }
-    inputData := data
   }
 }

@@ -17,8 +17,11 @@ object DataBuffer {
     private[remote] var rawOutput = new LinkedData(this, batchSize, batchSize)
     private[remote] var rawInput = new LinkedData(this, batchSize, batchSize)
 
-    protected[reactors] def allocateData(minNextSize: Int): DataBuffer.LinkedData = {
+    protected[reactors] def allocateData(minNextSize: Int): LinkedData = {
       new LinkedData(this, batchSize, minNextSize)
+    }
+
+    protected[reactors] def deallocateData(old: LinkedData) = {
     }
 
     protected[reactors] def onFlush(old: LinkedData): Unit = {
@@ -26,7 +29,10 @@ object DataBuffer {
     }
 
     protected[reactors] def onFetch(old: LinkedData): Unit = {
-      if (old.next != null) rawInput = old.next
+      if (old.next != null) {
+        rawInput = old.next
+        deallocateData(old)
+      }
     }
 
     def output: Data = rawOutput
