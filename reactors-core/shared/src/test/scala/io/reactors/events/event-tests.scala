@@ -1389,6 +1389,69 @@ class EventsSpec extends FunSuite {
     assert(done)
   }
 
+  test("each") {
+    val emitter = new Events.Emitter[Int]
+    val each = emitter.each(3)
+    val seen = mutable.Buffer[Int]()
+    var done = false
+    each.onEventOrDone(seen += _)(done = true)
+    emitter.react(1)
+    assert(seen == Seq())
+    assert(!done)
+    emitter.react(11)
+    emitter.react(17)
+    assert(seen == Seq(17))
+    assert(!done)
+    emitter.react(19)
+    emitter.react(2)
+    assert(seen == Seq(17))
+    emitter.react(23)
+    assert(seen == Seq(17, 23))
+    assert(!done)
+    emitter.unreact()
+    assert(done)
+  }
+
+  test("repeat") {
+    val emitter = new Events.Emitter[Int]
+    val repeat = emitter.repeat(3)()
+    val seen = mutable.Buffer[Int]()
+    var done = false
+    repeat.onEventOrDone(seen += _)(done = true)
+    emitter.react(3)
+    assert(seen == Seq(3, 3, 3))
+    assert(!done)
+    val emitterNeg = new Events.Emitter[Int]
+    val repeatNeg = emitterNeg.repeat(3)(x => -x)
+    repeatNeg.onEventOrDone(seen += _)(done = true)
+    emitterNeg.react(7)
+    assert(seen == Seq(3, 3, 3, 7, -7, -7))
+    assert(!done)
+    emitterNeg.unreact()
+    assert(done)
+  }
+
+  test("partition") {
+    val emitter = new Events.Emitter[Int]
+    val (odd, even) = emitter.partition(_ % 2 != 0)
+    val odds = mutable.Buffer[Int]()
+    val evens = mutable.Buffer[Int]()
+    odd.onEventOrDone(odds += _)(odds.clear())
+    even.onEventOrDone(evens += _)(evens.clear())
+    emitter.react(1)
+    assert(odds == Seq(1))
+    assert(evens == Seq())
+    emitter.react(7)
+    assert(odds == Seq(1, 7))
+    assert(evens == Seq())
+    emitter.react(8)
+    assert(odds == Seq(1, 7))
+    assert(evens == Seq(8))
+    emitter.unreact()
+    assert(odds == Seq())
+    assert(evens == Seq())
+  }
+
 }
 
 
