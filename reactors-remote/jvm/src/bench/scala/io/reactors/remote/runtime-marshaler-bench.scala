@@ -35,16 +35,19 @@ class RuntimeMarshalerBench extends JBench.OfflineReport {
 
   val inputStreams = for (_ <- noSizes) yield new Cell[ObjectInputStream](null)
 
-  val inputDatas = for (bufferSize <- bufferSizes) yield {
-    val initial: Data = new Data.Linked(bufferSize, bufferSize)
-    var data = initial
+  private def initBuffer(buffer: DataBuffer): Unit = {
     var i = 0
     while (i < repetitions) {
       val obj = new SingleField(i)
-      data = RuntimeMarshaler.marshal(obj, data, false)
+      RuntimeMarshaler.marshal(obj, buffer, false)
       i += 1
     }
-    initial
+  }
+
+  val inputDatas = for (bufferSize <- bufferSizes) yield {
+    val buffer = DataBuffer.streaming(bufferSize)
+    initBuffer(buffer)
+    buffer
   }
 
   val repetitions = 100000
@@ -70,7 +73,8 @@ class RuntimeMarshalerBench extends JBench.OfflineReport {
   @curve("write-final-single-field-class")
   def writeFinalSingleFieldClass(bufferSize: Int) = {
     var i = 0
-    var data: Data = new Data.Linked(bufferSize, bufferSize)
+    val buffer = DataBuffer.streaming(bufferSize)
+    var data = buffer.output
     val cell = new Cell[Data](data)
     while (i < repetitions) {
       val obj = new SingleField(i)
@@ -100,14 +104,14 @@ class RuntimeMarshalerBench extends JBench.OfflineReport {
   @curve("marshal-final-single-field-class")
   def marshalFinalSingleFieldClass(bufferSize: Int) = {
     var i = 0
-    var data: Data = new Data.Linked(bufferSize, bufferSize)
+    val buffer = DataBuffer.streaming(bufferSize)
     val desc = Platform.Reflect.descriptorOf(classOf[SingleField])
     while (i < repetitions) {
       val obj = new SingleField(i)
-      data = RuntimeMarshaler.marshalAs(desc, obj, data, false)
+      RuntimeMarshaler.marshalAs(desc, obj, buffer, false)
       i += 1
     }
-    data
+    buffer
   }
 
   def setupDeserializeFinalSingleFieldClass(cell: Cell[ObjectInputStream]) = {
@@ -140,20 +144,16 @@ class RuntimeMarshalerBench extends JBench.OfflineReport {
     sum
   }
 
-  def setupUnmarshalFinalSingleFieldClass(data: Data): Unit = {
-    var curr = data.asInstanceOf[Data.Linked]
-    while (curr != null) {
-      curr.startPos = 0
-      curr = curr.next
-    }
+  def setupUnmarshalFinalSingleFieldClass(buffer: DataBuffer): Unit = {
+    buffer.clear()
+    initBuffer(buffer)
   }
 
   @gen("inputDatas")
   @benchmark("io.reactors.remote.runtime-unmarshaler")
   @curve("unmarshal-final-single-field-class")
   @setup("setupUnmarshalFinalSingleFieldClass")
-  def unmarshalFinalSingleFieldClass(data: Data) = {
-    val cell = new Cell(data)
+  def unmarshalFinalSingleFieldClass(buffer: DataBuffer) = {
     var i = 0
     var sum = 0L
     val classDescriptor = Platform.Reflect.descriptorOf(classOf[SingleField])
@@ -161,7 +161,7 @@ class RuntimeMarshalerBench extends JBench.OfflineReport {
     while (i < repetitions) {
       val obj = Platform.unsafe.allocateInstance(classOf[SingleField])
         .asInstanceOf[SingleField]
-      RuntimeMarshaler.unmarshalAs[SingleField](classDescriptor, obj, cell, context)
+      RuntimeMarshaler.unmarshalAs[SingleField](classDescriptor, obj, buffer, context)
       sum += obj.x
       i += 1
     }

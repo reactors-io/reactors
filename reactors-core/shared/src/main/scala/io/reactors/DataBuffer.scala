@@ -6,6 +6,8 @@ package io.reactors
 
 
 abstract class DataBuffer {
+  def clear(): Unit
+
   def output: Data
 
   def input: Data
@@ -16,8 +18,8 @@ object DataBuffer {
   def streaming(batchSize: Int): DataBuffer = new Streaming(batchSize)
 
   private[reactors] class Streaming(val batchSize: Int) extends DataBuffer {
-    private[remote] var rawOutput = new LinkedData(this, batchSize, batchSize)
-    private[remote] var rawInput = new LinkedData(this, batchSize, batchSize)
+    private[reactors] var rawOutput = new LinkedData(this, batchSize, batchSize)
+    private[reactors] var rawInput = rawOutput
 
     protected[reactors] def allocateData(minNextSize: Int): LinkedData = {
       new LinkedData(this, batchSize, minNextSize)
@@ -35,6 +37,11 @@ object DataBuffer {
         rawInput = old.next
         deallocateData(old)
       }
+    }
+
+    def clear(): Unit = {
+      rawOutput = new LinkedData(this, batchSize, batchSize)
+      rawInput = rawOutput
     }
 
     def output: Data = rawOutput
@@ -66,7 +73,7 @@ object DataBuffer {
       while (curr != null) {
         s += curr.byteString + "\n -> "
         curr = curr match {
-          case linked: DataBuffer.Streaming => linked.next
+          case linked: DataBuffer.LinkedData => linked.next
           case _ => null
         }
       }

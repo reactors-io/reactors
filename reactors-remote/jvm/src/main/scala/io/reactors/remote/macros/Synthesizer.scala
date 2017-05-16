@@ -39,8 +39,8 @@ private[reactors] class Synthesizer(val c: Context) {
       val $receiverBinding = $receiver
       val $eventBinding = $x
       val $threadBinding = _root_.io.reactors.Reactor.currentReactorThread
-      if ($threadBinding != null && $threadBinding.dataCache != null) {
-        val $dataBinding = $threadBinding.dataCache
+      if ($threadBinding != null && $threadBinding.dataBuffer != null) {
+        val $dataBinding = $threadBinding.dataBuffer
         ${genMarshal(x.tpe, q"$eventBinding", q"$dataBinding")}
       } else {
         $receiverBinding.send($eventBinding)

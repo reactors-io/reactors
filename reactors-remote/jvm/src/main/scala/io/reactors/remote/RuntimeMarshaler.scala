@@ -28,7 +28,6 @@ object RuntimeMarshaler {
     val context = Reactor.marshalContext
     val data = internalMarshal(obj, buffer.output, false, marshalType, true, context)
     context.resetMarshal()
-    data
   }
 
   def marshalAs[T](
@@ -46,12 +45,10 @@ object RuntimeMarshaler {
       if (data.remainingWriteSize < 1) data = data.flush(1)
       data(data.endPos) = nullTag
       data.endPos += 1
-      data
     } else {
       val ctx = Reactor.marshalContext
       val data = internalMarshalAs(desc, obj, buffer.output, true, alreadyRecorded, ctx)
       ctx.resetMarshal()
-      data
     }
   }
 

@@ -120,7 +120,7 @@ object Reactor {
    */
   trait ReactorThread {
     var currentFrame: Frame = null
-    var dataCache: Data = null
+    var dataBuffer: DataBuffer = null
     var marshalContext: MarshalContext = marshalContextThreadLocal.get
   }
 

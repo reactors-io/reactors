@@ -30,8 +30,8 @@ object TcpTransport {
     def send(x: T): Unit = {
       val reactorThread = Reactor.currentReactorThread
       val context = reactorThread.marshalContext
-      val dataCache = reactorThread.dataCache
-      
+      val dataBuffer = reactorThread.dataBuffer
+
       // Obtain a data object from the pool if necessary.
       ???
 
