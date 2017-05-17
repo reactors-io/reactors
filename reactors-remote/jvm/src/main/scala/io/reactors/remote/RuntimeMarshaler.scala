@@ -335,7 +335,7 @@ object RuntimeMarshaler {
     classDescriptor: ClassDescriptor, obj: T, inputData: Data, topLevel: Boolean,
     alreadyRecorded: Boolean, ctx: Reactor.MarshalContext
   ): Data = {
-    //assert(obj != null)
+    // assert(obj != null)
     var recorded = alreadyRecorded
     if (!topLevel && !recorded) {
       ctx.written.put(obj.asInstanceOf[AnyRef], ctx.createFreshReference())

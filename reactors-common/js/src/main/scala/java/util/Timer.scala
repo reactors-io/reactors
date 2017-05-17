@@ -57,7 +57,7 @@ class Timer(private val name: String, private val isDaemon: Boolean) {
   }
 
   private def schedulePeriodically(
-      task: TimerTask, delay: Long, period: Long): Unit = {
+    task: TimerTask, delay: Long, period: Long): Unit = {
     acquire(task)
     task.timeout(delay.millis) {
       def loop(): Unit = {
@@ -87,7 +87,7 @@ class Timer(private val name: String, private val isDaemon: Boolean) {
   }
 
   private def scheduleFixed(
-      task: TimerTask, delay: Long, period: Long): Unit = {
+    task: TimerTask, delay: Long, period: Long): Unit = {
     acquire(task)
     task.timeout(delay.millis) {
       def loop(scheduledTime: Long): Unit = {
