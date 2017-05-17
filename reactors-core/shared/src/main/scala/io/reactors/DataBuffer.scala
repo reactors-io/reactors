@@ -33,10 +33,7 @@ object DataBuffer {
     }
 
     protected[reactors] def onFetch(old: LinkedData): Unit = {
-      if (old.next != null) {
-        rawInput = old.next
-        deallocateData(old)
-      }
+      rawInput = old.next
     }
 
     def clear(): Unit = {
@@ -63,7 +60,12 @@ object DataBuffer {
 
     def fetch(): Data = {
       val result = next
-      buffer.onFetch(this)
+      if (result != null) {
+        buffer.onFetch(this)
+        buffer.deallocateData(this)
+      }
+      // After this point, the `Data` object is potentially deallocated
+      // and must not be used again.
       result
     }
 
