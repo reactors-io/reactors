@@ -53,7 +53,6 @@ object TcpTransport {
     protected[reactors] override def onFlush(old: LinkedData): Unit = {
       super.onFlush(old)
       connection.flush(old)
-      old.fetch()
     }
 
     protected[reactors] override def onFetch(old: LinkedData): Unit = {
