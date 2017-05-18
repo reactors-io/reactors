@@ -65,7 +65,7 @@ import io.reactors.concurrent._
  *  }}}
  *
  *  Reactors also receive special `SysEvent` events on the `sysEvents` stream.
- *  
+ *
  *  @tparam T        the type of events, which `this` reactor produces
  */
 trait Reactor[@spec(Int, Long, Double) T] extends Platform.Reflectable {

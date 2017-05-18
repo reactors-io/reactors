@@ -32,7 +32,11 @@ object TcpTransport {
     def deallocate(old: LinkedData): Unit = ???
   }
 
-  private[reactors] class Connection(val uid: Long, val url: SystemUrl) {
+  private[reactors] class Connection(
+    val uid: Long,
+    val url: SystemUrl,
+    val tcp: TcpTransport
+  ) {
     def flush(data: LinkedData) = ???
   }
 
@@ -61,6 +65,7 @@ object TcpTransport {
   }
 
   private[reactors] class TcpChannel[@spec(Int, Long, Double) T](
+    @transient var tcp: TcpTransport
   ) extends Channel[T] {
     def send(x: T): Unit = {
       val reactorThread = Reactor.currentReactorThread
