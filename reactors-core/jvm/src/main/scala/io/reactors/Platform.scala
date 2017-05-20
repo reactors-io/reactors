@@ -62,6 +62,13 @@ object Platform {
         }
       ]
     }
+    transport = {
+      tcp = {
+        data-chunk-pool = {
+          parallelism = 8
+        }
+      }
+    }
     debug-api = {
       name = "io.reactors.debugger.ZeroDebugApi"
       port = 9500

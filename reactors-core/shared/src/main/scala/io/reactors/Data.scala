@@ -39,5 +39,9 @@ abstract class Data(private val raw: Array[Byte], var startPos: Int, var endPos:
    */
   final def remainingReadSize: Int = endPos - startPos
 
+  /** Total size of this data chunk.
+   */
+  final def totalSize: Int = raw.length
+
   def byteString = raw.map(b => s"$b(${b.toChar})").mkString(", ")
 }
