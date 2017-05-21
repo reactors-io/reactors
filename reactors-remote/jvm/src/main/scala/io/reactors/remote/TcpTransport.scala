@@ -9,7 +9,7 @@ import scala.collection.concurrent.TrieMap
 
 
 class TcpTransport(val system: ReactorSystem) extends Remote.Transport {
-  private[reactors] val dataPool = new TcpTransport.VariableDataSizePool(
+  private[reactors] val dataPool = new TcpTransport.VariablePool(
     system.config.int("transport.tcp.data-chunk-pool.parallelism")
   )
   private[reactors] val staging = new TcpTransport.Staging(this)
@@ -48,6 +48,8 @@ object TcpTransport {
       else {
         head = h.next
         h.buffer = buffer
+        h.startPos = 0
+        h.endPos = 0
         h
       }
     }
@@ -58,7 +60,13 @@ object TcpTransport {
     }
   }
 
-  private[reactors] class FixedDataSizePool(val dataSize: Int, val parallelism: Int) {
+  private[reactors] abstract class FixedPool {
+    def allocate(buffer: SendBuffer): LinkedData
+    def deallocate(data: LinkedData): Unit
+  }
+
+  private[reactors] class FreeListFixedPool(val dataSize: Int, val parallelism: Int)
+  extends FixedPool {
     private val freeLists = new Array[FreeList](parallelism)
     for (i <- 0 until parallelism) freeLists(i) = new FreeList
 
@@ -79,17 +87,27 @@ object TcpTransport {
     }
   }
 
-  private[reactors] class VariableDataSizePool(val parallelism: Int) {
-    private[reactors] val fixedPools = Array.tabulate(MAX_GROUPS) {
-      i => new FixedDataSizePool(MIN_SIZE << i, parallelism)
+  private[reactors] class HeapPool(val dataSize: Int) extends FixedPool {
+    override def allocate(buffer: SendBuffer): LinkedData = {
+      return new LinkedData(buffer, dataSize)
     }
 
-    private[reactors] def fixedPool(minNextSize: Int): FixedDataSizePool = {
+    override def deallocate(data: LinkedData): Unit = {}
+  }
+
+  private[reactors] class VariablePool(val parallelism: Int) {
+    private[reactors] val fixedPools = Array.tabulate(MAX_GROUPS) {
+      i => new FreeListFixedPool(MIN_SIZE << i, parallelism)
+    }
+
+    private[reactors] def fixedPool(minNextSize: Int): FixedPool = {
       val highbit = Integer.highestOneBit(minNextSize)
       require((highbit << 1) != 0)
       val size = if (highbit == minNextSize) highbit else highbit << 1
-      val group = math.max(MIN_SIZE, Integer.numberOfTrailingZeros(size)) - MIN_SIZE
-      return fixedPools(group)
+      val correctedSize = math.max(MIN_SIZE, size)
+      val group = Integer.numberOfTrailingZeros(correctedSize / MIN_SIZE)
+      if (group < fixedPools.length) fixedPools(group)
+      else new HeapPool(correctedSize)
     }
 
     def allocate(buffer: SendBuffer, minNextSize: Int): LinkedData = {
