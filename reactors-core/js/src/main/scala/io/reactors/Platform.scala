@@ -2,8 +2,9 @@ package io.reactors
 
 
 
+import io.reactors.common.BloomMap
+import io.reactors.marshal.ClassDescriptor
 import scala.collection._
-import scala.scalajs._
 import scala.scalajs.reflect.InstantiatableClass
 import scala.scalajs.reflect.InvokableConstructor
 import scala.scalajs.reflect.annotation.EnableReflectiveInstantiation
@@ -79,6 +80,8 @@ object Platform {
       new SimpleConfiguration(newPaths)
     }
   }
+
+  private val classCache = new BloomMap[Class[_], ClassDescriptor]
 
   private[reactors] val configurationFactory = new Configuration.Factory {
     def parse(s: String) = new SimpleConfiguration(HoconParser.simpleParse(s))
@@ -189,6 +192,17 @@ object Platform {
         } else cs.head
       }
     }
+
+    private def computeFieldsOf(klazz: Class[_]) = ???
+
+    def descriptorOf(klazz: Class[_]): ClassDescriptor = {
+      var desc = classCache.get(klazz)
+      if (desc == null) {
+        desc = computeFieldsOf(klazz)
+        classCache.put(klazz, desc)
+      }
+      desc
+    }
   }
 
   @EnableReflectiveInstantiation
@@ -220,4 +234,5 @@ object Platform {
   }
 
   private[reactors] def newSnapshotMap[K, V] = new SnapshotMap[K, V]
+
 }

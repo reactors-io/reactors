@@ -17,12 +17,12 @@ abstract class DataBuffer {
 object DataBuffer {
   def streaming(batchSize: Int): DataBuffer = new Streaming(batchSize)
 
-  private[reactors] class Streaming(val batchSize: Int) extends DataBuffer {
-    private[reactors] var rawOutput = new LinkedData(this, batchSize, batchSize)
+  private[reactors] class Streaming(val initialBatchSize: Int) extends DataBuffer {
+    private[reactors] var rawOutput = allocateData(initialBatchSize)
     private[reactors] var rawInput = rawOutput
 
     protected[reactors] def allocateData(minNextSize: Int): LinkedData = {
-      new LinkedData(this, batchSize, minNextSize)
+      new LinkedData(this, math.max(initialBatchSize, minNextSize))
     }
 
     protected[reactors] def deallocateData(old: LinkedData) = {
@@ -37,7 +37,7 @@ object DataBuffer {
     }
 
     def clear(): Unit = {
-      rawOutput = new LinkedData(this, batchSize, batchSize)
+      rawOutput = allocateData(initialBatchSize)
       rawInput = rawOutput
     }
 
@@ -47,9 +47,14 @@ object DataBuffer {
   }
 
   private[reactors] class LinkedData(
-    val buffer: Streaming, val defaultBatchSize: Int, requestedBatchSize: Int
-  ) extends Data(new Array(math.max(requestedBatchSize, defaultBatchSize)), 0, 0) {
+    private var rawBuffer: Streaming,
+    requestedBatchSize: Int
+  ) extends Data(new Array(requestedBatchSize), 0, 0) {
     private[reactors] var next: LinkedData = null
+
+    def buffer: Streaming = rawBuffer
+
+    private[reactors] def buffer_=(sb: Streaming) = rawBuffer = sb
 
     def flush(minNextSize: Int): Data = {
       next = buffer.allocateData(minNextSize)

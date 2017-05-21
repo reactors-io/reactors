@@ -4,6 +4,8 @@ package remote
 
 
 import io.reactors.DataBuffer.LinkedData
+import scala.collection._
+import scala.collection.concurrent.TrieMap
 
 
 
@@ -11,6 +13,7 @@ class TcpTransport(val system: ReactorSystem) extends Remote.Transport {
   private val dataPool = new TcpTransport.VariableDataSizePool(
     system.config.int("transport.tcp.data-chunk-pool.parallelism")
   )
+  private val staging = new TcpTransport.Staging(this)
 
   override def newChannel[@spec(Int, Long, Double) T: Arrayable](
     url: ChannelUrl
@@ -33,22 +36,25 @@ object TcpTransport {
 
   private[reactors] class FreeList {
     private var head: LinkedData = null
+    // Aligning so that the free list is alone in the cache line.
     private val padding0 = 0L
     private val padding1 = 0L
     private val padding2 = 0L
     private val padding3 = 0L
     private val padding4 = 0L
     private val padding5 = 0L
-    def allocate(): LinkedData = this.synchronized {
+    def allocate(buffer: SendBuffer): LinkedData = this.synchronized {
       val h = head
       if (h == null) null
       else {
         head = h.next
+        h.buffer = buffer
         h
       }
     }
     def deallocate(data: LinkedData): Unit = this.synchronized {
       data.next = head
+      data.buffer = null
       head = data
     }
   }
@@ -62,10 +68,10 @@ object TcpTransport {
       var slot = initial
       do {
         slot = (slot + 1) % parallelism
-        val data = freeLists(slot).allocate()
+        val data = freeLists(slot).allocate(buffer)
         if (data != null) return data
       } while (slot != initial)
-      new LinkedData(buffer, dataSize, dataSize)
+      new LinkedData(buffer, dataSize)
     }
 
     def deallocate(data: LinkedData): Unit = {
@@ -97,24 +103,18 @@ object TcpTransport {
     }
   }
 
-
-  private[reactors] class Connection(
-    val uid: Long,
-    val url: SystemUrl,
-    val tcp: TcpTransport
-  ) {
-    def flush(data: LinkedData) = ???
-  }
-
-
   private[reactors] class SendBuffer(
-    val pool: VariableDataSizePool,
-    val connectionUid: Long,
-    val connection: Connection,
-    batchSize: Int
-  ) extends DataBuffer.Streaming(batchSize) {
+    val tcp: TcpTransport,
+    var destination: Destination,
+    var channel: TcpChannel[_]
+  ) extends DataBuffer.Streaming(128) {
+    def attachTo(newChannel: TcpChannel[_]) = {
+      channel = newChannel
+      destination = tcp.staging.resolve(channel.channelUrl.reactorUrl.systemUrl)
+    }
+
     protected[reactors] override def allocateData(minNextSize: Int): LinkedData = {
-      pool.allocate(this, minNextSize)
+      tcp.dataPool.allocate(this, minNextSize)
     }
 
     protected[reactors] override def deallocateData(old: LinkedData): Unit = {
@@ -124,7 +124,7 @@ object TcpTransport {
 
     protected[reactors] override def onFlush(old: LinkedData): Unit = {
       super.onFlush(old)
-      connection.flush(old)
+      destination.flush(old)
     }
 
     protected[reactors] override def onFetch(old: LinkedData): Unit = {
@@ -132,17 +132,51 @@ object TcpTransport {
     }
   }
 
-
   private[reactors] class TcpChannel[@spec(Int, Long, Double) T](
-    @transient var tcp: TcpTransport
+    @transient var tcp: TcpTransport,
+    val channelUrl: ChannelUrl
   ) extends Channel[T] {
     def send(x: T): Unit = {
       val reactorThread = Reactor.currentReactorThread
-      val context = reactorThread.marshalContext
-      val dataBuffer = reactorThread.dataBuffer
-      // Obtain a data object from the pool if necessary.
-      ???
+      // val context = reactorThread.marshalContext
+      var dataBuffer = reactorThread.dataBuffer
+
+      // Initialize data buffer if necessary.
+      if (dataBuffer == null) {
+        reactorThread.dataBuffer = new SendBuffer(tcp, null, null)
+        dataBuffer = reactorThread.dataBuffer
+      }
+
+      // Check if the data buffer refers to this channel.
+      val sendBuffer = dataBuffer.asInstanceOf[SendBuffer]
+      if (sendBuffer.channel ne this) {
+        sendBuffer.attachTo(this)
+      }
+
       // Use the runtime marshaler to serialize the object.
+      RuntimeMarshaler.marshal(channelUrl.reactorUrl.name, sendBuffer, false)
+      RuntimeMarshaler.marshal(channelUrl.channelName, sendBuffer, false)
+      RuntimeMarshaler.marshal(x, sendBuffer, true)
     }
   }
+
+  private[reactors] class Staging(val tcp: TcpTransport) {
+    private[reactors] val destinations = TrieMap[SystemUrl, Destination]()
+
+    def resolve(systemUrl: SystemUrl): Destination = {
+      val dst = destinations.lookup(systemUrl)
+      if (dst != null) dst
+      else {
+        destinations.getOrElseUpdate(systemUrl, new Destination(systemUrl, tcp))
+      }
+    }
+  }
+
+  private[reactors] class Destination(
+    val url: SystemUrl,
+    val tcp: TcpTransport
+  ) {
+    def flush(data: LinkedData) = ???
+  }
+
 }

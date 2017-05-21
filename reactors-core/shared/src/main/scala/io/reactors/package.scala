@@ -129,10 +129,13 @@ package object reactors {
     case t if isNonLethal(t) => // ignore
   }
 
-  /* URL classes for remote */  
+  /* URL classes for remote */
 
   case class SystemUrl(schema: String, host: String, port: Int) {
     @transient lazy val inetSocketAddress = Platform.inetAddress(host, port)
+    @transient override val hashCode = {
+      schema.hashCode + 31 * (host.hashCode + 31 * port)
+    }
     def withPort(p: Int) = SystemUrl(schema, host, p)
   }
   
@@ -248,8 +251,7 @@ package reactors {
 
   /** Class that describes error handlers that report uncaught reactor-level exceptions.
    */
-  trait ErrorHandler extends PartialFunction[Throwable, Unit]
-  with Platform.Reflectable
+  trait ErrorHandler extends PartialFunction[Throwable, Unit] with Platform.Reflectable
 
   /** The default handler prints the exception to the standard error stream.
    */
@@ -268,12 +270,12 @@ package reactors {
    */
   class SilentErrorHandler extends ErrorHandler {
     def isDefinedAt(t: Throwable): Boolean = t match {
-      case t: Throwable => true
+      case _: Throwable => true
       case _ => false
     }
 
     def apply(t: Throwable): Unit = t match {
-      case t: Throwable => // Do nothing.
+      case _: Throwable => // Do nothing.
     }
   }
 }
