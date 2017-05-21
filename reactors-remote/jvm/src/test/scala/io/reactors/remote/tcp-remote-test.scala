@@ -40,6 +40,13 @@ class TcpRemoteTest extends FunSuite {
 
     assert(true)
   }
+
+  test("data chunk pool allocation") {
+    val pool = new TcpTransport.VariableDataSizePool(1)
+    val buffer = new TcpTransport.SendBuffer(null, null, null)
+    val data8 = pool.allocate(buffer, 3)
+    assert(data8.totalSize == 8)
+  }
 }
 
 

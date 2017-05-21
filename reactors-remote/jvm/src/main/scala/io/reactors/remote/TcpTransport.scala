@@ -4,7 +4,6 @@ package remote
 
 
 import io.reactors.DataBuffer.LinkedData
-import scala.collection._
 import scala.collection.concurrent.TrieMap
 
 
