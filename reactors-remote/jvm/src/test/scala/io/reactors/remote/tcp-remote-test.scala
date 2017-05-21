@@ -94,6 +94,8 @@ class TcpRemoteTest extends FunSuite {
     assert(data64.totalSize == 64)
     val data128 = tcp.dataPool.allocate(buffer, 101)
     assert(data128.totalSize == 128)
+    val data1024 = tcp.dataPool.allocate(buffer, 513)
+    assert(data1024.totalSize == 1024)
     val data2048 = tcp.dataPool.allocate(buffer, 2048)
     assert(data2048.totalSize == 2048)
   }
