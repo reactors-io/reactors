@@ -9,10 +9,10 @@ import scala.collection.concurrent.TrieMap
 
 
 class TcpTransport(val system: ReactorSystem) extends Remote.Transport {
-  private val dataPool = new TcpTransport.VariableDataSizePool(
+  private[reactors] val dataPool = new TcpTransport.VariableDataSizePool(
     system.config.int("transport.tcp.data-chunk-pool.parallelism")
   )
-  private val staging = new TcpTransport.Staging(this)
+  private[reactors] val staging = new TcpTransport.Staging(this)
 
   override def newChannel[@spec(Int, Long, Double) T: Arrayable](
     url: ChannelUrl
@@ -81,7 +81,7 @@ object TcpTransport {
 
   private[reactors] class VariableDataSizePool(val parallelism: Int) {
     private[reactors] val fixedPools = Array.tabulate(MAX_GROUPS) {
-      i => new FixedDataSizePool(4 << i, parallelism)
+      i => new FixedDataSizePool(MIN_SIZE << i, parallelism)
     }
 
     private[reactors] def fixedPool(minNextSize: Int): FixedDataSizePool = {

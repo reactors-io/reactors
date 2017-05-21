@@ -9,13 +9,12 @@ import scala.sys.process._
 
 
 
-class TcpRemoteTest extends FunSuite {
+class TcpImplementationTests extends FunSuite {
   test("local tcp connection established") {
     val proc = Seq(
       "java", "-cp", sys.props("java.class.path"), "io.reactors.remote.TcpRemoteTest"
     ).run()
     Thread.sleep(3000)
-
     val socket = new Socket("localhost", 9500)
     val bufferSize = TcpRemoteTest.bufferSize
     val totalBatches = 1000000
@@ -37,14 +36,17 @@ class TcpRemoteTest extends FunSuite {
       Thread.sleep(3000)
       proc.destroy()
     }
-
     assert(true)
   }
+}
 
+
+class TcpRemoteTest extends FunSuite {
   test("data chunk pool allocation") {
-    val pool = new TcpTransport.VariableDataSizePool(1)
-    val buffer = new TcpTransport.SendBuffer(null, null, null)
-    val data8 = pool.allocate(buffer, 3)
+    val system = ReactorSystem.default("test-system")
+    val tcp = new TcpTransport(system)
+    val buffer = new TcpTransport.SendBuffer(tcp, null, null)
+    val data8 = tcp.dataPool.allocate(buffer, 3)
     assert(data8.totalSize == 8)
   }
 }
