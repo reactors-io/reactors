@@ -48,6 +48,9 @@ class TcpRemoteTest extends FunSuite {
     val buffer = new TcpTransport.SendBuffer(tcp, null, null)
     val data8 = tcp.dataPool.allocate(buffer, 3)
     assert(data8.totalSize == 8)
+    tcp.dataPool.deallocate(data8)
+    val data8again = tcp.dataPool.allocate(buffer, 5)
+    assert(data8 eq data8again)
   }
 }
 
