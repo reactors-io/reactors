@@ -4,6 +4,9 @@ package remote
 
 
 import java.net._
+import io.reactors.test.ExtendedProperties
+import org.scalacheck.Prop.forAllNoShrink
+import org.scalacheck.Properties
 import org.scalatest.FunSuite
 import scala.sys.process._
 
@@ -99,4 +102,38 @@ class TcpRemoteTest extends FunSuite {
     val data2048 = tcp.dataPool.allocate(buffer, 2048)
     assert(data2048.totalSize == 2048)
   }
+}
+
+
+class TcpRemoteCheck
+extends Properties("TcpRemote") with ExtendedProperties {
+  val sizes = detChoose(0, 1000)
+  val smallSizes = detChoose(0, 100)
+  val depths = detChoose(0, 12)
+
+  def expectedSizeFor(size: Int) = {
+    if (size <= 8) 8
+    else if (size <= 16) 16
+    else if (size <= 32) 32
+    else if (size <= 64) 64
+    else if (size <= 128) 128
+    else if (size <= 256) 256
+    else if (size <= 512) 512
+    else if (size <= 1024) 1024
+    else sys.error("unexpected size: " + size)
+  }
+
+  property("data pool chunking works correctly") = forAllNoShrink(sizes) { size =>
+    val system = ReactorSystem.default("test-system")
+    val tcp = new TcpTransport(system)
+    val buffer = new TcpTransport.SendBuffer(tcp, null, null)
+    try {
+      val data = tcp.dataPool.allocate(buffer, if (size == 0) 1 else size)
+      assert(data.totalSize == expectedSizeFor(size))
+    } finally {
+      system.shutdown()
+    }
+    true
+  }
+
 }
