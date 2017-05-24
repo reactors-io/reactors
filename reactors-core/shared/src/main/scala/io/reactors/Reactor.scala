@@ -118,7 +118,7 @@ trait Reactor[@spec(Int, Long, Double) T] extends Platform.Reflectable {
 object Reactor {
   /** Mixin trait for workers that define a special thread-local variables.
    */
-  trait ReactorThread {
+  trait ReactorThread extends Thread {
     var currentFrame: Frame = null
     var dataBuffer: DataBuffer = null
     var marshalContext: MarshalContext = marshalContextThreadLocal.get

@@ -144,7 +144,7 @@ package object reactors {
   }
   
   case class ChannelUrl(reactorUrl: ReactorUrl, anchor: String) {
-    val channelName = s"${reactorUrl.name}#$anchor"
+    @transient lazy val channelName = s"${reactorUrl.name}#$anchor"
   }
 
   object ChannelUrl {

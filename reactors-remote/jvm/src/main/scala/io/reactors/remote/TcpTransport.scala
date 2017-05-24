@@ -3,7 +3,9 @@ package remote
 
 
 
+import io.reactors
 import io.reactors.DataBuffer.LinkedData
+import io.reactors.Reactor.ReactorThread
 import scala.collection.concurrent.TrieMap
 
 
@@ -17,7 +19,7 @@ class TcpTransport(val system: ReactorSystem) extends Remote.Transport {
   override def newChannel[@spec(Int, Long, Double) T: Arrayable](
     url: ChannelUrl
   ): Channel[T] = {
-    ???
+    new TcpTransport.TcpChannel[T](this, url)
   }
 
   override def schema: String = "tcp"
@@ -101,7 +103,7 @@ object TcpTransport {
     }
 
     private[reactors] def fixedPool(minNextSize: Int): FixedPool = {
-      val highbit = Integer.highestOneBit(minNextSize)
+      val highbit = Integer.highestOneBit(if (minNextSize > 0) minNextSize else 1)
       require((highbit << 1) != 0)
       val size = if (highbit == minNextSize) highbit else highbit << 1
       val correctedSize = math.max(MIN_SIZE, size)
@@ -155,25 +157,29 @@ object TcpTransport {
   ) extends Channel[T] {
     def send(x: T): Unit = {
       val reactorThread = Reactor.currentReactorThread
-      // val context = reactorThread.marshalContext
-      var dataBuffer = reactorThread.dataBuffer
+      if (reactorThread.isInstanceOf[ReactorThread]) {
+        // val context = reactorThread.marshalContext
+        var dataBuffer = reactorThread.dataBuffer
 
-      // Initialize data buffer if necessary.
-      if (dataBuffer == null) {
-        reactorThread.dataBuffer = new SendBuffer(tcp, null, null)
-        dataBuffer = reactorThread.dataBuffer
+        // Initialize data buffer if necessary.
+        if (dataBuffer == null) {
+          reactorThread.dataBuffer = new SendBuffer(tcp, null, null)
+          dataBuffer = reactorThread.dataBuffer
+        }
+
+        // Check if the data buffer refers to this channel.
+        val sendBuffer = dataBuffer.asInstanceOf[SendBuffer]
+        if (sendBuffer.channel ne this) {
+          sendBuffer.attachTo(this)
+        }
+
+        // Use the runtime marshaler to serialize the object.
+        RuntimeMarshaler.marshal(channelUrl.reactorUrl.name, sendBuffer, false)
+        RuntimeMarshaler.marshal(channelUrl.anchor, sendBuffer, false)
+        RuntimeMarshaler.marshal(x, sendBuffer, true)
+      } else {
+        ???
       }
-
-      // Check if the data buffer refers to this channel.
-      val sendBuffer = dataBuffer.asInstanceOf[SendBuffer]
-      if (sendBuffer.channel ne this) {
-        sendBuffer.attachTo(this)
-      }
-
-      // Use the runtime marshaler to serialize the object.
-      RuntimeMarshaler.marshal(channelUrl.reactorUrl.name, sendBuffer, false)
-      RuntimeMarshaler.marshal(channelUrl.channelName, sendBuffer, false)
-      RuntimeMarshaler.marshal(x, sendBuffer, true)
     }
   }
 
@@ -193,7 +199,9 @@ object TcpTransport {
     val url: SystemUrl,
     val tcp: TcpTransport
   ) {
-    def flush(data: LinkedData) = ???
+    def flush(data: LinkedData) = {
+      // TODO: Implement.
+    }
   }
 
 }

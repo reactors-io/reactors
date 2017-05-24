@@ -4,11 +4,14 @@ package remote
 
 
 import java.net._
+import io.reactors.Reactor.ReactorThread
 import io.reactors.test.ExtendedProperties
 import org.scalacheck.Prop.forAllNoShrink
 import org.scalacheck.Properties
 import org.scalatest.FunSuite
+import scala.concurrent.Promise
 import scala.sys.process._
+import scala.util.Success
 
 
 
@@ -101,6 +104,28 @@ class TcpRemoteTest extends FunSuite {
     assert(data1024.totalSize == 1024)
     val data2048 = tcp.dataPool.allocate(buffer, 2048)
     assert(data2048.totalSize == 2048)
+  }
+
+  test("tcp channel marshals an object correctly") {
+    val result = Promise[Boolean]()
+    val t = new ReactorThread {
+      override def run() = {
+        val tcp = new TcpTransport(system)
+        val sysUrl = SystemUrl("tcp", "localhost", 10000)
+        val reactorUrl = ReactorUrl(sysUrl, "test")
+        val channelUrl = ChannelUrl(reactorUrl, "main")
+        val ch = tcp.newChannel[String](channelUrl)
+        ch.send("hello")
+        val buffer = Reactor.currentReactorThread.dataBuffer
+        assert(RuntimeMarshaler.unmarshal[String](buffer, false) == "test")
+        assert(RuntimeMarshaler.unmarshal[String](buffer, false) == "main")
+        assert(RuntimeMarshaler.unmarshal[String](buffer, true) == "hello")
+        result.success(true)
+      }
+    }
+    t.start()
+    t.join()
+    assert(result.future.value == Some(Success(true)))
   }
 }
 
