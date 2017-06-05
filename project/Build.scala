@@ -86,10 +86,7 @@ object ReactorsBuild extends MechaRepoBuild {
             <url>http://axel22.github.com/</url>
           </developer>
         </developers>,
-      mechaPublishKey := { publish.value },
-      mechaDocsRepoKey := "git@github.com:storm-enroute/apidocs.git",
-      mechaDocsBranchKey := "gh-pages",
-      mechaDocsPathKey := "reactors"
+      mechaPublishKey := { publish.value }
     )
   }
 
@@ -99,7 +96,13 @@ object ReactorsBuild extends MechaRepoBuild {
         "-Xmx2G",
         "-XX:MaxPermSize=384m",
         "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005"
-      )
+      ),
+      mechaDocsRepoKey := "git@github.com:storm-enroute/apidocs.git",
+      mechaDocsBranchKey := "gh-pages",
+      mechaDocsPathKey := "reactors",
+      mechaBenchRepoKey := "git@github.com:reactors-io/benchmarks.git",
+      mechaBenchBranchKey := "gh-pages",
+      mechaBenchPathKey := "reactors" + suffix
     )
 
   def gitPropsContents(dir: File, baseDir: File): Seq[File] = {

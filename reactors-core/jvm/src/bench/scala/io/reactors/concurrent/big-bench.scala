@@ -30,7 +30,8 @@ class BigBench extends JBench.OfflineReport {
 
   override def reporter = Reporter.Composite(
     new RegressionReporter(tester, historian),
-    new MongoDbReporter[Double]
+    new MongoDbReporter[Double],
+    new HtmlReporter(true)
   )
 
   val sizes = Gen.range("size")(250, 250, 50)

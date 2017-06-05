@@ -29,7 +29,8 @@ class CountingActorBench extends JBench.OfflineReport {
 
   override def reporter = Reporter.Composite(
     new RegressionReporter(tester, historian),
-    new MongoDbReporter[Double]
+    new MongoDbReporter[Double],
+    new HtmlReporter(true)
   )
 
   val sizes = Gen.range("size")(250000, 250000, 50000)
