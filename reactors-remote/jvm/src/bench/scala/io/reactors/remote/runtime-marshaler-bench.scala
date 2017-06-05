@@ -26,7 +26,8 @@ class RuntimeMarshalerBench extends JBench.OfflineReport {
 
   override def reporter = Reporter.Composite(
     new RegressionReporter(tester, historian),
-    new MongoDbReporter[Double]
+    new MongoDbReporter[Double],
+    new HtmlReporter(true)
   )
 
   val noSizes = Gen.single("bufferSizes")(0)
