@@ -11,13 +11,15 @@ abstract class DataBuffer {
   def output: Data
 
   def input: Data
+
+  def hasMore: Boolean
 }
 
 
 object DataBuffer {
-  def streaming(batchSize: Int): DataBuffer = new Streaming(batchSize)
+  def streaming(batchSize: Int): DataBuffer = new Linked(batchSize)
 
-  private[reactors] class Streaming(val initialBatchSize: Int) extends DataBuffer {
+  private[reactors] class Linked(val initialBatchSize: Int) extends DataBuffer {
     private[reactors] var rawOutput = allocateData(initialBatchSize)
     private[reactors] var rawInput = rawOutput
 
@@ -44,17 +46,24 @@ object DataBuffer {
     def output: Data = rawOutput
 
     def input: Data = rawInput
+
+    def hasMore: Boolean = {
+      rawInput == rawOutput && rawInput.remainingReadSize == 0
+    }
   }
 
   private[reactors] class LinkedData(
-    private var rawBuffer: Streaming,
-    requestedBatchSize: Int
-  ) extends Data(new Array(requestedBatchSize), 0, 0) {
+    private var rawBuffer: Linked,
+    rawArray: Array[Byte]
+  ) extends Data(rawArray, 0, 0) {
     private[reactors] var next: LinkedData = null
 
-    def buffer: Streaming = rawBuffer
+    def this(buffer: Linked, requestedBatchSize: Int) =
+      this(buffer, new Array[Byte](requestedBatchSize))
 
-    private[reactors] def buffer_=(sb: Streaming) = rawBuffer = sb
+    def buffer: Linked = rawBuffer
+
+    private[reactors] def buffer_=(sb: Linked) = rawBuffer = sb
 
     def flush(minNextSize: Int): Data = {
       next = buffer.allocateData(minNextSize)

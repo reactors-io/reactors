@@ -60,6 +60,12 @@ object Platform {
           host = "localhost"
           port = 0
         }
+        {
+          schema = "tcp"
+          transport = "io.reactors.remote.TcpTransport"
+          host = "localhost"
+          port = 0
+        }
       ]
     }
     transport = {

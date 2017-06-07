@@ -124,6 +124,17 @@ object Reactor {
     var marshalContext: MarshalContext = marshalContextThreadLocal.get
   }
 
+  private[reactors] def onContextSwitch() {
+    Thread.currentThread match {
+      case t: ReactorThread =>
+        if (t.dataBuffer != null) {
+          while (t.dataBuffer.hasMore) {
+            t.dataBuffer.input.fetch()
+          }
+        }
+    }
+  }
+
   class MarshalContext() {
     private var lastReference = 0
     val written = new BloomMap[AnyRef, Int]

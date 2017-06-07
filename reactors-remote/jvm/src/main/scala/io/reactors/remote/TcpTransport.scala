@@ -3,6 +3,7 @@ package remote
 
 
 
+import java.net.Socket
 import io.reactors
 import io.reactors.DataBuffer.LinkedData
 import io.reactors.Reactor.ReactorThread
@@ -24,7 +25,7 @@ class TcpTransport(val system: ReactorSystem) extends Remote.Transport {
 
   override def schema: String = "tcp"
 
-  override def port: Int = ???
+  override def port: Int = system.bundle.urlMap(schema).url.port
 
   override def shutdown(): Unit = {
   }
@@ -44,6 +45,7 @@ object TcpTransport {
     private val padding3 = 0L
     private val padding4 = 0L
     private val padding5 = 0L
+
     def allocate(buffer: SendBuffer): LinkedData = this.synchronized {
       val h = head
       if (h == null) null
@@ -55,6 +57,7 @@ object TcpTransport {
         h
       }
     }
+
     def deallocate(data: LinkedData): Unit = this.synchronized {
       data.next = head
       data.buffer = null
@@ -126,7 +129,7 @@ object TcpTransport {
     val tcp: TcpTransport,
     var destination: Destination,
     var channel: TcpChannel[_]
-  ) extends DataBuffer.Streaming(128) {
+  ) extends DataBuffer.Linked(128) {
     def attachTo(newChannel: TcpChannel[_]) = {
       channel = newChannel
       destination = tcp.staging.resolve(channel.channelUrl.reactorUrl.systemUrl)
@@ -143,11 +146,12 @@ object TcpTransport {
 
     protected[reactors] override def onFlush(old: LinkedData): Unit = {
       super.onFlush(old)
-      destination.flush(old)
+      input.fetch()
     }
 
     protected[reactors] override def onFetch(old: LinkedData): Unit = {
       super.onFetch(old)
+      destination.flush(old)
     }
   }
 
@@ -199,8 +203,10 @@ object TcpTransport {
     val url: SystemUrl,
     val tcp: TcpTransport
   ) {
+    val socket = new Socket(url.host, url.port)
     def flush(data: LinkedData) = {
-      // TODO: Implement.
+      socket.getOutputStream.write(data.raw, data.startPos, data.remainingReadSize)
+      data.startPos += data.remainingReadSize
     }
   }
 

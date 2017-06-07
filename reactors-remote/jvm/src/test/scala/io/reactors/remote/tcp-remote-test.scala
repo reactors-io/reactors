@@ -3,13 +3,16 @@ package remote
 
 
 
+import java.io.DataInputStream
 import java.net._
 import io.reactors.Reactor.ReactorThread
 import io.reactors.test.ExtendedProperties
 import org.scalacheck.Prop.forAllNoShrink
 import org.scalacheck.Properties
 import org.scalatest.FunSuite
+import scala.concurrent.Await
 import scala.concurrent.Promise
+import scala.concurrent.duration.Duration
 import scala.sys.process._
 import scala.util.Success
 
@@ -108,23 +111,44 @@ class TcpRemoteTest extends FunSuite {
 
   test("tcp channel marshals an object correctly") {
     val result = Promise[Boolean]()
-    val t = new ReactorThread {
-      override def run() = {
-        val tcp = new TcpTransport(system)
-        val sysUrl = SystemUrl("tcp", "localhost", 10000)
-        val reactorUrl = ReactorUrl(sysUrl, "test")
-        val channelUrl = ChannelUrl(reactorUrl, "main")
-        val ch = tcp.newChannel[String](channelUrl)
-        ch.send("hello")
-        val buffer = Reactor.currentReactorThread.dataBuffer
+    val serverSocket = new ServerSocket(0)
+    val receiver = new Thread {
+      setDaemon(true)
+      override def run(): Unit = {
+        val clientSocket = serverSocket.accept()
+        val inputStream = new DataInputStream(clientSocket.getInputStream)
+        val bytes = new Array[Byte](1024)
+        var pos = 0
+        while (pos < 68) {
+          pos += inputStream.read(bytes, pos, 1024 - pos)
+          // println(pos)
+        }
+        // println(bytes.mkString(", "))
+        val buffer = new DataBuffer.Linked(1)
+        buffer.rawInput = new DataBuffer.LinkedData(buffer, bytes)
+        buffer.rawInput.startPos = 0
+        buffer.rawInput.endPos = 1024
         assert(RuntimeMarshaler.unmarshal[String](buffer, false) == "test")
         assert(RuntimeMarshaler.unmarshal[String](buffer, false) == "main")
         assert(RuntimeMarshaler.unmarshal[String](buffer, true) == "hello")
         result.success(true)
       }
     }
+    receiver.start()
+    val t = new ReactorThread {
+      override def run() = {
+        val tcp = new TcpTransport(system)
+        val sysUrl = SystemUrl("tcp", "localhost", serverSocket.getLocalPort)
+        val reactorUrl = ReactorUrl(sysUrl, "test")
+        val channelUrl = ChannelUrl(reactorUrl, "main")
+        val ch = tcp.newChannel[String](channelUrl)
+        ch.send("hello")
+        Reactor.onContextSwitch()
+      }
+    }
     t.start()
     t.join()
+    receiver.join()
     assert(result.future.value == Some(Success(true)))
   }
 }
@@ -160,5 +184,4 @@ extends Properties("TcpRemote") with ExtendedProperties {
     }
     true
   }
-
 }
