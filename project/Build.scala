@@ -450,6 +450,15 @@ object ReactorsBuild extends MechaRepoBuild {
           .dependsOn(test in (reactorsHttp, Test))
           .dependsOn(test in (reactorsDebugger, Test))
           .dependsOn(test in (reactorsExtra, Test)),
+        (test in Benchmark) <<= (test in Benchmark)
+          .dependsOn(test in (reactorsCommon.jvm, Benchmark))
+          .dependsOn(test in (reactorsCore.jvm, Benchmark))
+          .dependsOn(test in (reactorsContainer.jvm, Benchmark))
+          .dependsOn(test in (reactorsRemote.jvm, Benchmark))
+          .dependsOn(test in (reactorsProtocol.jvm, Benchmark))
+          .dependsOn(test in (reactorsHttp, Benchmark))
+          .dependsOn(test in (reactorsDebugger, Benchmark))
+          .dependsOn(test in (reactorsExtra, Benchmark)),
         publish <<= publish
           .dependsOn(publish in reactorsCommon.jvm)
           .dependsOn(publish in reactorsCore.jvm)
@@ -467,11 +476,17 @@ object ReactorsBuild extends MechaRepoBuild {
     .jvmConfigure(
       _.copy(id = "reactors-jvm").dependsOnSuperRepo
         .aggregate(
+          reactorsCore.jvm,
+          reactorsContainer.jvm,
+          reactorsRemote.jvm,
           reactorsHttp,
           reactorsDebugger,
           reactorsExtra
         )
         .dependsOn(
+          reactorsCore.jvm % "compile->compile;test->test;bench->bench",
+          reactorsContainer.jvm % "compile->compile;test->test;bench->bench",
+          reactorsRemote.jvm % "compile->compile;test->test;bench->bench",
           reactorsHttp % "compile->compile;test->test",
           reactorsDebugger % "compile->compile;test->test",
           reactorsExtra % "compile->compile;test->test"
