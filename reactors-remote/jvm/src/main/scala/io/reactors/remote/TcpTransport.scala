@@ -237,7 +237,7 @@ object TcpTransport {
     }
 
     object connection {
-      val lock = new ReentrantLock
+      private val lock: ReentrantLock = new ReentrantLock
       private var socket: Socket = null
 
       @tailrec def repeatFlush(): Unit = {
