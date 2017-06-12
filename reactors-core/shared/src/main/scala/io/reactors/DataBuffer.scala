@@ -30,11 +30,11 @@ object DataBuffer {
     protected[reactors] def deallocateData(old: LinkedData) = {
     }
 
-    protected[reactors] def onFlush(old: LinkedData): Unit = {
+    protected[reactors] def onWriteNext(old: LinkedData): Unit = {
       rawOutput = old.next
     }
 
-    protected[reactors] def onFetch(old: LinkedData): Unit = {
+    protected[reactors] def onReadNext(old: LinkedData): Unit = {
       rawInput = old.next
     }
 
@@ -65,17 +65,17 @@ object DataBuffer {
 
     private[reactors] def buffer_=(sb: Linked) = rawBuffer = sb
 
-    def flush(minNextSize: Int): Data = {
+    def writeNext(minNextSize: Int): Data = {
       next = buffer.allocateData(minNextSize)
       val result = next
-      buffer.onFlush(this)
+      buffer.onWriteNext(this)
       result
     }
 
-    def fetch(): Data = {
+    def readNext(): Data = {
       val result = next
       if (result != null) {
-        buffer.onFetch(this)
+        buffer.onReadNext(this)
         buffer.deallocateData(this)
       }
       // After this point, the `Data` object is potentially deallocated

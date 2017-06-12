@@ -3,10 +3,14 @@ package remote
 
 
 
+import java.io.IOException
 import java.net.Socket
+import java.util.concurrent.locks.ReentrantLock
 import io.reactors
 import io.reactors.DataBuffer.LinkedData
 import io.reactors.Reactor.ReactorThread
+import io.reactors.common.Monitor
+import scala.annotation.tailrec
 import scala.collection.concurrent.TrieMap
 
 
@@ -144,14 +148,15 @@ object TcpTransport {
       // and must be deallocated by the connection pool.
     }
 
-    protected[reactors] override def onFlush(old: LinkedData): Unit = {
-      super.onFlush(old)
-      input.fetch()
+    protected[reactors] override def onWriteNext(old: LinkedData): Unit = {
+      super.onWriteNext(old)
+      rawInput = old.next
+      old.next = null
+      destination.send(old)
     }
 
-    protected[reactors] override def onFetch(old: LinkedData): Unit = {
-      super.onFetch(old)
-      destination.flush(old)
+    protected[reactors] override def onReadNext(old: LinkedData): Unit = {
+      sys.error("Unsupported operation exception.")
     }
   }
 
@@ -203,10 +208,75 @@ object TcpTransport {
     val url: SystemUrl,
     val tcp: TcpTransport
   ) {
-    val socket = new Socket(url.host, url.port)
-    def flush(data: LinkedData) = {
-      socket.getOutputStream.write(data.raw, data.startPos, data.remainingReadSize)
-      data.startPos += data.remainingReadSize
+    object dataQueue {
+      private val monitor = new Monitor
+      private var head: LinkedData = null
+      private var tail: LinkedData = null
+
+      def enqueue(data: LinkedData) = monitor.synchronized {
+        if (head == null) {
+          head = data
+          tail = data
+        } else {
+          tail.next = data
+          tail = data
+        }
+      }
+
+      def dequeue(): LinkedData = monitor.synchronized {
+        if (tail == null) {
+          null
+        } else {
+          val result = head
+          head = head.next
+          if (head == null) tail = null
+          result.next = null
+          result
+        }
+      }
+    }
+
+    object connection {
+      val lock = new ReentrantLock
+      private var socket: Socket = null
+
+      @tailrec def repeatFlush(): Unit = {
+        val data = dataQueue.dequeue()
+        if (data == null) return
+
+        try {
+          if (socket == null) {
+            socket = new Socket(url.host, url.port)
+          }
+          socket.getOutputStream.write(data.raw, data.startPos, data.remainingReadSize)
+          data.startPos += data.remainingReadSize
+        } catch {
+          case NonLethal(_) =>
+            if (socket != null) {
+              try {
+                socket.close()
+              } catch {
+                case NonLethal(_) =>
+              } finally {
+                socket = null
+              }
+            }
+            return
+        }
+        repeatFlush()
+      }
+
+      def flush() = {
+        if (lock.tryLock()) {
+          try repeatFlush()
+          finally lock.unlock()
+        }
+      }
+    }
+
+    def send(data: LinkedData) = {
+      dataQueue.enqueue(data)
+      connection.flush()
     }
   }
 

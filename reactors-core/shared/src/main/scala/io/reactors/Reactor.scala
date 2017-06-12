@@ -129,7 +129,7 @@ object Reactor {
       case t: ReactorThread =>
         if (t.dataBuffer != null) {
           while (t.dataBuffer.hasMore) {
-            t.dataBuffer.input.fetch()
+            t.dataBuffer.input.readNext()
           }
         }
     }

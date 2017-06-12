@@ -135,7 +135,7 @@ class TcpRemoteTest extends FunSuite {
       }
     }
     receiver.start()
-    val t = new ReactorThread {
+    val sender = new ReactorThread {
       override def run() = {
         val tcp = new TcpTransport(system)
         val sysUrl = SystemUrl("tcp", "localhost", serverSocket.getLocalPort)
@@ -146,9 +146,9 @@ class TcpRemoteTest extends FunSuite {
         Reactor.onContextSwitch()
       }
     }
-    t.start()
-    t.join()
+    sender.start()
     receiver.join()
+    sender.join()
     assert(result.future.value == Some(Success(true)))
   }
 }

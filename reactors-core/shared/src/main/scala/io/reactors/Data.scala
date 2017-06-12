@@ -16,14 +16,14 @@ abstract class Data(
    *  If this data chunk belongs to a `DataBuffer`, then that `DataBuffer` is
    *  also updated.
    */
-  def flush(minNextSize: Int): Data
+  def writeNext(minNextSize: Int): Data
 
   /** Acquires the next chunk of data for reading.
    *
    *  If this data chunk belongs to a `DataBuffer`, then that `DataBuffer` is
    *  also updated.
    */
-  def fetch(): Data
+  def readNext(): Data
 
   /** Updates this chunk of data at the position `pos`.
    */

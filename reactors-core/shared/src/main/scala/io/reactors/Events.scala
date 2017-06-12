@@ -22,7 +22,7 @@ import scala.util.Try
  *
  *  An event stream produces events until it ''unreacts''.
  *  After the event stream unreacts, it never produces an event again.
- *  
+ *
  *  Event streams can also be manipulated using declarative combinators
  *  such as `map`, `filter`, `until`, `after` and `scanPast`:
  *
@@ -105,7 +105,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *
    *  A shorthand for `onReaction` -- the specified partial function is applied
    *  to only those events for which it is defined.
-   *  
+   *
    *  This method only works for `AnyRef` values.
    *
    *  Example:
@@ -183,7 +183,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  If the specified partial function is defined for the exception,
    *  an event is emitted.
    *  Otherwise, the same exception is forwarded.
-   * 
+   *
    *  @tparam U          type of events exceptions are mapped to
    *  @param  pf         partial mapping from functions to events
    *  @return            an event stream that emits events when an exception arrives
