@@ -918,6 +918,24 @@ class EventsSpec extends FunSuite {
     assert(sum == 78)
   }
 
+  test("mux another subscription") {
+    var want1 = 0
+    var want1Too = 0
+
+    val have0 = new Events.Emitter[Int]
+    val factory = new Events.Emitter[Events[Int]]
+    val mux = factory.mux.toSignal(0)
+    val map = mux.map(x => x + 1)
+
+    map.onEvent(x => want1 = x)
+    factory.react(have0)
+    map.onEvent(x => want1Too = x)
+    have0.react(0)
+
+    assert(want1 == 1)
+    assert(want1Too == 1)
+  }
+
   test("unreacted") {
     var count = 0
     val emitter = new Events.Emitter[Int]
