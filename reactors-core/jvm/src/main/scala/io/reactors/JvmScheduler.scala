@@ -376,9 +376,9 @@ object JvmScheduler {
 
       override def initSchedule(frame: Frame) {
         super.initSchedule(frame)
-        if (Reactor.selfAsOrNull != null)
-          throw new IllegalStateException(
-            "Cannot use piggyback scheduler from within a reactor.")
+        val current = Reactor.selfAsOrNull
+        if (current != null) throw new IllegalStateException(
+          s"Cannot use piggyback scheduler from within a reactor $current.")
       }
 
       override def schedule(frame: Frame) {

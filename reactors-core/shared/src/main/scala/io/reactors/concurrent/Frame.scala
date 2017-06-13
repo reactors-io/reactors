@@ -7,7 +7,6 @@ import java.util.concurrent.atomic._
 import java.util.concurrent.ConcurrentHashMap
 import scala.annotation.tailrec
 import scala.collection._
-import scala.util.Random
 import io.reactors.common.UnrolledRing
 import io.reactors.common.Monitor
 

@@ -112,6 +112,8 @@ trait Reactor[@spec(Int, Long, Double) T] extends Platform.Reflectable {
    */
   final def sysEvents: Events[SysEvent] = frame.sysEmitter
 
+  override def toString = s"Reactor($uid, $name)"
+
 }
 
 
