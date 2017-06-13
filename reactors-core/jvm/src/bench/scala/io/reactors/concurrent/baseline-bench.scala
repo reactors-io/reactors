@@ -3,18 +3,11 @@ package concurrent
 
 
 
-import akka.actor._
-import java.util.concurrent.ForkJoinPool
-import java.util.concurrent.atomic._
 import org.scalameter.api._
 import org.scalameter.japi.JBench
-import scala.collection._
 import scala.concurrent.Await
 import scala.concurrent.Promise
 import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.util.Success
-import scala.util.Failure
 
 
 

@@ -80,14 +80,14 @@ class RuntimeMarshalerBench extends JBench.OfflineReport {
     while (i < repetitions) {
       val obj = new SingleField(i)
       val v = obj.x
-      if (data.remainingWriteSize < 4) data = data.flush(4)
+      if (data.remainingWriteSize < 4) data = data.writeNext(4)
       val pos = data.endPos
       data(pos + 0) = ((v & 0x000000ff) >>> 0).toByte
       data(pos + 1) = ((v & 0x0000ff00) >>> 8).toByte
       data(pos + 2) = ((v & 0x00ff0000) >>> 16).toByte
       data(pos + 3) = ((v & 0xff000000) >>> 24).toByte
       data.endPos += 4
-      if (data.remainingWriteSize < 4) data = data.flush(4)
+      if (data.remainingWriteSize < 4) data = data.writeNext(4)
       val v1 = 1
       val pos1 = data.endPos
       data(pos1 + 0) = ((v1 & 0x000000ff) >>> 0).toByte

@@ -220,6 +220,7 @@ final class Frame(
         }
         throw t
     } finally {
+      Reactor.onContextSwitch()
       Reactor.currentFrame = null
     }
   }

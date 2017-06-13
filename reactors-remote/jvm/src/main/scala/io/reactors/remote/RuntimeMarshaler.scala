@@ -42,7 +42,7 @@ object RuntimeMarshaler {
   ): Unit = {
     if (obj == null) {
       var data = buffer.output
-      if (data.remainingWriteSize < 1) data = data.flush(1)
+      if (data.remainingWriteSize < 1) data = data.writeNext(1)
       data(data.endPos) = nullTag
       data.endPos += 1
     } else {
@@ -80,7 +80,7 @@ object RuntimeMarshaler {
           }
           i += batchSize
           data.endPos += batchSize * 4
-          data = data.flush(math.min(4 * (length - i), maxArrayChunk))
+          data = data.writeNext(math.min(4 * (length - i), maxArrayChunk))
         }
       case Platform.Reflect.longClass =>
         val longArray = array.asInstanceOf[Array[Long]]
@@ -104,7 +104,7 @@ object RuntimeMarshaler {
           }
           i += batchSize
           data.endPos += batchSize * 8
-          data = data.flush(math.min(8 * (length - i), maxArrayChunk))
+          data = data.writeNext(math.min(8 * (length - i), maxArrayChunk))
         }
       case Platform.Reflect.doubleClass =>
         val doubleArray = array.asInstanceOf[Array[Double]]
@@ -129,7 +129,7 @@ object RuntimeMarshaler {
           }
           i += batchSize
           data.endPos += batchSize * 8
-          data = data.flush(math.min(8 * (length - i), maxArrayChunk))
+          data = data.writeNext(math.min(8 * (length - i), maxArrayChunk))
         }
       case Platform.Reflect.floatClass =>
         val floatArray = array.asInstanceOf[Array[Float]]
@@ -150,7 +150,7 @@ object RuntimeMarshaler {
           }
           i += batchSize
           data.endPos += batchSize * 4
-          data = data.flush(math.min(4 * (length - i), maxArrayChunk))
+          data = data.writeNext(math.min(4 * (length - i), maxArrayChunk))
         }
       case Platform.Reflect.byteClass =>
         val byteArray = array.asInstanceOf[Array[Byte]]
@@ -167,7 +167,7 @@ object RuntimeMarshaler {
           }
           i += batchSize
           data.endPos += batchSize * 1
-          data = data.flush(math.min(1 * (length - i), maxArrayChunk))
+          data = data.writeNext(math.min(1 * (length - i), maxArrayChunk))
         }
       case Platform.Reflect.booleanClass =>
         val booleanArray = array.asInstanceOf[Array[Boolean]]
@@ -184,7 +184,7 @@ object RuntimeMarshaler {
           }
           i += batchSize
           data.endPos += batchSize * 1
-          data = data.flush(math.min(1 * (length - i), maxArrayChunk))
+          data = data.writeNext(math.min(1 * (length - i), maxArrayChunk))
         }
       case Platform.Reflect.charClass =>
         val charArray = array.asInstanceOf[Array[Char]]
@@ -202,7 +202,7 @@ object RuntimeMarshaler {
           }
           i += batchSize
           data.endPos += batchSize * 2
-          data = data.flush(math.min(2 * (length - i), maxArrayChunk))
+          data = data.writeNext(math.min(2 * (length - i), maxArrayChunk))
         }
       case Platform.Reflect.shortClass =>
         val shortArray = array.asInstanceOf[Array[Short]]
@@ -220,7 +220,7 @@ object RuntimeMarshaler {
           }
           i += batchSize
           data.endPos += batchSize * 2
-          data = data.flush(math.min(2 * (length - i), maxArrayChunk))
+          data = data.writeNext(math.min(2 * (length - i), maxArrayChunk))
         }
       case _ =>
         val objectArray = array.asInstanceOf[Array[AnyRef]]
@@ -237,7 +237,7 @@ object RuntimeMarshaler {
 
   private def marshalInt(v: Int, inputData: Data): Data = {
     var data = inputData
-    if (data.remainingWriteSize < 4) data = data.flush(4)
+    if (data.remainingWriteSize < 4) data = data.writeNext(4)
     val pos = data.endPos
     data(pos + 0) = ((v & 0x000000ff) >>> 0).toByte
     data(pos + 1) = ((v & 0x0000ff00) >>> 8).toByte
@@ -249,7 +249,7 @@ object RuntimeMarshaler {
 
   private def marshalLong(v: Long, inputData: Data): Data = {
     var data = inputData
-    if (data.remainingWriteSize < 8) data = data.flush(8)
+    if (data.remainingWriteSize < 8) data = data.writeNext(8)
     val pos = data.endPos
     data(pos + 0) = ((v & 0x00000000000000ffL) >>> 0).toByte
     data(pos + 1) = ((v & 0x000000000000ff00L) >>> 8).toByte
@@ -266,7 +266,7 @@ object RuntimeMarshaler {
   private def marshalDouble(v: Double, inputData: Data): Data = {
     var data = inputData
     val bits = java.lang.Double.doubleToRawLongBits(v)
-    if (data.remainingWriteSize < 8) data = data.flush(8)
+    if (data.remainingWriteSize < 8) data = data.writeNext(8)
     val pos = data.endPos
     data(pos + 0) = ((bits & 0x00000000000000ffL) >>> 0).toByte
     data(pos + 1) = ((bits & 0x000000000000ff00L) >>> 8).toByte
@@ -283,7 +283,7 @@ object RuntimeMarshaler {
   private def marshalFloat(v: Float, inputData: Data): Data = {
     var data = inputData
     val bits = java.lang.Float.floatToRawIntBits(v)
-    if (data.remainingWriteSize < 4) data = data.flush(4)
+    if (data.remainingWriteSize < 4) data = data.writeNext(4)
     val pos = data.endPos
     data(pos + 0) = ((bits & 0x000000ff) >>> 0).toByte
     data(pos + 1) = ((bits & 0x0000ff00) >>> 8).toByte
@@ -295,7 +295,7 @@ object RuntimeMarshaler {
 
   private def marshalByte(v: Byte, inputData: Data): Data = {
     var data = inputData
-    if (data.remainingWriteSize < 1) data = data.flush(1)
+    if (data.remainingWriteSize < 1) data = data.writeNext(1)
     val pos = data.endPos
     data(pos + 0) = v
     data.endPos += 1
@@ -304,7 +304,7 @@ object RuntimeMarshaler {
 
   private def marshalBoolean(v: Boolean, inputData: Data): Data = {
     var data = inputData
-    if (data.remainingWriteSize < 1) data = data.flush(1)
+    if (data.remainingWriteSize < 1) data = data.writeNext(1)
     val pos = data.endPos
     data(pos) = if (v) 1 else 0
     data.endPos += 1
@@ -313,7 +313,7 @@ object RuntimeMarshaler {
 
   private def marshalChar(v: Char, inputData: Data): Data = {
     var data = inputData
-    if (data.remainingWriteSize < 2) data = data.flush(2)
+    if (data.remainingWriteSize < 2) data = data.writeNext(2)
     val pos = data.endPos
     data(pos + 0) = ((v & 0x000000ff) >>> 0).toByte
     data(pos + 1) = ((v & 0x0000ff00) >>> 8).toByte
@@ -323,7 +323,7 @@ object RuntimeMarshaler {
 
   private def marshalShort(v: Short, inputData: Data): Data = {
     var data = inputData
-    if (data.remainingWriteSize < 2) data = data.flush(2)
+    if (data.remainingWriteSize < 2) data = data.writeNext(2)
     val pos = data.endPos
     data(pos + 0) = ((v & 0x000000ff) >>> 0).toByte
     data(pos + 1) = ((v & 0x0000ff00) >>> 8).toByte
@@ -404,7 +404,7 @@ object RuntimeMarshaler {
     if (marshalType) {
       val name = klazz.getName
       val typeLength = name.length + 1
-      if (typeLength > data.remainingWriteSize) data = data.flush(typeLength)
+      if (typeLength > data.remainingWriteSize) data = data.writeNext(typeLength)
       val pos = data.endPos
       var i = 0
       while (i < name.length) {
@@ -414,7 +414,7 @@ object RuntimeMarshaler {
       data(pos + i) = classNameTerminatorTag
       data.endPos += typeLength
     } else {
-      if (data.remainingWriteSize < 1) data = data.flush(-1)
+      if (data.remainingWriteSize < 1) data = data.writeNext(-1)
       data(data.endPos) = classNameTerminatorTag
       data.endPos += 1
     }
@@ -427,7 +427,7 @@ object RuntimeMarshaler {
   ): Data = {
     var data = inputData
     if (obj == null) {
-      if (data.remainingWriteSize < 1) data = data.flush(1)
+      if (data.remainingWriteSize < 1) data = data.writeNext(1)
       data(data.endPos) = nullTag
       data.endPos += 1
       return data
@@ -435,7 +435,7 @@ object RuntimeMarshaler {
     if (checkRecorded) {
       val ref = context.written.get(obj.asInstanceOf[AnyRef])
       if (ref != context.written.nil) {
-        if (data.remainingWriteSize < 5) data = data.flush(5)
+        if (data.remainingWriteSize < 5) data = data.writeNext(5)
         val pos = data.endPos
         data(pos + 0) = objectReferenceTag
         data(pos + 1) = ((ref & 0x000000ff) >>> 0).toByte
@@ -483,14 +483,14 @@ object RuntimeMarshaler {
   ): T = {
     var data = buffer.input
     var klazz = assumedKlazz
-    if (data.remainingReadSize < 1) data = data.fetch()
+    if (data.remainingReadSize < 1) data = data.readNext()
     val initialByte = data(data.startPos)
     if (initialByte == objectReferenceTag) {
       data.startPos += 1
       var i = 0
       var ref = 0
       while (i < 4) {
-        if (data.remainingReadSize == 0) data = data.fetch()
+        if (data.remainingReadSize == 0) data = data.readNext()
         val b = data(data.startPos)
         ref |= (b.toInt & 0xff) << (8 * i)
         data.startPos += 1
@@ -519,7 +519,7 @@ object RuntimeMarshaler {
           if (i == until) {
             data.startPos += i - data.startPos
             if (last != classNameTerminatorTag) {
-              data = data.fetch()
+              data = data.readNext()
               i = data.startPos
               until = data.startPos + data.remainingReadSize
             }
@@ -549,7 +549,7 @@ object RuntimeMarshaler {
   ): AnyRef = {
     var data = buffer.input
     var array: AnyRef = null
-    if (data.remainingReadSize < 1) data = data.fetch()
+    if (data.remainingReadSize < 1) data = data.readNext()
     val tag = data(data.startPos)
     data.startPos += 1
     if (tag == nullTag) {
@@ -569,7 +569,7 @@ object RuntimeMarshaler {
         var i = 0
         var x = 0
         while (i < 4) {
-          if (data.remainingReadSize == 0) data = data.fetch()
+          if (data.remainingReadSize == 0) data = data.readNext()
           val b = data(data.startPos)
           x |= (b.toInt & 0xff) << (8 * i)
           data.startPos += 1
@@ -605,7 +605,7 @@ object RuntimeMarshaler {
               var x = 0
               var j = 0
               while (j < 4) {
-                if (data.remainingReadSize == 0) data = data.fetch()
+                if (data.remainingReadSize == 0) data = data.readNext()
                 val b = data(data.startPos)
                 x |= (b.toInt & 0xff) << (8 * j)
                 data.startPos += 1
@@ -643,7 +643,7 @@ object RuntimeMarshaler {
               var x = 0L
               var j = 0
               while (j < 8) {
-                if (data.remainingReadSize == 0) data = data.fetch()
+                if (data.remainingReadSize == 0) data = data.readNext()
                 val b = data(data.startPos)
                 x |= (b.toLong & 0xff) << (8 * j)
                 data.startPos += 1
@@ -682,7 +682,7 @@ object RuntimeMarshaler {
               var bits = 0L
               var j = 0
               while (j < 8) {
-                if (data.remainingReadSize == 0) data = data.fetch()
+                if (data.remainingReadSize == 0) data = data.readNext()
                 val b = data(data.startPos)
                 bits |= (b.toLong & 0xff) << (8 * j)
                 data.startPos += 1
@@ -717,7 +717,7 @@ object RuntimeMarshaler {
               var bits = 0
               var j = 0
               while (j < 4) {
-                if (data.remainingReadSize == 0) data = data.fetch()
+                if (data.remainingReadSize == 0) data = data.readNext()
                 val b = data(data.startPos)
                 bits |= (b.toInt & 0xff) << (8 * j)
                 data.startPos += 1
@@ -731,7 +731,7 @@ object RuntimeMarshaler {
           val byteArray = array.asInstanceOf[Array[Byte]]
           var i = 0
           while (i < length) {
-            if (data.remainingReadSize == 0) data = data.fetch()
+            if (data.remainingReadSize == 0) data = data.readNext()
             val batchByteSize =
               math.min(data.remainingReadSize / 1 * 1, (length - i) * 1)
             var j = i
@@ -749,7 +749,7 @@ object RuntimeMarshaler {
           val booleanArray = array.asInstanceOf[Array[Boolean]]
           var i = 0
           while (i < length) {
-            if (data.remainingReadSize == 0) data = data.fetch()
+            if (data.remainingReadSize == 0) data = data.readNext()
             val batchByteSize =
               math.min(data.remainingReadSize / 1 * 1, (length - i) * 1)
             var j = i
@@ -785,7 +785,7 @@ object RuntimeMarshaler {
               var v = 0
               var j = 0
               while (j < 2) {
-                if (data.remainingReadSize == 0) data = data.fetch()
+                if (data.remainingReadSize == 0) data = data.readNext()
                 val b = data(data.startPos)
                 v |= (b.toInt & 0xff) << (8 * j)
                 data.startPos += 1
@@ -817,7 +817,7 @@ object RuntimeMarshaler {
               var v = 0
               var j = 0
               while (j < 2) {
-                if (data.remainingReadSize == 0) data = data.fetch()
+                if (data.remainingReadSize == 0) data = data.readNext()
                 val b = data(data.startPos)
                 v |= (b.toInt & 0xff) << (8 * j)
                 data.startPos += 1
@@ -867,7 +867,7 @@ object RuntimeMarshaler {
             var i = 0
             var x = 0
             while (i < 4) {
-              if (data.remainingReadSize == 0) data = data.fetch()
+              if (data.remainingReadSize == 0) data = data.readNext()
               val b = data(data.startPos)
               x |= (b.toInt & 0xff) << (8 * i)
               data.startPos += 1
@@ -893,7 +893,7 @@ object RuntimeMarshaler {
             var i = 0
             var x = 0L
             while (i < 8) {
-              if (data.remainingReadSize == 0) data = data.fetch()
+              if (data.remainingReadSize == 0) data = data.readNext()
               val b = data(data.startPos)
               x |= (b.toLong & 0xff) << (8 * i)
               data.startPos += 1
@@ -920,7 +920,7 @@ object RuntimeMarshaler {
             var i = 0
             var bits = 0L
             while (i < 8) {
-              if (data.remainingReadSize == 0) data = data.fetch()
+              if (data.remainingReadSize == 0) data = data.readNext()
               val b = data(data.startPos)
               bits |= (b.toLong & 0xff) << (8 * i)
               data.startPos += 1
@@ -944,7 +944,7 @@ object RuntimeMarshaler {
             var i = 0
             var bits = 0
             while (i < 4) {
-              if (data.remainingReadSize == 0) data = data.fetch()
+              if (data.remainingReadSize == 0) data = data.readNext()
               val b = data(data.startPos)
               bits |= (b.toInt & 0xff) << (8 * i)
               data.startPos += 1
@@ -954,13 +954,13 @@ object RuntimeMarshaler {
             unsafe.putFloat(obj, descriptor.offset, x)
           }
         case 0x05 =>
-          if (data.remainingReadSize < 1) data = data.fetch()
+          if (data.remainingReadSize < 1) data = data.readNext()
           val pos = data.startPos
           val b = data(pos)
           unsafe.putByte(obj, descriptor.offset, b)
           data.startPos = pos + 1
         case 0x06 =>
-          if (data.remainingReadSize < 1) data = data.fetch()
+          if (data.remainingReadSize < 1) data = data.readNext()
           val pos = data.startPos
           val b = data(pos)
           unsafe.putBoolean(obj, descriptor.offset, if (b != 0) true else false)
@@ -976,7 +976,7 @@ object RuntimeMarshaler {
             var i = 0
             var x = 0
             while (i < 2) {
-              if (data.remainingReadSize == 0) data = data.fetch()
+              if (data.remainingReadSize == 0) data = data.readNext()
               val b = data(data.startPos)
               x |= (b.toInt & 0xff) << (8 * i)
               data.startPos += 1
@@ -995,7 +995,7 @@ object RuntimeMarshaler {
             var i = 0
             var x = 0
             while (i < 2) {
-              if (data.remainingReadSize == 0) data = data.fetch()
+              if (data.remainingReadSize == 0) data = data.readNext()
               val b = data(data.startPos)
               x |= (b.toInt & 0xff) << (8 * i)
               data.startPos += 1

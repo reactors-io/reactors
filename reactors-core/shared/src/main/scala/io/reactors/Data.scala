@@ -7,21 +7,23 @@ package io.reactors
 
 /** Represents a data chunk.
  */
-abstract class Data(private val raw: Array[Byte], var startPos: Int, var endPos: Int) {
+abstract class Data(
+  private[reactors] val raw: Array[Byte], var startPos: Int, var endPos: Int
+) {
   /** Flushes the contents of this chunk of data, and gets another one
    *  whose size is at least `minNextSize`.
    *
    *  If this data chunk belongs to a `DataBuffer`, then that `DataBuffer` is
    *  also updated.
    */
-  def flush(minNextSize: Int): Data
+  def writeNext(minNextSize: Int): Data
 
   /** Acquires the next chunk of data for reading.
    *
    *  If this data chunk belongs to a `DataBuffer`, then that `DataBuffer` is
    *  also updated.
    */
-  def fetch(): Data
+  def readNext(): Data
 
   /** Updates this chunk of data at the position `pos`.
    */
