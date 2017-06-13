@@ -6,13 +6,26 @@ package io.reactors
 
 
 abstract class DataBuffer {
+  /** Clears the contents of the data buffer.
+   */
   def clear(): Unit
 
+  /** The writing end of the buffer.
+   */
   def output: Data
 
+  /** The reading end of the buffer.
+   */
   def input: Data
 
+  /** Indicates whether this buffer has bytes available to read.
+   */
   def hasMore: Boolean
+
+  /** Optionally flushes the contents of this data buffer, depending on the semantics.
+   */
+  def flush(): Unit = {
+  }
 }
 
 

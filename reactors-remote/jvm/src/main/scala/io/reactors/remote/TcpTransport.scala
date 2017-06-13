@@ -158,6 +158,13 @@ object TcpTransport {
     protected[reactors] override def onReadNext(old: LinkedData): Unit = {
       sys.error("Unsupported operation exception.")
     }
+
+    override def flush(): Unit = {
+      assert(rawInput == rawOutput)
+      if (rawInput.remainingReadSize > 0) {
+        rawOutput.writeNext(rawOutput.totalSize / 2)
+      }
+    }
   }
 
   private[reactors] class TcpChannel[@spec(Int, Long, Double) T](

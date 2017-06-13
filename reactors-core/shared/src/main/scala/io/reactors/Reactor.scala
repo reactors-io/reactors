@@ -126,12 +126,23 @@ object Reactor {
     var marshalContext: MarshalContext = marshalContextThreadLocal.get
   }
 
+  private[reactors] val threadLocalDataBuffer = new ThreadLocal[DataBuffer] {
+    override def initialValue = null
+  }
+
   private[reactors] def onContextSwitch() {
     Thread.currentThread match {
       case t: ReactorThread =>
         if (t.dataBuffer != null) {
           while (t.dataBuffer.hasMore) {
-            t.dataBuffer.input.readNext()
+            t.dataBuffer.flush()
+          }
+        }
+      case _ =>
+        val buffer = threadLocalDataBuffer.get()
+        if (buffer != null) {
+          while (buffer.hasMore) {
+            buffer.flush()
           }
         }
     }
