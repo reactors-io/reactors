@@ -97,7 +97,7 @@ class BloomMap[K >: Null <: AnyRef: Arrayable, @specialized(Int, Long) V: Arraya
 
   private def insert(key: K, value: V): V = {
     var pos = (System.identityHashCode(key) >>> 1) % keytable.length
-    assert(pos > 0)
+    assert(pos >= 0)
     var curr = keytable(pos)
     while (curr != null && (curr ne key)) {
       pos = (pos + 1) % keytable.length
