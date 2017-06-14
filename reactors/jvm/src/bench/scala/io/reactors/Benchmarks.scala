@@ -13,20 +13,20 @@ import io.reactors.concurrent.StreamingPingPongBench
 import io.reactors.concurrent.ThreadRingBench
 import io.reactors.container.MatrixBench
 import io.reactors.remote.RuntimeMarshalerBench
-import org.scalameter.Bench
+import org.scalameter.japi.JBench
 
 
 
-class Benchmarks extends Bench.Group {
-  include(new BaselineBench)
-  include(new PingPongBench)
-  include(new StreamingPingPongBench)
-  include(new ThreadRingBench)
-  include(new CountingActorBench)
-  include(new ForkJoinCreationBench)
-  include(new ForkJoinThroughputBench)
-  include(new FibonacciBench)
-  include(new BigBench)
-  include(new MatrixBench {})
-  include(new RuntimeMarshalerBench)
+class Benchmarks extends JBench.OfflineReport {
+  attach(new BaselineBench)
+  attach(new PingPongBench)
+  attach(new StreamingPingPongBench)
+  attach(new ThreadRingBench)
+  attach(new CountingActorBench)
+  attach(new ForkJoinCreationBench)
+  attach(new ForkJoinThroughputBench)
+  attach(new FibonacciBench)
+  attach(new BigBench)
+  attach(new MatrixBench)
+  attach(new RuntimeMarshalerBench)
 }
