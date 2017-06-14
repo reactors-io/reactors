@@ -38,18 +38,6 @@ gate-standalone-ubuntu:
     - ~/.super-storm-enroute/tools/sbt ++2.12.2 test
 
 
-gate-osx:
-  tags:
-    - osx
-    - gate
-  script:
-    - ~/.super-storm-enroute/tools/ci reactors $(pwd)
-  cache:
-    paths:
-      - /root/.ivy2/
-      - /root/.sbt/
-
-
 bench-ubuntu:
   tags:
     - ubuntu
