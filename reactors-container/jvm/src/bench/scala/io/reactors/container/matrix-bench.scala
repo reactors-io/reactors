@@ -9,7 +9,7 @@ import org.scalameter.japi.JBench
 
 
 
-trait MatrixBench extends JBench.OfflineReport {
+class MatrixBench extends JBench.OfflineReport {
 
   class Matrix(val width: Int, val height: Int) {
     val array = new Array[Int](width * height)
@@ -177,11 +177,4 @@ trait MatrixBench extends JBench.OfflineReport {
     val (sidelength, matrix) = p
     matrix.copy(array, 0, 0, sidelength, sidelength)
   }
-}
-
-
-class MatrixBenches extends Bench.Group {
-
-  include(new MatrixBench {})
-
 }
