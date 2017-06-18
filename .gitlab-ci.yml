@@ -25,8 +25,6 @@ gate-ubuntu:
     - gate
   script:
     - ~/.super-storm-enroute/tools/ci reactors $(pwd)
-<<<<<<< Updated upstream
-=======
   cache:
     paths:
       - /root/.ivy2/
@@ -36,7 +34,6 @@ gate-ubuntu:
       - ~/.super-storm-enroute/reactors/target/videos/
     expire_in:
       1 week
->>>>>>> Stashed changes
 
 
 gate-standalone-ubuntu:
@@ -48,8 +45,6 @@ gate-standalone-ubuntu:
     - ~/.super-storm-enroute/tools/sbt test
     - ~/.super-storm-enroute/tools/sbt clean
     - ~/.super-storm-enroute/tools/sbt ++2.12.2 test
-<<<<<<< Updated upstream
-=======
   cache:
     paths:
       - /root/.ivy2/
@@ -59,7 +54,6 @@ gate-standalone-ubuntu:
       - ~/.super-storm-enroute/reactors/target/videos/
     expire_in:
       1 week
->>>>>>> Stashed changes
 
 
 bench-ubuntu:
