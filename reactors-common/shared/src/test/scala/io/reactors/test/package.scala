@@ -97,7 +97,7 @@ package object test {
           val buildId = sys.env.getOrElse("CI_BUILD_ID", "no-build-id")
           val videoFileName =
             s"$dir/test.$buildId.$mainClass.$nowTime-${UUID.randomUUID()}.mp4"
-          println("Video file name: " + videoFileName)
+          println("Video file name: " + new File(videoFileName).getAbsolutePath)
           val ffmpegCmd = Seq(
             "ffmpeg", "-loglevel", "panic",
             "-f", "x11grab", "-video_size", res,
