@@ -50,7 +50,7 @@ gate-standalone-ubuntu:
       - /root/.sbt/
   artifacts:
     paths:
-      - /builds/storm-enroute/reactors/reactors/target/videos
+      - /builds/storm-enroute/reactors/target/videos
     when:
       always
     expire_in:
