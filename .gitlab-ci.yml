@@ -28,7 +28,9 @@ gate-ubuntu:
       - /root/.sbt/
   artifacts:
     paths:
-      - ~/.super-storm-enroute/reactors/target/videos/
+      - /builds/storm-enroute/reactors/reactors/target/videos
+    when:
+      - always
     expire_in:
       1 week
 
@@ -48,7 +50,9 @@ gate-standalone-ubuntu:
       - /root/.sbt/
   artifacts:
     paths:
-      - ~/.super-storm-enroute/reactors/target/videos/
+      - /builds/storm-enroute/reactors/reactors/target/videos
+    when:
+      - always
     expire_in:
       1 week
 
