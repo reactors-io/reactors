@@ -30,7 +30,7 @@ gate-ubuntu:
     paths:
       - /builds/storm-enroute/reactors/reactors/target/videos
     when:
-      - always
+      always
     expire_in:
       1 week
 
@@ -52,7 +52,7 @@ gate-standalone-ubuntu:
     paths:
       - /builds/storm-enroute/reactors/reactors/target/videos
     when:
-      - always
+      always
     expire_in:
       1 week
 
