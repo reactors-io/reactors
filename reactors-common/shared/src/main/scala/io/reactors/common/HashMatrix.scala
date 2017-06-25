@@ -37,9 +37,9 @@ class HashMatrix[@specialized(Int, Long, Double) T](
   private[reactors] def getNumBlocks: Int = numBlocks
 
   private def hashblock(xb: Int, yb: Int): Int = {
-    //byteswap32(xb ^ yb)
-    //byteswap32(xb) ^ byteswap32(yb)
-    //(73856093 * byteswap32(xb)) ^ (83492791 * byteswap32(yb))
+    // byteswap32(xb ^ yb)
+    // byteswap32(xb) ^ byteswap32(yb)
+    // (73856093 * byteswap32(xb)) ^ (83492791 * byteswap32(yb))
     spatial2D(xb, yb)
   }
 
