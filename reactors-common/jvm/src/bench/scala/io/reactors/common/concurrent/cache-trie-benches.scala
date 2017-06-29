@@ -15,7 +15,7 @@ class CacheTrieBenches extends JBench.OfflineReport {
   override def defaultConfig = Context(
     exec.minWarmupRuns -> 60,
     exec.maxWarmupRuns -> 120,
-    exec.independentSamples -> 3,
+    exec.independentSamples -> 1,
     verbose -> true
   )
 
@@ -31,15 +31,37 @@ class CacheTrieBenches extends JBench.OfflineReport {
     (size, chm)
   }
 
-  @gen("chms")
+  val cachetries = for (size <- sizes) yield {
+    val ctrie = new CacheTrie[Wrapper, Wrapper](size)
+    for (i <- 0 until size) {
+      ctrie.insert(i, elems(i), elems(i))
+    }
+    (size, ctrie)
+  }
+
+//  @gen("chms")
+//  @benchmark("cache-trie.apply")
+//  @curve("CHM")
+//  def chmLookup(sc: (Int, ConcurrentHashMap[Wrapper, Wrapper])): Int = {
+//    val (size, chm) = sc
+//    var i = 0
+//    var sum = 0
+//    while (i < size) {
+//      sum += chm.get(elems(i)).value
+//      i += 1
+//    }
+//    sum
+//  }
+
+  @gen("cachetries")
   @benchmark("cache-trie.apply")
-  @curve("CHM")
-  def chmLookup(sc: (Int, ConcurrentHashMap[Wrapper, Wrapper])): Int = {
-    val (size, chm) = sc
+  @curve("cachetrie")
+  def ctrieLookup(sc: (Int, CacheTrie[Wrapper, Wrapper])): Int = {
+    val (size, trie) = sc
     var i = 0
     var sum = 0
     while (i < size) {
-      sum += chm.get(elems(i)).value
+      sum += trie.lookup(elems(i)).value
       i += 1
     }
     sum
