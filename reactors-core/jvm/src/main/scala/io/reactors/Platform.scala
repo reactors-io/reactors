@@ -14,7 +14,6 @@ import io.reactors.marshal.Marshalee
 import scala.collection._
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
-import sun.misc.Unsafe
 
 
 
@@ -246,7 +245,8 @@ object Platform {
       if (!cls.isPrimitive) cls else boxedMapping(cls)
 
     class FieldDescriptor(val field: Field) {
-      val offset = unsafe.objectFieldOffset(field)
+      val offset =
+        io.reactors.common.concurrent.Platform.unsafe.objectFieldOffset(field)
       val isFinal = Modifier.isFinal(field.getType.getModifiers)
       val tag = {
         val tpe = field.getType
@@ -307,9 +307,4 @@ object Platform {
 
   private[reactors] def newSnapshotMap[K, V] = new TrieMap[K, V]
 
-  val unsafe = {
-    val unsafeInstanceField = classOf[Unsafe].getDeclaredField("theUnsafe")
-    unsafeInstanceField.setAccessible(true)
-    unsafeInstanceField.get(null).asInstanceOf[Unsafe]
-  }
 }
