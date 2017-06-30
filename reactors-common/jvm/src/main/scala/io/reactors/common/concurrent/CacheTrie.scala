@@ -131,7 +131,7 @@ class CacheTrie[K <: AnyRef, V](val capacity: Int) {
         val subnode = node.asInstanceOf[FNode].frozen.asInstanceOf[Array[AnyRef]]
         freeze(subnode.asInstanceOf[Array[AnyRef]])
       } else {
-        // If some other txn is in progress, help complete it, then repeat.
+        // If some other txn is in progress, help complete it, then restart.
         ???
       }
       i += 1
@@ -255,7 +255,7 @@ object CacheTrie {
     31 - Integer.numberOfLeadingZeros(scale)
   }
   private val ENodeWideOffset = {
-    val field = classOf[ENode].getField("wide")
+    val field = classOf[ENode].getDeclaredField("wide")
     Platform.unsafe.objectFieldOffset(field)
   }
 

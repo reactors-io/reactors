@@ -55,29 +55,57 @@ class CacheTrieBenches extends JBench.OfflineReport {
 //    sum
 //  }
 
-  @gen("cachetries")
-  @benchmark("cache-trie.apply")
+//  @gen("cachetries")
+//  @benchmark("cache-trie.apply")
+//  @curve("cachetrie")
+//  def cachetrieLookup(sc: (Int, CacheTrie[Wrapper, Wrapper])): Int = {
+//    val (size, trie) = sc
+//    var i = 0
+//    var sum = 0
+//    while (i < size) {
+//      sum += trie.fastLookup(elems(i)).value
+//      i += 1
+//    }
+//    sum
+//  }
+
+//  @gen("sizes")
+//  @benchmark("cache-trie.insert")
+//  @curve("chm")
+//  def chmInsert(size: Int) = {
+//    val chm = new ConcurrentHashMap[Wrapper, Wrapper]
+//    var i = 0
+//    while (i < size) {
+//      val v = elems(i)
+//      chm.put(v, v)
+//      i += 1
+//    }
+//    chm
+//  }
+
+  @gen("sizes")
+  @benchmark("cache-trie.insert")
   @curve("cachetrie")
-  def ctrieLookup(sc: (Int, CacheTrie[Wrapper, Wrapper])): Int = {
-    val (size, trie) = sc
+  def cachetrieInsert(size: Int) = {
+    val trie = new CacheTrie[Wrapper, Wrapper](0)
     var i = 0
-    var sum = 0
     while (i < size) {
-      sum += trie.fastLookup(elems(i)).value
+      val v = elems(i)
+      trie.insert(v, v)
       i += 1
     }
-    sum
+    trie
   }
-
 }
 
 
 class BirthdaySimulations extends FunSuite {
   test("run birthday simulations") {
+    birthday(4, 1)
     birthday(16, 1)
-    birthday(16, 3)
+    birthday(16, 2)
     birthday(32, 1)
-    birthday(32, 3)
+    birthday(32, 2)
   }
 
   def birthday(days: Int, collisions: Int): Unit = {
@@ -89,7 +117,7 @@ class BirthdaySimulations extends FunSuite {
       while (i <= days) {
         val day = Random.nextInt(days)
         if (slots(day) == collisions) {
-          sum += i
+          sum += i - 1
           i = days + 2
         }
         slots(day) += 1
