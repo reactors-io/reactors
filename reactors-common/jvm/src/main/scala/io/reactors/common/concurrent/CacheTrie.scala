@@ -6,20 +6,20 @@ import sun.misc.Unsafe
 
 
 
-class CacheTrie[K, V](val capacity: Int) {
+class CacheTrie[K <: AnyRef, V](val capacity: Int) {
   import CacheTrie._
 
-  @volatile
-  private var rawCache: Array[Node[K, V]] = new Array(capacity * 2)
   private val unsafe: Unsafe = Platform.unsafe
+  @volatile private var rawCache: Array[Node[K, V]] = new Array(capacity * 2)
+  @volatile private var rawRoot: Array[Node[K, V]] = new Array[Node[K, V]](16)
 
   def spread(h: Int): Int = {
     (h ^ (h >>> 16)) & 0x7fffffff
   }
 
   def cacheAt(cache: Array[Node[K, V]], pos: Int): Node[K, V] = {
-    unsafe.getObjectVolatile(cache, ArrayBase + (pos << ArrayShift))
-    cache(pos)
+    val obj = unsafe.getObjectVolatile(cache, ArrayBase + (pos << ArrayShift))
+    obj.asInstanceOf[Node[K, V]]
   }
 
   def lookup(key: K): V = {
@@ -27,16 +27,23 @@ class CacheTrie[K, V](val capacity: Int) {
     val len = cache.length
     val hash = spread(key.hashCode)
     val pos = hash & (len - 1)
-    val node = cacheAt(cache, pos)
-    if (node.isInstanceOf[SNode[K, V]]) {
-      node.asInstanceOf[SNode[K, V]].value
+    val node = /*READ*/ cacheAt(cache, pos)
+    if (node.isInstanceOf[INode[K, V]]) {
+      val inode = node.asInstanceOf[INode[K, V]]
+      val next = /*READ*/ inode.next
+      if (next == null) {
+        val ikey = /*READ*/ inode.key
+        // TODO: Change ne to eq.
+        if ((ikey ne key) || (ikey == key)) /*READ*/ inode.value
+        else ???
+      } else ???
     } else {
       ???
     }
   }
 
-  def insert(i: Int, key: K, value: V): Unit = {
-    val n = new SNode(key, value)
+  private[concurrent] def rawCacheInsert(i: Int, key: K, value: V): Unit = {
+    val n = new INode(null, key, value)
     rawCache(2 * i) = n
     rawCache(2 * i + 1) = n
   }
@@ -51,7 +58,11 @@ object CacheTrie {
     31 - Integer.numberOfLeadingZeros(scale)
   }
 
-  abstract class Node[K, V]
+  abstract class Node[K <: AnyRef, V]
 
-  class SNode[K, V](val key: K, val value: V) extends Node[K, V]
+  class INode[K <: AnyRef, V](
+    @volatile var next: Array[Node[K, V]],
+    @volatile var key: K,
+    @volatile var value: V
+  ) extends Node[K, V]
 }
