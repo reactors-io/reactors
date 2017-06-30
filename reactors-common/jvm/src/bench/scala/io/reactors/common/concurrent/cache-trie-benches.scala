@@ -36,7 +36,7 @@ class CacheTrieBenches extends JBench.OfflineReport {
   val cachetries = for (size <- sizes) yield {
     val ctrie = new CacheTrie[Wrapper, Wrapper](size)
     for (i <- 0 until size) {
-      ctrie.rawCacheInsert(i, elems(i), elems(i))
+      ctrie.unsafeCacheInsert(i, elems(i), elems(i))
     }
     (size, ctrie)
   }
@@ -63,7 +63,7 @@ class CacheTrieBenches extends JBench.OfflineReport {
     var i = 0
     var sum = 0
     while (i < size) {
-      sum += trie.lookup(elems(i)).value
+      sum += trie.fastLookup(elems(i)).value
       i += 1
     }
     sum
