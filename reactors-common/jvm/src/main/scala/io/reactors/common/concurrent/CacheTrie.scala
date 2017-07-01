@@ -66,7 +66,7 @@ class CacheTrie[K <: AnyRef, V](val capacity: Int) {
     slowLookup(key, hash, 0, node)
   }
 
-//  @tailrec
+  @tailrec
   private[concurrent] final def slowLookup(
     key: K, hash: Int, level: Int, node: Array[AnyRef]
   ): V = {
