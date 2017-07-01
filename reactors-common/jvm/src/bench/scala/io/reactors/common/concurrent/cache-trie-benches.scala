@@ -6,6 +6,7 @@ import java.util.concurrent.ConcurrentHashMap
 import org.scalameter.api._
 import org.scalameter.japi.JBench
 import org.scalatest.FunSuite
+import scala.collection.concurrent.TrieMap
 import scala.util.Random
 
 
@@ -85,9 +86,23 @@ class CacheTrieBenches extends JBench.OfflineReport {
 
   @gen("sizes")
   @benchmark("cache-trie.insert")
+  @curve("ctrie")
+  def ctrieInsert(size: Int) = {
+    val trie = new TrieMap[Wrapper, Wrapper]
+    var i = 0
+    while (i < size) {
+      val v = elems(i)
+      trie.put(v, v)
+      i += 1
+    }
+    trie
+  }
+
+  @gen("sizes")
+  @benchmark("cache-trie.insert")
   @curve("cachetrie")
   def cachetrieInsert(size: Int) = {
-    val trie = new CacheTrie[Wrapper, Wrapper](0)
+    val trie = new CacheTrie[Wrapper, Wrapper]
     var i = 0
     while (i < size) {
       val v = elems(i)

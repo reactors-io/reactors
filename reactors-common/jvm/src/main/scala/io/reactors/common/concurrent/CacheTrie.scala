@@ -14,6 +14,8 @@ class CacheTrie[K <: AnyRef, V](val capacity: Int) {
   @volatile private var rawCache: Array[AnyRef] = new Array(capacity * 2)
   private val rawRoot: Array[AnyRef] = new Array[AnyRef](16)
 
+  def this() = this(0)
+
   private def spread(h: Int): Int = {
     (h ^ (h >>> 16)) & 0x7fffffff
   }
@@ -34,7 +36,7 @@ class CacheTrie[K <: AnyRef, V](val capacity: Int) {
     unsafe.compareAndSwapObject(enode, ENodeWideOffset, ov, nv)
   }
 
-  def fastLookup(key: K): V = {
+  private[concurrent] def fastLookup(key: K): V = {
     val cache = READ_CACHE
     val len = cache.length
     val hash = spread(key.hashCode)
@@ -43,8 +45,9 @@ class CacheTrie[K <: AnyRef, V](val capacity: Int) {
     if (node.isInstanceOf[SNode[K, V]]) {
       val inode = node.asInstanceOf[SNode[K, V]]
       val ikey = inode.key
+      val ihash = inode.hash
       // TODO: Change ne to eq.
-      if ((ikey ne key) || (ikey == key)) inode.value
+      if ((ihash == hash) && ((ikey ne key) || (ikey == key))) inode.value
       else ???
     } else {
       ???
@@ -55,6 +58,49 @@ class CacheTrie[K <: AnyRef, V](val capacity: Int) {
     val n = new SNode(0, key, value)
     rawCache(2 * i) = n
     rawCache(2 * i + 1) = n
+  }
+
+  final def lookup(key: K): V = {
+    val node = rawRoot
+    val hash = spread(key.hashCode)
+    slowLookup(key, hash, 0, node)
+  }
+
+//  @tailrec
+  private[concurrent] final def slowLookup(
+    key: K, hash: Int, level: Int, node: Array[AnyRef]
+  ): V = {
+    val mask = node.length - 1
+    val pos = (hash >>> level) & mask
+    val old = READ(node, pos)
+    if ((old eq null) || (old eq VNode)) {
+      null.asInstanceOf[V]
+    } else if (old.isInstanceOf[Array[AnyRef]]) {
+      slowLookup(key, hash, level + 4, old.asInstanceOf[Array[AnyRef]])
+    } else if (old.isInstanceOf[SNode[_, _]]) {
+      val oldsn = old.asInstanceOf[SNode[K, V]]
+      if ((oldsn.hash == hash) && ((oldsn.key eq key) || (oldsn.key == key))) {
+        oldsn.value
+      } else {
+        null.asInstanceOf[V]
+      }
+    } else if (old.isInstanceOf[LNode[_, _]]) {
+      val oldln = old.asInstanceOf[LNode[K, V]]
+      if (oldln.hash != hash) {
+        null.asInstanceOf[V]
+      } else {
+        var tail = oldln
+        while (tail != null) {
+          if ((tail.key eq key) || (tail.key == key)) {
+            return tail.value
+          }
+          tail = tail.next
+        }
+        null.asInstanceOf[V]
+      }
+    } else {
+      ???
+    }
   }
 
   final def insert(key: K, value: V): Unit = {
@@ -79,24 +125,35 @@ class CacheTrie[K <: AnyRef, V](val capacity: Int) {
       // Repeat the search on the next level.
       slowInsert(key, value, hash, level + 4, old.asInstanceOf[Array[AnyRef]], node)
     } else if (old.isInstanceOf[SNode[_, _]]) {
-      if (node.length == 4) {
-        // Expand the current node, seeking to avoid the collision.
-        val enode = newExpansionNode(node)
-        // Root size always 16, so parent is non-null.
-        val parentmask = parent.length - 1
-        val parentlevel = level - 4
-        val parentpos = (hash >>> parentlevel) & parentmask
-        if (CAS(parent, parentpos, node, enode)) {
-          completeExpansion(parent, parentpos, enode, level)
-          slowInsert(key, value, hash, level, enode.wide, parent)
-        } else slowInsert(key, value, hash, level, node, parent)
-      } else {
-        // Replace the single node with a narrow node.
-        val snode = old.asInstanceOf[SNode[K, V]]
-        val nnode = newNarrowOrWideNode(snode, hash, key, value, level + 4)
-        if (CAS(node, pos, snode, nnode)) Success
+      val oldsn = old.asInstanceOf[SNode[K, V]]
+      if ((oldsn.hash == hash) && ((oldsn.key eq key) || (oldsn.key == key))) {
+        val sn = new SNode(hash, key, value)
+        if (CAS(node, pos, oldsn, sn)) Success
         else slowInsert(key, value, hash, level, node, parent)
+      } else {
+        if (node.length == 4) {
+          // Expand the current node, seeking to avoid the collision.
+          val enode = newExpansionNode(node)
+          // Root size always 16, so parent is non-null.
+          val parentmask = parent.length - 1
+          val parentlevel = level - 4
+          val parentpos = (hash >>> parentlevel) & parentmask
+          if (CAS(parent, parentpos, node, enode)) {
+            completeExpansion(parent, parentpos, enode, level)
+            slowInsert(key, value, hash, level, enode.wide, parent)
+          } else slowInsert(key, value, hash, level, node, parent)
+        } else {
+          // Replace the single node with a narrow node.
+          val nnode = newNarrowOrWideNode(oldsn, hash, key, value, level + 4)
+          if (CAS(node, pos, oldsn, nnode)) Success
+          else slowInsert(key, value, hash, level, node, parent)
+        }
       }
+    } else if (old.isInstanceOf[LNode[_, _]]) {
+      val oldln = old.asInstanceOf[LNode[K, V]]
+      val nn = newListNarrowOrWideNode(oldln, hash, key, value, level + 4)
+      if (CAS(node, pos, oldln, nn)) Success
+      else slowInsert(key, value, hash, level, node, parent)
     } else {
       // There is another transaction in progress, help complete it.
       ???
@@ -105,6 +162,10 @@ class CacheTrie[K <: AnyRef, V](val capacity: Int) {
 
   private def isFrozenSNode(n: AnyRef): Boolean = {
     n.isInstanceOf[FNode] && n.asInstanceOf[FNode].frozen.isInstanceOf[SNode[_, _]]
+  }
+
+  private def isFrozenLNode(n: AnyRef): Boolean = {
+    n.isInstanceOf[FNode] && n.asInstanceOf[FNode].frozen.isInstanceOf[LNode[_, _]]
   }
 
   private def freeze(narrow: Array[AnyRef]): Unit = {
@@ -119,12 +180,18 @@ class CacheTrie[K <: AnyRef, V](val capacity: Int) {
       } else if (node.isInstanceOf[SNode[_, _]]) {
         // Freeze single node.
         // If it fails, then either someone helped or another txn is in progress.
-        // If another txn is in progres, then reinspect the current slot.
+        // If another txn is in progress, then we must reinspect the current slot.
+        val fnode = new FNode(node)
+        if (!CAS(narrow, i, node, fnode)) i -= 1
+      } else if (node.isInstanceOf[LNode[_, _]]) {
+        // Freeze list node.
+        // If it fails, then either someone helped or another txn is in progress.
+        // If another txn is in progress, then we must reinspect the current slot.
         val fnode = new FNode(node)
         if (!CAS(narrow, i, node, fnode)) i -= 1
       } else if (node.isInstanceOf[Array[AnyRef]]) {
         sys.error("Unexpected case -- a narrow node should never have collisions.")
-      } else if ((node eq FVNode) || isFrozenSNode(node)) {
+      } else if ((node eq FVNode) || isFrozenSNode(node) || isFrozenLNode(node)) {
         // We can skip, somebody else previously helped with freezing this node.
       } else if (node.isInstanceOf[FNode]) {
         // We still need to freeze the subtree recursively.
@@ -168,6 +235,12 @@ class CacheTrie[K <: AnyRef, V](val capacity: Int) {
           sequentialInsert(sn, wide, level, pos)
         } else sequentialInsert(sn, oldan, level + 4, npos)
       }
+    } else if (old.isInstanceOf[LNode[_, _]]) {
+      val oldln = old.asInstanceOf[LNode[K, V]]
+      val nn = newListNarrowOrWideNode(oldln, sn.hash, sn.key, sn.value, level + 4)
+      wide(pos) = nn
+    } else {
+      sys.error("Unexpected case: " + old)
     }
   }
 
@@ -186,6 +259,14 @@ class CacheTrie[K <: AnyRef, V](val capacity: Int) {
         val pos = (snode.hash >>> level) & mask
         if (wide(pos) == null) wide(pos) = snode
         else sequentialInsert(snode, wide, level, pos)
+      } else if (isFrozenLNode(node)) {
+        var tail = node.asInstanceOf[FNode].frozen.asInstanceOf[LNode[K, V]]
+        while (tail != null) {
+          val sn = new SNode(tail.hash, tail.key, tail.value)
+          val pos = (sn.hash >>> level) & mask
+          sequentialInsert(sn, wide, level, pos)
+          tail = tail.next
+        }
       } else if (node.isInstanceOf[FNode]) {
         sys.error("Unexpected case -- narrow array node should never have collisions.")
       } else {
@@ -197,29 +278,51 @@ class CacheTrie[K <: AnyRef, V](val capacity: Int) {
 
   private def newNarrowOrWideNode(
     sn1: SNode[K, V], sn2: SNode[K, V], level: Int
-  ): Array[AnyRef] = {
-    val pos1 = (sn1.hash >>> level) & (4 - 1)
-    val pos2 = (sn2.hash >>> level) & (4 - 1)
-    if (pos1 != pos2) {
-      val an = new Array[AnyRef](4)
-      val pos1 = (sn1.hash >>> level) & (an.length - 1)
-      an(pos1) = sn1
-      val pos2 = (sn2.hash >>> level) & (an.length - 1)
-      an(pos2) = sn2
-      an
+  ): AnyRef = {
+    if (sn1.hash == sn2.hash) {
+      val ln1 = new LNode(sn1)
+      val ln2 = new LNode(sn2, ln1)
+      ln2
     } else {
-      val an = new Array[AnyRef](16)
-      sequentialInsert(sn1, an, level)
-      sequentialInsert(sn2, an, level)
-      an
+      val pos1 = (sn1.hash >>> level) & (4 - 1)
+      val pos2 = (sn2.hash >>> level) & (4 - 1)
+      if (pos1 != pos2) {
+        val an = new Array[AnyRef](4)
+        val pos1 = (sn1.hash >>> level) & (an.length - 1)
+        an(pos1) = sn1
+        val pos2 = (sn2.hash >>> level) & (an.length - 1)
+        an(pos2) = sn2
+        an
+      } else {
+        val an = new Array[AnyRef](16)
+        sequentialInsert(sn1, an, level)
+        sequentialInsert(sn2, an, level)
+        an
+      }
     }
   }
 
   private def newNarrowOrWideNode(
     sn1: SNode[K, V], h2: Int, k2: K, v2: V, level: Int
-  ): Array[AnyRef] = {
+  ): AnyRef = {
     newNarrowOrWideNode(sn1, new SNode(h2, k2, v2), level)
   }
+
+  private def newListNarrowOrWideNode(
+    ln: CacheTrie.LNode[K, V], hash: Int, k: K, v: V, level: Int
+  ): AnyRef = {
+    if (ln.hash == hash) {
+      new LNode(hash, k, v, ln)
+    } else {
+      val an = new Array[AnyRef](16)
+      val pos1 = (ln.hash >>> level) & (an.length - 1)
+      an(pos1) = ln
+      val sn = new SNode(hash, k, v)
+      sequentialInsert(sn, an, level)
+      an
+    }
+  }
+
 
   private def newExpansionNode(narrow: Array[AnyRef]): ENode = {
     val fn = new ENode(narrow)
@@ -274,6 +377,16 @@ object CacheTrie {
     val key: K,
     val value: V
   )
+
+  class LNode[K <: AnyRef, V](
+    val hash: Int,
+    val key: K,
+    val value: V,
+    val next: LNode[K, V]
+  ) {
+    def this(sn: SNode[K, V], next: LNode[K, V]) = this(sn.hash, sn.key, sn.value, next)
+    def this(sn: SNode[K, V]) = this(sn, null)
+  }
 
   class ENode(
     val narrow: Array[AnyRef]
