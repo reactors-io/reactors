@@ -2,6 +2,9 @@ package io.reactors.common.concurrent
 
 
 
+import io.reactors.test._
+import org.scalacheck.Properties
+import org.scalacheck.Prop.forAllNoShrink
 import org.scalatest.FunSuite
 
 
@@ -39,6 +42,26 @@ class CacheTrieTest extends FunSuite {
     }
     for (i <- 0 until 1000) {
       assert(trie.lookup(i.toString) == i)
+    }
+  }
+}
+
+
+class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
+  val sizes = detChoose(0, 512)
+
+  property("insert and lookup") = forAllNoShrink(sizes) {
+    sz =>
+    stackTraced {
+      val trie = new CacheTrie[String, Int]
+      for (i <- 0 until sz) {
+        trie.insert(i.toString, i)
+        assert(trie.lookup(i.toString) == i)
+      }
+      for (i <- 0 until sz) {
+        assert(trie.lookup(i.toString) == i)
+      }
+      true
     }
   }
 }
