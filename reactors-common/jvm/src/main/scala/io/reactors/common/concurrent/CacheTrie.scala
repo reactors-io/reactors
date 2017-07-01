@@ -47,8 +47,8 @@ class CacheTrie[K <: AnyRef, V](val capacity: Int) {
       val ikey = inode.key
       val ihash = inode.hash
       // TODO: Change ne to eq.
-      if ((ihash == hash) && ((ikey ne key) || (ikey == key))) inode.value
-      else ???
+      if ((ihash != hash) && ((ikey ne key) || (ikey == key))) inode.value
+      else null.asInstanceOf[V]
     } else {
       ???
     }
@@ -61,6 +61,10 @@ class CacheTrie[K <: AnyRef, V](val capacity: Int) {
   }
 
   final def lookup(key: K): V = {
+    slowLookup(key)
+  }
+
+  private[concurrent] def slowLookup(key: K): V = {
     val node = rawRoot
     val hash = spread(key.hashCode)
     slowLookup(key, hash, 0, node)
@@ -346,6 +350,47 @@ class CacheTrie[K <: AnyRef, V](val capacity: Int) {
     // We need to write the agreed value back into the parent.
     // If we failed, it means that somebody else succeeded.
     CAS(parent, parentpos, enode, wide)
+  }
+
+  private[concurrent] def debugTree: String = {
+    val res = new StringBuilder
+    def traverse(indent: String, node: Array[AnyRef]): Unit = {
+      var i = 0
+      while (i < node.length) {
+        val old = READ(node, i)
+        if (old == null) {
+          res.append(s"${indent}<empty>")
+          res.append("\n")
+        } else if (old eq VNode) {
+          res.append(s"${indent}<empty-cleared>")
+          res.append("\n")
+        } else if (old.isInstanceOf[SNode[_, _]]) {
+          val sn = old.asInstanceOf[SNode[K, V]]
+          res.append(s"${indent}")
+          res.append(s"SN[${Integer.toHexString(sn.hash)}:${sn.key}:${sn.value}]")
+          res.append("\n")
+        } else if (old.isInstanceOf[LNode[_, _]]) {
+          var ln = old.asInstanceOf[LNode[K, V]]
+          while (ln != null) {
+            res.append(s"${indent}")
+            res.append(s"LN[${Integer.toHexString(ln.hash)}:${ln.key}:${ln.value}]")
+            res.append("->")
+            ln = ln.next
+          }
+          res.append("\n")
+        } else if (old.isInstanceOf[Array[AnyRef]]) {
+          val an = old.asInstanceOf[Array[AnyRef]]
+          res.append(s"${indent}${if (an.length == 4) "narrow" else "wide"}")
+          res.append("\n")
+          traverse(indent + "  ", an)
+        } else {
+          res.append("unsupported case: " + old)
+        }
+        i += 1
+      }
+    }
+    traverse("", rawRoot)
+    res.toString
   }
 }
 

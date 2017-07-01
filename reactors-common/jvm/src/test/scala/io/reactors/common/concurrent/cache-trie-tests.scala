@@ -28,6 +28,7 @@ class CacheTrieTest extends FunSuite {
     for (i <- 0 until 17) {
       assert(trie.lookup(i.toString) == i)
     }
+    println(trie.debugTree)
   }
 
   test("should insert 1000 elements, and find them while inserting") {

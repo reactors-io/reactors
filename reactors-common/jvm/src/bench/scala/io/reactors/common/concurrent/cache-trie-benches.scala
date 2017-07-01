@@ -11,6 +11,65 @@ import scala.util.Random
 
 
 
+class CacheTrieFootprintBenches extends JBench.OfflineReport {
+  override def measurer = new Executor.Measurer.MemoryFootprint
+
+  override def defaultConfig = Context(
+    exec.benchRuns -> 8,
+    exec.independentSamples -> 1,
+    verbose -> true
+  )
+
+  val sizes = Gen.range("size")(100000, 1000000, 250000)
+
+  case class Wrapper(value: Int)
+
+  val elems = (0 until 1000000).map(i => Wrapper(i)).toArray
+
+  @gen("sizes")
+  @benchmark("cache-trie.size")
+  @curve("chm")
+  def chmInsert(size: Int) = {
+    val chm = new ConcurrentHashMap[Wrapper, Wrapper]
+    var i = 0
+    while (i < size) {
+      val v = elems(i)
+      chm.put(v, v)
+      i += 1
+    }
+    chm
+  }
+
+  @gen("sizes")
+  @benchmark("cache-trie.insert")
+  @curve("ctrie")
+  def ctrieInsert(size: Int) = {
+    val trie = new TrieMap[Wrapper, Wrapper]
+    var i = 0
+    while (i < size) {
+      val v = elems(i)
+      trie.put(v, v)
+      i += 1
+    }
+    trie
+  }
+
+  @gen("sizes")
+  @benchmark("cache-trie.insert")
+  @curve("cachetrie")
+  def cachetrieInsert(size: Int) = {
+    val trie = new CacheTrie[Wrapper, Wrapper]
+    var i = 0
+    while (i < size) {
+      val v = elems(i)
+      trie.insert(v, v)
+      i += 1
+    }
+    trie
+  }
+}
+
+
 class CacheTrieBenches extends JBench.OfflineReport {
   override def historian =
     org.scalameter.reporting.RegressionReporter.Historian.Complete()
@@ -34,12 +93,26 @@ class CacheTrieBenches extends JBench.OfflineReport {
     (size, chm)
   }
 
+  val ctries = for (size <- sizes) yield {
+    val trie = new TrieMap[Wrapper, Wrapper]
+    for (i <- 0 until size) trie.put(elems(i), elems(i))
+    (size, trie)
+  }
+
   val cachetries = for (size <- sizes) yield {
-    val ctrie = new CacheTrie[Wrapper, Wrapper](size)
+    val trie = new CacheTrie[Wrapper, Wrapper]
     for (i <- 0 until size) {
-      ctrie.unsafeCacheInsert(i, elems(i), elems(i))
+      trie.insert(elems(i), elems(i))
     }
-    (size, ctrie)
+    (size, trie)
+  }
+
+  val artificialCachetries = for (size <- sizes) yield {
+    val trie = new CacheTrie[Wrapper, Wrapper](size)
+    for (i <- 0 until size) {
+      trie.unsafeCacheInsert(i, elems(i), elems(i))
+    }
+    (size, trie)
   }
 
 //  @gen("chms")
@@ -58,31 +131,59 @@ class CacheTrieBenches extends JBench.OfflineReport {
 
 //  @gen("cachetries")
 //  @benchmark("cache-trie.apply")
-//  @curve("cachetrie")
-//  def cachetrieLookup(sc: (Int, CacheTrie[Wrapper, Wrapper])): Int = {
+//  @curve("cachetrie-slow-path")
+//  def cachetrieSlowLookup(sc: (Int, CacheTrie[Wrapper, Wrapper])): Int = {
 //    val (size, trie) = sc
 //    var i = 0
 //    var sum = 0
 //    while (i < size) {
-//      sum += trie.fastLookup(elems(i)).value
+//      sum += trie.slowLookup(elems(i)).value
+//      i += 1
+//    }
+//    sum
+//  }
+//
+//  @gen("ctries")
+//  @benchmark("cache-trie.apply")
+//  @curve("ctrie")
+//  def ctrie(sc: (Int, TrieMap[Wrapper, Wrapper])): Int = {
+//    val (size, trie) = sc
+//    var i = 0
+//    var sum = 0
+//    while (i < size) {
+//      sum += trie.lookup(elems(i)).value
 //      i += 1
 //    }
 //    sum
 //  }
 
-//  @gen("sizes")
-//  @benchmark("cache-trie.insert")
-//  @curve("chm")
-//  def chmInsert(size: Int) = {
-//    val chm = new ConcurrentHashMap[Wrapper, Wrapper]
-//    var i = 0
-//    while (i < size) {
-//      val v = elems(i)
-//      chm.put(v, v)
-//      i += 1
-//    }
-//    chm
-//  }
+  @gen("artificialCachetries")
+  @benchmark("cache-trie.apply")
+  @curve("cachetrie")
+  def cachetrieFastLookup(sc: (Int, CacheTrie[Wrapper, Wrapper])): Int = {
+    val (size, trie) = sc
+    var i = 0
+    var sum = 0
+    while (i < size) {
+      sum += trie.fastLookup(elems(i)).value
+      i += 1
+    }
+    sum
+  }
+
+  @gen("sizes")
+  @benchmark("cache-trie.insert")
+  @curve("chm")
+  def chmInsert(size: Int) = {
+    val chm = new ConcurrentHashMap[Wrapper, Wrapper]
+    var i = 0
+    while (i < size) {
+      val v = elems(i)
+      chm.put(v, v)
+      i += 1
+    }
+    chm
+  }
 
   @gen("sizes")
   @benchmark("cache-trie.insert")
