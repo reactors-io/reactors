@@ -92,4 +92,28 @@ class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
       seen.reverse == (0 until seen.length).map(_.toString)
     }
   }
+
+  property("two concurrent inserts") = forAllNoShrink(sizes) {
+    sz =>
+    stackTraced {
+      val trie = new CacheTrie[Integer, Int]
+      val inserter1 = thread {
+        for (i <- 0 until sz) {
+          trie.insert(i, i)
+        }
+      }
+      val inserter2 = thread {
+        for (i <- 0 until sz) {
+          trie.insert(sz + i, sz + i)
+        }
+      }
+      inserter1.join()
+      inserter2.join()
+      for (i <- 0 until sz) {
+        assert(trie.lookup(i) == i)
+        assert(trie.lookup(sz + i) == (sz + i))
+      }
+      true
+    }
+  }
 }

@@ -115,47 +115,47 @@ class CacheTrieBenches extends JBench.OfflineReport {
     (size, trie)
   }
 
-//  @gen("chms")
-//  @benchmark("cache-trie.apply")
-//  @curve("CHM")
-//  def chmLookup(sc: (Int, ConcurrentHashMap[Wrapper, Wrapper])): Int = {
-//    val (size, chm) = sc
-//    var i = 0
-//    var sum = 0
-//    while (i < size) {
-//      sum += chm.get(elems(i)).value
-//      i += 1
-//    }
-//    sum
-//  }
+  @gen("chms")
+  @benchmark("cache-trie.apply")
+  @curve("CHM")
+  def chmLookup(sc: (Int, ConcurrentHashMap[Wrapper, Wrapper])): Int = {
+    val (size, chm) = sc
+    var i = 0
+    var sum = 0
+    while (i < size) {
+      sum += chm.get(elems(i)).value
+      i += 1
+    }
+    sum
+  }
 
-//  @gen("cachetries")
-//  @benchmark("cache-trie.apply")
-//  @curve("cachetrie-slow-path")
-//  def cachetrieSlowLookup(sc: (Int, CacheTrie[Wrapper, Wrapper])): Int = {
-//    val (size, trie) = sc
-//    var i = 0
-//    var sum = 0
-//    while (i < size) {
-//      sum += trie.slowLookup(elems(i)).value
-//      i += 1
-//    }
-//    sum
-//  }
-//
-//  @gen("ctries")
-//  @benchmark("cache-trie.apply")
-//  @curve("ctrie")
-//  def ctrie(sc: (Int, TrieMap[Wrapper, Wrapper])): Int = {
-//    val (size, trie) = sc
-//    var i = 0
-//    var sum = 0
-//    while (i < size) {
-//      sum += trie.lookup(elems(i)).value
-//      i += 1
-//    }
-//    sum
-//  }
+  @gen("cachetries")
+  @benchmark("cache-trie.apply")
+  @curve("cachetrie-slow-path")
+  def cachetrieSlowLookup(sc: (Int, CacheTrie[Wrapper, Wrapper])): Int = {
+    val (size, trie) = sc
+    var i = 0
+    var sum = 0
+    while (i < size) {
+      sum += trie.slowLookup(elems(i)).value
+      i += 1
+    }
+    sum
+  }
+
+  @gen("ctries")
+  @benchmark("cache-trie.apply")
+  @curve("ctrie")
+  def ctrie(sc: (Int, TrieMap[Wrapper, Wrapper])): Int = {
+    val (size, trie) = sc
+    var i = 0
+    var sum = 0
+    while (i < size) {
+      sum += trie.lookup(elems(i)).value
+      i += 1
+    }
+    sum
+  }
 
   @gen("artificialCachetries")
   @benchmark("cache-trie.apply")
