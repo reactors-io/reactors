@@ -159,7 +159,7 @@ class CacheTrieBenches extends JBench.OfflineReport {
 
   @gen("artificialCachetries")
   @benchmark("cache-trie.apply")
-  @curve("cachetrie")
+  @curve("cachetrie-fast-path")
   def cachetrieFastLookup(sc: (Int, CacheTrie[Wrapper, Wrapper])): Int = {
     val (size, trie) = sc
     var i = 0

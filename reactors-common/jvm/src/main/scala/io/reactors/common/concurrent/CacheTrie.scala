@@ -110,7 +110,10 @@ class CacheTrie[K <: AnyRef, V](val capacity: Int) {
   final def insert(key: K, value: V): Unit = {
     val node = rawRoot
     val hash = spread(key.hashCode)
-    slowInsert(key, value, hash, 0, node, null)
+    var result = Restart
+    do {
+      result = slowInsert(key, value, hash, 0, node, null)
+    } while (result == Restart)
   }
 
   @tailrec
