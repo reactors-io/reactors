@@ -142,7 +142,7 @@ class CacheTrie[K <: AnyRef, V](val capacity: Int) {
           val parentmask = parent.length - 1
           val parentlevel = level - 4
           val parentpos = (hash >>> parentlevel) & parentmask
-          val enode = (parent, parentpos, current, level)
+          val enode = new ENode(parent, parentpos, current, level)
           if (CAS(parent, parentpos, current, enode)) {
             completeExpansion(enode)
             slowInsert(key, value, hash, level, enode.wide, parent)
