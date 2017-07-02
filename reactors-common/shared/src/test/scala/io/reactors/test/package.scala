@@ -47,6 +47,13 @@ package test {
       x <- gens(i)
     } yield x
 
+    def thread[U](body: =>U): Thread = {
+      val t = new Thread {
+        override def run(): Unit = body
+      }
+      t.start()
+      t
+    }
   }
 
 }

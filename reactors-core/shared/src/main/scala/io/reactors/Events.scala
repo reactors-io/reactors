@@ -233,7 +233,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *    (history, n) => n :: history
    *  }
    *  }}}
-   *  
+   *
    *  The `s2` will produce events `1 :: Nil`, `2 :: 1 :: Nil` and
    *  `3 :: 2 :: 1 :: Nil`.
    *  '''Note:''' the initial value `Nil` is '''not emitted'''.
@@ -320,7 +320,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  can trigger an event on `this`.
    *  The result is that `mutation` is invoked concurrently on the same thread.
    *  The following code is problematic has a feedback loop in the dataflow graph:
-   *  
+   *
    *  {{{
    *  val emitter = new Events.Emitter[Int]
    *  val mutable = new Events.Mutable[mutable.Buffer[Int]()]
@@ -332,7 +332,7 @@ trait Events[@spec(Int, Long, Double) T] {
    *  }
    *  emitter.react(0)
    *  }}}
-   *  
+   *
    *  The statement `emitter.react(n + 1)` in the `mutate` block
    *  suspends the current mutation, calls the mutation
    *  recursively and changes the value of `cell`, and the assertion fails when
@@ -411,7 +411,7 @@ trait Events[@spec(Int, Long, Double) T] {
 
   /** Creates a new event stream value that produces events from `this` event stream
    *  value until `that` produces an event.
-   *  
+   *
    *  If `this` unreacts before `that` produces a value, the resulting event stream
    *  unreacts.
    *  Otherwise, the resulting event stream unreacts whenever `that` produces a
@@ -1042,12 +1042,11 @@ trait Events[@spec(Int, Long, Double) T] {
     new Events.Each[T](this, count)
   }
 
-  /** Repeat each value every `count` times. 
+  /** Repeat each value every `count` times.
    *
    *  Assumed of shared state between repeated values.
    *  If there is a need of separate states, e.g. for
-   *  mutable objects, consider to implement 
-   *  `copy` method.
+   *  mutable objects, consider implementing the `copy` method.
    *
    *  If `count` is set to `2`, result will be as follows:
    *
@@ -1063,7 +1062,7 @@ trait Events[@spec(Int, Long, Double) T] {
   
   /** Partitions this events stream in two events streams according to a predicate.
    * 
-   *  @return a pair of the first events stream consists of all elements that 
+   *  @return a pair of the first events stream consists of all elements that
    *          satisfy the predicate `p`, and the second event stream consists
    *          of all elements that don't. The relative order of the elements
    *          in the resulting events streams is the same as in the original.
@@ -1562,7 +1561,7 @@ object Events {
   /** Synchronizes a sequence of event streams.
    *
    *  The resulting event stream emits a sequence of events every time it manages
-   *  to obtain a sequence from each of the input 
+   *  to obtain a sequence from each of the input.
    */
   def sync[@spec(Int, Long, Double) T](es: Events[T]*)(
     implicit a: Arrayable[T]

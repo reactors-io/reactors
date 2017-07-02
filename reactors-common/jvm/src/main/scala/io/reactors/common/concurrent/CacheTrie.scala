@@ -102,8 +102,43 @@ class CacheTrie[K <: AnyRef, V](val capacity: Int) {
         }
         null.asInstanceOf[V]
       }
+    } else if (old.isInstanceOf[ENode]) {
+      val enode = old.asInstanceOf[ENode]
+      val narrow = enode.narrow
+      slowLookup(key, hash, level + 4, narrow)
+    } else if (old eq FVNode) {
+      null.asInstanceOf[V]
+    } else if (old.isInstanceOf[FNode]) {
+      val frozen = old.asInstanceOf[FNode].frozen
+      if (frozen.isInstanceOf[SNode[_, _]]) {
+        val sn = frozen.asInstanceOf[SNode[K, V]]
+        if ((sn.hash == hash) && ((sn.key eq key) || (sn.key == key))) {
+          sn.value
+        } else {
+          null.asInstanceOf[V]
+        }
+      } else if (frozen.isInstanceOf[LNode[_, _]]) {
+        val ln = frozen.asInstanceOf[LNode[K, V]]
+        if (ln.hash != hash) {
+          null.asInstanceOf[V]
+        } else {
+          var tail = ln
+          while (tail != null) {
+            if ((tail.key eq key) || (tail.key == key)) {
+              return tail.value
+            }
+            tail = tail.next
+          }
+          null.asInstanceOf[V]
+        }
+      } else if (frozen.isInstanceOf[Array[AnyRef]]) {
+        val an = frozen.asInstanceOf[Array[AnyRef]]
+        slowLookup(key, hash, level + 4, an)
+      } else {
+        sys.error(s"Unexpected case: $old")
+      }
     } else {
-      ???
+      sys.error(s"Unexpected case: $old")
     }
   }
 

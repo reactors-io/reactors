@@ -3,9 +3,12 @@ package io.reactors.common.concurrent
 
 
 import io.reactors.test._
-import org.scalacheck.Properties
 import org.scalacheck.Prop.forAllNoShrink
+import org.scalacheck.Properties
 import org.scalatest.FunSuite
+import scala.collection._
+import scala.concurrent._
+import scala.concurrent.duration._
 
 
 
@@ -48,7 +51,7 @@ class CacheTrieTest extends FunSuite {
 
 
 class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
-  val sizes = detChoose(0, 512)
+  val sizes = detChoose(0, 4096)
 
   property("insert and lookup") = forAllNoShrink(sizes) {
     sz =>
@@ -62,6 +65,31 @@ class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
         assert(trie.lookup(i.toString) == i)
       }
       true
+    }
+  }
+
+  property("concurrent insert and slow lookup") = forAllNoShrink(sizes) {
+    sz =>
+    stackTraced {
+      val completed = Promise[Seq[String]]()
+      val trie = new CacheTrie[String, String]
+      val inserter = thread {
+        for (i <- 0 until sz) {
+          trie.insert(i.toString, i.toString)
+        }
+      }
+      val looker = thread {
+        val found = mutable.Buffer[String]()
+        for (i <- (0 until sz).reverse) {
+          val result = trie.slowLookup(i.toString)
+          if (result != null) found += result
+        }
+        completed.success(found)
+      }
+      inserter.join()
+      looker.join()
+      val seen = Await.result(completed.future, 10.seconds)
+      seen.reverse == (0 until seen.length).map(_.toString)
     }
   }
 }
