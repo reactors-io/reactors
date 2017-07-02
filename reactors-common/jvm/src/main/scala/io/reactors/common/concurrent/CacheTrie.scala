@@ -115,52 +115,62 @@ class CacheTrie[K <: AnyRef, V](val capacity: Int) {
 
   @tailrec
   private[concurrent] final def slowInsert(
-    key: K, value: V, hash: Int, level: Int, node: Array[AnyRef], parent: Array[AnyRef]
+    key: K, value: V, hash: Int, level: Int,
+    current: Array[AnyRef], parent: Array[AnyRef]
   ): AnyRef = {
-    val mask = node.length - 1
+    val mask = current.length - 1
     val pos = (hash >>> level) & mask
-    val old = READ(node, pos)
+    val old = READ(current, pos)
     if ((old eq null) || (old eq VNode)) {
       // Fast-path -- CAS the node into the empty position.
       val snode = new SNode(hash, key, value)
-      if (CAS(node, pos, old, snode)) Success
-      else slowInsert(key, value, hash, level, node, parent)
+      if (CAS(current, pos, old, snode)) Success
+      else slowInsert(key, value, hash, level, current, parent)
     } else if (old.isInstanceOf[Array[_]]) {
       // Repeat the search on the next level.
-      slowInsert(key, value, hash, level + 4, old.asInstanceOf[Array[AnyRef]], node)
+      slowInsert(key, value, hash, level + 4, old.asInstanceOf[Array[AnyRef]], current)
     } else if (old.isInstanceOf[SNode[_, _]]) {
       val oldsn = old.asInstanceOf[SNode[K, V]]
       if ((oldsn.hash == hash) && ((oldsn.key eq key) || (oldsn.key == key))) {
         val sn = new SNode(hash, key, value)
-        if (CAS(node, pos, oldsn, sn)) Success
-        else slowInsert(key, value, hash, level, node, parent)
+        if (CAS(current, pos, oldsn, sn)) Success
+        else slowInsert(key, value, hash, level, current, parent)
       } else {
-        if (node.length == 4) {
+        if (current.length == 4) {
           // Expand the current node, seeking to avoid the collision.
-          val enode = newExpansionNode(node)
           // Root size always 16, so parent is non-null.
           val parentmask = parent.length - 1
           val parentlevel = level - 4
           val parentpos = (hash >>> parentlevel) & parentmask
-          if (CAS(parent, parentpos, node, enode)) {
-            completeExpansion(parent, parentpos, enode, level)
+          val enode = (parent, parentpos, current, level)
+          if (CAS(parent, parentpos, current, enode)) {
+            completeExpansion(enode)
             slowInsert(key, value, hash, level, enode.wide, parent)
-          } else slowInsert(key, value, hash, level, node, parent)
+          } else slowInsert(key, value, hash, level, current, parent)
         } else {
           // Replace the single node with a narrow node.
           val nnode = newNarrowOrWideNode(oldsn, hash, key, value, level + 4)
-          if (CAS(node, pos, oldsn, nnode)) Success
-          else slowInsert(key, value, hash, level, node, parent)
+          if (CAS(current, pos, oldsn, nnode)) Success
+          else slowInsert(key, value, hash, level, current, parent)
         }
       }
     } else if (old.isInstanceOf[LNode[_, _]]) {
       val oldln = old.asInstanceOf[LNode[K, V]]
       val nn = newListNarrowOrWideNode(oldln, hash, key, value, level + 4)
-      if (CAS(node, pos, oldln, nn)) Success
-      else slowInsert(key, value, hash, level, node, parent)
+      if (CAS(current, pos, oldln, nn)) Success
+      else slowInsert(key, value, hash, level, current, parent)
+    } else if (old.isInstanceOf[ENode]) {
+      // There is another transaction in progress, help complete it, then restart.
+      val enode = old.asInstanceOf[ENode]
+      completeExpansion(enode)
+      Restart
+    } else if ((old eq FVNode) || old.isInstanceOf[FNode]) {
+      // We landed into the middle of some other thread's transaction.
+      // We need to restart from the top to find the transaction's descriptor,
+      // and if we find it, then help and restart once more.
+      Restart
     } else {
-      // There is another transaction in progress, help complete it.
-      ???
+      sys.error("Unexpected case -- " + old)
     }
   }
 
@@ -172,38 +182,49 @@ class CacheTrie[K <: AnyRef, V](val capacity: Int) {
     n.isInstanceOf[FNode] && n.asInstanceOf[FNode].frozen.isInstanceOf[LNode[_, _]]
   }
 
-  private def freeze(narrow: Array[AnyRef]): Unit = {
+  private def freeze(current: Array[AnyRef]): Unit = {
     var i = 0
-    while (i < narrow.length) {
-      val node = READ(narrow, i)
+    while (i < current.length) {
+      val node = READ(current, i)
       if ((node eq null) || (node eq VNode)) {
         // Freeze null or vacant.
         // If it fails, then either someone helped or another txn is in progress.
         // If another txn is in progress, then reinspect the current slot.
-        if (!CAS(narrow, i, node, FVNode)) i -= 1
+        if (!CAS(current, i, node, FVNode)) i -= 1
       } else if (node.isInstanceOf[SNode[_, _]]) {
         // Freeze single node.
         // If it fails, then either someone helped or another txn is in progress.
         // If another txn is in progress, then we must reinspect the current slot.
         val fnode = new FNode(node)
-        if (!CAS(narrow, i, node, fnode)) i -= 1
+        if (!CAS(current, i, node, fnode)) i -= 1
       } else if (node.isInstanceOf[LNode[_, _]]) {
         // Freeze list node.
         // If it fails, then either someone helped or another txn is in progress.
         // If another txn is in progress, then we must reinspect the current slot.
         val fnode = new FNode(node)
-        if (!CAS(narrow, i, node, fnode)) i -= 1
+        if (!CAS(current, i, node, fnode)) i -= 1
       } else if (node.isInstanceOf[Array[AnyRef]]) {
-        sys.error("Unexpected case -- a narrow node should never have collisions.")
+        // Freeze the array node.
+        // If it fails, then either someone helped or another txn is in progress.
+        // If another txn is in progress, then reinspect the current slot.
+        val fnode = new FNode(node)
+        if (!CAS(current, i, node, fnode)) i -= 1
       } else if ((node eq FVNode) || isFrozenSNode(node) || isFrozenLNode(node)) {
         // We can skip, somebody else previously helped with freezing this node.
       } else if (node.isInstanceOf[FNode]) {
         // We still need to freeze the subtree recursively.
         val subnode = node.asInstanceOf[FNode].frozen.asInstanceOf[Array[AnyRef]]
         freeze(subnode.asInstanceOf[Array[AnyRef]])
+      } else if (node eq FVNode) {
+        // We can continue, another thread already froze this slot.
+      } else if (node.isInstanceOf[ENode]) {
+        // If some other txn is in progress, help complete it,
+        // then restart from current position.
+        val enode = node.asInstanceOf[ENode]
+        completeExpansion(enode)
+        i -= 1
       } else {
-        // If some other txn is in progress, help complete it, then restart.
-        ???
+        sys.error("Unexpected case -- " + node)
       }
       i += 1
     }
@@ -272,6 +293,7 @@ class CacheTrie[K <: AnyRef, V](val capacity: Int) {
           tail = tail.next
         }
       } else if (node.isInstanceOf[FNode]) {
+        // TODO: Revisit this.
         sys.error("Unexpected case -- narrow array node should never have collisions.")
       } else {
         sys.error("Unexpected case -- narrow array node should have been frozen.")
@@ -327,15 +349,11 @@ class CacheTrie[K <: AnyRef, V](val capacity: Int) {
     }
   }
 
+  private def completeExpansion(enode: ENode): Unit = {
+    val parent = enode.parent
+    val parentpos = enode.parentpos
+    val level = enode.level
 
-  private def newExpansionNode(narrow: Array[AnyRef]): ENode = {
-    val fn = new ENode(narrow)
-    fn
-  }
-
-  private def completeExpansion(
-    parent: Array[AnyRef], parentpos: Int, enode: ENode, level: Int
-  ): Unit = {
     // First, freeze the subtree beneath the narrow node.
     val narrow = enode.narrow
     freeze(narrow)
@@ -434,7 +452,10 @@ object CacheTrie {
   }
 
   class ENode(
-    val narrow: Array[AnyRef]
+    val parent: Array[AnyRef],
+    val parentpos: Int,
+    val narrow: Array[AnyRef],
+    val level: Int
   ) {
     @volatile var wide: Array[AnyRef] = null
   }
