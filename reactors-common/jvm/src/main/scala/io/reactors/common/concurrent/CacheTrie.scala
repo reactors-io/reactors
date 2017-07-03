@@ -468,7 +468,7 @@ class CacheTrie[K <: AnyRef, V] {
     }
     // We need to write the agreed value back into the parent.
     // If we failed, it means that somebody else succeeded.
-    // If we succeeded, then the cache must be updated.
+    // If we succeeded, then we must update the cache.
     if (CAS(parent, parentpos, enode, wide)) {
       // TODO: Update the cache.
     }
