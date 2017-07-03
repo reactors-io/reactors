@@ -108,7 +108,7 @@ class CacheTrieBenches extends JBench.OfflineReport {
   }
 
   val artificialCachetries = for (size <- sizes) yield {
-    val trie = new CacheTrie[Wrapper, Wrapper](size)
+    val trie = new CacheTrie[Wrapper, Wrapper]
     trie.debugCachePopulate(20, elems(0), elems(0))
     (size, trie)
   }
@@ -163,7 +163,8 @@ class CacheTrieBenches extends JBench.OfflineReport {
     var i = 0
     var sum = 0
     while (i < size) {
-      sum += (if (trie.fastLookup(elems(i)) != null) 1 else 0)
+      val x = trie.fastLookup(elems(i))
+      sum += (if (x != null) x.value else 0)
       i += 1
     }
     sum

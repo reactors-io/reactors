@@ -7,14 +7,12 @@ import scala.annotation.tailrec
 
 
 
-class CacheTrie[K <: AnyRef, V](val capacity: Int) {
+class CacheTrie[K <: AnyRef, V] {
   import CacheTrie._
 
   private val unsafe: Unsafe = Platform.unsafe
-  @volatile private var rawCache: Array[AnyRef] = new Array(capacity * 2)
+  @volatile private var rawCache: Array[AnyRef] = null
   private val rawRoot: Array[AnyRef] = new Array[AnyRef](16)
-
-  def this() = this(0)
 
   private def READ(array: Array[AnyRef], pos: Int): AnyRef = {
     unsafe.getObjectVolatile(array, ArrayBase + (pos << ArrayShift))
@@ -25,6 +23,10 @@ class CacheTrie[K <: AnyRef, V](val capacity: Int) {
   }
 
   private def READ_CACHE: Array[AnyRef] = rawCache
+
+  private def CAS_CACHE(ov: Array[AnyRef], nv: Array[AnyRef]) = {
+    unsafe.compareAndSwapObject(this, CacheTrieRawCacheOffset, ov, nv)
+  }
 
   private def READ_WIDE(enode: ENode): Array[AnyRef] = enode.wide
 
@@ -44,51 +46,56 @@ class CacheTrie[K <: AnyRef, V](val capacity: Int) {
   @tailrec
   private[concurrent] final def fastLookup(key: K, hash: Int): V = {
     val cache = READ_CACHE
-    val len = cache.length
-    val pos = hash & (len - 1)
-    val node = READ(cache, pos)
-    if (node eq null) {
-      // Nothing is cached at this location, do slow lookup.
+    if (cache == null) {
       slowLookup(key, hash, 0, rawRoot)
-    } else if (node.isInstanceOf[Array[AnyRef]]) {
-      val cached = node.asInstanceOf[Array[AnyRef]]
-      val level = Integer.numberOfTrailingZeros(len) - 4 + 4
-      val mask = cached.length - 1
-      val pos = (hash >> level) & mask
-      val old = READ(cached, pos)
-      if ((old eq null) || (old eq VNode)) {
-        // The key is not present in the cache trie.
-        null.asInstanceOf[V]
-      } else if (old.isInstanceOf[SNode[_, _]]) {
-        // Check if the key is contained in the single node.
-        val oldsn = old.asInstanceOf[SNode[K, V]]
-        val oldhash = oldsn.hash
-        val oldkey = oldsn.key
-        if ((oldhash == hash) && ((oldkey eq key) || (oldkey == key))) oldsn.value
-        else null.asInstanceOf[V]
-      } else if (old.isInstanceOf[Array[AnyRef]]) {
-        // Continue the search from the specified level.
-        val oldan = old.asInstanceOf[Array[AnyRef]]
-        slowLookup(key, hash, level + 4, oldan)
-      } else if ((old eq FVNode) || old.isInstanceOf[FNode]) {
-        // The array node contains a frozen node, so it is obsolete -- do slow lookup.
-        slowLookup(key, hash, 0, rawRoot)
-      } else if (old.isInstanceOf[ENode]) {
-        // Help complete the transaction.
-        val en = old.asInstanceOf[ENode]
-        completeExpansion(en)
-        fastLookup(key, hash)
-      } else {
-        sys.error(s"Unexpected case -- $old")
-      }
     } else {
-      sys.error(s"Unexpected case -- $node is not supposed to be cached.")
+      val len = cache.length
+      val pos = 1 + (hash & (len - 1))
+      val cachee = READ(cache, pos)
+      if (cachee eq null) {
+        // Nothing is cached at this location, do slow lookup.
+        slowLookup(key, hash, 0, rawRoot)
+      } else if (cachee.isInstanceOf[Array[AnyRef]]) {
+        val an = cachee.asInstanceOf[Array[AnyRef]]
+        val level = Integer.numberOfTrailingZeros(len) - 4 + 4
+        val mask = an.length - 1
+        val pos = (hash >> level) & mask
+        val old = READ(an, pos)
+        if ((old eq null) || (old eq VNode)) {
+          // The key is not present in the cache trie.
+          null.asInstanceOf[V]
+        } else if (old.isInstanceOf[SNode[_, _]]) {
+          // Check if the key is contained in the single node.
+          val oldsn = old.asInstanceOf[SNode[K, V]]
+          val oldhash = oldsn.hash
+          val oldkey = oldsn.key
+          if ((oldhash == hash) && ((oldkey eq key) || (oldkey == key))) oldsn.value
+          else null.asInstanceOf[V]
+        } else if (old.isInstanceOf[Array[AnyRef]]) {
+          // Continue the search from the specified level.
+          val oldan = old.asInstanceOf[Array[AnyRef]]
+          slowLookup(key, hash, level + 4, oldan)
+        } else if ((old eq FVNode) || old.isInstanceOf[FNode]) {
+          // Array node contains a frozen node, so it is obsolete -- do slow lookup.
+          slowLookup(key, hash, 0, rawRoot)
+        } else if (old.isInstanceOf[ENode]) {
+          // Help complete the transaction.
+          val en = old.asInstanceOf[ENode]
+          completeExpansion(en)
+          fastLookup(key, hash)
+        } else {
+          sys.error(s"Unexpected case -- $old")
+        }
+      } else {
+        sys.error(s"Unexpected case -- $cachee is not supposed to be cached.")
+      }
     }
   }
 
   private[concurrent] def debugCachePopulate(level: Int, key: K, value: V): Unit = {
     rawCache = new Array[AnyRef]((1 << level) + 1)
-    var i = 0
+    rawCache(0) = new StatsNode(level)
+    var i = 1
     while (i < rawCache.length) {
       val an = new Array[AnyRef](4)
       rawCache(i) = an
@@ -103,7 +110,7 @@ class CacheTrie[K <: AnyRef, V](val capacity: Int) {
 
   final def lookup(key: K): V = {
     val hash = spread(key.hashCode)
-    slowLookup(key)
+    fastLookup(key, hash)
   }
 
   private[concurrent] def slowLookup(key: K, hash: Int): V = {
@@ -461,7 +468,10 @@ class CacheTrie[K <: AnyRef, V](val capacity: Int) {
     }
     // We need to write the agreed value back into the parent.
     // If we failed, it means that somebody else succeeded.
-    CAS(parent, parentpos, enode, wide)
+    // If we succeeded, then the cache must be updated.
+    if (CAS(parent, parentpos, enode, wide)) {
+      // TODO: Update the cache.
+    }
   }
 
   private[concurrent] def debugTree: String = {
@@ -518,6 +528,11 @@ object CacheTrie {
     val field = classOf[ENode].getDeclaredField("wide")
     Platform.unsafe.objectFieldOffset(field)
   }
+  private val CacheTrieRawCacheOffset = {
+    val field = classOf[CacheTrie[_, _]].getDeclaredField("rawCache")
+    Platform.unsafe.objectFieldOffset(field)
+  }
+  private val availableProcessors = Runtime.getRuntime.availableProcessors()
 
   /* result types */
 
@@ -562,4 +577,22 @@ object CacheTrie {
 
   class XNode(
   )
+
+  class StatsNode(val level: Int) {
+    val missCounts = new Array[Int](availableProcessors * math.min(16, level))
+
+    private def pos: Int = {
+      val id = Thread.currentThread.getId
+      val pos = (id ^ (id >>> 16)).toInt & (missCounts.length - 1)
+      pos
+    }
+
+    final def approximateMissCount: Int = {
+      missCounts(pos)
+    }
+
+    final def bumpMissCount: Unit = {
+      missCounts(pos) += 1
+    }
+  }
 }
