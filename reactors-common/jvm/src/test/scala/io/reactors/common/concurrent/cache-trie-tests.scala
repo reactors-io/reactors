@@ -205,21 +205,24 @@ class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
 
   property("concurrent inserts on same keys") = forAllNoShrink(numThreads, sizes) {
     (n, sz) =>
-    val trie = new CacheTrie[Integer, Int]
-    val threads = for (k <- 0 until n) yield thread {
-      for (i <- 0 until sz) {
-        trie.insert(i, i)
+    stackTraced {
+      val trie = new CacheTrie[Integer, Int]
+      val threads = for (k <- 0 until n) yield thread {
+        for (i <- 0 until sz) {
+          trie.insert(i, i)
+        }
       }
+      threads.foreach(_.join())
+      for (i <- 0 until sz) {
+        assert(trie.lookup(i) == i)
+      }
+      true
     }
-    threads.foreach(_.join())
-    for (i <- 0 until sz) {
-      assert(trie.lookup(i) == i)
-    }
-    true
   }
 
   property("concurrent inserts on rotated keys") = forAllNoShrink(numThreads, sizes) {
     (n, sz) =>
+    stackTraced {
       val trie = new CacheTrie[Integer, Int]
       val threads = for (k <- 0 until n) yield thread {
         val rotation = sz / n * ((k / 2) % 4)
@@ -234,5 +237,6 @@ class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
         assert(trie.lookup(i) == i)
       }
       true
+    }
   }
 }
