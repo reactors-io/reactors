@@ -16,10 +16,6 @@ class CacheTrie[K <: AnyRef, V](val capacity: Int) {
 
   def this() = this(0)
 
-  private def spread(h: Int): Int = {
-    (h ^ (h >>> 16)) & 0x7fffffff
-  }
-
   private def READ(array: Array[AnyRef], pos: Int): AnyRef = {
     unsafe.getObjectVolatile(array, ArrayBase + (pos << ArrayShift))
   }
@@ -36,32 +32,83 @@ class CacheTrie[K <: AnyRef, V](val capacity: Int) {
     unsafe.compareAndSwapObject(enode, ENodeWideOffset, ov, nv)
   }
 
+  private def spread(h: Int): Int = {
+    (h ^ (h >>> 16)) & 0x7fffffff
+  }
+
   private[concurrent] def fastLookup(key: K): V = {
+    val hash = spread(key.hashCode)
+    fastLookup(key, hash)
+  }
+
+  @tailrec
+  private[concurrent] final def fastLookup(key: K, hash: Int): V = {
     val cache = READ_CACHE
     val len = cache.length
-    val hash = spread(key.hashCode)
     val pos = hash & (len - 1)
     val node = READ(cache, pos)
-    if (node.isInstanceOf[SNode[K, V]]) {
-      val inode = node.asInstanceOf[SNode[K, V]]
-      val ikey = inode.key
-      val ihash = inode.hash
-      // TODO: Change ne to eq.
-      if ((ihash != hash) && ((ikey ne key) || (ikey == key))) inode.value
-      else null.asInstanceOf[V]
+    if (node eq null) {
+      // Nothing is cached at this location, do slow lookup.
+      slowLookup(key, hash, 0, rawRoot)
+    } else if (node.isInstanceOf[Array[AnyRef]]) {
+      val cached = node.asInstanceOf[Array[AnyRef]]
+      val level = Integer.numberOfTrailingZeros(len) - 4 + 4
+      val mask = cached.length - 1
+      val pos = (hash >> level) & mask
+      val old = READ(cached, pos)
+      if ((old eq null) || (old eq VNode)) {
+        // The key is not present in the cache trie.
+        null.asInstanceOf[V]
+      } else if (old.isInstanceOf[SNode[_, _]]) {
+        // Check if the key is contained in the single node.
+        val oldsn = old.asInstanceOf[SNode[K, V]]
+        val oldhash = oldsn.hash
+        val oldkey = oldsn.key
+        if ((oldhash == hash) && ((oldkey eq key) || (oldkey == key))) oldsn.value
+        else null.asInstanceOf[V]
+      } else if (old.isInstanceOf[Array[AnyRef]]) {
+        // Continue the search from the specified level.
+        val oldan = old.asInstanceOf[Array[AnyRef]]
+        slowLookup(key, hash, level + 4, oldan)
+      } else if ((old eq FVNode) || old.isInstanceOf[FNode]) {
+        // The array node contains a frozen node, so it is obsolete -- do slow lookup.
+        slowLookup(key, hash, 0, rawRoot)
+      } else if (old.isInstanceOf[ENode]) {
+        // Help complete the transaction.
+        val en = old.asInstanceOf[ENode]
+        completeExpansion(en)
+        fastLookup(key, hash)
+      } else {
+        sys.error(s"Unexpected case -- $old")
+      }
     } else {
-      ???
+      sys.error(s"Unexpected case -- $node is not supposed to be cached.")
     }
   }
 
-  private[concurrent] def unsafeCacheInsert(i: Int, key: K, value: V): Unit = {
-    val n = new SNode(0, key, value)
-    rawCache(2 * i) = n
-    rawCache(2 * i + 1) = n
+  private[concurrent] def debugCachePopulate(level: Int, key: K, value: V): Unit = {
+    rawCache = new Array[AnyRef]((1 << level) + 1)
+    var i = 0
+    while (i < rawCache.length) {
+      val an = new Array[AnyRef](4)
+      rawCache(i) = an
+      var j = 0
+      while (j < 4) {
+        an(j) = new SNode(0, key, value)
+        j += 1
+      }
+      i += 1
+    }
   }
 
   final def lookup(key: K): V = {
+    val hash = spread(key.hashCode)
     slowLookup(key)
+  }
+
+  private[concurrent] def slowLookup(key: K, hash: Int): V = {
+    val node = rawRoot
+    slowLookup(key, hash, 0, node)
   }
 
   private[concurrent] def slowLookup(key: K): V = {
@@ -340,7 +387,7 @@ class CacheTrie[K <: AnyRef, V](val capacity: Int) {
           tail = tail.next
         }
       } else if (node.isInstanceOf[FNode]) {
-        // TODO: Revisit this.
+        // TODO: Revisit when we start compressing nodes, right now it cannot happen.
         sys.error("Unexpected case -- narrow array node should never have collisions.")
       } else {
         sys.error("Unexpected case -- narrow array node should have been frozen.")

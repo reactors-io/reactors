@@ -239,4 +239,22 @@ class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
       true
     }
   }
+
+  property("concurrent overwriting inserts") = forAllNoShrink(numThreads, sizes) {
+    (n, sz) =>
+    stackTraced {
+      val trie = new CacheTrie[Integer, Int]
+      for (i <- 0 until sz) trie.insert(i, i)
+      val threads = for (k <- 0 until n) yield thread {
+        for (i <- 0 until sz) {
+          trie.insert(i, -i)
+        }
+      }
+      threads.foreach(_.join())
+      for (i <- 0 until sz) {
+        assert(trie.lookup(i) == -i)
+      }
+      true
+    }
+  }
 }

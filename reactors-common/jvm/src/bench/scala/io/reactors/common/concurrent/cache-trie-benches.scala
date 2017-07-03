@@ -109,53 +109,51 @@ class CacheTrieBenches extends JBench.OfflineReport {
 
   val artificialCachetries = for (size <- sizes) yield {
     val trie = new CacheTrie[Wrapper, Wrapper](size)
-    for (i <- 0 until size) {
-      trie.unsafeCacheInsert(i, elems(i), elems(i))
-    }
+    trie.debugCachePopulate(20, elems(0), elems(0))
     (size, trie)
   }
 
-  @gen("chms")
-  @benchmark("cache-trie.apply")
-  @curve("CHM")
-  def chmLookup(sc: (Int, ConcurrentHashMap[Wrapper, Wrapper])): Int = {
-    val (size, chm) = sc
-    var i = 0
-    var sum = 0
-    while (i < size) {
-      sum += chm.get(elems(i)).value
-      i += 1
-    }
-    sum
-  }
-
-  @gen("cachetries")
-  @benchmark("cache-trie.apply")
-  @curve("cachetrie-slow-path")
-  def cachetrieSlowLookup(sc: (Int, CacheTrie[Wrapper, Wrapper])): Int = {
-    val (size, trie) = sc
-    var i = 0
-    var sum = 0
-    while (i < size) {
-      sum += trie.slowLookup(elems(i)).value
-      i += 1
-    }
-    sum
-  }
-
-  @gen("ctries")
-  @benchmark("cache-trie.apply")
-  @curve("ctrie")
-  def ctrie(sc: (Int, TrieMap[Wrapper, Wrapper])): Int = {
-    val (size, trie) = sc
-    var i = 0
-    var sum = 0
-    while (i < size) {
-      sum += trie.lookup(elems(i)).value
-      i += 1
-    }
-    sum
-  }
+//  @gen("chms")
+//  @benchmark("cache-trie.apply")
+//  @curve("CHM")
+//  def chmLookup(sc: (Int, ConcurrentHashMap[Wrapper, Wrapper])): Int = {
+//    val (size, chm) = sc
+//    var i = 0
+//    var sum = 0
+//    while (i < size) {
+//      sum += chm.get(elems(i)).value
+//      i += 1
+//    }
+//    sum
+//  }
+//
+//  @gen("cachetries")
+//  @benchmark("cache-trie.apply")
+//  @curve("cachetrie-slow-path")
+//  def cachetrieSlowLookup(sc: (Int, CacheTrie[Wrapper, Wrapper])): Int = {
+//    val (size, trie) = sc
+//    var i = 0
+//    var sum = 0
+//    while (i < size) {
+//      sum += trie.slowLookup(elems(i)).value
+//      i += 1
+//    }
+//    sum
+//  }
+//
+//  @gen("ctries")
+//  @benchmark("cache-trie.apply")
+//  @curve("ctrie")
+//  def ctrie(sc: (Int, TrieMap[Wrapper, Wrapper])): Int = {
+//    val (size, trie) = sc
+//    var i = 0
+//    var sum = 0
+//    while (i < size) {
+//      sum += trie.lookup(elems(i)).value
+//      i += 1
+//    }
+//    sum
+//  }
 
   @gen("artificialCachetries")
   @benchmark("cache-trie.apply")
@@ -165,7 +163,21 @@ class CacheTrieBenches extends JBench.OfflineReport {
     var i = 0
     var sum = 0
     while (i < size) {
-      sum += trie.fastLookup(elems(i)).value
+      sum += (if (trie.fastLookup(elems(i)) != null) 1 else 0)
+      i += 1
+    }
+    sum
+  }
+
+  @gen("cachetries")
+  @benchmark("cache-trie.apply")
+  @curve("cachetrie")
+  def cachetrieLookup(sc: (Int, CacheTrie[Wrapper, Wrapper])): Int = {
+    val (size, trie) = sc
+    var i = 0
+    var sum = 0
+    while (i < size) {
+      sum += trie.lookup(elems(i)).value
       i += 1
     }
     sum
