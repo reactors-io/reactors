@@ -151,6 +151,15 @@ class CacheTrie[K <: AnyRef, V](val capacity: Int) {
     } while (result == Restart)
   }
 
+  private[concurrent] final def slowInsert(key: K, value: V): Unit = {
+    val node = rawRoot
+    val hash = spread(key.hashCode)
+    var result = Restart
+    do {
+      result = slowInsert(key, value, hash, 0, node, null)
+    } while (result == Restart)
+  }
+
   @tailrec
   private[concurrent] final def slowInsert(
     key: K, value: V, hash: Int, level: Int,

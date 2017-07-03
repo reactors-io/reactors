@@ -51,7 +51,9 @@ class CacheTrieTest extends FunSuite {
 
 
 class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
-  val sizes = detChoose(0, 4096)
+  val sizes = detChoose(0, 16384)
+  val smallSizes = detChoose(0, 512)
+  val numThreads = detChoose(2, 16)
 
   property("insert and lookup") = forAllNoShrink(sizes) {
     sz =>
@@ -115,5 +117,104 @@ class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
       }
       true
     }
+  }
+
+  property("many slow concurrent inserts") = forAllNoShrink(numThreads, sizes) {
+    (n, sz) =>
+    stackTraced {
+      val trie = new CacheTrie[Integer, Int]
+      val separated = (0 until sz).grouped(sz / n + 1).toSeq
+      val batches = separated ++ Array.fill(n - separated.size)(Nil)
+      assert(batches.size == n)
+      val threads = for (k <- 0 until n) yield thread {
+        for (i <- batches(k)) {
+          trie.slowInsert(i, i)
+        }
+      }
+      threads.foreach(_.join())
+      for (i <- 0 until sz) {
+        assert(trie.lookup(i) == i)
+      }
+      true
+    }
+  }
+
+
+  property("many concurrent inserts") = forAllNoShrink(numThreads, sizes) { (n, sz) =>
+    stackTraced {
+      val trie = new CacheTrie[Integer, Int]
+      val separated = (0 until sz).grouped(sz / n + 1).toSeq
+      val batches = separated ++ Array.fill(n - separated.size)(Nil)
+      assert(batches.size == n)
+      val threads = for (k <- 0 until n) yield thread {
+        for (i <- batches(k)) {
+          trie.insert(i, i)
+        }
+      }
+      threads.foreach(_.join())
+      for (i <- 0 until sz) {
+        assert(trie.lookup(i) == i)
+      }
+      true
+    }
+  }
+
+  property("many concurrent inserts, small") = forAllNoShrink(numThreads, smallSizes) {
+    (n, sz) =>
+    stackTraced {
+      val trie = new CacheTrie[Integer, Int]
+      val separated = (0 until sz).grouped(sz / n + 1).toSeq
+      val batches = separated ++ Array.fill(n - separated.size)(Nil)
+      assert(batches.size == n)
+      val threads = for (k <- 0 until n) yield thread {
+        for (i <- batches(k)) {
+          trie.insert(i, i)
+        }
+      }
+      threads.foreach(_.join())
+      for (i <- 0 until sz) {
+        assert(trie.lookup(i) == i)
+      }
+      true
+    }
+  }
+
+  class PoorHash(val x: Int) {
+    override def hashCode = x & 0xff
+    override def equals(that: Any) = that match {
+      case that: PoorHash => that.x == x
+      case _ => false
+    }
+  }
+
+  property("concurrent inserts, poor hash code") = forAllNoShrink(numThreads, sizes) {
+    (n, sz) =>
+    stackTraced {
+      val trie = new CacheTrie[PoorHash, Int]
+      val separated = (0 until sz).grouped(sz / n + 1).toSeq
+      val batches = separated ++ Array.fill(n - separated.size)(Nil)
+      assert(batches.size == n)
+      val threads = for (b <- batches) yield thread {
+        for (i <- b) trie.insert(new PoorHash(i), i)
+      }
+      threads.foreach(_.join())
+      for (i <- 0 until sz) assert(trie.lookup(new PoorHash(i)) == i)
+      true
+    }
+  }
+
+  property("concurrent inserts on same keys") = forAllNoShrink(numThreads, sizes) {
+    (n, sz) =>
+    val trie = new CacheTrie[Integer, Int]
+    val threads = for (k <- 0 until n) yield thread {
+      for (i <- 0 until sz) {
+        trie.insert(i, i)
+      }
+    }
+    threads.foreach(_.join())
+    for (i <- 0 until sz) {
+      assert(trie.lookup(i) == i)
+    }
+    true
   }
 }
