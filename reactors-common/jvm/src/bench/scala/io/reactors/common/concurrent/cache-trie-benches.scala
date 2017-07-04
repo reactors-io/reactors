@@ -235,6 +235,12 @@ class BirthdaySimulations extends FunSuite {
     birthday(16, 2)
     birthday(32, 1)
     birthday(32, 2)
+    birthday(256, 1)
+    birthday(4096, 1)
+    birthday(4096, 2)
+    birthday(1 << 16, 1)
+    birthday(1 << 20, 1)
+    birthday(1 << 24, 1)
   }
 
   def birthday(days: Int, collisions: Int): Unit = {

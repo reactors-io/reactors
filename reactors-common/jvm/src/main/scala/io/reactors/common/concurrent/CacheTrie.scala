@@ -93,7 +93,7 @@ class CacheTrie[K <: AnyRef, V] {
   }
 
   private[concurrent] def debugCachePopulate(level: Int, key: K, value: V): Unit = {
-    rawCache = new Array[AnyRef]((1 << level) + 1)
+    rawCache = new Array[AnyRef](1 + (1 << level))
     rawCache(0) = new StatsNode(level)
     var i = 1
     while (i < rawCache.length) {
@@ -470,7 +470,26 @@ class CacheTrie[K <: AnyRef, V] {
     // If we failed, it means that somebody else succeeded.
     // If we succeeded, then we must update the cache.
     if (CAS(parent, parentpos, enode, wide)) {
-      // TODO: Update the cache.
+      populateCache(narrow, wide, level)
+    }
+  }
+
+  @tailrec
+  private def populateCache(ov: AnyRef, nv: AnyRef, level: Int): Unit = {
+    val cache = READ_CACHE
+    if (cache eq null) {
+      // Only create the cache if the entry is at least level 12,
+      // since the expectation on the number of elements is ~80.
+      // This means that we can afford to create a cache with 256 entries.
+      if (level > 12) {
+        val cn = new Array[AnyRef](1 + (1 << 8))
+        cn(0) = new StatsNode(8)
+        CAS_CACHE(null, cn)
+        populateCache(ov, nv, level)
+      }
+    } else {
+      val len = cache.length
+      val level = Integer.numberOfTrailingZeros(len - 1) - 4
     }
   }
 
