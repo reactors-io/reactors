@@ -2,6 +2,7 @@ package io.reactors.common.concurrent
 
 
 
+import io.reactors.common.concurrent.CacheTrie.CacheNode
 import io.reactors.test._
 import org.scalacheck.Prop.forAllNoShrink
 import org.scalacheck.Properties
@@ -55,6 +56,43 @@ class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
   val smallSizes = detChoose(0, 512)
   val numThreads = detChoose(2, 32)
 
+  private def validateCache[K <: AnyRef, V](
+    trie: CacheTrie[K, V], sz: Int, allowNull: Boolean
+  ): Unit = {
+    var cache = trie.debugReadCache
+    if (sz > 32000 || cache != null) {
+      do {
+        val info = cache(0).asInstanceOf[CacheNode]
+        val cacheLevel = info.level
+        def str(x: AnyRef): String = x match {
+          case an: Array[AnyRef] => an.mkString(", ")
+          case null => "null"
+          case _ => x.toString
+        }
+        def check(node: Array[AnyRef], hash: Int, level: Int): Unit = {
+          if (level == cacheLevel) {
+            val pos = 1 + hash
+            val cachee = cache(pos)
+            assert((allowNull && cachee == null) || cachee == node,
+              s"${str(cachee)} vs ${str(node)}")
+            return
+          }
+          var i = 0
+          while (i < node.length) {
+            val old = node(i)
+            if (old.isInstanceOf[Array[AnyRef]]) {
+              val an = old.asInstanceOf[Array[AnyRef]]
+              check(an, (i << level) + hash, level + 4)
+            }
+            i += 1
+          }
+        }
+        check(trie.debugReadRoot, 0, 0)
+        cache = info.parent
+      } while (cache != null)
+    }
+  }
+
   property("insert and lookup") = forAllNoShrink(sizes) {
     sz =>
     stackTraced {
@@ -66,7 +104,7 @@ class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
       for (i <- 0 until sz) {
         assert(trie.apply(i.toString) == i)
       }
-      assert(sz < 32000 || trie.debugReadCache != null)
+      validateCache(trie, sz, true)
       true
     }
   }

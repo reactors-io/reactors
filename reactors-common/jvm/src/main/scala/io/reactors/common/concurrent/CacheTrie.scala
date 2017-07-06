@@ -95,9 +95,11 @@ class CacheTrie[K <: AnyRef, V] {
 
   private[concurrent] def debugReadCache: Array[AnyRef] = READ_CACHE
 
+  private[concurrent] def debugReadRoot: Array[AnyRef] = rawRoot
+
   private[concurrent] def debugCachePopulate(level: Int, key: K, value: V): Unit = {
     rawCache = new Array[AnyRef](1 + (1 << level))
-    rawCache(0) = new StatsNode(level)
+    rawCache(0) = new CacheNode(null, level)
     var i = 1
     while (i < rawCache.length) {
       val an = new Array[AnyRef](4)
@@ -492,7 +494,7 @@ class CacheTrie[K <: AnyRef, V] {
       // This means that we can afford to create a cache with 256 entries.
       if (level >= 12) {
         val cn = new Array[AnyRef](1 + (1 << 8))
-        cn(0) = new StatsNode(8)
+        cn(0) = new CacheNode(null, 8)
         CAS_CACHE(null, cn)
         populateCache(ov, nv, hash, level)
       }
@@ -627,7 +629,7 @@ object CacheTrie {
   class XNode(
   )
 
-  class StatsNode(val level: Int) {
+  class CacheNode(val parent: Array[AnyRef], val level: Int) {
     val missCounts = new Array[Int](availableProcessors * math.min(16, level))
 
     private def pos: Int = {
@@ -640,7 +642,7 @@ object CacheTrie {
       missCounts(pos)
     }
 
-    final def bumpMissCount: Unit = {
+    final def bumpMissCount(): Unit = {
       missCounts(pos) += 1
     }
   }
