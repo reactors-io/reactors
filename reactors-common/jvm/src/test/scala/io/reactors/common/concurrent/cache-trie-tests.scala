@@ -51,7 +51,7 @@ class CacheTrieTest extends FunSuite {
 
 
 class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
-  val sizes = detChoose(0, 16384)
+  val sizes = detChoose(0, 65535)
   val smallSizes = detChoose(0, 512)
   val numThreads = detChoose(2, 32)
 
@@ -61,10 +61,26 @@ class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
       val trie = new CacheTrie[String, Int]
       for (i <- 0 until sz) {
         trie.insert(i.toString, i)
-        assert(trie.lookup(i.toString) == i)
+        assert(trie.apply(i.toString) == i)
       }
       for (i <- 0 until sz) {
-        assert(trie.lookup(i.toString) == i)
+        assert(trie.apply(i.toString) == i)
+      }
+      assert(sz < 32000 || trie.debugReadCache != null)
+      true
+    }
+  }
+
+  property("insert and slow lookup") = forAllNoShrink(sizes) {
+    sz =>
+    stackTraced {
+      val trie = new CacheTrie[String, Int]
+      for (i <- 0 until sz) {
+        trie.insert(i.toString, i)
+        assert(trie.slowLookup(i.toString) == i)
+      }
+      for (i <- 0 until sz) {
+        assert(trie.slowLookup(i.toString) == i)
       }
       true
     }
@@ -112,9 +128,12 @@ class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
       inserter1.join()
       inserter2.join()
       for (i <- 0 until sz) {
-        assert(trie.lookup(i) == i)
-        assert(trie.lookup(sz + i) == (sz + i))
+        val first = trie.apply(i)
+        assert(first == i, first)
+        val second = trie.apply(sz + i)
+        assert(second == (sz + i), second)
       }
+      assert(sz < 32000 || trie.debugReadCache != null)
       true
     }
   }
@@ -133,7 +152,7 @@ class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
       }
       threads.foreach(_.join())
       for (i <- 0 until sz) {
-        assert(trie.lookup(i) == i)
+        assert(trie.apply(i) == i)
       }
       true
     }
@@ -153,7 +172,7 @@ class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
       }
       threads.foreach(_.join())
       for (i <- 0 until sz) {
-        assert(trie.lookup(i) == i)
+        assert(trie.apply(i) == i)
       }
       true
     }
@@ -173,7 +192,7 @@ class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
       }
       threads.foreach(_.join())
       for (i <- 0 until sz) {
-        assert(trie.lookup(i) == i)
+        assert(trie.apply(i) == i)
       }
       true
     }
@@ -198,7 +217,7 @@ class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
         for (i <- b) trie.insert(new PoorHash(i), i)
       }
       threads.foreach(_.join())
-      for (i <- 0 until sz) assert(trie.lookup(new PoorHash(i)) == i)
+      for (i <- 0 until sz) assert(trie.apply(new PoorHash(i)) == i)
       true
     }
   }
@@ -214,7 +233,24 @@ class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
       }
       threads.foreach(_.join())
       for (i <- 0 until sz) {
-        assert(trie.lookup(i) == i)
+        assert(trie.apply(i) == i)
+      }
+      true
+    }
+  }
+
+  property("concurrent string inserts") = forAllNoShrink(numThreads, sizes) {
+    (n, sz) =>
+    stackTraced {
+      val trie = new CacheTrie[String, Int]
+      val threads = for (k <- 0 until n) yield thread {
+        for (i <- 0 until sz) {
+          trie.insert(i.toString, i)
+        }
+      }
+      threads.foreach(_.join())
+      for (i <- 0 until sz) {
+        assert(trie.apply(i.toString) == i)
       }
       true
     }
@@ -234,7 +270,7 @@ class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
       }
       threads.foreach(_.join())
       for (i <- 0 until sz) {
-        assert(trie.lookup(i) == i)
+        assert(trie.apply(i) == i)
       }
       true
     }
@@ -252,9 +288,10 @@ class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
       }
       threads.foreach(_.join())
       for (i <- 0 until sz) {
-        assert(trie.lookup(i) == -i)
+        assert(trie.apply(i) == -i)
       }
       true
     }
   }
+
 }

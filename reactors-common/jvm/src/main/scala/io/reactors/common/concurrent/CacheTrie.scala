@@ -50,16 +50,17 @@ class CacheTrie[K <: AnyRef, V] {
       slowLookup(key, hash, 0, rawRoot)
     } else {
       val len = cache.length
-      val pos = 1 + (hash & (len - 1))
+      val mask = len - 1 - 1
+      val pos = 1 + (hash & mask)
       val cachee = READ(cache, pos)
       if (cachee eq null) {
         // Nothing is cached at this location, do slow lookup.
         slowLookup(key, hash, 0, rawRoot)
       } else if (cachee.isInstanceOf[Array[AnyRef]]) {
         val an = cachee.asInstanceOf[Array[AnyRef]]
-        val level = Integer.numberOfTrailingZeros(len) - 4 + 4
+        val level = Integer.numberOfTrailingZeros(len - 1) - 4 + 4
         val mask = an.length - 1
-        val pos = (hash >> level) & mask
+        val pos = (hash >>> level) & mask
         val old = READ(an, pos)
         if ((old eq null) || (old eq VNode)) {
           // The key is not present in the cache trie.
@@ -92,6 +93,8 @@ class CacheTrie[K <: AnyRef, V] {
     }
   }
 
+  private[concurrent] def debugReadCache: Array[AnyRef] = READ_CACHE
+
   private[concurrent] def debugCachePopulate(level: Int, key: K, value: V): Unit = {
     rawCache = new Array[AnyRef](1 + (1 << level))
     rawCache(0) = new StatsNode(level)
@@ -106,6 +109,12 @@ class CacheTrie[K <: AnyRef, V] {
       }
       i += 1
     }
+  }
+
+  final def apply(key: K): V = {
+    val result = lookup(key)
+    if (result.asInstanceOf[AnyRef] eq null) throw new NoSuchElementException
+    else result
   }
 
   final def lookup(key: K): V = {
@@ -243,7 +252,7 @@ class CacheTrie[K <: AnyRef, V] {
           val parentmask = parent.length - 1
           val parentlevel = level - 4
           val parentpos = (hash >>> parentlevel) & parentmask
-          val enode = new ENode(parent, parentpos, current, level)
+          val enode = new ENode(parent, parentpos, current, hash, level)
           if (CAS(parent, parentpos, current, enode)) {
             completeExpansion(enode)
             slowInsert(key, value, hash, level, enode.wide, parent)
@@ -470,26 +479,44 @@ class CacheTrie[K <: AnyRef, V] {
     // If we failed, it means that somebody else succeeded.
     // If we succeeded, then we must update the cache.
     if (CAS(parent, parentpos, enode, wide)) {
-      populateCache(narrow, wide, level)
+      populateCache(narrow, wide, enode.hash, level)
     }
   }
 
   @tailrec
-  private def populateCache(ov: AnyRef, nv: AnyRef, level: Int): Unit = {
+  private def populateCache(ov: AnyRef, nv: AnyRef, hash: Int, level: Int): Unit = {
     val cache = READ_CACHE
     if (cache eq null) {
       // Only create the cache if the entry is at least level 12,
       // since the expectation on the number of elements is ~80.
       // This means that we can afford to create a cache with 256 entries.
-      if (level > 12) {
+      if (level >= 12) {
         val cn = new Array[AnyRef](1 + (1 << 8))
         cn(0) = new StatsNode(8)
         CAS_CACHE(null, cn)
-        populateCache(ov, nv, level)
+        populateCache(ov, nv, hash, level)
       }
     } else {
       val len = cache.length
-      val level = Integer.numberOfTrailingZeros(len - 1) - 4
+      val cacheLevel = Integer.numberOfTrailingZeros(len - 1)
+      if (level == cacheLevel) {
+        val mask = len - 1 - 1
+        val pos = 1 + (hash & mask)
+        val old = READ(cache, pos)
+        if (old eq null) {
+          // Nothing was ever written to the cache -- populate it.
+          // Failure implies progress, in which case the new value is already stale.
+          CAS(cache, pos, null, nv)
+        } else if (old eq ov) {
+          // We must replace the previous value with the new value.
+          // Failure implies progress, in which case the new value is already stale.
+          CAS(cache, pos, ov, nv)
+        } else {
+          // In all other cases, the new value is already stale, and we are done.
+        }
+      } else {
+        // We have a cache level miss -- update statistics, and rebuild if necessary.
+      }
     }
   }
 
@@ -567,7 +594,9 @@ object CacheTrie {
     val hash: Int,
     val key: K,
     val value: V
-  )
+  ) {
+    override def toString = s"SN[$hash, $key, $value]"
+  }
 
   class LNode[K <: AnyRef, V](
     val hash: Int,
@@ -583,6 +612,7 @@ object CacheTrie {
     val parent: Array[AnyRef],
     val parentpos: Int,
     val narrow: Array[AnyRef],
+    val hash: Int,
     val level: Int
   ) {
     @volatile var wide: Array[AnyRef] = null
