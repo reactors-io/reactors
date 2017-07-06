@@ -9,6 +9,7 @@ import java.util.UUID
 import org.scalacheck._
 import org.scalacheck.Gen._
 import org.scalacheck.Prop._
+import scala.collection._
 import scala.concurrent.Await
 import scala.concurrent.Promise
 import scala.concurrent.duration.Duration
@@ -61,6 +62,16 @@ package object test {
         t.printStackTrace()
         throw t
     }
+  }
+
+  private val debugDelays = mutable.Map[AnyRef, AnyRef]()
+
+  def delayTest(obj: AnyRef, millis: Int = 5000): Unit = debugDelays.get(obj) match {
+    case Some(_) => // Already initialized.
+    case None =>
+      debugDelays(obj) = new AnyRef {
+        Thread.sleep(millis)
+      }
   }
 
   val osName = {
