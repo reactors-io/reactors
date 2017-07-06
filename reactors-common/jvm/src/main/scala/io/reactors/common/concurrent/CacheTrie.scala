@@ -480,6 +480,9 @@ class CacheTrie[K <: AnyRef, V] {
     // We need to write the agreed value back into the parent.
     // If we failed, it means that somebody else succeeded.
     // If we succeeded, then we must update the cache.
+    // Note that not all nodes will get cached from this site,
+    // because some array nodes get created outside expansion
+    // (e.g. when creating a node to resolve collisions in sequentialTransfer).
     if (CAS(parent, parentpos, enode, wide)) {
       populateCache(narrow, wide, enode.hash, level)
     }
