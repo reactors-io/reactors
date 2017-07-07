@@ -104,7 +104,7 @@ class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
       for (i <- 0 until sz) {
         assert(trie.apply(i.toString) == i)
       }
-      validateCache(trie, sz, true)
+      validateCache(trie, sz, false)
       true
     }
   }
@@ -171,7 +171,7 @@ class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
         val second = trie.apply(sz + i)
         assert(second == (sz + i), second)
       }
-      validateCache(trie, sz, true)
+      validateCache(trie, sz, false)
       true
     }
   }
@@ -192,6 +192,7 @@ class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
       for (i <- 0 until sz) {
         assert(trie.apply(i) == i)
       }
+      validateCache(trie, sz, false)
       true
     }
   }
@@ -212,6 +213,7 @@ class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
       for (i <- 0 until sz) {
         assert(trie.apply(i) == i)
       }
+      validateCache(trie, sz, false)
       true
     }
   }
@@ -232,6 +234,7 @@ class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
       for (i <- 0 until sz) {
         assert(trie.apply(i) == i)
       }
+      validateCache(trie, sz, false)
       true
     }
   }
@@ -273,6 +276,7 @@ class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
       for (i <- 0 until sz) {
         assert(trie.apply(i) == i)
       }
+      validateCache(trie, sz, false)
       true
     }
   }
@@ -290,6 +294,7 @@ class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
       for (i <- 0 until sz) {
         assert(trie.apply(i.toString) == i)
       }
+      validateCache(trie, sz, false)
       true
     }
   }
@@ -310,6 +315,7 @@ class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
       for (i <- 0 until sz) {
         assert(trie.apply(i) == i)
       }
+      validateCache(trie, sz, false)
       true
     }
   }
@@ -328,6 +334,7 @@ class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
       for (i <- 0 until sz) {
         assert(trie.apply(i) == -i)
       }
+      validateCache(trie, sz, false)
       true
     }
   }

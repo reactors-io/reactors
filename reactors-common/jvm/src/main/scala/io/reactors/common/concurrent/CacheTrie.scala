@@ -47,18 +47,18 @@ class CacheTrie[K <: AnyRef, V] {
   private[concurrent] final def fastLookup(key: K, hash: Int): V = {
     val cache = READ_CACHE
     if (cache == null) {
-      slowLookup(key, hash, 0, rawRoot)
+      slowLookup(key, hash, 0, rawRoot, null, 0)
     } else {
       val len = cache.length
       val mask = len - 1 - 1
       val pos = 1 + (hash & mask)
       val cachee = READ(cache, pos)
+      val level = Integer.numberOfTrailingZeros(len - 1) - 4 + 4
       if (cachee eq null) {
         // Nothing is cached at this location, do slow lookup.
-        slowLookup(key, hash, 0, rawRoot)
+        slowLookup(key, hash, 0, rawRoot, cachee, level)
       } else if (cachee.isInstanceOf[Array[AnyRef]]) {
         val an = cachee.asInstanceOf[Array[AnyRef]]
-        val level = Integer.numberOfTrailingZeros(len - 1) - 4 + 4
         val mask = an.length - 1
         val pos = (hash >>> level) & mask
         val old = READ(an, pos)
@@ -75,10 +75,10 @@ class CacheTrie[K <: AnyRef, V] {
         } else if (old.isInstanceOf[Array[AnyRef]]) {
           // Continue the search from the specified level.
           val oldan = old.asInstanceOf[Array[AnyRef]]
-          slowLookup(key, hash, level + 4, oldan)
+          slowLookup(key, hash, level + 4, oldan, cachee, level)
         } else if ((old eq FVNode) || old.isInstanceOf[FNode]) {
           // Array node contains a frozen node, so it is obsolete -- do slow lookup.
-          slowLookup(key, hash, 0, rawRoot)
+          slowLookup(key, hash, 0, rawRoot, cachee, level)
         } else if (old.isInstanceOf[ENode]) {
           // Help complete the transaction.
           val en = old.asInstanceOf[ENode]
@@ -126,18 +126,19 @@ class CacheTrie[K <: AnyRef, V] {
 
   private[concurrent] def slowLookup(key: K, hash: Int): V = {
     val node = rawRoot
-    slowLookup(key, hash, 0, node)
+    slowLookup(key, hash, 0, node, null, -1)
   }
 
   private[concurrent] def slowLookup(key: K): V = {
     val node = rawRoot
     val hash = spread(key.hashCode)
-    slowLookup(key, hash, 0, node)
+    slowLookup(key, hash, 0, node, null, -1)
   }
 
   @tailrec
   private[concurrent] final def slowLookup(
-    key: K, hash: Int, level: Int, node: Array[AnyRef]
+    key: K, hash: Int, level: Int, node: Array[AnyRef],
+    cacheeSeen: AnyRef, cacheLevel: Int
   ): V = {
     val mask = node.length - 1
     val pos = (hash >>> level) & mask
@@ -145,7 +146,12 @@ class CacheTrie[K <: AnyRef, V] {
     if ((old eq null) || (old eq VNode)) {
       null.asInstanceOf[V]
     } else if (old.isInstanceOf[Array[AnyRef]]) {
-      slowLookup(key, hash, level + 4, old.asInstanceOf[Array[AnyRef]])
+      val an = old.asInstanceOf[Array[AnyRef]]
+      val cacheeLevel = level + 4
+      if (cacheeLevel == cacheLevel) {
+        populateCache(cacheeSeen, an, hash, cacheeLevel)
+      }
+      slowLookup(key, hash, level + 4, an, cacheeSeen, cacheLevel)
     } else if (old.isInstanceOf[SNode[_, _]]) {
       val oldsn = old.asInstanceOf[SNode[K, V]]
       if ((oldsn.hash == hash) && ((oldsn.key eq key) || (oldsn.key == key))) {
@@ -170,7 +176,7 @@ class CacheTrie[K <: AnyRef, V] {
     } else if (old.isInstanceOf[ENode]) {
       val enode = old.asInstanceOf[ENode]
       val narrow = enode.narrow
-      slowLookup(key, hash, level + 4, narrow)
+      slowLookup(key, hash, level + 4, narrow, cacheeSeen, cacheLevel)
     } else if (old eq FVNode) {
       null.asInstanceOf[V]
     } else if (old.isInstanceOf[FNode]) {
@@ -198,7 +204,7 @@ class CacheTrie[K <: AnyRef, V] {
         }
       } else if (frozen.isInstanceOf[Array[AnyRef]]) {
         val an = frozen.asInstanceOf[Array[AnyRef]]
-        slowLookup(key, hash, level + 4, an)
+        slowLookup(key, hash, level + 4, an, cacheeSeen, cacheLevel)
       } else {
         sys.error(s"Unexpected case: $old")
       }
@@ -489,22 +495,24 @@ class CacheTrie[K <: AnyRef, V] {
   }
 
   @tailrec
-  private def populateCache(ov: AnyRef, nv: AnyRef, hash: Int, level: Int): Unit = {
+  private def populateCache(
+    ov: AnyRef, nv: AnyRef, hash: Int, cacheeLevel: Int
+  ): Unit = {
     val cache = READ_CACHE
     if (cache eq null) {
       // Only create the cache if the entry is at least level 12,
       // since the expectation on the number of elements is ~80.
       // This means that we can afford to create a cache with 256 entries.
-      if (level >= 12) {
+      if (cacheeLevel >= 12) {
         val cn = new Array[AnyRef](1 + (1 << 8))
         cn(0) = new CacheNode(null, 8)
         CAS_CACHE(null, cn)
-        populateCache(ov, nv, hash, level)
+        populateCache(ov, nv, hash, cacheeLevel)
       }
     } else {
       val len = cache.length
       val cacheLevel = Integer.numberOfTrailingZeros(len - 1)
-      if (level == cacheLevel) {
+      if (cacheeLevel == cacheLevel) {
         val mask = len - 1 - 1
         val pos = 1 + (hash & mask)
         val old = READ(cache, pos)
