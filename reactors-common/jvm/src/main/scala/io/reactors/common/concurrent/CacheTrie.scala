@@ -152,6 +152,9 @@ class CacheTrie[K <: AnyRef, V] {
       val an = old.asInstanceOf[Array[AnyRef]]
       slowLookup(key, hash, level + 4, an, cacheeSeen, cacheLevel)
     } else if (old.isInstanceOf[SNode[_, _]]) {
+      if (level != cacheLevel) {
+        // A potential cache miss -- we need to check the cache state.
+      }
       val oldsn = old.asInstanceOf[SNode[K, V]]
       if ((oldsn.hash == hash) && ((oldsn.key eq key) || (oldsn.key == key))) {
         oldsn.value
@@ -159,6 +162,9 @@ class CacheTrie[K <: AnyRef, V] {
         null.asInstanceOf[V]
       }
     } else if (old.isInstanceOf[LNode[_, _]]) {
+      if (level != cacheLevel) {
+        // A potential cache miss -- we need to check the cache state.
+      }
       val oldln = old.asInstanceOf[LNode[K, V]]
       if (oldln.hash != hash) {
         null.asInstanceOf[V]
@@ -528,6 +534,7 @@ class CacheTrie[K <: AnyRef, V] {
         }
       } else {
         // We have a cache level miss -- update statistics, and rebuild if necessary.
+        // TODO
       }
     }
   }
