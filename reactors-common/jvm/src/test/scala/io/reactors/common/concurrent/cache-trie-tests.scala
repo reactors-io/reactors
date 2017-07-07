@@ -171,7 +171,7 @@ class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
         val second = trie.apply(sz + i)
         assert(second == (sz + i), second)
       }
-      assert(sz < 32000 || trie.debugReadCache != null)
+      validateCache(trie, sz, true)
       true
     }
   }
