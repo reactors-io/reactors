@@ -47,7 +47,7 @@ class CacheTrie[K <: AnyRef, V] {
   private[concurrent] final def fastLookup(key: K, hash: Int): V = {
     val cache = READ_CACHE
     if (cache == null) {
-      slowLookup(key, hash, 0, rawRoot, null, 0)
+      slowLookup(key, hash, 0, rawRoot, null, -1)
     } else {
       val len = cache.length
       val mask = len - 1 - 1
@@ -140,6 +140,9 @@ class CacheTrie[K <: AnyRef, V] {
     key: K, hash: Int, level: Int, node: Array[AnyRef],
     cacheeSeen: AnyRef, cacheLevel: Int
   ): V = {
+    if (level == cacheLevel) {
+      populateCache(cacheeSeen, node, hash, level)
+    }
     val mask = node.length - 1
     val pos = (hash >>> level) & mask
     val old = READ(node, pos)
@@ -147,10 +150,6 @@ class CacheTrie[K <: AnyRef, V] {
       null.asInstanceOf[V]
     } else if (old.isInstanceOf[Array[AnyRef]]) {
       val an = old.asInstanceOf[Array[AnyRef]]
-      val cacheeLevel = level + 4
-      if (cacheeLevel == cacheLevel) {
-        populateCache(cacheeSeen, an, hash, cacheeLevel)
-      }
       slowLookup(key, hash, level + 4, an, cacheeSeen, cacheLevel)
     } else if (old.isInstanceOf[SNode[_, _]]) {
       val oldsn = old.asInstanceOf[SNode[K, V]]
