@@ -43,7 +43,6 @@ class CacheTrie[K <: AnyRef, V] {
     fastLookup(key, hash)
   }
 
-  @tailrec
   private[concurrent] final def fastLookup(key: K, hash: Int): V = {
     val cache = READ_CACHE
     if (cache == null) {
@@ -53,7 +52,7 @@ class CacheTrie[K <: AnyRef, V] {
       val mask = len - 1 - 1
       val pos = 1 + (hash & mask)
       val cachee = READ(cache, pos)
-      val level = Integer.numberOfTrailingZeros(len - 1) - 4 + 4
+      val level = 31 - Integer.numberOfLeadingZeros(len - 1) - 4 + 4
       if (cachee eq null) {
         // Nothing is cached at this location, do slow lookup.
         slowLookup(key, hash, 0, rawRoot, cachee, level)
@@ -72,20 +71,25 @@ class CacheTrie[K <: AnyRef, V] {
           val oldkey = oldsn.key
           if ((oldhash == hash) && ((oldkey eq key) || (oldkey == key))) oldsn.value
           else null.asInstanceOf[V]
-        } else if (old.isInstanceOf[Array[AnyRef]]) {
-          // Continue the search from the specified level.
-          val oldan = old.asInstanceOf[Array[AnyRef]]
-          slowLookup(key, hash, level + 4, oldan, cachee, level)
-        } else if ((old eq FVNode) || old.isInstanceOf[FNode]) {
-          // Array node contains a frozen node, so it is obsolete -- do slow lookup.
-          slowLookup(key, hash, 0, rawRoot, cachee, level)
-        } else if (old.isInstanceOf[ENode]) {
-          // Help complete the transaction.
-          val en = old.asInstanceOf[ENode]
-          completeExpansion(en)
-          fastLookup(key, hash)
         } else {
-          sys.error(s"Unexpected case -- $old")
+          def resumeSlowLookup(): V = {
+            if (old.isInstanceOf[Array[AnyRef]]) {
+              // Continue the search from the specified level.
+              val oldan = old.asInstanceOf[Array[AnyRef]]
+              slowLookup(key, hash, level + 4, oldan, cachee, level)
+            } else if ((old eq FVNode) || old.isInstanceOf[FNode]) {
+              // Array node contains a frozen node, so it is obsolete -- do slow lookup.
+              slowLookup(key, hash, 0, rawRoot, cachee, level)
+            } else if (old.isInstanceOf[ENode]) {
+              // Help complete the transaction.
+              val en = old.asInstanceOf[ENode]
+              completeExpansion(en)
+              fastLookup(key, hash)
+            } else {
+              sys.error(s"Unexpected case -- $old")
+            }
+          }
+          resumeSlowLookup()
         }
       } else {
         sys.error(s"Unexpected case -- $cachee is not supposed to be cached.")
