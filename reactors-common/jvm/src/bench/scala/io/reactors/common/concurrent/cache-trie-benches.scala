@@ -300,7 +300,9 @@ class BirthdaySimulations extends FunSuite {
     traverse(trie.debugReadRoot, 0)
     println(s":: size $sz ::")
     for (i <- 0 until histogram.length) {
-      println(f"${i * 4}%3d: ${histogram(i)}%8d ${"*" * (histogram(i) * 40 / sz)}")
+      val num = histogram(i)
+      val percent = (100.0 * num / sz).toInt
+      println(f"${i * 4}%3d: $num%8d ($percent%3d%%) ${"*" * (num * 40 / sz)}")
     }
   }
 
