@@ -700,9 +700,21 @@ class CacheTrie[K <: AnyRef, V] {
       level += 8
     }
 
+    // Debug information.
+    def printDebugInformation() {
+      println(debugPerLevelDistribution())
+      println(s"best level:  ${bestLevel} (count: $bestCount)")
+      println(s"cache level: ${stats.level} (count: $cacheCount)")
+      val histogramString =
+        (0 until 8).map(_ * 8).map(histogram >>> _).map(_ & 0xff).mkString(",")
+      println(histogramString)
+      println()
+    }
+
     // Decide whether to change the cache levels.
     val repairThreshold = 1.40f
     if (cacheCount * repairThreshold < bestCount) {
+      //printDebugInformation()
       var currCache = cache
       var currStats = stats
       while (currStats.level > bestLevel) {
@@ -731,15 +743,6 @@ class CacheTrie[K <: AnyRef, V] {
         }
       }
     }
-
-    // Debug information.
-    //println(debugPerLevelDistribution())
-    //println(s"best level:  ${bestLevel} (count: $bestCount)")
-    //println(s"cache level: ${cacheLevel} (count: $cacheCount)")
-    //val histogramString =
-    //  (0 until 8).map(_ * 8).map(histogram >>> _).map(_ & 0xff).mkString(",")
-    //println(histogramString)
-    //println()
   }
 
   private def updateCacheMiss(): Unit = {
