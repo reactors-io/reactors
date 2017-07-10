@@ -156,8 +156,9 @@ class CacheTrie[K <: AnyRef, V] {
       val an = old.asInstanceOf[Array[AnyRef]]
       slowLookup(key, hash, level + 4, an, cacheeSeen, cacheLevel)
     } else if (old.isInstanceOf[SNode[_, _]]) {
-      if (level != cacheLevel) {
+      if (level < cacheLevel || level >= cacheLevel + 8) {
         // A potential cache miss -- we need to check the cache state.
+        updateCacheStats()
       }
       val oldsn = old.asInstanceOf[SNode[K, V]]
       if ((oldsn.hash == hash) && ((oldsn.key eq key) || (oldsn.key == key))) {
@@ -166,8 +167,9 @@ class CacheTrie[K <: AnyRef, V] {
         null.asInstanceOf[V]
       }
     } else if (old.isInstanceOf[LNode[_, _]]) {
-      if (level != cacheLevel) {
+      if (level < cacheLevel || level >= cacheLevel + 8) {
         // A potential cache miss -- we need to check the cache state.
+        updateCacheStats()
       }
       val oldln = old.asInstanceOf[LNode[K, V]]
       if (oldln.hash != hash) {
@@ -543,6 +545,55 @@ class CacheTrie[K <: AnyRef, V] {
     }
   }
 
+  private def updateCacheStats(): Unit = {
+    return
+    val cache = READ_CACHE
+    if (cache ne null) {
+      val stats = READ(cache, 0).asInstanceOf[CacheNode]
+      if (stats.approximateMissCount > 64) {
+        // We must again check if the cache level is obsolete.
+        // Reset the miss count.
+        stats.resetMissCount()
+
+        // Sample the hash trie to estimate the level distribution.
+        // Note: total sample size must be less than 255.
+        var histogram = 0L
+        val sampleSize = 64
+        var seed = Thread.currentThread.getId + System.identityHashCode(this)
+        var i = 0
+        while (i < sampleSize) {
+          seed = (seed * 0x5DEECE66DL + 0xBL) & ((1L << 48) - 1);
+          val hash = (seed >>> 16).toInt
+          @tailrec def sampleLevel(node: Array[AnyRef], level: Int, hash: Int): Int = {
+            val mask = node.length - 1
+            val pos = (hash >>> level) & mask
+            val child = READ(node, pos)
+            if (child.isInstanceOf[Array[AnyRef]]) {
+              sampleLevel(child.asInstanceOf[Array[AnyRef]], level + 4, hash)
+            } else {
+              level
+            }
+          }
+          val level = sampleLevel(rawRoot, 0, hash)
+          val shift = (level >>> 2) << 3
+          val addend = 1L << shift
+          histogram += addend
+          i += 1
+        }
+
+        // Find two consecutive levels with most elements.
+        var level = -1
+        var best = 0
+        var bestcount = -1
+        while (level < 32) {
+          level += 4
+        }
+      } else {
+        stats.bumpMissCount()
+      }
+    }
+  }
+
   private[concurrent] def debugTree: String = {
     val res = new StringBuilder
     def traverse(indent: String, node: Array[AnyRef]): Unit = {
@@ -661,6 +712,10 @@ object CacheTrie {
 
     final def approximateMissCount: Int = {
       missCounts(pos)
+    }
+
+    final def resetMissCount(): Unit = {
+      missCounts(pos) = 0
     }
 
     final def bumpMissCount(): Unit = {
