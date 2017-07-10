@@ -267,63 +267,40 @@ class BirthdaySimulations extends FunSuite {
     println(s"For $days, collisions $collisions, average: ${(1.0 * sum / total)}")
   }
 
-  def perLevelDistribution(sz: Int): Unit = {
+  def debugPerLevelDistribution(sz: Int): Unit = {
     val trie = new CacheTrie[String, String]
     var i = 0
     while (i < sz) {
       trie.insert(i.toString + "/" + sz.toString, i.toString)
       i += 1
     }
-    val histogram = new Array[Int](10)
-    def traverse(node: Array[AnyRef], level: Int): Unit = {
-      var i = 0
-      while (i < node.length) {
-        val old = node(i)
-        if (old.isInstanceOf[SNode[_, _]]) {
-          histogram(level / 4) += 1
-        } else if (old.isInstanceOf[LNode[_, _]]) {
-          var ln = old.asInstanceOf[LNode[_, _]]
-          while (ln != null) {
-            histogram(level / 4) += 1
-            ln = ln.next
-          }
-        } else if (old.isInstanceOf[Array[AnyRef]]) {
-          val an = old.asInstanceOf[Array[AnyRef]]
-          traverse(an, level + 4)
-        } else if (old eq null) {
-        } else {
-          sys.error(s"Unexpected case: $old")
-        }
-        i += 1
-      }
-    }
-    traverse(trie.debugReadRoot, 0)
-    println(s":: size $sz ::")
-    for (i <- 0 until histogram.length) {
-      val num = histogram(i)
-      val percent = (100.0 * num / sz).toInt
-      println(f"${i * 4}%3d: $num%8d ($percent%3d%%) ${"*" * (num * 40 / sz)}")
-    }
+    for (i <- 0 until 160) trie.lookup(i.toString)
+    println(trie.debugPerLevelDistribution())
   }
 
   test("per level distribution") {
-    perLevelDistribution(1000)
-    perLevelDistribution(2000)
-    perLevelDistribution(3000)
-    perLevelDistribution(5000)
-    perLevelDistribution(10000)
-    perLevelDistribution(20000)
-    perLevelDistribution(30000)
-    perLevelDistribution(50000)
-    perLevelDistribution(100000)
-    perLevelDistribution(200000)
-    perLevelDistribution(300000)
-    perLevelDistribution(400000)
-    perLevelDistribution(500000)
-    perLevelDistribution(650000)
-    perLevelDistribution(800000)
-    perLevelDistribution(1000000)
-    perLevelDistribution(1500000)
-    perLevelDistribution(2000000)
+    debugPerLevelDistribution(1000)
+    debugPerLevelDistribution(2000)
+    debugPerLevelDistribution(3000)
+    debugPerLevelDistribution(5000)
+    debugPerLevelDistribution(10000)
+    debugPerLevelDistribution(20000)
+    debugPerLevelDistribution(30000)
+    debugPerLevelDistribution(50000)
+    debugPerLevelDistribution(100000)
+    debugPerLevelDistribution(200000)
+    debugPerLevelDistribution(300000)
+    debugPerLevelDistribution(400000)
+    debugPerLevelDistribution(500000)
+    debugPerLevelDistribution(650000)
+    debugPerLevelDistribution(800000)
+    debugPerLevelDistribution(1000000)
+    debugPerLevelDistribution(1200000)
+    debugPerLevelDistribution(1500000)
+    debugPerLevelDistribution(1800000)
+    debugPerLevelDistribution(2000000)
+    debugPerLevelDistribution(2200000)
+    debugPerLevelDistribution(2500000)
+    debugPerLevelDistribution(3000000)
   }
 }

@@ -3,6 +3,7 @@ package io.reactors.common.concurrent
 
 
 import sun.misc.Unsafe
+import scala.annotation.switch
 import scala.annotation.tailrec
 
 
@@ -303,11 +304,15 @@ class CacheTrie[K <: AnyRef, V] {
     }
   }
 
-  private def isFrozenSNode(n: AnyRef): Boolean = {
+  private def isFrozenS(n: AnyRef): Boolean = {
     n.isInstanceOf[FNode] && n.asInstanceOf[FNode].frozen.isInstanceOf[SNode[_, _]]
   }
 
-  private def isFrozenLNode(n: AnyRef): Boolean = {
+  private def isFrozenA(n: AnyRef): Boolean = {
+    n.isInstanceOf[FNode] && n.asInstanceOf[FNode].frozen.isInstanceOf[Array[AnyRef]]
+  }
+
+  private def isFrozenL(n: AnyRef): Boolean = {
     n.isInstanceOf[FNode] && n.asInstanceOf[FNode].frozen.isInstanceOf[LNode[_, _]]
   }
 
@@ -338,7 +343,7 @@ class CacheTrie[K <: AnyRef, V] {
         // If another txn is in progress, then reinspect the current slot.
         val fnode = new FNode(node)
         if (!CAS(current, i, node, fnode)) i -= 1
-      } else if ((node eq FVNode) || isFrozenSNode(node) || isFrozenLNode(node)) {
+      } else if ((node eq FVNode) || isFrozenS(node) || isFrozenL(node)) {
         // We can skip, somebody else previously helped with freezing this node.
       } else if (node.isInstanceOf[FNode]) {
         // We still need to freeze the subtree recursively.
@@ -407,13 +412,13 @@ class CacheTrie[K <: AnyRef, V] {
       val node = narrow(i)
       if (node eq FVNode) {
         // We can skip, the slot was empty.
-      } else if (isFrozenSNode(node)) {
+      } else if (isFrozenS(node)) {
         // We can copy it over to the wide node.
         val snode = node.asInstanceOf[FNode].frozen.asInstanceOf[SNode[K, V]]
         val pos = (snode.hash >>> level) & mask
         if (wide(pos) == null) wide(pos) = snode
         else sequentialInsert(snode, wide, level, pos)
-      } else if (isFrozenLNode(node)) {
+      } else if (isFrozenL(node)) {
         var tail = node.asInstanceOf[FNode].frozen.asInstanceOf[LNode[K, V]]
         while (tail != null) {
           val sn = new SNode(tail.hash, tail.key, tail.value)
@@ -546,48 +551,150 @@ class CacheTrie[K <: AnyRef, V] {
   }
 
   private def updateCacheStats(): Unit = {
-    return
     val cache = READ_CACHE
     if (cache ne null) {
       val stats = READ(cache, 0).asInstanceOf[CacheNode]
-      if (stats.approximateMissCount > 64) {
+      val missCountMax = 128
+      if (stats.approximateMissCount > missCountMax) {
         // We must again check if the cache level is obsolete.
         // Reset the miss count.
         stats.resetMissCount()
 
         // Sample the hash trie to estimate the level distribution.
-        // Note: total sample size must be less than 255.
+        // Use an 8-byte histogram, total sample size must be less than 255.
         var histogram = 0L
-        val sampleSize = 64
+        val sampleSize = 128
+        val sampleType = 2
         var seed = Thread.currentThread.getId + System.identityHashCode(this)
-        var i = 0
-        while (i < sampleSize) {
-          seed = (seed * 0x5DEECE66DL + 0xBL) & ((1L << 48) - 1);
-          val hash = (seed >>> 16).toInt
-          @tailrec def sampleLevel(node: Array[AnyRef], level: Int, hash: Int): Int = {
-            val mask = node.length - 1
-            val pos = (hash >>> level) & mask
-            val child = READ(node, pos)
-            if (child.isInstanceOf[Array[AnyRef]]) {
-              sampleLevel(child.asInstanceOf[Array[AnyRef]], level + 4, hash)
-            } else {
-              level
+        (sampleType: @switch) match {
+          case 0 =>
+            var i = 0
+            while (i < sampleSize) {
+              seed = (seed * 0x5DEECE66DL + 0xBL) & ((1L << 48) - 1);
+              val hash = (seed >>> 16).toInt
+              @tailrec
+              def sampleHash(node: Array[AnyRef], level: Int, hash: Int): Int = {
+                val mask = node.length - 1
+                val pos = (hash >>> level) & mask
+                val child = READ(node, pos)
+                if (child.isInstanceOf[Array[AnyRef]]) {
+                  sampleHash(child.asInstanceOf[Array[AnyRef]], level + 4, hash)
+                } else {
+                  level
+                }
+              }
+              val level = sampleHash(rawRoot, 0, hash)
+              val shift = (level >>> 2) << 3
+              val addend = 1L << shift
+              histogram += addend
+              i += 1
             }
-          }
-          val level = sampleLevel(rawRoot, 0, hash)
-          val shift = (level >>> 2) << 3
-          val addend = 1L << shift
-          histogram += addend
-          i += 1
+          case 1 =>
+            var i = 0
+            while (i < sampleSize) {
+              seed = (seed * 0x5DEECE66DL + 0xBL) & ((1L << 48) - 1);
+              val hash = (seed >>> 16).toInt
+              def sampleKey(node: Array[AnyRef], level: Int, hash: Int): Int = {
+                val mask = node.length - 1
+                val pos = (hash >>> level) & mask
+                var i = (pos + 1) % node.length
+                while (i != pos) {
+                  val ch = READ(node, i)
+                  if (ch.isInstanceOf[SNode[_, _]] || isFrozenS(ch) || isFrozenL(ch)) {
+                    return level
+                  } else if (ch.isInstanceOf[Array[AnyRef]]) {
+                    val an = ch.asInstanceOf[Array[AnyRef]]
+                    val result = sampleKey(an, level + 4, hash)
+                    if (result != -1) return result
+                  } else if (isFrozenA(ch)) {
+                    val an = ch.asInstanceOf[FNode].frozen.asInstanceOf[Array[AnyRef]]
+                    val result = sampleKey(an, level + 4, hash)
+                    if (result != -1) return result
+                  }
+                  i = (i + 1) % node.length
+                }
+                -1
+              }
+              val level = sampleKey(rawRoot, 0, hash)
+              if (level == -1) i = sampleSize
+              else {
+                val shift = (level >>> 2) << 3
+                val addend = 1L << shift
+                histogram += addend
+                i += 1
+              }
+            }
+          case 2 =>
+            def count(histogram: Long): Int = {
+              (
+                ((histogram >>> 0) & 0xff) +
+                ((histogram >>> 8) & 0xff) +
+                ((histogram >>> 16) & 0xff) +
+                ((histogram >>> 24) & 0xff) +
+                ((histogram >>> 32) & 0xff) +
+                ((histogram >>> 40) & 0xff) +
+                ((histogram >>> 48) & 0xff) +
+                ((histogram >>> 56) & 0xff)
+              ).toInt
+            }
+            def sampleUnbiased(
+              node: Array[AnyRef], level: Int, maxRepeats: Int, maxSamples: Int,
+              startHistogram: Long, startSeed: Long
+            ): Long = {
+              var seed = startSeed
+              var histogram = startHistogram
+              val mask = node.length - 1
+              var i = 0
+              while (i < maxRepeats && count(histogram) < maxSamples) {
+                seed = (seed * 0x5DEECE66DL + 0xBL) & ((1L << 48) - 1);
+                val hash = (seed >>> 16).toInt
+                val pos = hash & mask
+                val ch = READ(node, pos)
+                if (ch.isInstanceOf[Array[AnyRef]]) {
+                  val an = ch.asInstanceOf[Array[AnyRef]]
+                  histogram += sampleUnbiased(
+                    an, level + 4, maxRepeats * 4, maxSamples, histogram, seed + 1
+                  )
+                } else if (
+                  ch.isInstanceOf[SNode[_, _]] || isFrozenS(ch) || isFrozenL(ch)
+                ) {
+                  val shift = (level >>> 2) << 3
+                  histogram += 1L << shift
+                } else {
+                  // The frozen array case is rare, and we can just ignore it.
+                }
+                i += 1
+              }
+              histogram
+            }
+            var i = 0
+            val trials = 32
+            while (i < trials) {
+              seed += 1
+              histogram += sampleUnbiased(rawRoot, 0, 1, sampleSize / trials, 0L, seed)
+              i += 1
+            }
         }
 
         // Find two consecutive levels with most elements.
-        var level = -1
         var best = 0
-        var bestcount = -1
-        while (level < 32) {
-          level += 4
+        var bestcount = (histogram & 0xff) + ((histogram >>> 8) & 0xff)
+        var level = 8
+        while (level < 64) {
+          val count =
+            ((histogram >>> level) & 0xff) + ((histogram >>> (level + 8)) & 0xff)
+          if (count > bestcount) {
+            bestcount = count
+            best = level
+          }
+          level += 8
         }
+
+        // Decide whether to change the cache levels.
+        println(debugPerLevelDistribution())
+        println(s"best level: ${best / 2} (count: $bestcount)")
+        println((0 until 8).map(_ * 8).map(histogram >>> _).map(_ & 0xff).mkString(","))
+        println()
       } else {
         stats.bumpMissCount()
       }
@@ -633,6 +740,44 @@ class CacheTrie[K <: AnyRef, V] {
     }
     traverse("", rawRoot)
     res.toString
+  }
+
+  def debugPerLevelDistribution(): String = {
+    val histogram = new Array[Int](10)
+    var sz = 0
+    def traverse(node: Array[AnyRef], level: Int): Unit = {
+      var i = 0
+      while (i < node.length) {
+        val old = node(i)
+        if (old.isInstanceOf[SNode[_, _]]) {
+          histogram(level / 4) += 1
+          sz += 1
+        } else if (old.isInstanceOf[LNode[_, _]]) {
+          var ln = old.asInstanceOf[LNode[_, _]]
+          while (ln != null) {
+            histogram(level / 4) += 1
+            sz += 1
+            ln = ln.next
+          }
+        } else if (old.isInstanceOf[Array[AnyRef]]) {
+          val an = old.asInstanceOf[Array[AnyRef]]
+          traverse(an, level + 4)
+        } else if (old eq null) {
+        } else {
+          sys.error(s"Unexpected case: $old")
+        }
+        i += 1
+      }
+    }
+    traverse(this.debugReadRoot, 0)
+    val sb = new StringBuilder
+    sb.append(s":: size $sz ::\n")
+    for (i <- 0 until histogram.length) {
+      val num = histogram(i)
+      val percent = (100.0 * num / sz).toInt
+      sb.append(f"${i * 4}%3d: $num%8d ($percent%3d%%) ${"*" * (num * 40 / sz)}\n")
+    }
+    sb.toString
   }
 }
 
