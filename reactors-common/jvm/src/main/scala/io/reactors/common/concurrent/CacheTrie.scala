@@ -78,6 +78,16 @@ class CacheTrie[K <: AnyRef, V] {
               // Continue the search from the specified level.
               val oldan = old.asInstanceOf[Array[AnyRef]]
               slowLookup(key, hash, level + 4, oldan, cachee, level)
+            } else if (old.isInstanceOf[LNode[_, _]]) {
+              // Check if the key is contained in the list node.
+              var tail = old.asInstanceOf[LNode[K, V]]
+              while (tail != null) {
+                if ((tail.hash == hash) && ((tail.key eq key) || (tail.key == key))) {
+                  return tail.value
+                }
+                tail = tail.next
+              }
+              null.asInstanceOf[V]
             } else if ((old eq FVNode) || old.isInstanceOf[FNode]) {
               // Array node contains a frozen node, so it is obsolete -- do slow lookup.
               slowLookup(key, hash, 0, rawRoot, cachee, level)
@@ -159,7 +169,7 @@ class CacheTrie[K <: AnyRef, V] {
     } else if (old.isInstanceOf[SNode[_, _]]) {
       if (level < cacheLevel || level >= cacheLevel + 8) {
         // A potential cache miss -- we need to check the cache state.
-        updateCacheStats()
+        updateCacheMiss()
       }
       val oldsn = old.asInstanceOf[SNode[K, V]]
       if ((oldsn.hash == hash) && ((oldsn.key eq key) || (oldsn.key == key))) {
@@ -170,7 +180,7 @@ class CacheTrie[K <: AnyRef, V] {
     } else if (old.isInstanceOf[LNode[_, _]]) {
       if (level < cacheLevel || level >= cacheLevel + 8) {
         // A potential cache miss -- we need to check the cache state.
-        updateCacheStats()
+        updateCacheMiss()
       }
       val oldln = old.asInstanceOf[LNode[K, V]]
       if (oldln.hash != hash) {
@@ -550,151 +560,200 @@ class CacheTrie[K <: AnyRef, V] {
     }
   }
 
-  private def updateCacheStats(): Unit = {
+  def sampleAndUpdateCache(cache: Array[AnyRef], stats: CacheNode): Unit = {
+    // Sample the hash trie to estimate the level distribution.
+    // Use an 8-byte histogram, total sample size must be less than 255.
+    var histogram = 0L
+    val sampleSize = 128
+    val sampleType = 2
+    var seed = Thread.currentThread.getId + System.identityHashCode(this)
+    (sampleType: @switch) match {
+      case 0 =>
+        var i = 0
+        while (i < sampleSize) {
+          seed = (seed * 0x5DEECE66DL + 0xBL) & ((1L << 48) - 1);
+          val hash = (seed >>> 16).toInt
+          @tailrec
+          def sampleHash(node: Array[AnyRef], level: Int, hash: Int): Int = {
+            val mask = node.length - 1
+            val pos = (hash >>> level) & mask
+            val child = READ(node, pos)
+            if (child.isInstanceOf[Array[AnyRef]]) {
+              sampleHash(child.asInstanceOf[Array[AnyRef]], level + 4, hash)
+            } else {
+              level
+            }
+          }
+          val level = sampleHash(rawRoot, 0, hash)
+          val shift = (level >>> 2) << 3
+          val addend = 1L << shift
+          histogram += addend
+          i += 1
+        }
+      case 1 =>
+        var i = 0
+        while (i < sampleSize) {
+          seed = (seed * 0x5DEECE66DL + 0xBL) & ((1L << 48) - 1);
+          val hash = (seed >>> 16).toInt
+          def sampleKey(node: Array[AnyRef], level: Int, hash: Int): Int = {
+            val mask = node.length - 1
+            val pos = (hash >>> level) & mask
+            var i = (pos + 1) % node.length
+            while (i != pos) {
+              val ch = READ(node, i)
+              if (ch.isInstanceOf[SNode[_, _]] || isFrozenS(ch) || isFrozenL(ch)) {
+                return level
+              } else if (ch.isInstanceOf[Array[AnyRef]]) {
+                val an = ch.asInstanceOf[Array[AnyRef]]
+                val result = sampleKey(an, level + 4, hash)
+                if (result != -1) return result
+              } else if (isFrozenA(ch)) {
+                val an = ch.asInstanceOf[FNode].frozen.asInstanceOf[Array[AnyRef]]
+                val result = sampleKey(an, level + 4, hash)
+                if (result != -1) return result
+              }
+              i = (i + 1) % node.length
+            }
+            -1
+          }
+          val level = sampleKey(rawRoot, 0, hash)
+          if (level == -1) i = sampleSize
+          else {
+            val shift = (level >>> 2) << 3
+            val addend = 1L << shift
+            histogram += addend
+            i += 1
+          }
+        }
+      case 2 =>
+        def count(histogram: Long): Int = {
+          (
+            ((histogram >>> 0) & 0xff) +
+              ((histogram >>> 8) & 0xff) +
+              ((histogram >>> 16) & 0xff) +
+              ((histogram >>> 24) & 0xff) +
+              ((histogram >>> 32) & 0xff) +
+              ((histogram >>> 40) & 0xff) +
+              ((histogram >>> 48) & 0xff) +
+              ((histogram >>> 56) & 0xff)
+            ).toInt
+        }
+        def sampleUnbiased(
+          node: Array[AnyRef], level: Int, maxRepeats: Int, maxSamples: Int,
+          startHistogram: Long, startSeed: Long
+        ): Long = {
+          var seed = startSeed
+          var histogram = startHistogram
+          val mask = node.length - 1
+          var i = 0
+          while (i < maxRepeats && count(histogram) < maxSamples) {
+            seed = (seed * 0x5DEECE66DL + 0xBL) & ((1L << 48) - 1);
+            val hash = (seed >>> 16).toInt
+            val pos = hash & mask
+            val ch = READ(node, pos)
+            if (ch.isInstanceOf[Array[AnyRef]]) {
+              val an = ch.asInstanceOf[Array[AnyRef]]
+              histogram += sampleUnbiased(
+                an, level + 4, maxRepeats * 4, maxSamples, histogram, seed + 1
+              )
+            } else if (
+              ch.isInstanceOf[SNode[_, _]] || isFrozenS(ch) || isFrozenL(ch)
+            ) {
+              val shift = (level >>> 2) << 3
+              histogram += 1L << shift
+            } else if (isFrozenA(ch)) {
+              val an = ch.asInstanceOf[FNode].frozen.asInstanceOf[Array[AnyRef]]
+              histogram += sampleUnbiased(
+                an, level + 4, maxRepeats * 4, maxSamples, histogram, seed + 1
+              )
+            }
+            i += 1
+          }
+          histogram
+        }
+        var i = 0
+        val trials = 32
+        while (i < trials) {
+          seed += 1
+          histogram += sampleUnbiased(rawRoot, 0, 1, sampleSize / trials, 0L, seed)
+          i += 1
+        }
+    }
+
+    // Find two consecutive levels with most elements.
+    // Additionally, record the number of elements at the current cache level.
+    val oldCacheLevel = stats.level
+    var cacheCount = 0
+    var bestLevel = 0
+    var bestCount = (histogram & 0xff) + ((histogram >>> 8) & 0xff)
+    var level = 8
+    while (level < 64) {
+      val count =
+        ((histogram >>> level) & 0xff) + ((histogram >>> (level + 8)) & 0xff)
+      if (count > bestCount) {
+        bestCount = count
+        bestLevel = level >> 1
+      }
+      if ((level >> 1) == oldCacheLevel) {
+        cacheCount += count.toInt
+      }
+      level += 8
+    }
+
+    // Decide whether to change the cache levels.
+    val repairThreshold = 1.40f
+    if (cacheCount * repairThreshold < bestCount) {
+      var currCache = cache
+      var currStats = stats
+      while (currStats.level > bestLevel) {
+        // Drop cache level.
+        val parentCache = currStats.parent
+        if (CAS_CACHE(cache, parentCache)) {
+          currCache = parentCache
+          currStats = READ(currCache, 0).asInstanceOf[CacheNode]
+        } else {
+          // Bail out immediately -- cache will be repaired by someone else eventually.
+          return
+        }
+      }
+      while (currStats.level < bestLevel) {
+        // Add cache level.
+        val nextLevel = currStats.level + 4
+        val nextLength = 1 + (1 << nextLevel)
+        val nextCache = new Array[AnyRef](nextLength)
+        nextCache(0) = new CacheNode(currCache, nextLevel)
+        if (CAS_CACHE(cache, nextCache)) {
+          currCache = nextCache
+          currStats = READ(nextCache, 0).asInstanceOf[CacheNode]
+        } else {
+          // Bail our immediately -- cache will be repaired by someone else eventually.
+          return
+        }
+      }
+    }
+
+    // Debug information.
+    //println(debugPerLevelDistribution())
+    //println(s"best level:  ${bestLevel} (count: $bestCount)")
+    //println(s"cache level: ${cacheLevel} (count: $cacheCount)")
+    //val histogramString =
+    //  (0 until 8).map(_ * 8).map(histogram >>> _).map(_ & 0xff).mkString(",")
+    //println(histogramString)
+    //println()
+  }
+
+  private def updateCacheMiss(): Unit = {
     val cache = READ_CACHE
     if (cache ne null) {
       val stats = READ(cache, 0).asInstanceOf[CacheNode]
-      val missCountMax = 128
+      val missCountMax = 2048
       if (stats.approximateMissCount > missCountMax) {
         // We must again check if the cache level is obsolete.
         // Reset the miss count.
         stats.resetMissCount()
 
-        // Sample the hash trie to estimate the level distribution.
-        // Use an 8-byte histogram, total sample size must be less than 255.
-        var histogram = 0L
-        val sampleSize = 128
-        val sampleType = 2
-        var seed = Thread.currentThread.getId + System.identityHashCode(this)
-        (sampleType: @switch) match {
-          case 0 =>
-            var i = 0
-            while (i < sampleSize) {
-              seed = (seed * 0x5DEECE66DL + 0xBL) & ((1L << 48) - 1);
-              val hash = (seed >>> 16).toInt
-              @tailrec
-              def sampleHash(node: Array[AnyRef], level: Int, hash: Int): Int = {
-                val mask = node.length - 1
-                val pos = (hash >>> level) & mask
-                val child = READ(node, pos)
-                if (child.isInstanceOf[Array[AnyRef]]) {
-                  sampleHash(child.asInstanceOf[Array[AnyRef]], level + 4, hash)
-                } else {
-                  level
-                }
-              }
-              val level = sampleHash(rawRoot, 0, hash)
-              val shift = (level >>> 2) << 3
-              val addend = 1L << shift
-              histogram += addend
-              i += 1
-            }
-          case 1 =>
-            var i = 0
-            while (i < sampleSize) {
-              seed = (seed * 0x5DEECE66DL + 0xBL) & ((1L << 48) - 1);
-              val hash = (seed >>> 16).toInt
-              def sampleKey(node: Array[AnyRef], level: Int, hash: Int): Int = {
-                val mask = node.length - 1
-                val pos = (hash >>> level) & mask
-                var i = (pos + 1) % node.length
-                while (i != pos) {
-                  val ch = READ(node, i)
-                  if (ch.isInstanceOf[SNode[_, _]] || isFrozenS(ch) || isFrozenL(ch)) {
-                    return level
-                  } else if (ch.isInstanceOf[Array[AnyRef]]) {
-                    val an = ch.asInstanceOf[Array[AnyRef]]
-                    val result = sampleKey(an, level + 4, hash)
-                    if (result != -1) return result
-                  } else if (isFrozenA(ch)) {
-                    val an = ch.asInstanceOf[FNode].frozen.asInstanceOf[Array[AnyRef]]
-                    val result = sampleKey(an, level + 4, hash)
-                    if (result != -1) return result
-                  }
-                  i = (i + 1) % node.length
-                }
-                -1
-              }
-              val level = sampleKey(rawRoot, 0, hash)
-              if (level == -1) i = sampleSize
-              else {
-                val shift = (level >>> 2) << 3
-                val addend = 1L << shift
-                histogram += addend
-                i += 1
-              }
-            }
-          case 2 =>
-            def count(histogram: Long): Int = {
-              (
-                ((histogram >>> 0) & 0xff) +
-                ((histogram >>> 8) & 0xff) +
-                ((histogram >>> 16) & 0xff) +
-                ((histogram >>> 24) & 0xff) +
-                ((histogram >>> 32) & 0xff) +
-                ((histogram >>> 40) & 0xff) +
-                ((histogram >>> 48) & 0xff) +
-                ((histogram >>> 56) & 0xff)
-              ).toInt
-            }
-            def sampleUnbiased(
-              node: Array[AnyRef], level: Int, maxRepeats: Int, maxSamples: Int,
-              startHistogram: Long, startSeed: Long
-            ): Long = {
-              var seed = startSeed
-              var histogram = startHistogram
-              val mask = node.length - 1
-              var i = 0
-              while (i < maxRepeats && count(histogram) < maxSamples) {
-                seed = (seed * 0x5DEECE66DL + 0xBL) & ((1L << 48) - 1);
-                val hash = (seed >>> 16).toInt
-                val pos = hash & mask
-                val ch = READ(node, pos)
-                if (ch.isInstanceOf[Array[AnyRef]]) {
-                  val an = ch.asInstanceOf[Array[AnyRef]]
-                  histogram += sampleUnbiased(
-                    an, level + 4, maxRepeats * 4, maxSamples, histogram, seed + 1
-                  )
-                } else if (
-                  ch.isInstanceOf[SNode[_, _]] || isFrozenS(ch) || isFrozenL(ch)
-                ) {
-                  val shift = (level >>> 2) << 3
-                  histogram += 1L << shift
-                } else {
-                  // The frozen array case is rare, and we can just ignore it.
-                }
-                i += 1
-              }
-              histogram
-            }
-            var i = 0
-            val trials = 32
-            while (i < trials) {
-              seed += 1
-              histogram += sampleUnbiased(rawRoot, 0, 1, sampleSize / trials, 0L, seed)
-              i += 1
-            }
-        }
-
-        // Find two consecutive levels with most elements.
-        var best = 0
-        var bestcount = (histogram & 0xff) + ((histogram >>> 8) & 0xff)
-        var level = 8
-        while (level < 64) {
-          val count =
-            ((histogram >>> level) & 0xff) + ((histogram >>> (level + 8)) & 0xff)
-          if (count > bestcount) {
-            bestcount = count
-            best = level
-          }
-          level += 8
-        }
-
-        // Decide whether to change the cache levels.
-        println(debugPerLevelDistribution())
-        println(s"best level: ${best / 2} (count: $bestcount)")
-        println((0 until 8).map(_ * 8).map(histogram >>> _).map(_ & 0xff).mkString(","))
-        println()
+        // Resample to find out if cache needs to be repaired.
+        sampleAndUpdateCache(cache, stats)
       } else {
         stats.bumpMissCount()
       }
@@ -856,15 +915,15 @@ object CacheTrie {
     }
 
     final def approximateMissCount: Int = {
-      missCounts(pos)
+      missCounts(0)
     }
 
     final def resetMissCount(): Unit = {
-      missCounts(pos) = 0
+      missCounts(0) = 0
     }
 
     final def bumpMissCount(): Unit = {
-      missCounts(pos) += 1
+      missCounts(0) += 1
     }
   }
 }

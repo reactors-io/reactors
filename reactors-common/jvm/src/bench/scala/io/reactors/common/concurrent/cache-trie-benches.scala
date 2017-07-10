@@ -115,19 +115,19 @@ class CacheTrieBenches extends JBench.OfflineReport {
     (size, trie)
   }
 
-//  @gen("chms")
-//  @benchmark("cache-trie.apply")
-//  @curve("CHM")
-//  def chmLookup(sc: (Int, ConcurrentHashMap[Wrapper, Wrapper])): Int = {
-//    val (size, chm) = sc
-//    var i = 0
-//    var sum = 0
-//    while (i < size) {
-//      sum += chm.get(elems(i)).value
-//      i += 1
-//    }
-//    sum
-//  }
+  //@gen("chms")
+  //@benchmark("cache-trie.apply")
+  //@curve("CHM")
+  //def chmLookup(sc: (Int, ConcurrentHashMap[Wrapper, Wrapper])): Int = {
+  //  val (size, chm) = sc
+  //  var i = 0
+  //  var sum = 0
+  //  while (i < size) {
+  //    sum += chm.get(elems(i)).value
+  //    i += 1
+  //  }
+  //  sum
+  //}
 //
 //  @gen("cachetries")
 //  @benchmark("cache-trie.apply")
@@ -157,36 +157,36 @@ class CacheTrieBenches extends JBench.OfflineReport {
 //    sum
 //  }
 
-//  @gen("artificialCachetries")
-//  @benchmark("cache-trie.apply")
-//  @curve("cachetrie-fast-path")
-//  def cachetrieFastLookup(sc: (Int, CacheTrie[Wrapper, Wrapper])): Int = {
-//    val (size, trie) = sc
-//    var i = 0
-//    var sum = 0
-//    io.reactors.test.delayTest(this.getClass)
-//    while (i < size) {
-//      val x = trie.fastLookup(elems(i))
-//      sum += (if (x != null) x.value else 0)
-//      i += 1
-//    }
-//    sum
-//  }
+  //@gen("artificialCachetries")
+  //@benchmark("cache-trie.apply")
+  //@curve("cachetrie-fast-path")
+  //def cachetrieFastLookup(sc: (Int, CacheTrie[Wrapper, Wrapper])): Int = {
+  //  val (size, trie) = sc
+  //  var i = 0
+  //  var sum = 0
+  //  io.reactors.test.delayTest(this.getClass)
+  //  while (i < size) {
+  //    val x = trie.fastLookup(elems(i))
+  //    sum += (if (x != null) x.value else 0)
+  //    i += 1
+  //  }
+  //  sum
+  //}
 
-//  @gen("cachetries")
-//  @benchmark("cache-trie.apply")
-//  @curve("cachetrie")
-//  def cachetrieLookup(sc: (Int, CacheTrie[Wrapper, Wrapper])): Int = {
-//    val (size, trie) = sc
-//    var i = 0
-//    var sum = 0
-//    while (i < size) {
-//      sum += trie.lookup(elems(i)).value
-//      i += 1
-//    }
-//    sum
-//  }
-//
+  @gen("cachetries")
+  @benchmark("cache-trie.apply")
+  @curve("cachetrie")
+  def cachetrieLookup(sc: (Int, CacheTrie[Wrapper, Wrapper])): Int = {
+    val (size, trie) = sc
+    var i = 0
+    var sum = 0
+    while (i < size) {
+      sum += trie.lookup(elems(i)).value
+      i += 1
+    }
+    sum
+  }
+
   // @gen("sizes")
   // @benchmark("cache-trie.insert")
   // @curve("chm")
@@ -274,7 +274,7 @@ class BirthdaySimulations extends FunSuite {
       trie.insert(i.toString + "/" + sz.toString, i.toString)
       i += 1
     }
-    for (i <- 0 until 160) trie.lookup(i.toString)
+    for (i <- 0 until 512) trie.lookup(i.toString)
     println(trie.debugPerLevelDistribution())
   }
 
