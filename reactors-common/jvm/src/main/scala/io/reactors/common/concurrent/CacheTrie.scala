@@ -871,6 +871,10 @@ object CacheTrie {
 
   val VNode = new AnyRef
 
+  object ANode {
+    def toString(an: Array[AnyRef]) = an.mkString("AN[", ", ", "]")
+  }
+
   class SNode[K <: AnyRef, V](
     val hash: Int,
     val key: K,

@@ -2,6 +2,7 @@ package io.reactors.common.concurrent
 
 
 
+import io.reactors.common.concurrent.CacheTrie.ANode
 import io.reactors.common.concurrent.CacheTrie.CacheNode
 import io.reactors.test._
 import org.scalacheck.Prop.forAllNoShrink
@@ -65,7 +66,7 @@ class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
         val info = cache(0).asInstanceOf[CacheNode]
         val cacheLevel = info.level
         def str(x: AnyRef): String = x match {
-          case an: Array[AnyRef] => an.mkString(", ")
+          case an: Array[AnyRef] => ANode.toString(an)
           case null => "null"
           case _ => x.toString
         }
@@ -74,7 +75,7 @@ class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
             val pos = 1 + hash
             val cachee = cache(pos)
             assert((allowNull && cachee == null) || cachee == node,
-              s"${str(cachee)} vs ${str(node)}")
+              s"at level $level, ${str(cachee)} vs ${str(node)}")
             return
           }
           var i = 0
@@ -99,6 +100,9 @@ class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
       val trie = new CacheTrie[String, Int]
       for (i <- 0 until sz) {
         trie.insert(i.toString, i)
+        assert(trie.apply(i.toString) == i)
+      }
+      for (i <- 0 until sz) {
         assert(trie.apply(i.toString) == i)
       }
       for (i <- 0 until sz) {
@@ -291,6 +295,9 @@ class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
         }
       }
       threads.foreach(_.join())
+      for (i <- 0 until sz) {
+        assert(trie.apply(i.toString) == i)
+      }
       for (i <- 0 until sz) {
         assert(trie.apply(i.toString) == i)
       }
