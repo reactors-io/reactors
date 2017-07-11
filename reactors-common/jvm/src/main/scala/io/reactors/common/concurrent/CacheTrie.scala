@@ -702,7 +702,7 @@ class CacheTrie[K <: AnyRef, V] {
 
     // Debug information.
     def printDebugInformation() {
-      println(debugPerLevelDistribution())
+      println(debugPerLevelDistribution)
       println(s"best level:  ${bestLevel} (count: $bestCount)")
       println(s"cache level: ${stats.level} (count: $cacheCount)")
       val histogramString =
@@ -804,7 +804,22 @@ class CacheTrie[K <: AnyRef, V] {
     res.toString
   }
 
-  def debugPerLevelDistribution(): String = {
+  def debugCacheStats: String = {
+    val cache = READ_CACHE
+    val stats = cache(0).asInstanceOf[CacheNode]
+    var size = 0
+    for (i <- 1 until cache.length) {
+      if (
+        cache(i) != null && cache(i) != VNode && cache(i) != FVNode &&
+        !cache(i).isInstanceOf[FNode]
+      ) {
+        size += 1
+      }
+    }
+    s"cache level: ${stats.level}, $size / ${cache.length - 1}"
+  }
+
+  def debugPerLevelDistribution: String = {
     val histogram = new Array[Int](10)
     var sz = 0
     def traverse(node: Array[AnyRef], level: Int): Unit = {
