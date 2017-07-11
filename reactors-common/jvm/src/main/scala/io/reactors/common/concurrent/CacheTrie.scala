@@ -567,6 +567,7 @@ class CacheTrie[K <: AnyRef, V] {
     val sampleSize = 128
     val sampleType = 2
     var seed = Thread.currentThread.getId + System.identityHashCode(this)
+    val levelOffset = 0
     (sampleType: @switch) match {
       case 0 =>
         var i = 0
@@ -581,7 +582,7 @@ class CacheTrie[K <: AnyRef, V] {
             if (child.isInstanceOf[Array[AnyRef]]) {
               sampleHash(child.asInstanceOf[Array[AnyRef]], level + 4, hash)
             } else {
-              level
+              level + levelOffset
             }
           }
           val level = sampleHash(rawRoot, 0, hash)
@@ -602,7 +603,7 @@ class CacheTrie[K <: AnyRef, V] {
             while (i != pos) {
               val ch = READ(node, i)
               if (ch.isInstanceOf[SNode[_, _]] || isFrozenS(ch) || isFrozenL(ch)) {
-                return level
+                return level + levelOffset
               } else if (ch.isInstanceOf[Array[AnyRef]]) {
                 val an = ch.asInstanceOf[Array[AnyRef]]
                 val result = sampleKey(an, level + 4, hash)
@@ -659,7 +660,7 @@ class CacheTrie[K <: AnyRef, V] {
             } else if (
               ch.isInstanceOf[SNode[_, _]] || isFrozenS(ch) || isFrozenL(ch)
             ) {
-              val shift = (level >>> 2) << 3
+              val shift = ((level + levelOffset) >>> 2) << 3
               histogram += 1L << shift
             } else if (isFrozenA(ch)) {
               val an = ch.asInstanceOf[FNode].frozen.asInstanceOf[Array[AnyRef]]
@@ -708,6 +709,7 @@ class CacheTrie[K <: AnyRef, V] {
       val histogramString =
         (0 until 8).map(_ * 8).map(histogram >>> _).map(_ & 0xff).mkString(",")
       println(histogramString)
+      println(debugCacheStats)
       println()
     }
 
@@ -809,10 +811,8 @@ class CacheTrie[K <: AnyRef, V] {
     val stats = cache(0).asInstanceOf[CacheNode]
     var size = 0
     for (i <- 1 until cache.length) {
-      if (
-        cache(i) != null && cache(i) != VNode && cache(i) != FVNode &&
-        !cache(i).isInstanceOf[FNode]
-      ) {
+      val c = cache(i)
+      if (c != null && c != VNode && c != FVNode && !c.isInstanceOf[FNode]) {
         size += 1
       }
     }
@@ -827,12 +827,12 @@ class CacheTrie[K <: AnyRef, V] {
       while (i < node.length) {
         val old = node(i)
         if (old.isInstanceOf[SNode[_, _]]) {
-          histogram(level / 4) += 1
+          histogram((level + 4) / 4) += 1
           sz += 1
         } else if (old.isInstanceOf[LNode[_, _]]) {
           var ln = old.asInstanceOf[LNode[_, _]]
           while (ln != null) {
-            histogram(level / 4) += 1
+            histogram((level + 4) / 4) += 1
             sz += 1
             ln = ln.next
           }

@@ -184,6 +184,7 @@ class CacheTrieBenches extends JBench.OfflineReport {
       sum += trie.lookup(elems(i)).value
       i += 1
     }
+    //println(trie.debugCacheStats)
     sum
   }
 
