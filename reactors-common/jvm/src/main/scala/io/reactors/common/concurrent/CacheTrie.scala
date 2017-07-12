@@ -289,7 +289,8 @@ class CacheTrie[K <: AnyRef, V] {
           } else slowInsert(key, value, hash, level, current, parent)
         } else {
           // Replace the single node with a narrow node.
-          val nnode = newNarrowOrWideNode(oldsn, hash, key, value, level + 4)
+          val nnode = newNarrowOrWideNode(
+            oldsn.hash, oldsn.key, oldsn.value, hash, key, value, level + 4)
           if (CAS(current, pos, oldsn, nnode)) Success
           else slowInsert(key, value, hash, level, current, parent)
         }
@@ -390,19 +391,20 @@ class CacheTrie[K <: AnyRef, V] {
     val old = wide(pos)
     if (old.isInstanceOf[SNode[_, _]]) {
       val oldsn = old.asInstanceOf[SNode[K, V]]
-      val an = newNarrowOrWideNode(oldsn, sn, level + 4)
+      val an = newNarrowOrWideNodeUsingFresh(oldsn, sn, level + 4)
       wide(pos) = an
     } else if (old.isInstanceOf[Array[AnyRef]]) {
       val oldan = old.asInstanceOf[Array[AnyRef]]
       val npos = (sn.hash >>> (level + 4)) & (oldan.length - 1)
-      if (oldan(npos) == null) oldan(npos) = sn
-      else {
-        if (oldan.length == 4) {
-          val an = new Array[AnyRef](16)
-          sequentialTransfer(oldan, an, level + 4)
-          wide(pos) = an
-          sequentialInsert(sn, wide, level, pos)
-        } else sequentialInsert(sn, oldan, level + 4, npos)
+      if (oldan(npos) == null) {
+        oldan(npos) = sn
+      } else if (oldan.length == 4) {
+        val an = new Array[AnyRef](16)
+        sequentialTransfer(oldan, an, level + 4)
+        wide(pos) = an
+        sequentialInsert(sn, wide, level, pos)
+      } else {
+        sequentialInsert(sn, oldan, level + 4, npos)
       }
     } else if (old.isInstanceOf[LNode[_, _]]) {
       val oldln = old.asInstanceOf[LNode[K, V]]
@@ -424,10 +426,11 @@ class CacheTrie[K <: AnyRef, V] {
         // We can skip, the slot was empty.
       } else if (isFrozenS(node)) {
         // We can copy it over to the wide node.
-        val snode = node.asInstanceOf[FNode].frozen.asInstanceOf[SNode[K, V]]
-        val pos = (snode.hash >>> level) & mask
-        if (wide(pos) == null) wide(pos) = snode
-        else sequentialInsert(snode, wide, level, pos)
+        val oldsn = node.asInstanceOf[FNode].frozen.asInstanceOf[SNode[K, V]]
+        val sn = new SNode(oldsn.hash, oldsn.key, oldsn.value)
+        val pos = (sn.hash >>> level) & mask
+        if (wide(pos) == null) wide(pos) = sn
+        else sequentialInsert(sn, wide, level, pos)
       } else if (isFrozenL(node)) {
         var tail = node.asInstanceOf[FNode].frozen.asInstanceOf[LNode[K, V]]
         while (tail != null) {
@@ -446,7 +449,7 @@ class CacheTrie[K <: AnyRef, V] {
     }
   }
 
-  private def newNarrowOrWideNode(
+  private def newNarrowOrWideNodeUsingFresh(
     sn1: SNode[K, V], sn2: SNode[K, V], level: Int
   ): AnyRef = {
     if (sn1.hash == sn2.hash) {
@@ -473,14 +476,20 @@ class CacheTrie[K <: AnyRef, V] {
   }
 
   private def newNarrowOrWideNode(
-    sn1: SNode[K, V], h2: Int, k2: K, v2: V, level: Int
+    h1: Int, k1: K, v1: V, h2: Int, k2: K, v2: V, level: Int
   ): AnyRef = {
-    newNarrowOrWideNode(sn1, new SNode(h2, k2, v2), level)
+    newNarrowOrWideNodeUsingFresh(new SNode(h1, k1, v1), new SNode(h2, k2, v2), level)
   }
 
   private def newListNarrowOrWideNode(
-    ln: CacheTrie.LNode[K, V], hash: Int, k: K, v: V, level: Int
+    oldln: CacheTrie.LNode[K, V], hash: Int, k: K, v: V, level: Int
   ): AnyRef = {
+    var tail = oldln
+    var ln: LNode[K, V] = null
+    while (tail != null) {
+      ln = new LNode(tail.hash, tail.key, tail.value, ln)
+      tail = tail.next
+    }
     if (ln.hash == hash) {
       new LNode(hash, k, v, ln)
     } else {
