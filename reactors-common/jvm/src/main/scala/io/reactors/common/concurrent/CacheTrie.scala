@@ -35,6 +35,12 @@ class CacheTrie[K <: AnyRef, V] {
     unsafe.compareAndSwapObject(enode, ENodeWideOffset, ov, nv)
   }
 
+  private def READ_FREEZE(snode: SNode[_, _]): AnyRef = snode.freeze
+
+  private def CAS_FREEZE(snode: SNode[_, _], nv: AnyRef): Boolean = {
+    unsafe.compareAndSwapObject(snode, SNodeFrozenOffset, null, nv)
+  }
+
   private def spread(h: Int): Int = {
     (h ^ (h >>> 16)) & 0x7fffffff
   }
@@ -169,7 +175,7 @@ class CacheTrie[K <: AnyRef, V] {
     } else if (old.isInstanceOf[SNode[_, _]]) {
       if (level < cacheLevel || level >= cacheLevel + 8) {
         // A potential cache miss -- we need to check the cache state.
-        updateCacheMiss()
+        recordCacheMiss()
       }
       val oldsn = old.asInstanceOf[SNode[K, V]]
       if ((oldsn.hash == hash) && ((oldsn.key eq key) || (oldsn.key == key))) {
@@ -180,7 +186,7 @@ class CacheTrie[K <: AnyRef, V] {
     } else if (old.isInstanceOf[LNode[_, _]]) {
       if (level < cacheLevel || level >= cacheLevel + 8) {
         // A potential cache miss -- we need to check the cache state.
-        updateCacheMiss()
+        recordCacheMiss()
       }
       val oldln = old.asInstanceOf[LNode[K, V]]
       if (oldln.hash != hash) {
@@ -271,29 +277,46 @@ class CacheTrie[K <: AnyRef, V] {
       slowInsert(key, value, hash, level + 4, old.asInstanceOf[Array[AnyRef]], current)
     } else if (old.isInstanceOf[SNode[_, _]]) {
       val oldsn = old.asInstanceOf[SNode[K, V]]
-      if ((oldsn.hash == hash) && ((oldsn.key eq key) || (oldsn.key == key))) {
-        val sn = new SNode(hash, key, value)
-        if (CAS(current, pos, oldsn, sn)) Success
-        else slowInsert(key, value, hash, level, current, parent)
-      } else {
-        if (current.length == 4) {
-          // Expand the current node, seeking to avoid the collision.
-          // Root size always 16, so parent is non-null.
-          val parentmask = parent.length - 1
-          val parentlevel = level - 4
-          val parentpos = (hash >>> parentlevel) & parentmask
-          val enode = new ENode(parent, parentpos, current, hash, level)
-          if (CAS(parent, parentpos, current, enode)) {
-            completeExpansion(enode)
-            slowInsert(key, value, hash, level, enode.wide, parent)
+      val reason = READ_FREEZE(oldsn)
+      if (reason eq null) {
+        // The node is not frozen or marked for 
+        if ((oldsn.hash == hash) && ((oldsn.key eq key) || (oldsn.key == key))) {
+          val sn = new SNode(hash, key, value)
+          if (CAS_FREEZE(oldsn, sn)) {
+            if (CAS(current, pos, oldsn, sn)) Success
+            else slowInsert(key, value, hash, level, current, parent)
           } else slowInsert(key, value, hash, level, current, parent)
         } else {
-          // Replace the single node with a narrow node.
-          val nnode = newNarrowOrWideNode(
-            oldsn.hash, oldsn.key, oldsn.value, hash, key, value, level + 4)
-          if (CAS(current, pos, oldsn, nnode)) Success
-          else slowInsert(key, value, hash, level, current, parent)
+          if (current.length == 4) {
+            // Expand the current node, seeking to avoid the collision.
+            // Root size always 16, so parent is non-null.
+            val parentmask = parent.length - 1
+            val parentlevel = level - 4
+            val parentpos = (hash >>> parentlevel) & parentmask
+            val enode = new ENode(parent, parentpos, current, hash, level)
+            if (CAS(parent, parentpos, current, enode)) {
+              completeExpansion(enode)
+              slowInsert(key, value, hash, level, enode.wide, parent)
+            } else slowInsert(key, value, hash, level, current, parent)
+          } else {
+            // Replace the single node with a narrow node.
+            val nnode = newNarrowOrWideNode(
+              oldsn.hash, oldsn.key, oldsn.value, hash, key, value, level + 4)
+            if (CAS_FREEZE(oldsn, nnode)) {
+              if (CAS(current, pos, oldsn, nnode)) Success
+              else slowInsert(key, value, hash, level, current, parent)
+            } else slowInsert(key, value, hash, level, current, parent)
+          }
         }
+      } else if (reason eq FSNode) {
+        // We landed into the middle of a transaction doing a freeze.
+        // We must restart from the top, find the tranaction node and help.
+        Restart
+      } else {
+        // The single node had been scheduled for replacement by some thread.
+        // We need to help, then retry.
+        CAS(current, pos, oldsn, reason)
+        slowInsert(key, value, hash, level, current, parent)
       }
     } else if (old.isInstanceOf[LNode[_, _]]) {
       val oldln = old.asInstanceOf[LNode[K, V]]
@@ -316,7 +339,10 @@ class CacheTrie[K <: AnyRef, V] {
   }
 
   private def isFrozenS(n: AnyRef): Boolean = {
-    n.isInstanceOf[FNode] && n.asInstanceOf[FNode].frozen.isInstanceOf[SNode[_, _]]
+    if (n.isInstanceOf[SNode[_, _]]) {
+      val f = READ_FREEZE(n.asInstanceOf[SNode[_, _]])
+      f eq FSNode
+    } else false
   }
 
   private def isFrozenA(n: AnyRef): Boolean = {
@@ -337,11 +363,21 @@ class CacheTrie[K <: AnyRef, V] {
         // If another txn is in progress, then reinspect the current slot.
         if (!CAS(current, i, node, FVNode)) i -= 1
       } else if (node.isInstanceOf[SNode[_, _]]) {
-        // Freeze single node.
-        // If it fails, then either someone helped or another txn is in progress.
-        // If another txn is in progress, then we must reinspect the current slot.
-        val fnode = new FNode(node)
-        if (!CAS(current, i, node, fnode)) i -= 1
+        val sn = node.asInstanceOf[SNode[K, V]]
+        val reason = READ_FREEZE(sn)
+        if (reason == null) {
+          // Freeze single node.
+          // If it fails, then either someone helped or another txn is in progress.
+          // If another txn is in progress, then we must reinspect the current slot.
+          if (!CAS_FREEZE(node.asInstanceOf[SNode[K, V]], FSNode)) i -= 1
+        } else if (reason eq FSNode) {
+          // We can skip, another thread previously froze this node.
+        } else  {
+          // Another thread is trying to replace the single node.
+          // In this case, we help and retry.
+          CAS(current, i, node, reason)
+          i -= 1
+        }
       } else if (node.isInstanceOf[LNode[_, _]]) {
         // Freeze list node.
         // If it fails, then either someone helped or another txn is in progress.
@@ -354,8 +390,8 @@ class CacheTrie[K <: AnyRef, V] {
         // If another txn is in progress, then reinspect the current slot.
         val fnode = new FNode(node)
         if (!CAS(current, i, node, fnode)) i -= 1
-      } else if ((node eq FVNode) || isFrozenS(node) || isFrozenL(node)) {
-        // We can skip, somebody else previously helped with freezing this node.
+      } else if ((node eq FVNode) || isFrozenL(node)) {
+        // We can skip, another thread previously helped with freezing this node.
       } else if (node.isInstanceOf[FNode]) {
         // We still need to freeze the subtree recursively.
         val subnode = node.asInstanceOf[FNode].frozen.asInstanceOf[Array[AnyRef]]
@@ -426,7 +462,7 @@ class CacheTrie[K <: AnyRef, V] {
         // We can skip, the slot was empty.
       } else if (isFrozenS(node)) {
         // We can copy it over to the wide node.
-        val oldsn = node.asInstanceOf[FNode].frozen.asInstanceOf[SNode[K, V]]
+        val oldsn = node.asInstanceOf[SNode[K, V]]
         val sn = new SNode(oldsn.hash, oldsn.key, oldsn.value)
         val pos = (sn.hash >>> level) & mask
         if (wide(pos) == null) wide(pos) = sn
@@ -756,7 +792,7 @@ class CacheTrie[K <: AnyRef, V] {
     }
   }
 
-  private def updateCacheMiss(): Unit = {
+  private def recordCacheMiss(): Unit = {
     val cache = READ_CACHE
     if (cache ne null) {
       val stats = READ(cache, 0).asInstanceOf[CacheNode]
@@ -879,6 +915,10 @@ object CacheTrie {
     val field = classOf[ENode].getDeclaredField("wide")
     Platform.unsafe.objectFieldOffset(field)
   }
+  private val SNodeFrozenOffset = {
+    val field = classOf[SNode[_, _]].getDeclaredField("freeze")
+    Platform.unsafe.objectFieldOffset(field)
+  }
   private val CacheTrieRawCacheOffset = {
     val field = classOf[CacheTrie[_, _]].getDeclaredField("rawCache")
     Platform.unsafe.objectFieldOffset(field)
@@ -904,7 +944,9 @@ object CacheTrie {
     val key: K,
     val value: V
   ) {
-    override def toString = s"SN[$hash, $key, $value]"
+    @volatile var freeze: AnyRef = null
+    override def toString =
+      s"SN[$hash, $key, $value, ${if (freeze != null) freeze else '_'}]"
   }
 
   class LNode[K <: AnyRef, V](
@@ -928,6 +970,8 @@ object CacheTrie {
   }
 
   val FVNode = new AnyRef
+
+  val FSNode = new AnyRef
 
   class FNode(
     val frozen: AnyRef
