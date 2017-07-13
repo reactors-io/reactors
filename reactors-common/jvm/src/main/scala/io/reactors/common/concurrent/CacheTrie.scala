@@ -63,7 +63,21 @@ class CacheTrie[K <: AnyRef, V] {
       if (cachee eq null) {
         // Nothing is cached at this location, do slow lookup.
         slowLookup(key, hash, 0, rawRoot, cachee, level)
+      } else if (cachee.isInstanceOf[SNode[_, _]]) {
+        // println(s"$key - found single node cachee, cache level $level")
+        val oldsn = cachee.asInstanceOf[SNode[K, V]]
+        val reason = READ_FREEZE(oldsn)
+        if (reason == null) {
+          val oldhash = oldsn.hash
+          val oldkey = oldsn.key
+          if ((oldhash == hash) && ((oldkey eq key) || (oldkey == key))) oldsn.value
+          else null.asInstanceOf[V]
+        } else {
+          // The single node is either frozen or scheduled for modification
+          slowLookup(key, hash, 0, rawRoot, cachee, level)
+        }
       } else if (cachee.isInstanceOf[Array[AnyRef]]) {
+        // println(s"$key - found array cachee, cache level $level")
         val an = cachee.asInstanceOf[Array[AnyRef]]
         val mask = an.length - 1
         val pos = (hash >>> level) & mask
@@ -72,12 +86,19 @@ class CacheTrie[K <: AnyRef, V] {
           // The key is not present in the cache trie.
           null.asInstanceOf[V]
         } else if (old.isInstanceOf[SNode[_, _]]) {
-          // Check if the key is contained in the single node.
           val oldsn = old.asInstanceOf[SNode[K, V]]
-          val oldhash = oldsn.hash
-          val oldkey = oldsn.key
-          if ((oldhash == hash) && ((oldkey eq key) || (oldkey == key))) oldsn.value
-          else null.asInstanceOf[V]
+          val reason = READ_FREEZE(oldsn)
+          if (reason == null) {
+            // The single node is up-to-date.
+            // Check if the key is contained in the single node.
+            val oldhash = oldsn.hash
+            val oldkey = oldsn.key
+            if ((oldhash == hash) && ((oldkey eq key) || (oldkey == key))) oldsn.value
+            else null.asInstanceOf[V]
+          } else {
+            // The single node is either frozen or scheduled for modification.
+            slowLookup(key, hash, 0, rawRoot, cachee, level)
+          }
         } else {
           def resumeSlowLookup(): V = {
             if (old.isInstanceOf[Array[AnyRef]]) {
@@ -161,6 +182,7 @@ class CacheTrie[K <: AnyRef, V] {
     key: K, hash: Int, level: Int, node: Array[AnyRef],
     cacheeSeen: AnyRef, cacheLevel: Int
   ): V = {
+    // println(s"$key - slow lookup, level $level")
     if (level == cacheLevel) {
       populateCache(cacheeSeen, node, hash, level)
     }
@@ -178,6 +200,10 @@ class CacheTrie[K <: AnyRef, V] {
         recordCacheMiss()
       }
       val oldsn = old.asInstanceOf[SNode[K, V]]
+      if (level + 4 == cacheLevel) {
+        // println(s"about to populate for single node -- ${level + 4} vs $cacheLevel")
+        populateCache(cacheeSeen, oldsn, hash, level + 4)
+      }
       if ((oldsn.hash == hash) && ((oldsn.key eq key) || (oldsn.key == key))) {
         oldsn.value
       } else {
@@ -612,7 +638,7 @@ class CacheTrie[K <: AnyRef, V] {
     val sampleSize = 128
     val sampleType = 2
     var seed = Thread.currentThread.getId + System.identityHashCode(this)
-    val levelOffset = 0
+    val levelOffset = 4
     (sampleType: @switch) match {
       case 0 =>
         var i = 0
@@ -793,10 +819,10 @@ class CacheTrie[K <: AnyRef, V] {
   }
 
   private def recordCacheMiss(): Unit = {
+    val missCountMax = 2048
     val cache = READ_CACHE
     if (cache ne null) {
       val stats = READ(cache, 0).asInstanceOf[CacheNode]
-      val missCountMax = 2048
       if (stats.approximateMissCount > missCountMax) {
         // We must again check if the cache level is obsolete.
         // Reset the miss count.
