@@ -64,7 +64,7 @@ class CacheTrie[K <: AnyRef, V] {
         // Nothing is cached at this location, do slow lookup.
         slowLookup(key, hash, 0, rawRoot, cachee, level)
       } else if (cachee.isInstanceOf[SNode[_, _]]) {
-        // println(s"$key - found single node cachee, cache level $level")
+        //println(s"$key - found single node cachee, cache level $level")
         val oldsn = cachee.asInstanceOf[SNode[K, V]]
         val reason = READ_FREEZE(oldsn)
         if (reason == null) {
@@ -77,7 +77,7 @@ class CacheTrie[K <: AnyRef, V] {
           slowLookup(key, hash, 0, rawRoot, cachee, level)
         }
       } else if (cachee.isInstanceOf[Array[AnyRef]]) {
-        // println(s"$key - found array cachee, cache level $level")
+        //println(s"$key - found array cachee, cache level $level")
         val an = cachee.asInstanceOf[Array[AnyRef]]
         val mask = an.length - 1
         val pos = (hash >>> level) & mask
@@ -182,7 +182,6 @@ class CacheTrie[K <: AnyRef, V] {
     key: K, hash: Int, level: Int, node: Array[AnyRef],
     cacheeSeen: AnyRef, cacheLevel: Int
   ): V = {
-    // println(s"$key - slow lookup, level $level")
     if (level == cacheLevel) {
       populateCache(cacheeSeen, node, hash, level)
     }

@@ -3,8 +3,6 @@ package io.reactors.common.concurrent
 
 
 import java.util.concurrent.ConcurrentHashMap
-import io.reactors.common.concurrent.CacheTrie.LNode
-import io.reactors.common.concurrent.CacheTrie.SNode
 import org.scalameter.api._
 import org.scalameter.japi.JBench
 import org.scalatest.FunSuite
@@ -77,8 +75,8 @@ class CacheTrieBenches extends JBench.OfflineReport {
     org.scalameter.reporting.RegressionReporter.Historian.Complete()
 
   override def defaultConfig = Context(
-    exec.minWarmupRuns -> 60,
-    exec.maxWarmupRuns -> 120,
+    exec.minWarmupRuns -> 40,
+    exec.maxWarmupRuns -> 80,
     exec.independentSamples -> 1,
     verbose -> true
   )
@@ -105,6 +103,12 @@ class CacheTrieBenches extends JBench.OfflineReport {
     val trie = new CacheTrie[Wrapper, Wrapper]
     for (i <- 0 until size) {
       trie.insert(elems(i), elems(i))
+    }
+    for (i <- 0 until size) {
+      trie.lookup(elems(i))
+    }
+    for (i <- 0 until size) {
+      trie.lookup(elems(i))
     }
     (size, trie)
   }
