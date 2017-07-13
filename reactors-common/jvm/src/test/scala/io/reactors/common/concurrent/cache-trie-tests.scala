@@ -49,6 +49,20 @@ class CacheTrieTest extends FunSuite {
       assert(trie.lookup(i.toString) == i)
     }
   }
+
+  test("trie cache must find the elements correctly") {
+    val trie = new CacheTrie[String, Int]
+    val size = 1000000
+    for (i <- 0 until size) {
+      trie.insert(i.toString, i)
+    }
+    for (i <- 0 until size) {
+      assert(trie.lookup(i.toString) == i)
+    }
+    for (i <- 0 until size) {
+      assert(trie.lookup(i.toString) == i)
+    }
+  }
 }
 
 
