@@ -139,7 +139,9 @@ class CacheTrie[K <: AnyRef, V] {
 
   private[concurrent] def debugReadRoot: Array[AnyRef] = rawRoot
 
-  private[concurrent] def debugCachePopulate(level: Int, key: K, value: V): Unit = {
+  private[concurrent] def debugCachePopulateTwoLevelSingle(
+    level: Int, key: K, value: V
+  ): Unit = {
     rawCache = new Array[AnyRef](1 + (1 << level))
     rawCache(0) = new CacheNode(null, level)
     var i = 1
@@ -151,6 +153,36 @@ class CacheTrie[K <: AnyRef, V] {
         an(j) = new SNode(0, key, value)
         j += 1
       }
+      i += 1
+    }
+  }
+
+  private[concurrent] def debugCachePopulateTwoLevel(
+    level: Int, keys: Array[K], values: Array[V]
+  ): Unit = {
+    rawCache = new Array[AnyRef](1 + (1 << level))
+    rawCache(0) = new CacheNode(null, level)
+    var i = 1
+    while (i < rawCache.length) {
+      val an = new Array[AnyRef](4)
+      rawCache(i) = an
+      var j = 0
+      while (j < 4) {
+        an(j) = new SNode(0, keys(i * 4 + j), values(i * 4 + j))
+        j += 1
+      }
+      i += 1
+    }
+  }
+
+  private[concurrent] def debugCachePopulateOneLevel(
+    level: Int, keys: Array[K], values: Array[V]
+  ): Unit = {
+    rawCache = new Array[AnyRef](1 + (1 << level))
+    rawCache(0) = new CacheNode(null, level)
+    var i = 1
+    while (i < rawCache.length) {
+      rawCache(i) = new SNode(0, keys(i), values(i))
       i += 1
     }
   }

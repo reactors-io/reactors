@@ -78,12 +78,14 @@ class CacheTrieBenches extends JBench.OfflineReport {
     exec.minWarmupRuns -> 40,
     exec.maxWarmupRuns -> 80,
     exec.independentSamples -> 1,
+    exec.jvmflags -> List("-server", "-verbose:gc", "-Xmx3048m", "-Xms3048m"),
     verbose -> true
   )
 
   case class Wrapper(value: Int)
 
-  val elems = (0 until 1000000).map(i => Wrapper(i)).toArray
+  @transient
+  lazy val elems = (0 until 25000000).map(i => Wrapper(i)).toArray
 
   val sizes = Gen.range("size")(100000, 1000000, 100000)
 
@@ -115,7 +117,9 @@ class CacheTrieBenches extends JBench.OfflineReport {
 
   val artificialCachetries = for (size <- sizes) yield {
     val trie = new CacheTrie[Wrapper, Wrapper]
-    trie.debugCachePopulate(16, elems(0), elems(0))
+    //trie.debugCachePopulate(20, elems(0), elems(0))
+    //trie.debugCachePopulateTwoLevel(20, elems, elems)
+    trie.debugCachePopulateOneLevel(20, elems, elems)
     (size, trie)
   }
 
@@ -160,22 +164,22 @@ class CacheTrieBenches extends JBench.OfflineReport {
   //  }
   //  sum
   //}
-
-  //@gen("artificialCachetries")
-  //@benchmark("cache-trie.apply")
-  //@curve("cachetrie-fast-path")
-  //def cachetrieFastLookup(sc: (Int, CacheTrie[Wrapper, Wrapper])): Int = {
-  //  val (size, trie) = sc
-  //  var i = 0
-  //  var sum = 0
-  //  io.reactors.test.delayTest(this.getClass)
-  //  while (i < size) {
-  //    val x = trie.fastLookup(elems(i))
-  //    sum += (if (x != null) x.value else 0)
-  //    i += 1
-  //  }
-  //  sum
-  //}
+  //
+  @gen("artificialCachetries")
+  @benchmark("cache-trie.apply")
+  @curve("cachetrie-fast-path")
+  def cachetrieFastLookup(sc: (Int, CacheTrie[Wrapper, Wrapper])): Int = {
+    val (size, trie) = sc
+    var i = 0
+    var sum = 0
+    io.reactors.test.delayTest(this.getClass)
+    while (i < size) {
+      val x = trie.fastLookup(elems(i))
+      sum += (if (x != null) x.value else 0)
+      i += 1
+    }
+    sum
+  }
 
   @gen("cachetries")
   @benchmark("cache-trie.apply")
@@ -188,8 +192,8 @@ class CacheTrieBenches extends JBench.OfflineReport {
       sum += trie.lookup(elems(i)).value
       i += 1
     }
-    // println(trie.debugPerLevelDistribution)
-    // println(trie.debugCacheStats)
+    //println(trie.debugPerLevelDistribution)
+    //println(trie.debugCacheStats)
     sum
   }
 
