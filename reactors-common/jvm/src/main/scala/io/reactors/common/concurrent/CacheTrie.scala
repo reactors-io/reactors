@@ -176,13 +176,15 @@ class CacheTrie[K <: AnyRef, V] {
   }
 
   private[concurrent] def debugCachePopulateOneLevel(
-    level: Int, keys: Array[K], values: Array[V]
+    level: Int, keys: Array[K], values: Array[V], scarce: Boolean
   ): Unit = {
     rawCache = new Array[AnyRef](1 + (1 << level))
     rawCache(0) = new CacheNode(null, level)
     var i = 1
     while (i < rawCache.length) {
-      rawCache(i) = new SNode(0, keys(i), values(i))
+      if (!scarce || i % 4 == 0) {
+        rawCache(i) = new SNode(0, keys(i), values(i))
+      }
       i += 1
     }
   }
@@ -997,11 +999,12 @@ object CacheTrie {
   }
 
   class SNode[K <: AnyRef, V](
+    @volatile var freeze: AnyRef,
     val hash: Int,
     val key: K,
     val value: V
   ) {
-    @volatile var freeze: AnyRef = null
+    def this(h: Int, k: K, v: V) = this(null, h, k, v)
     override def toString =
       s"SN[$hash, $key, $value, ${if (freeze != null) freeze else '_'}]"
   }

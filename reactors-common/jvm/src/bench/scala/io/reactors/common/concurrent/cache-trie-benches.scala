@@ -4,6 +4,7 @@ package io.reactors.common.concurrent
 
 import java.util.concurrent.ConcurrentHashMap
 import org.scalameter.api._
+import org.scalameter.execution.LocalExecutor
 import org.scalameter.japi.JBench
 import org.scalatest.FunSuite
 import scala.collection.concurrent.TrieMap
@@ -26,33 +27,33 @@ class CacheTrieFootprintBenches extends JBench.OfflineReport {
 
   val elems = (0 until 1000000).map(i => Wrapper(i)).toArray
 
-  @gen("sizes")
-  @benchmark("cache-trie.size")
-  @curve("chm")
-  def chmInsert(size: Int) = {
-    val chm = new ConcurrentHashMap[Wrapper, Wrapper]
-    var i = 0
-    while (i < size) {
-      val v = elems(i)
-      chm.put(v, v)
-      i += 1
-    }
-    chm
-  }
-
-  @gen("sizes")
-  @benchmark("cache-trie.size")
-  @curve("ctrie")
-  def ctrieInsert(size: Int) = {
-    val trie = new TrieMap[Wrapper, Wrapper]
-    var i = 0
-    while (i < size) {
-      val v = elems(i)
-      trie.put(v, v)
-      i += 1
-    }
-    trie
-  }
+  //@gen("sizes")
+  //@benchmark("cache-trie.size")
+  //@curve("chm")
+  //def chmInsert(size: Int) = {
+  //  val chm = new ConcurrentHashMap[Wrapper, Wrapper]
+  //  var i = 0
+  //  while (i < size) {
+  //    val v = elems(i)
+  //    chm.put(v, v)
+  //    i += 1
+  //  }
+  //  chm
+  //}
+  //
+  //@gen("sizes")
+  //@benchmark("cache-trie.size")
+  //@curve("ctrie")
+  //def ctrieInsert(size: Int) = {
+  //  val trie = new TrieMap[Wrapper, Wrapper]
+  //  var i = 0
+  //  while (i < size) {
+  //    val v = elems(i)
+  //    trie.put(v, v)
+  //    i += 1
+  //  }
+  //  trie
+  //}
 
   @gen("sizes")
   @benchmark("cache-trie.size")
@@ -78,7 +79,7 @@ class CacheTrieBenches extends JBench.OfflineReport {
     exec.minWarmupRuns -> 40,
     exec.maxWarmupRuns -> 80,
     exec.independentSamples -> 1,
-    exec.jvmflags -> List("-server", "-verbose:gc", "-Xmx3048m", "-Xms3048m"),
+    exec.jvmflags -> List("-server", "-verbose:gc", "-Xmx4048m", "-Xms4048m"),
     verbose -> true
   )
 
@@ -119,9 +120,12 @@ class CacheTrieBenches extends JBench.OfflineReport {
     val trie = new CacheTrie[Wrapper, Wrapper]
     //trie.debugCachePopulate(20, elems(0), elems(0))
     //trie.debugCachePopulateTwoLevel(20, elems, elems)
-    trie.debugCachePopulateOneLevel(20, elems, elems)
+    trie.debugCachePopulateOneLevel(24, elems, elems, true)
     (size, trie)
   }
+
+  //import org.scalameter.picklers.noPickler._
+  //override def executor: Executor[Double] = new LocalExecutor(warmer, aggregator, measurer)
 
   //@gen("chms")
   //@benchmark("cache-trie.apply")
@@ -165,21 +169,21 @@ class CacheTrieBenches extends JBench.OfflineReport {
   //  sum
   //}
   //
-  @gen("artificialCachetries")
-  @benchmark("cache-trie.apply")
-  @curve("cachetrie-fast-path")
-  def cachetrieFastLookup(sc: (Int, CacheTrie[Wrapper, Wrapper])): Int = {
-    val (size, trie) = sc
-    var i = 0
-    var sum = 0
-    io.reactors.test.delayTest(this.getClass)
-    while (i < size) {
-      val x = trie.fastLookup(elems(i))
-      sum += (if (x != null) x.value else 0)
-      i += 1
-    }
-    sum
-  }
+  //@gen("artificialCachetries")
+  //@benchmark("cache-trie.apply")
+  //@curve("cachetrie-fast-path")
+  //def cachetrieFastLookup(sc: (Int, CacheTrie[Wrapper, Wrapper])): Int = {
+  //  val (size, trie) = sc
+  //  var i = 0
+  //  var sum = 0
+  //  io.reactors.test.delayTest(this.getClass)
+  //  while (i < size) {
+  //    val x = trie.fastLookup(elems(i))
+  //    sum += (if (x != null) x.value else 0)
+  //    i += 1
+  //  }
+  //  sum
+  //}
 
   @gen("cachetries")
   @benchmark("cache-trie.apply")
