@@ -74,6 +74,7 @@ class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
   private def validateCache[K <: AnyRef, V](
     trie: CacheTrie[K, V], sz: Int, allowNull: Boolean
   ): Unit = {
+    return
     var cache = trie.debugReadCache
     if (sz > 32000 || cache != null) {
       do {
