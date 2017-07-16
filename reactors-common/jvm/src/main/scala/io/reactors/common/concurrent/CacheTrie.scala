@@ -914,14 +914,26 @@ class CacheTrie[K <: AnyRef, V] {
   def debugCacheStats: String = {
     val cache = READ_CACHE
     val stats = cache(0).asInstanceOf[CacheNode]
-    var size = 0
+    var count = 0
+    var acount = 0
+    var scount = 0
     for (i <- 1 until cache.length) {
       val c = cache(i)
       if (c != null && c != VNode && c != FVNode && !c.isInstanceOf[FNode]) {
-        size += 1
+        count += 1
+      }
+      if (c.isInstanceOf[Array[AnyRef]]) {
+        acount += 1
+      }
+      if (c.isInstanceOf[SNode[_, _]]) {
+        scount += 1
       }
     }
-    s"cache level: ${stats.level}, $size / ${cache.length - 1}"
+    s"""
+    |cache level: ${stats.level}, $count / ${cache.length - 1}
+    |a-nodes: $acount
+    |s-nodes: $scount
+    """.stripMargin
   }
 
   def debugPerLevelDistribution: String = {
