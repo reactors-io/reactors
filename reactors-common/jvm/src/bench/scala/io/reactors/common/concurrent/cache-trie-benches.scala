@@ -88,7 +88,7 @@ class CacheTrieBenches extends JBench.OfflineReport {
   @transient
   lazy val elems = (0 until 25000000).map(i => Wrapper(i)).toArray
 
-  val sizes = Gen.range("size")(100000, 1000000, 100000)
+  val sizes = Gen.range("size")(100000, 4600000, 500000)
 
   val chms = for (size <- sizes) yield {
     val chm = new ConcurrentHashMap[Wrapper, Wrapper]
@@ -127,19 +127,19 @@ class CacheTrieBenches extends JBench.OfflineReport {
   //import org.scalameter.picklers.noPickler._
   //override def executor: Executor[Double] = new LocalExecutor(warmer, aggregator, measurer)
 
-  //@gen("chms")
-  //@benchmark("cache-trie.apply")
-  //@curve("CHM")
-  //def chmLookup(sc: (Int, ConcurrentHashMap[Wrapper, Wrapper])): Int = {
-  //  val (size, chm) = sc
-  //  var i = 0
-  //  var sum = 0
-  //  while (i < size) {
-  //    sum += chm.get(elems(i)).value
-  //    i += 1
-  //  }
-  //  sum
-  //}
+  @gen("chms")
+  @benchmark("cache-trie.apply")
+  @curve("CHM")
+  def chmLookup(sc: (Int, ConcurrentHashMap[Wrapper, Wrapper])): Int = {
+    val (size, chm) = sc
+    var i = 0
+    var sum = 0
+    while (i < size) {
+      sum += chm.get(elems(i)).value
+      i += 1
+    }
+    sum
+  }
   //
   //@gen("cachetries")
   //@benchmark("cache-trie.apply")

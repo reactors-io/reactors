@@ -816,6 +816,7 @@ class CacheTrie[K <: AnyRef, V] {
       println(debugCacheStats)
       println()
     }
+    //printDebugInformation()
 
     // Decide whether to change the cache levels.
     val repairThreshold = 1.40f
@@ -826,7 +827,7 @@ class CacheTrie[K <: AnyRef, V] {
       while (currStats.level > bestLevel) {
         // Drop cache level.
         val parentCache = currStats.parent
-        if (CAS_CACHE(cache, parentCache)) {
+        if (CAS_CACHE(currCache, parentCache)) {
           currCache = parentCache
           currStats = READ(currCache, 0).asInstanceOf[CacheNode]
         } else {
@@ -840,7 +841,7 @@ class CacheTrie[K <: AnyRef, V] {
         val nextLength = 1 + (1 << nextLevel)
         val nextCache = new Array[AnyRef](nextLength)
         nextCache(0) = new CacheNode(currCache, nextLevel)
-        if (CAS_CACHE(cache, nextCache)) {
+        if (CAS_CACHE(currCache, nextCache)) {
           currCache = nextCache
           currStats = READ(nextCache, 0).asInstanceOf[CacheNode]
         } else {
