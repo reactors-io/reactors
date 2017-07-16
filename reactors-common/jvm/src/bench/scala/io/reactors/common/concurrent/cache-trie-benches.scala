@@ -124,9 +124,6 @@ class CacheTrieBenches extends JBench.OfflineReport {
     (size, trie)
   }
 
-  //import org.scalameter.picklers.noPickler._
-  //override def executor: Executor[Double] = new LocalExecutor(warmer, aggregator, measurer)
-
   //@gen("chms")
   //@benchmark("cache-trie.apply")
   //@curve("CHM")
