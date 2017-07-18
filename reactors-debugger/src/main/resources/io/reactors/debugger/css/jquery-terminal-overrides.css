@@ -1,8 +1,13 @@
 
 @@style(io/reactors/debugger/css/vars.css)
 
+.terminal {
+  color: var(--terminal-font-color);
+}
+
 .cmd {
   background-color: transparent;
+  color: var(--terminal-font-color);
 }
 
 .cmd .cursor.blink {
