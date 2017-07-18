@@ -13,7 +13,7 @@ label {
 }
 
 ::-webkit-scrollbar {
-  background-color: rgba(120, 120, 120, 0.5);
+  background-color: rgba(135, 135, 135, 0.5);
 }
 
 ::-webkit-scrollbar:vertical {

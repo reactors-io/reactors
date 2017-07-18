@@ -120,8 +120,9 @@
 
   ul.x-tabbar-tabs {
     list-style: none;
-    padding-top: 4px;
     padding-left: 0px;
+    border-radius: 3px;
+    padding-top: 4px;
   }
 
   ul.x-tabbar-tabs > li {
@@ -131,22 +132,21 @@
     background-color: var(--widget-background-color);
     border: none;
     font-size: 10px;
-    margin-right: 4px;
-    margin-bottom: 4px;
   }
 
   ul.x-tabbar-tabs > li > div.x-tabbar-tab-container {
     cursor: pointer;
     padding-right: 26px;
-    transition: 0.3s;
+    transition: all 0.3s ease-in-out;
     min-height: 24px;
     background-color: transparent;
-    border: var(--widget-border);
+    border-right: var(--widget-border);
   }
 
   ul.x-tabbar-tabs > li > div.x-tabbar-tab-container:hover {
     background-color: var(--widget-background-color-hovered);
-    border: var(--widget-border-bright);
+    border-right: var(--widget-border-bright);
+    box-shadow: inset 0 3px 0 #68a, inset 0px 0px 3px 1px rgba(0,0,0,0.08);
   }
 
   ul.x-tabbar-tabs > li > div.x-tabbar-tab-container {
@@ -159,7 +159,8 @@
 
   ul.x-tabbar-tabs > li.x-tabbar-selected > div.x-tabbar-tab-container {
     background-color: var(--widget-background-color-selected);
-    border: var(--widget-border);
+    border-right: var(--widget-border);
+    box-shadow: inset 0 3px 0 #68a, inset 0px 0px 3px 1px rgba(0,0,0,0.08);
   }
 
   ul.x-tabbar-tabs > li.x-tabbar-add-panel {
@@ -218,6 +219,31 @@
     position: relative;
     bottom: 0;
     animation: fadeout .0s;
+  }
+
+  .x-tabbar-tabs .btn,
+  .x-tabbar-tabs .btn-primary,
+  .x-tabbar-tabs .open > .dropdown-toggle.btn,
+  .x-tabbar-tabs .open > .dropdown-toggle.btn-primary {
+    margin-left: -3px;
+    min-height: 24px;
+    border: none;
+    border-right: var(--widget-border);
+    transition: all 0.3s ease-in-out;
+  }
+
+  .x-tabbar-tabs .btn:hover,
+  .x-tabbar-tabs .btn-primary:hover {
+    border: none;
+    border-right: var(--widget-border);
+    box-shadow: inset 0 3px 0 #68a, inset 0px 0px 3px 1px rgba(0,0,0,0.08);
+  }
+
+  .x-tabbar-tabs .btn:active,
+  .x-tabbar-tabs .btn-primary:active {
+    border: none;
+    border-right: var(--widget-border);
+    box-shadow: inset 0 3px 0 #68a, inset 0px 0px 3px 1px rgba(0,0,0,0.08);
   }
 
   @keyframes fadein {
