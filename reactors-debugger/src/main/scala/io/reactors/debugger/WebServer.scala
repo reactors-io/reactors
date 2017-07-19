@@ -5,6 +5,7 @@ package debugger
 
 import _root_.com.github.mustachejava._
 import io.reactors.http._
+import io.reactors.json._
 import java.io.BufferedReader
 import java.io.StringReader
 import java.io.StringWriter
@@ -12,22 +13,23 @@ import java.util.ArrayList
 import java.util.HashMap
 import java.util.concurrent.TimeUnit
 import java.util.regex._
-import io.reactors.http.Http.StreamReply
-import io.reactors.http.Http.TextReply
 import org.apache.commons.io.IOUtils
 import org.rapidoid.http._
 import org.rapidoid.setup._
+import scalajson.ast._
 import scala.collection._
 import scala.collection.JavaConverters._
+import scala.concurrent._
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
 
 
 
 class WebServer(webapi: WebApi) extends Reactor[WebServer.Command] {
-  val setup = WebServer.createServer(system, webapi)
+  val http = WebServer.createServer(system, webapi)
 
   def shutdown() {
-    setup.shutdown()
+    http.shutdown()
   }
 }
 
@@ -37,7 +39,9 @@ object WebServer {
 
   case object Shutdown extends Command
 
-  private[debugger] def createServer(system: ReactorSystem, webapi: WebApi): Setup = {
+  private[debugger] def createServer(
+    system: ReactorSystem, webapi: WebApi
+  ): Http.Adapter = {
     val port = system.bundle.config.int("debug-api.port")
 
     def loadPage(path: String): String = {
@@ -172,91 +176,65 @@ object WebServer {
     }
 
     val debuggerPage = loadPage("io/reactors/debugger/index.html")
-    val s1 = Setup.create(system.name) // TODO: Remove.
     val s = Reactor.self.system.service[Http].at(port)
 
-    // attributes
-    s1.port(port + 50) // TODO: Remove.
-
     // ui routes
-    s1.get("/").html(debuggerPage)
     s.html("/") { req =>
       debuggerPage
     }
     s.default { req =>
       val stream = getClass.getResourceAsStream("/io/reactors/debugger/" + req.uri)
       if (stream == null) sys.error(s"Cannot find path: ${req.uri}")
-      if (req.uri.endsWith(".svg")) ("text/plain", TextReply(IOUtils.toString(stream)))
-      else ("application/octet-stream", StreamReply(stream))
+      if (req.uri.endsWith(".svg")) ("text/plain", IOUtils.toString(stream))
+      else ("application/octet-stream", stream)
     }
-    s1.req((req: Req) => {
-      val stream = getClass.getResourceAsStream("/io/reactors/debugger/" + req.path)
-      if (stream == null) sys.error(s"Cannot find path: ${req.path}")
-      if (req.path.endsWith(".svg")) IOUtils.toString(stream)
-      else IOUtils.toByteArray(stream)
-    }) // TODO: Remove.
 
     // api routes
     s.json("/api/state") { req =>
-      req.input.asJson match {
-        case jo @ JObject(_) =>
-          val values = jo.values
-          val suid = values("suid").asInstanceOf[String]
-          val ts = values("timestamp").asInstanceOf[Number].longValue
-          val repluids = values("repluids").asInstanceOf[List[String]]
-          asJsonNode(webapi.state(suid, ts, repluids.toList))
-      }
+      val values = req.input.asJson.asJObject.value
+      val suid = values("suid").asString
+      val ts = values("timestamp").asLong
+      val repluids = values("repluids").asList(_.asString)
+      webapi.state(suid, ts, repluids.toList).jsonString
     }
-    s1.post("/api/state").json((req: Req) => {
-      val suid = req.posted.get("suid").asInstanceOf[String]
-      val ts = req.posted.get("timestamp").asInstanceOf[Number].longValue
-      val repluids = req.posted.get("repluids").asInstanceOf[ArrayList[String]].asScala
-      asJsonNode(webapi.state(suid, ts, repluids.toList))
-    })
-    s1.post("/api/breakpoint/add").json((req: Req) => {
-      val suid = req.posted.get("suid").asInstanceOf[String]
-      val pattern = req.posted.get("pattern").asInstanceOf[String]
-      val tpe = req.posted.get("tpe").asInstanceOf[String]
+    s.json("/api/breakpoint/add") { req =>
+      val values = req.input.asJson.asJObject.value
+      val suid = values("suid").asString
+      val ts = values("pattern").asString
+      val tpe = values("tpe").asString
       ???
-    })
-    s1.post("/api/breakpoint/list").json((req: Req) => {
-      val suid = req.posted.get("suid").asInstanceOf[String]
+    }
+    s.json("/api/breakpoint/list") { req =>
+      val values = req.input.asJson.asJObject.value
+      val suid = values("suid").asString
       ???
-    })
-    s1.post("/api/breakpoint/remove").json((req: Req) => {
-      val suid = req.posted.get("suid").asInstanceOf[String]
-      val bid = req.posted.get("bid").asInstanceOf[Number].longValue
+    }
+    s.json("/api/breakpoint/remove") { req =>
+      val values = req.input.asJson.asJObject.value
+      val suid = values("suid").asString
+      val bid = values("bid").asLong
       ???
-    })
-    s1.post("/api/repl/get").json((req: Req) => {
-      val tpe = req.posted.get("tpe").asInstanceOf[String]
-      req.async()
-      webapi.replGet(tpe).onSuccess { case result =>
-        req.response.json(asJsonNode(result))
-        req.done()
-      }
-      req
-    })
-    s1.post("/api/repl/eval").json((req: Req) => {
-      val repluid = req.posted.get("repluid").asInstanceOf[String]
-      val command = req.posted.get("cmd").asInstanceOf[String]
-      req.async()
-      webapi.replEval(repluid, command).onSuccess { case result =>
-        req.response.json(asJsonNode(result))
-        req.done()
-      }
-      req
-    })
-    s1.post("/api/repl/close").json((req: Req) => {
-      val repluid = req.posted.get("repluid").asInstanceOf[String]
-      req.async()
-      webapi.replClose(repluid).onSuccess { case result =>
-        req.response.json(asJsonNode(result))
-        req.done()
-      }
-      req
-    })
+    }
+    s.json("/api/repl/get") { req =>
+      val values = req.input.asJson.asJObject.value
+      val tpe = values("tpe").asString
+      val result = webapi.replGet(tpe)
+      Await.result(result, Duration.Inf).jsonString
+    }
+    s.json("/api/repl/eval") { req =>
+      val values = req.input.asJson.asJObject.value
+      val repluid = values("repluid").asString
+      val command = values("cmd").asString
+      val result = webapi.replEval(repluid, command)
+      Await.result(result, Duration.Inf).jsonString
+    }
+    s.json("/api/repl/close") { req =>
+      val values = req.input.asJson.asJObject.value
+      val repluid = values("repluid").asString
+      val result = webapi.replClose(repluid)
+      Await.result(result, Duration.Inf).jsonString
+    }
 
-    s1
+    s
   }
 }

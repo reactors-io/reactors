@@ -7,15 +7,18 @@ import fi.iki.elonen.NanoHTTPD
 import fi.iki.elonen.NanoHTTPD.IHTTPSession
 import fi.iki.elonen.NanoHTTPD.Response
 import fi.iki.elonen.NanoHTTPD.Response.Status
-import java.io.InputStream
+import io.reactors.json._
+import java.io._
 import org.apache.commons.io.IOUtils
 import scala.collection._
 import scala.collection.JavaConverters._
+import scalajson.ast._
 
 
 
 class Http(val system: ReactorSystem) extends Protocol.Service {
   private val servers = mutable.Map[Int, Http.Instance]()
+  private val debugMode = system.bundle.config.int("debug-level")
 
   private def getOrCreateServer(
     port: Int, workers: Option[Channel[Http.Connection]]
@@ -29,7 +32,7 @@ class Http(val system: ReactorSystem) extends Protocol.Service {
         requests.events.onEvent(connection => connection.accept())
         requests.channel
       }
-      val instance = new Http.Instance(port, reactorUid, requestChannel)
+      val instance = new Http.Instance(port, reactorUid, requestChannel, debugMode)
       Reactor.self.sysEvents onMatch {
         case ReactorTerminated => instance.stop()
       }
@@ -68,10 +71,6 @@ object Http {
   case object Get extends Method
   case object Put extends Method
 
-  sealed trait Reply
-  case class TextReply(text: String) extends Reply
-  case class StreamReply(inputStream: InputStream) extends Reply
-
   trait Connection {
     def accept(): Unit
   }
@@ -109,12 +108,18 @@ object Http {
       }
       def uri = session.getUri
       def input = new Input {
-        def inputStream = session.getInputStream
+        def inputStream = {
+          val length = session.getHeaders.get("content-length").toInt
+          val bytes = new Array[Byte](length)
+          session.getInputStream.read(bytes, 0, length)
+          new ByteArrayInputStream(bytes)
+        }
         def asJson = {
           val content = IOUtils.toString(inputStream)
-          Json.parse(content)
+          JsonParser.parse(content)
         }
       }
+      override def toString = s"Wrapper($session)"
     }
   }
 
@@ -123,13 +128,15 @@ object Http {
     def html(route: String)(handler: Request => String): Unit
     def json(route: String)(handler: Request => String): Unit
     def resource(route: String)(mime: String)(handler: Request => InputStream): Unit
-    def default(handler: Request => (String, Reply)): Unit
+    def default(handler: Request => (String, Any)): Unit
+    def shutdown(): Unit
   }
 
   private[reactors] class Instance (
     val port: Int,
     val reactorUid: Long,
-    val requests: Channel[Connection]
+    val requests: Channel[Connection],
+    val debugMode: Int
   ) extends NanoHTTPD(port) with Adapter {
     private val handlers = mutable.Map[String, IHTTPSession => Response]()
     private val runner = new NanoHTTPD.AsyncRunner {
@@ -171,54 +178,84 @@ object Http {
       handler(session)
     }
 
+    private def printDebugInformation(session: IHTTPSession, d: Double): Unit = {
+      println(s"""
+      |Request at: ${session.getUri}
+      |  Reactor:    ${Reactor.self.name}
+      |  Duration:   $d ms
+      """.stripMargin.trim)
+    }
+
+    private def wrap[T](session: IHTTPSession, code: =>T): T = {
+      val start = System.nanoTime
+      try {
+        code
+      } catch {
+        case t: Throwable =>
+          t.printStackTrace()
+          throw t
+      } finally {
+        val end = System.nanoTime
+        if (debugMode != 0) {
+          printDebugInformation(session, (end - start) / 1000 / 1000.0)
+        }
+      }
+    }
+
+    def shutdown(): Unit = {
+      stop()
+    }
+
     def text(route: String)(handler: Request => String): Unit = handlers.synchronized {
-      val sessionHandler: IHTTPSession => Response = session => {
+      val sessionHandler: IHTTPSession => Response = session => wrap(session, {
         val text = handler(new Request.Wrapper(session))
         NanoHTTPD.newFixedLengthResponse(
           NanoHTTPD.Response.Status.OK, "text/plain", text)
-      }
+      })
       handlers(route) = sessionHandler
     }
 
     def html(route: String)(handler: Request => String): Unit = handlers.synchronized {
-      val sessionHandler: IHTTPSession => Response = session => {
+      val sessionHandler: IHTTPSession => Response = session => wrap(session, {
         val text = handler(new Request.Wrapper(session))
         NanoHTTPD.newFixedLengthResponse(
           NanoHTTPD.Response.Status.OK, "text/html", text)
-      }
+      })
       handlers(route) = sessionHandler
     }
 
     def json(route: String)(handler: Request => String): Unit = handlers.synchronized {
-      val sessionHandler: IHTTPSession => Response = session => {
+      val sessionHandler: IHTTPSession => Response = session => wrap(session, {
         val text = handler(new Request.Wrapper(session))
         NanoHTTPD.newFixedLengthResponse(
           NanoHTTPD.Response.Status.OK, "application/json", text)
-      }
+      })
       handlers(route) = sessionHandler
     }
 
     def resource(route: String)(mime: String)(handler: Request => InputStream): Unit =
       handlers.synchronized {
-        val sessionHandler: IHTTPSession => Response = session => {
+        val sessionHandler: IHTTPSession => Response = session => wrap(session, {
           val inputStream = handler(new Request.Wrapper(session))
           NanoHTTPD.newChunkedResponse(
             NanoHTTPD.Response.Status.OK, mime, inputStream)
-        }
+        })
         handlers(route) = sessionHandler
       }
 
-    def default(handler: Request => (String, Reply)): Unit =
+    def default(handler: Request => (String, Any)): Unit =
       handlers.synchronized {
-        val sessionHandler: IHTTPSession => Response = session => {
+        val sessionHandler: IHTTPSession => Response = session => wrap(session, {
           val (mime, value) = handler(new Request.Wrapper(session))
           value match {
-            case TextReply(txt) => NanoHTTPD.newFixedLengthResponse(
+            case txt: String => NanoHTTPD.newFixedLengthResponse(
               NanoHTTPD.Response.Status.OK, mime, txt)
-            case StreamReply(is) => NanoHTTPD.newChunkedResponse(
+            case is: InputStream => NanoHTTPD.newChunkedResponse(
               NanoHTTPD.Response.Status.OK, mime, is)
+            case jv: JValue => NanoHTTPD.newFixedLengthResponse(
+              NanoHTTPD.Response.Status.OK, mime, jv.jsonString)
           }
-        }
+        })
         handlers(defaultHandlerKey) = sessionHandler
       }
   }

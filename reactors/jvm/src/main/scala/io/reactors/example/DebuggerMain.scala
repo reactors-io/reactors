@@ -10,6 +10,7 @@ import io.reactors.debugger._
 object DebuggerMain {
   def main(args: Array[String]) {
     val config = ReactorSystem.customConfig("""
+      debug-level = 1
       debug-api = {
         name = "io.reactors.debugger.WebDebugger"
       }
