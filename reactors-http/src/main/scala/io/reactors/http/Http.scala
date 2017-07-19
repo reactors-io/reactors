@@ -88,7 +88,9 @@ object Http {
     def text(route: String)(handler: Request => Events[String]): Unit
     def html(route: String)(handler: Request => Events[String]): Unit
     def json(route: String)(handler: Request => Events[String]): Unit
-    def resource(route: String)(mime: String)(handler: Request => InputStream): Unit
+    def resource(route: String)(mime: String)(
+      handler: Request => Events[InputStream]
+    ): Unit
     def default(handler: Request => (String, Any)): Unit
     def async(handler: Request => Unit): Unit
     def shutdown(): Unit
@@ -194,7 +196,9 @@ object Http {
     ): Unit = {
       events.materialize.take(1) onMatch {
         case Events.React(x) =>
-          req.response.contentType(mime).body(x)
+          req.response
+            .contentType(mime)
+            .body(x)
           req.done()
         case Events.Except(t) =>
           req.done()
@@ -206,12 +210,8 @@ object Http {
     def text(route: String)(handler: Request => Events[String]): Unit =
       handlers.synchronized {
         val sessionHandler: Req => Unit = req => wrap(req, {
-          try {
-            val events = handler(new Request.Wrapper(req))
-            respondWith(MediaType.PLAIN_TEXT_UTF_8, req, events)
-          } catch {
-            case t: Throwable => req.done()
-          }
+          val events = handler(new Request.Wrapper(req))
+          respondWith(MediaType.PLAIN_TEXT_UTF_8, req, events)
         })
         handlers(route) = sessionHandler
       }
@@ -219,12 +219,8 @@ object Http {
     def html(route: String)(handler: Request => Events[String]): Unit =
       handlers.synchronized {
         val sessionHandler: Req => Unit = req => wrap(req, {
-          try {
-            val text = handler(new Request.Wrapper(req))
-            respondWith(MediaType.HTML_UTF_8, req, text)
-          } finally {
-            req.done()
-          }
+          val text = handler(new Request.Wrapper(req))
+          respondWith(MediaType.HTML_UTF_8, req, text)
         })
         handlers(route) = sessionHandler
       }
@@ -232,26 +228,20 @@ object Http {
     def json(route: String)(handler: Request => Events[String]): Unit =
       handlers.synchronized {
         val sessionHandler: Req => Unit = req => wrap(req, {
-          try {
-            val text = handler(new Request.Wrapper(req))
-            respondWithBody(MediaType.JSON, req, text.map(_.getBytes))
-          } finally {
-            req.done()
-          }
+          val text = handler(new Request.Wrapper(req))
+          respondWithBody(MediaType.JSON, req, text.map(_.getBytes))
         })
         handlers(route) = sessionHandler
       }
 
-    def resource(route: String)(mime: String)(handler: Request => InputStream): Unit =
+    def resource(route: String)(mime: String)(
+      handler: Request => Events[InputStream]
+    ): Unit =
       handlers.synchronized {
         val sessionHandler: Req => Unit = req => wrap(req, {
-          try {
-            val inputStream = handler(new Request.Wrapper(req))
-            req.response.contentType(MediaType.of(mime))
-            req.response.body(IOUtils.toByteArray(inputStream))
-          } finally {
-            req.done()
-          }
+          val inputStream = handler(new Request.Wrapper(req))
+          val byteArray = inputStream.map(is => IOUtils.toByteArray(is))
+          respondWith(MediaType.of(mime), req, byteArray)
         })
         handlers(route) = sessionHandler
       }

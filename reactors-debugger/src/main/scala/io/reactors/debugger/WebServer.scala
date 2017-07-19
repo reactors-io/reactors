@@ -13,6 +13,7 @@ import java.io.StringWriter
 import java.util.ArrayList
 import java.util.HashMap
 import java.util.regex._
+import io.reactors.http.Http.Request.Wrapper
 import org.apache.commons.io.IOUtils
 import org.rapidoid.http.Req
 import scala.collection._
