@@ -35,11 +35,11 @@ object HttpTest {
     val system = new ReactorSystem("http-test-system", bundle)
 
     val server = Reactor[Unit] { self =>
-      self.system.service[Http].at(9500).text("/test-text") {
+      self.system.service[Http].seq(9500).text("/test-text") {
         req =>
         "Test text."
       }
-      self.system.service[Http].at(9500).resource("/test-file")("text/javascript") {
+      self.system.service[Http].seq(9500).resource("/test-file")("text/javascript") {
         req =>
         new ByteArrayInputStream("var js = 'Test script.';".getBytes)
       }

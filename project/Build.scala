@@ -368,7 +368,7 @@ object ReactorsBuild extends MechaRepoBuild {
         libraryDependencies ++= {
           Seq(
             "org.scala-lang" % "scala-compiler" % scalaVersion.value,
-            "org.nanohttpd" % "nanohttpd" % "2.3.1",
+            "org.rapidoid" % "rapidoid-http-server" % "5.3.5",
             "commons-io" % "commons-io" % "2.4",
             "org.scala-lang.platform" %% "scalajson" % "1.0.0-M4",
             "org.json4s" %% "json4s-jackson" % json4sJacksonVersion,
