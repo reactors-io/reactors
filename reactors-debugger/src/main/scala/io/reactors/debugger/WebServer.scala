@@ -4,6 +4,7 @@ package debugger
 
 
 import _root_.com.github.mustachejava._
+import io.reactors.http._
 import java.io.BufferedReader
 import java.io.StringReader
 import java.io.StringWriter
@@ -14,7 +15,6 @@ import java.util.regex._
 import org.apache.commons.io.IOUtils
 import org.json4s._
 import org.json4s.jackson.JsonMethods._
-import org.rapidoid.gui._
 import org.rapidoid.http._
 import org.rapidoid.setup._
 import scala.collection._

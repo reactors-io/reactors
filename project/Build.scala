@@ -418,7 +418,8 @@ object ReactorsBuild extends MechaRepoBuild {
     )
     .dependsOn(
       reactorsCore.jvm % "compile->compile;test->test",
-      reactorsProtocol.jvm % "compile->compile;test->test"
+      reactorsProtocol.jvm % "compile->compile;test->test",
+      reactorsHttp % "compile->compile;test->test"
     )
     .dependsOnSuperRepo
 
