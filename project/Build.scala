@@ -369,6 +369,8 @@ object ReactorsBuild extends MechaRepoBuild {
           Seq(
             "org.scala-lang" % "scala-compiler" % scalaVersion.value,
             "org.nanohttpd" % "nanohttpd" % "2.3.1",
+            "commons-io" % "commons-io" % "2.4",
+            "org.scala-lang.platform" %% "scalajson" % "1.0.0-M4",
             "org.scalatest" %%% "scalatest" % scalaTestVersion % "test",
             "org.scalacheck" %%% "scalacheck" % scalaCheckVersion % "test",
             "org.seleniumhq.selenium" % "selenium-java" % "2.53.1" % "test",
@@ -401,7 +403,7 @@ object ReactorsBuild extends MechaRepoBuild {
             "org.rapidoid" % "rapidoid-gui" % "5.1.9",
             "com.github.spullara.mustache.java" % "compiler" % "0.9.2",
             "commons-io" % "commons-io" % "2.4",
-            "org.json4s" %% "json4s-jackson" % json4sJacksonVersion,
+            "org.scala-lang.platform" %% "scalajson" % "1.0.0-M4",
             "org.scalatest" %%% "scalatest" % scalaTestVersion % "test",
             "org.scalacheck" %%% "scalacheck" % scalaCheckVersion % "test",
             "org.seleniumhq.selenium" % "selenium-java" % "2.53.1" % "test",

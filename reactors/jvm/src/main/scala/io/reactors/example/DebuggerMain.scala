@@ -14,7 +14,7 @@ object DebuggerMain {
         name = "io.reactors.debugger.WebDebugger"
       }
     """)
-    val bundle = new ReactorSystem.Bundle(JvmScheduler.default, config)
+    val bundle = ReactorSystem.Bundle.default(JvmScheduler.default, config)
     val system = new ReactorSystem("web-debugger", bundle)
     system.names.resolve
   }

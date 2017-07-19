@@ -21,7 +21,12 @@ extends DebugApi with Protocol.Service with WebApi {
     system.bundle.config.int("debug-api.session.expiration")
   private val expirationCheckSeconds =
     system.bundle.config.int("debug-api.session.expiration-check-period")
-  private val server: WebServer = new WebServer(system, this)
+  private val server = {
+    val proto = Proto[WebServer](this)
+      .withScheduler(JvmScheduler.Key.newThread)
+      .withName("web-debugger-server")
+    system.spawn(proto)
+  }
   private val monitor = system.monitor
   private val startTime = System.currentTimeMillis()
   private var lastActivityTime = System.currentTimeMillis()
@@ -133,7 +138,7 @@ extends DebugApi with Protocol.Service with WebApi {
   }
 
   def shutdown() {
-    server.shutdown()
+    server ! WebServer.Shutdown
   }
 
   /* external api */

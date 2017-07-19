@@ -8,6 +8,7 @@ import fi.iki.elonen.NanoHTTPD.IHTTPSession
 import fi.iki.elonen.NanoHTTPD.Response
 import fi.iki.elonen.NanoHTTPD.Response.Status
 import java.io.InputStream
+import org.apache.commons.io.IOUtils
 import scala.collection._
 import scala.collection.JavaConverters._
 
@@ -67,6 +68,10 @@ object Http {
   case object Get extends Method
   case object Put extends Method
 
+  sealed trait Reply
+  case class TextReply(text: String) extends Reply
+  case class StreamReply(inputStream: InputStream) extends Reply
+
   trait Connection {
     def accept(): Unit
   }
@@ -78,12 +83,17 @@ object Http {
     }
   }
 
+  trait Input {
+    def inputStream: InputStream
+    def asJson: JValue
+  }
+
   trait Request {
     def headers: Map[String, String]
     def parameters: Map[String, Seq[String]]
     def method: Method
     def uri: String
-    def inputStream: InputStream
+    def input: Input
   }
 
   object Request {
@@ -98,14 +108,22 @@ object Http {
         case _ => sys.error("Method ${session.getMethod} is not supported.")
       }
       def uri = session.getUri
-      def inputStream = session.getInputStream
+      def input = new Input {
+        def inputStream = session.getInputStream
+        def asJson = {
+          val content = IOUtils.toString(inputStream)
+          Json.parse(content)
+        }
+      }
     }
   }
 
   trait Adapter {
     def text(route: String)(handler: Request => String): Unit
     def html(route: String)(handler: Request => String): Unit
+    def json(route: String)(handler: Request => String): Unit
     def resource(route: String)(mime: String)(handler: Request => InputStream): Unit
+    def default(handler: Request => (String, Reply)): Unit
   }
 
   private[reactors] class Instance (
@@ -121,12 +139,13 @@ object Http {
         requests ! new Connection.Wrapper(handler)
       }
     }
+    private val defaultHandlerKey = "#"
 
-    handlers("#") = defaultErrorHandler
+    handlers(defaultHandlerKey) = defaultHandler
     setAsyncRunner(runner)
     start(NanoHTTPD.SOCKET_READ_TIMEOUT, true)
 
-    private def defaultErrorHandler(session: IHTTPSession): Response = {
+    private def defaultHandler(session: IHTTPSession): Response = {
       val content = """
       <html>
       <head><title>HTTP 404 Not Found</title>
@@ -170,6 +189,15 @@ object Http {
       handlers(route) = sessionHandler
     }
 
+    def json(route: String)(handler: Request => String): Unit = handlers.synchronized {
+      val sessionHandler: IHTTPSession => Response = session => {
+        val text = handler(new Request.Wrapper(session))
+        NanoHTTPD.newFixedLengthResponse(
+          NanoHTTPD.Response.Status.OK, "application/json", text)
+      }
+      handlers(route) = sessionHandler
+    }
+
     def resource(route: String)(mime: String)(handler: Request => InputStream): Unit =
       handlers.synchronized {
         val sessionHandler: IHTTPSession => Response = session => {
@@ -178,6 +206,20 @@ object Http {
             NanoHTTPD.Response.Status.OK, mime, inputStream)
         }
         handlers(route) = sessionHandler
+      }
+
+    def default(handler: Request => (String, Reply)): Unit =
+      handlers.synchronized {
+        val sessionHandler: IHTTPSession => Response = session => {
+          val (mime, value) = handler(new Request.Wrapper(session))
+          value match {
+            case TextReply(txt) => NanoHTTPD.newFixedLengthResponse(
+              NanoHTTPD.Response.Status.OK, mime, txt)
+            case StreamReply(is) => NanoHTTPD.newChunkedResponse(
+              NanoHTTPD.Response.Status.OK, mime, is)
+          }
+        }
+        handlers(defaultHandlerKey) = sessionHandler
       }
   }
 }
