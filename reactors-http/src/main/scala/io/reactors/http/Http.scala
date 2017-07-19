@@ -65,10 +65,6 @@ object Http {
     def respond(mime: String, content: Any): Unit
   }
 
-  sealed trait ResponseCommand
-  case class Respond(mime: String, content: Any) extends ResponseCommand
-  case object Async extends ResponseCommand
-
   object Request {
     private[reactors] class Wrapper(val req: Req) extends Request {
       def headers = req.headers.asScala
@@ -93,7 +89,8 @@ object Http {
     def html(route: String)(handler: Request => Events[String]): Unit
     def json(route: String)(handler: Request => Events[String]): Unit
     def resource(route: String)(mime: String)(handler: Request => InputStream): Unit
-    def default(handler: Request => ResponseCommand): Unit
+    def default(handler: Request => (String, Any)): Unit
+    def async(handler: Request => Unit): Unit
     def shutdown(): Unit
   }
 
@@ -259,24 +256,28 @@ object Http {
         handlers(route) = sessionHandler
       }
 
-    def default(handler: Request => ResponseCommand): Unit =
+    def default(handler: Request => (String, Any)): Unit =
       handlers.synchronized {
         val sessionHandler: Req => Unit = req => wrap(req, {
-          var completeRequest = true
           try {
-            handler(new Request.Wrapper(req)) match {
-              case Respond(mime: String, value) =>
-                req.response.contentType(MediaType.of(mime))
-                req.response.result(value)
-              case Async =>
-                // Request will be completed asynchronously.
-                completeRequest = false
-            }
+            val (mime, value) = handler(new Request.Wrapper(req))
+            req.response.contentType(MediaType.of(mime))
+            req.response.result(value)
           } finally {
-            if (completeRequest) req.done()
+            req.done()
           }
         })
         handlers(defaultHandlerKey) = sessionHandler
       }
+
+    def async(handler: Request => Unit): Unit = {
+      handlers.synchronized {
+        val sessionHandler: Req => Unit = req => wrap(req, {
+          var completeRequest = true
+          handler(new Request.Wrapper(req))
+        })
+        handlers(defaultHandlerKey) = sessionHandler
+      }
+    }
   }
 }

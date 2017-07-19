@@ -189,7 +189,9 @@ object WebServer {
       }
     }
     val workers = for (i <- 0 until 32) yield {
-      system.spawn(workerProto.withScheduler(JvmScheduler.Key.newThread))
+      system.spawn(workerProto
+        .withScheduler(JvmScheduler.Key.newThread)
+        .withName(s"~debugger/http-worker-$i"))
     }
     val workChannel = system.channels.router[Http.Request]
       .route(Router.roundRobin(workers))
@@ -198,9 +200,8 @@ object WebServer {
     s.html("/") { req =>
       Events(debuggerPage)
     }
-    s.default { req =>
+    s.async { req =>
       workChannel.channel ! req
-      Http.Async
     }
 
     // api routes
