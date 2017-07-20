@@ -185,6 +185,7 @@ object Http {
           req.response.contentType(mime).result(x)
           req.done()
         case Events.Except(t) =>
+          t.printStackTrace()
           req.done()
         case Events.Unreact =>
           req.done()
@@ -201,6 +202,7 @@ object Http {
             .body(x)
           req.done()
         case Events.Except(t) =>
+          t.printStackTrace()
           req.done()
         case Events.Unreact =>
           req.done()

@@ -4,6 +4,7 @@ package debugger
 
 
 import io.reactors.json._
+import org.apache.commons.lang3.StringEscapeUtils
 import scala.concurrent.Future
 import scalajson.ast._
 
@@ -44,7 +45,7 @@ object Repl {
     def asJson: JValue = json"""
     {
       "status": $status,
-      "output": $output,
+      "output": ${StringEscapeUtils.escapeJson(StringEscapeUtils.escapeJson(output))},
       "prompt": $prompt,
       "need-more": $needMore
     }

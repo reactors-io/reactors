@@ -2,6 +2,7 @@ package io.reactors
 
 
 
+import org.apache.commons.lang3.StringEscapeUtils
 import scalajson.ast._
 
 
@@ -60,7 +61,7 @@ package object json {
             case jv: JValue =>
               content += jv.jsonString
             case _ =>
-              content += s""""${x}""""
+              content += s""""${x.toString}""""
           }
         }
         appendValue(arg)

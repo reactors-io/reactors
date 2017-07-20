@@ -7,6 +7,7 @@ import io.reactors.common.Uid
 import io.reactors.concurrent.Frame
 import io.reactors.json._
 import java.util.TimerTask
+import org.apache.commons.lang3.StringEscapeUtils
 import scala.collection._
 import scala.concurrent.Future
 import scala.concurrent.Promise
@@ -169,7 +170,9 @@ extends DebugApi with Protocol.Service with WebApi {
   def state(suid: String, ts: Long, ruids: List[String]): JObject =
     monitor.synchronized {
       ensureLive()
-      val replouts = replManager.pendingOutputs(ruids).toMap.mapValues(JString)
+      val replouts = replManager.pendingOutputs(ruids).toMap.mapValues { output =>
+        JString(StringEscapeUtils.escapeJson(StringEscapeUtils.escapeJson(output)))
+      }
       json"""
       {
         "pending-output": $replouts
@@ -264,7 +267,7 @@ extends DebugApi with Protocol.Service with WebApi {
         case (uid, repl) => repl.eval(cmd).map(_.asJson)
       }).recover({
         case t: Throwable =>
-          json"""{ "error": "REPL session expired." }"""
+          json"""{ "error": ${t.getMessage} }"""
       })
     }
 
@@ -274,7 +277,7 @@ extends DebugApi with Protocol.Service with WebApi {
         case (uid, repl) => Future(repl.shutdown()).map(_ => json"{}")
       }).recover({
         case t: Throwable =>
-          json"""{ "error": "REPL session expired." }"""
+          json"""{ "error": ${t.getMessage} }"""
       })
     }
 }

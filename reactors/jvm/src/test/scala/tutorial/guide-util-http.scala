@@ -83,11 +83,11 @@ class GuideHttpService extends AsyncFunSuite {
     val server = Reactor[Unit] { self =>
       val http = self.system.service[Http]
       http.seq(9500).text("/hello") { req =>
-        val name = req.parameters.getOrElse("name", Seq("World")).head
-        s"Hello, $name."
+        val name = req.parameters.getOrElse("name", Seq("World"))
+        Events(s"Hello, $name.")
       }
       http.seq(9500).html("/about") { req =>
-        """
+        Events("""
         <html>
         <head>
           <title>About</title>
@@ -100,7 +100,7 @@ class GuideHttpService extends AsyncFunSuite {
           </p>
         </body>
         </html>
-        """
+        """)
       }
       http.seq(9500).resource("/contact")("text/xml") { req =>
         val xml = """
@@ -110,7 +110,7 @@ class GuideHttpService extends AsyncFunSuite {
           <source>https://github.com/reactors-io/reactors</source>
         </note>
         """.trim
-        new java.io.ByteArrayInputStream(xml.getBytes)
+        Events(new java.io.ByteArrayInputStream(xml.getBytes))
       }
     }
     /*!end-code!*/
