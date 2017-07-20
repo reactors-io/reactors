@@ -34,7 +34,7 @@ object DebuggerTest {
         name = "io.reactors.debugger.WebDebugger"
       }
     """)
-    val bundle = new ReactorSystem.Bundle(JvmScheduler.default, config)
+    val bundle = ReactorSystem.Bundle.default(JvmScheduler.default, config)
     val system = new ReactorSystem("web-debugger-test-system", bundle)
 
     var error: Throwable = null
@@ -57,6 +57,7 @@ object DebuggerTest {
   }
 
   def runTests(driver: WebDriver, system: ReactorSystem) {
+    Thread.sleep(1500)
     driver.get("localhost:9500")
 
     // Run shell tests.

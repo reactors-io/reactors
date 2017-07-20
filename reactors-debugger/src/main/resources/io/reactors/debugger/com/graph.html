@@ -53,7 +53,7 @@
           autoRescale: false,
           minArrowSize: 5,
           batchEdgesDrawing: true,
-          hideEdgesOnMove: true,
+          hideEdgesOnMove: false,
           zoomMin: 0.007,
           zoomMax: 0.125,
           font: "Helvetica"
@@ -106,8 +106,11 @@
 
       // Install coordinate listeners.
       var updateBackground = () => {
-        $(".x-graph-sigma").css("background-position",
-          (-this.sigma.camera.x * 3.0) + "px " + (-this.sigma.camera.y * 3.0) + "px");
+        var zoom = 1.0 / this.sigma.camera.ratio;
+        $(".x-graph-sigma").css(
+          "background-position",
+          (-this.sigma.camera.x * zoom) + "px " + (-this.sigma.camera.y * zoom) + "px"
+        );
       };
       updateBackground();
       this.sigma.camera.bind("coordinatesUpdated", () => {
@@ -246,7 +249,13 @@
   .x-graph-sigma {
     height: 100%;
     background: url(img/grid.png);
-    opacity: 0.6;
     z-index: -1;
+    background-color: #eee;
+    background-image:
+      linear-gradient(rgba(34,102,154,0.12) 2px, transparent 2px),
+      linear-gradient(90deg, rgba(34,102,153,0.12) 2px, transparent 2px),
+      linear-gradient(rgba(34,102,153,0.2) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(34,102,153,0.2) 1px, transparent 1px);
+    background-size: 150px 150px, 150px 150px, 30px 30px, 30px 30px;
   }
 </style>

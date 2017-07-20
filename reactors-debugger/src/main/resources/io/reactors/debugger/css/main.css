@@ -1,6 +1,6 @@
 body {
   font-size: 12px;
-  color: #aaa;
+  color: #555;
   overflow: hidden;
 }
 
@@ -13,7 +13,7 @@ label {
 }
 
 ::-webkit-scrollbar {
-  background-color: rgba(0, 0, 0, 0.3);
+  background-color: rgba(135, 135, 135, 0.5);
 }
 
 ::-webkit-scrollbar:vertical {
@@ -21,7 +21,7 @@ label {
 }
 
 ::-webkit-scrollbar-button {
-  background-color: rgba(255, 255, 255, 0.05);
+  background-color: rgba(240, 240, 240, 0.15);
   width: 14px;
   height: 14px;
   border: 2px solid rgba(0, 0, 0, 0);
@@ -29,7 +29,7 @@ label {
 }
 
 ::-webkit-scrollbar-button:hover {
-  background-color: rgba(255, 255, 255, 0.08);
+  background-color: rgba(240, 240, 240, 0.50);
 }
 
 ::-webkit-scrollbar-button:vertical:decrement {
@@ -63,7 +63,7 @@ label {
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: rgba(255, 255, 255, 0.04);
+  background-color: rgba(240, 240, 240, 0.25);
 }
 
 ::-webkit-scrollbar-thumb:vertical {
@@ -79,7 +79,7 @@ label {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(255, 255, 255, 0.08);
+  background-color: rgba(240, 240, 240, 0.50);
 }
 
 ::-webkit-scrollbar-corner {

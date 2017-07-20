@@ -4,7 +4,7 @@ package debugger
 
 
 import scala.concurrent.Future
-import org.json4s._
+import scalajson.ast._
 
 
 

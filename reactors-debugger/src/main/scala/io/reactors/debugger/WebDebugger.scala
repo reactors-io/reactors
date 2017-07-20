@@ -5,13 +5,14 @@ package debugger
 
 import io.reactors.common.Uid
 import io.reactors.concurrent.Frame
+import io.reactors.json._
 import java.util.TimerTask
-import org.json4s._
-import org.json4s.JsonDSL._
+import org.apache.commons.lang3.StringEscapeUtils
 import scala.collection._
 import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.concurrent.ExecutionContext.Implicits.global
+import scalajson.ast._
 
 
 
@@ -21,7 +22,12 @@ extends DebugApi with Protocol.Service with WebApi {
     system.bundle.config.int("debug-api.session.expiration")
   private val expirationCheckSeconds =
     system.bundle.config.int("debug-api.session.expiration-check-period")
-  private val server: WebServer = new WebServer(system, this)
+  private val server = {
+    val proto = Proto[WebServer](this)
+      .withScheduler(JvmScheduler.Key.newThread)
+      .withName("web-debugger-server")
+    system.spawn(proto)
+  }
   private val monitor = system.monitor
   private val startTime = System.currentTimeMillis()
   private var lastActivityTime = System.currentTimeMillis()
@@ -133,7 +139,7 @@ extends DebugApi with Protocol.Service with WebApi {
   }
 
   def shutdown() {
-    server.shutdown()
+    server ! WebServer.Shutdown
   }
 
   /* external api */
@@ -164,14 +170,24 @@ extends DebugApi with Protocol.Service with WebApi {
   def state(suid: String, ts: Long, ruids: List[String]): JObject =
     monitor.synchronized {
       ensureLive()
-      val replouts = replManager.pendingOutputs(ruids).toMap.mapValues(JString).toList
-      JObject(
-        ("pending-output" -> JObject(replouts)) :: deltaDebugger.state(suid, ts).obj)
+      val replouts = replManager.pendingOutputs(ruids).toMap.mapValues { output =>
+        JString(StringEscapeUtils.escapeJson(StringEscapeUtils.escapeJson(output)))
+      }
+      json"""
+      {
+        "pending-output": $replouts
+      }
+      """ ++ deltaDebugger.state(suid, ts)
     }
 
   private def validateSessionUid(suid: String): Option[JObject] = {
     if (sessionUid != suid)
-      Some(("error" -> "Invalid session UID.") ~ ("suid" -> sessionUid))
+      Some(json"""
+      {
+        "error": "Invalid sessionUID.",
+        "suid": $sessionUid
+      }
+      """.asJObject)
     else None
   }
 
@@ -180,7 +196,11 @@ extends DebugApi with Protocol.Service with WebApi {
       ensureLive()
       validateSessionUid(suid).getOrElse {
         val bid = breakpointDebugger.breakpointAdd(pattern, tpe)
-        ("bid" -> bid)
+        json"""
+        {
+          "bid": $bid
+        }
+        """.asJObject
       }
     }
   }
@@ -189,10 +209,18 @@ extends DebugApi with Protocol.Service with WebApi {
     monitor.synchronized {
       ensureLive()
       validateSessionUid(suid).getOrElse {
-        val breakpoints = for (b <- breakpointDebugger.breakpointList()) yield {
-          ("bid" -> b.bid) ~ ("pattern" -> b.pattern) ~ ("tpe" -> b.tpe)
+        val breakpoints = for (b <- breakpointDebugger.breakpointList()) yield json"""
+        {
+          "bid": ${b.bid},
+          "pattern", ${b.pattern},
+          "tpe": ${b.tpe}
         }
-        ("breakpoints" -> breakpoints)
+        """
+        json"""
+        {
+          "breakpoints": $breakpoints
+        }
+        """.asJObject
       }
     }
   }
@@ -203,9 +231,20 @@ extends DebugApi with Protocol.Service with WebApi {
       validateSessionUid(suid).getOrElse {
         breakpointDebugger.breakpointRemove(bid) match {
           case Some(b) =>
-            ("bid" -> b.bid) ~ ("pattern" -> b.pattern) ~ ("tpe" -> b.tpe)
+            json"""
+            {
+              "bid": ${b.bid},
+              "pattern": ${b.pattern},
+              "tpe": ${b.tpe}
+            }
+            """.asJObject
           case None =>
-            ("bid" -> bid) ~ ("error" -> "Cannot remove non-existing breakpoint.")
+            json"""
+            {
+              "bid": ${bid},
+              "error": "Cannot remove non-existing breakpoint."
+            }
+            """.asJObject
         }
       }
     }
@@ -215,10 +254,10 @@ extends DebugApi with Protocol.Service with WebApi {
     monitor.synchronized {
       replManager.createRepl(tpe).map({
         case (repluid, repl) =>
-          JObject("repluid" -> JString(repluid))
+          json"""{ "repluid": ${repluid} }"""
       }).recover({
         case e: Exception =>
-          JObject("error" -> JString(s"REPL type '${tpe}' is unknown."))
+          json"""{ "error": ${"REPL type '$tpe' is unknown."} }"""
       })
     }
 
@@ -227,16 +266,18 @@ extends DebugApi with Protocol.Service with WebApi {
       replManager.getRepl(repluid).flatMap({
         case (uid, repl) => repl.eval(cmd).map(_.asJson)
       }).recover({
-        case t: Throwable => JObject("error" -> JString("REPL session expired."))
+        case t: Throwable =>
+          json"""{ "error": ${t.getMessage} }"""
       })
     }
 
   def replClose(repluid: String): Future[JValue] =
     monitor.synchronized {
       replManager.getRepl(repluid).flatMap({
-        case (uid, repl) => Future(repl.shutdown()).map(_ => JObject())
+        case (uid, repl) => Future(repl.shutdown()).map(_ => json"{}")
       }).recover({
-        case t: Throwable => JObject("error" -> JString("REPL session expired."))
+        case t: Throwable =>
+          json"""{ "error": ${t.getMessage} }"""
       })
     }
 }
