@@ -189,7 +189,7 @@ object WebServer {
         }
       }
     }
-    val workers = for (i <- 0 until 32) yield {
+    val workers = for (i <- 0 until 16) yield {
       system.spawn(workerProto
         .withScheduler(JvmScheduler.Key.newThread)
         .withName(s"~debugger/http-worker-$i"))
