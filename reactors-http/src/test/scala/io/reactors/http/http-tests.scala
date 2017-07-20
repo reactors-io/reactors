@@ -35,13 +35,12 @@ object HttpTest {
     val system = new ReactorSystem("http-test-system", bundle)
 
     val server = Reactor[Unit] { self =>
-      self.system.service[Http].seq(9500).text("/test-text") {
-        req =>
-        "Test text."
+      self.system.service[Http].seq(9500).text("/test-text") { req =>
+        Events("Test text.")
       }
       self.system.service[Http].seq(9500).resource("/test-file")("text/javascript") {
         req =>
-        new ByteArrayInputStream("var js = 'Test script.';".getBytes)
+        Events(new ByteArrayInputStream("var js = 'Test script.';".getBytes))
       }
     }
     system.spawn(server)
@@ -66,10 +65,12 @@ object HttpTest {
   }
 
   def runTests(driver: WebDriver, system: ReactorSystem) {
+    Thread.sleep(1500)
+
     driver.get("localhost:9500/test-text")
     assert(driver.getPageSource.contains("Test text."))
 
-    Thread.sleep(500)
+    Thread.sleep(1500)
 
     driver.get("localhost:9500/test-file")
     assert(driver.getPageSource.contains("var js = 'Test script.';"))
