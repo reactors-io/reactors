@@ -25,7 +25,7 @@ extends DebugApi with Protocol.Service with WebApi {
   private val server = {
     val proto = Proto[WebServer](this)
       .withScheduler(JvmScheduler.Key.newThread)
-      .withName("web-debugger-server")
+      .withName("~debugger/http-server")
     system.spawn(proto)
   }
   private val monitor = system.monitor
