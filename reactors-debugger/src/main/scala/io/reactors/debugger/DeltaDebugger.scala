@@ -5,9 +5,9 @@ package debugger
 
 import io.reactors.common.UnrolledRing
 import io.reactors.concurrent.Frame
-import org.json4s._
-import org.json4s.JsonDSL._
+import io.reactors.json._
 import scala.collection._
+import scalajson.ast._
 
 
 
@@ -114,17 +114,17 @@ class DeltaDebugger(val system: ReactorSystem, val sessionuid: String) {
 object DeltaDebugger {
   def toJson(
     suid: String, ts: Long, state: Option[State], deltas: Option[Seq[Delta]]
-  ): JObject = (
-    ("ts" -> ts) ~
-    ("suid" -> suid) ~
-    ("state" -> state.map(_.toJson)) ~
-    ("deltas" -> deltas.map(_.map(_.toJson)))
-  )
+  ): JObject = json"""{
+    "ts": $ts,
+    "suid": $suid,
+    "state": ${state.map(_.toJson)},
+    "deltas": ${deltas.map(_.map(_.toJson))}
+  }""".asJObject
 
-  private def sendsToArray(sends: Map[(Long, Long), Long]): JArray =
-    JArray(sends.map {
-      case (pair, count) => JArray(List(pair._1, pair._2, count))
-    } toList)
+  private def sendTriplets(sends: Map[(Long, Long), Long]): Iterable[List[Long]] =
+    sends.map {
+      case (pair, count) => List(pair._1, pair._2, count)
+    }
 
   class State() {
     val reactors = mutable.Map[Long, String]()
@@ -136,10 +136,14 @@ object DeltaDebugger {
       s
     }
     def toJson: JValue = {
-      val rs = for ((uid, r) <- reactors) yield
-        JField(uid.toString, JObject("uid" -> uid, "name" -> JString(r)))
-      ("reactors" -> JObject(rs.toList)) ~
-      ("sends" -> sendsToArray(sends))
+      val rs = for ((uid, r) <- reactors) yield json"""{
+        "uid": $uid,
+        "name": $r
+      }"""
+      json"""{
+        "reactors": $rs,
+        "sends": ${sendTriplets(sends)}
+      }"""
     }
   }
 
@@ -149,41 +153,41 @@ object DeltaDebugger {
   }
 
   case class ReactorStarted(f: Frame) extends Delta {
-    def toJson = JArray(List("start", f.uid, f.name))
+    def toJson = json"""["start", ${f.uid}, ${f.name}]"""
     def apply(s: State) {
       s.reactors(f.uid) = f.name
     }
   }
 
   case class ReactorDied(r: Reactor[_]) extends Delta {
-    def toJson = JArray(List("die", r.uid))
+    def toJson = json"""["die", ${r.uid}]"""
     def apply(s: State) {
     }
   }
 
   case class ReactorTerminated(r: Reactor[_]) extends Delta {
-    def toJson = JArray(List("term", r.uid))
+    def toJson = json"""["term", ${r.uid}]"""
     def apply(s: State) {
       s.reactors.remove(r.uid)
     }
   }
 
   case class ConnectorOpened(c: Connector[_]) extends Delta {
-    def toJson = JArray(List("open", c.uid))
+    def toJson = json"""["open", ${c.uid}]"""
     def apply(s: State) {
     }
   }
 
   case class ConnectorSealed(c: Connector[_]) extends Delta {
-    def toJson = JArray(List("seal", c.uid))
+    def toJson = json"""["seal", ${c.uid}]"""
     def apply(s: State) {
     }
   }
 
   case class EventsSent(sends: Map[(Long, Long), Long]) extends Delta {
     def toJson = {
-      val sendsArray = sendsToArray(sends)
-      JArray(List("sent", sendsArray))
+      val sendsArray = sendTriplets(sends)
+      json"""["sent", $sendsArray]"""
     }
     def apply(s: State) {
       for ((pair, count) <- sends) {

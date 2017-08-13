@@ -199,6 +199,10 @@ trait Events[@spec(Int, Long, Double) T] {
    */
   def ignoreExceptions: Events[T] = new Events.IgnoreExceptions(this)
 
+  /** Converts this event stream into an event stream of reactions.
+   */
+  def materialize: Events[Events.Reaction[T]] = new Events.Materialize(this)
+
   /** Creates a new event stream `s` that produces events by consecutively
    *  applying the specified operator `op` to the previous event that `s`
    *  produced and the current event that this event stream value produced.
@@ -1196,6 +1200,14 @@ object Events {
 
   private val hashTableLowerBound = 5
 
+  sealed trait Reaction[+T]
+
+  case class React[+T](x: T) extends Reaction[T]
+
+  case class Except[+T](t: Throwable) extends Reaction[T]
+
+  case object Unreact extends Reaction[Nothing]
+
   /** The default implementation of a event stream value.
    *
    *  Keeps an optimized weak collection of weak references to subscribers.
@@ -1540,6 +1552,10 @@ object Events {
     }
   }
 
+  /** Creates a constant event stream, which always yields the same events.
+   */
+  def apply[@spec(Int, Long, Double) T](x: T): Events[T] = new Signal.Const(x)
+
   /** Factory method for creating `mux` event streams.
    *
    *  See `mux` on `Events` for more details.
@@ -1706,6 +1722,28 @@ object Events {
     }
     def unreact() {
       target.unreact()
+    }
+  }
+
+  private[reactors] class Materialize[T](
+    val self: Events[T]
+  ) extends Events[Reaction[T]] {
+    def onReaction(observer: Observer[Reaction[T]]): Subscription = {
+      self.onReaction(new MaterializeObserver(observer))
+    }
+  }
+
+  private[reactors] class MaterializeObserver[T](
+    val target: Observer[Reaction[T]]
+  ) extends Observer[T] {
+    def react(value: T, hint: Any): Unit = {
+      target.react(React(value), hint)
+    }
+    def except(t: Throwable): Unit = {
+      target.react(Except(t), null)
+    }
+    def unreact(): Unit = {
+      target.react(Unreact, null)
     }
   }
 

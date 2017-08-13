@@ -3,9 +3,10 @@ package debugger
 
 
 
-import org.json4s._
-import org.json4s.JsonDSL._
+import io.reactors.json._
+import org.apache.commons.lang3.StringEscapeUtils
 import scala.concurrent.Future
+import scalajson.ast._
 
 
 
@@ -41,11 +42,13 @@ abstract class Repl {
 
 object Repl {
   case class Result(status: Int, output: String, prompt: String, needMore: Boolean) {
-    def asJson: JValue = {
-      ("status" -> status) ~
-      ("output" -> output) ~
-      ("prompt" -> prompt) ~
-      ("need-more" -> needMore)
+    def asJson: JValue = json"""
+    {
+      "status": $status,
+      "output": ${StringEscapeUtils.escapeJson(StringEscapeUtils.escapeJson(output))},
+      "prompt": $prompt,
+      "need-more": $needMore
     }
+    """
   }
 }

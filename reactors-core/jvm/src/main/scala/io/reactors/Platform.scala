@@ -49,6 +49,7 @@ object Platform {
   """
 
   private[reactors] val defaultConfiguration = """
+    debug-level = 0
     pickler = "io.reactors.pickle.JavaSerializationPickler"
     remote = {
       default-schema = "local"

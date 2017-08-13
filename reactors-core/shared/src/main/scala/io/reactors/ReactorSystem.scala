@@ -6,6 +6,7 @@ import io.reactors.common.Monitor
 import io.reactors.concurrent._
 import io.reactors.pickle.Pickler
 import java.util.Timer
+import io.reactors.debugger.ZeroDebugApi
 import scala.collection._
 
 
@@ -34,13 +35,6 @@ class ReactorSystem(
   private[reactors] val defaultTransportSchema: String =
    system.bundle.config.string("remote.default-schema")
 
-  /** Debugging API.
-   */
-  private[reactors] val debugApi: DebugApi = {
-    Platform.Reflect.instantiate(bundle.config.string("debug-api.name"), Seq(this))
-      .asInstanceOf[DebugApi]
-  }
-
   /** Error handler used to report uncaught exceptions.
    */
   private[reactors] val errorHandler: ErrorHandler = {
@@ -58,6 +52,14 @@ class ReactorSystem(
   private[reactors] val usingLocalChannels: Boolean = {
     bundle.config.string("system.channels.create-as-local").toBoolean
   }
+
+  /** Debugging API.
+   */
+  @volatile
+  private[reactors] var debugApi: DebugApi = new ZeroDebugApi(this)
+  debugApi = Platform.Reflect
+    .instantiate(bundle.config.string("debug-api.name"), Seq(this))
+    .asInstanceOf[DebugApi]
 
   /** Shuts down services. */
   def shutdown() {
@@ -237,7 +239,7 @@ object ReactorSystem {
   /** Contains various configuration values related to the reactor system,
    *  such as the set of registered schedulers and the system url.
    */
-  class Bundle(
+  private[reactors] class Bundle(
     val defaultScheduler: Scheduler,
     private val customConfig: Configuration
   ) {

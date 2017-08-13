@@ -95,7 +95,7 @@ class IVar[@spec(Int, Long, Double) T] extends Signal[T] {
   }
 
   /** Assigns a value to the ivar if it is unassigned,
-   *  
+   *
    *  Throws an exception otherwise.
    */
   def :=(x: T): Unit = if (state == 0) {

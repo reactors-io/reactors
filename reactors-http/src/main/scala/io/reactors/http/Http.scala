@@ -3,50 +3,39 @@ package http
 
 
 
-import fi.iki.elonen.NanoHTTPD
-import fi.iki.elonen.NanoHTTPD.IHTTPSession
-import fi.iki.elonen.NanoHTTPD.Response
-import fi.iki.elonen.NanoHTTPD.Response.Status
-import java.io.InputStream
+import io.reactors.json._
+import java.io._
+import org.apache.commons.io.IOUtils
+import org.rapidoid.http._
+import org.rapidoid.setup._
 import scala.collection._
 import scala.collection.JavaConverters._
+import scalajson.ast._
 
 
 
 class Http(val system: ReactorSystem) extends Protocol.Service {
   private val servers = mutable.Map[Int, Http.Instance]()
+  private val debugMode = system.bundle.config.int("debug-level")
 
   private def getOrCreateServer(
-    port: Int, workers: Option[Channel[Http.Connection]]
+    port: Int
   ): Http.Instance = servers.synchronized {
     if (!servers.contains(port)) {
       val reactorUid = Reactor.self.uid
-      val requestChannel = if (workers != None) {
-        workers.get
-      } else {
-        val requests = system.channels.daemon.open[Http.Connection]
-        requests.events.onEvent(connection => connection.accept())
-        requests.channel
-      }
-      val instance = new Http.Instance(port, reactorUid, requestChannel)
+      val instance = new Http.Instance(port, reactorUid, debugMode)
       Reactor.self.sysEvents onMatch {
-        case ReactorTerminated => instance.stop()
+        case ReactorTerminated => instance.shutdown()
       }
       servers(port) = instance
     }
     servers(port)
   }
 
-  def at(port: Int): Http.Adapter = getOrCreateAdapter(port, None)
+  def seq(port: Int): Http.Adapter = getOrCreateAdapter(port)
 
-  def parallel(port: Int, workers: Channel[Http.Connection]): Http.Adapter = {
-    getOrCreateAdapter(port, Some(workers))
-  }
-
-  private[reactors] def getOrCreateAdapter(
-    port: Int, workers: Option[Channel[Http.Connection]]
-  ): Http.Adapter = {
-    val adapter = getOrCreateServer(port, workers)
+  private[reactors] def getOrCreateAdapter(port: Int): Http.Adapter = {
+    val adapter = getOrCreateServer(port)
     if (Reactor.self.uid != adapter.reactorUid)
       sys.error("Server already at $port, and owned by reactor ${adapter.reactorUid}.")
     adapter
@@ -55,7 +44,7 @@ class Http(val system: ReactorSystem) extends Protocol.Service {
   def shutdown() {
     servers.synchronized {
       for ((port, server) <- servers) {
-        server.stop()
+        server.shutdown()
       }
     }
   }
@@ -67,66 +56,74 @@ object Http {
   case object Get extends Method
   case object Put extends Method
 
-  trait Connection {
-    def accept(): Unit
-  }
-
-  object Connection {
-    private[reactors] class Wrapper (val handler: NanoHTTPD#ClientHandler)
-    extends Connection {
-      def accept() = handler.run()
-    }
-  }
-
   trait Request {
     def headers: Map[String, String]
-    def parameters: Map[String, Seq[String]]
+    def parameters: Map[String, String]
     def method: Method
-    def uri: String
-    def inputStream: InputStream
+    def path: String
+    def posted: Map[String, AnyRef]
+    def respond(mime: String, content: Any): Unit
   }
 
   object Request {
-    private[reactors] class Wrapper(val session: IHTTPSession) extends Request {
-      def headers = session.getHeaders.asScala
-      def parameters = session.getParameters.asScala.map {
-        case (name, values) => (name, values.asScala)
+    private[reactors] class Wrapper(val req: Req) extends Request {
+      def headers = req.headers.asScala
+      def parameters = req.params.asScala
+      def method = req.verb match {
+        case "GET" => Get
+        case "PUT" => Put
+        case _ => sys.error(s"Method ${req.verb} is not supported.")
       }
-      def method = session.getMethod match {
-        case NanoHTTPD.Method.GET => Get
-        case NanoHTTPD.Method.PUT => Put
-        case _ => sys.error("Method ${session.getMethod} is not supported.")
+      def path = req.path
+      def posted = req.posted.asScala
+      def respond(mime: String, content: Any): Unit = {
+        req.response.contentType(MediaType.of(mime)).result(content)
+        req.done()
       }
-      def uri = session.getUri
-      def inputStream = session.getInputStream
+      override def toString = s"Wrapper($req)"
     }
   }
 
   trait Adapter {
-    def text(route: String)(handler: Request => String): Unit
-    def html(route: String)(handler: Request => String): Unit
-    def resource(route: String)(mime: String)(handler: Request => InputStream): Unit
+    def text(route: String)(handler: Request => Events[String]): Unit
+    def html(route: String)(handler: Request => Events[String]): Unit
+    def json(route: String)(handler: Request => Events[String]): Unit
+    def resource(route: String)(mime: String)(
+      handler: Request => Events[InputStream]
+    ): Unit
+    def default(handler: Request => (String, Any)): Unit
+    def async(handler: Request => Unit): Unit
+    def shutdown(): Unit
+  }
+
+  implicit class handler1(f: Req => Object) extends ReqHandler {
+    def execute(x: Req): Object = f(x)
   }
 
   private[reactors] class Instance (
     val port: Int,
     val reactorUid: Long,
-    val requests: Channel[Connection]
-  ) extends NanoHTTPD(port) with Adapter {
-    private val handlers = mutable.Map[String, IHTTPSession => Response]()
-    private val runner = new NanoHTTPD.AsyncRunner {
-      def closeAll() {}
-      def closed(handler: NanoHTTPD#ClientHandler) {}
-      def exec(handler: NanoHTTPD#ClientHandler) {
-        requests ! new Connection.Wrapper(handler)
-      }
+    val debugMode: Int
+  ) extends Adapter {
+    private val setup = Setup.create(Reactor.self.system.name)
+    private val handlers = mutable.Map[String, Req => Unit]()
+    private val defaultHandlerKey = "#"
+    private val requestChannel = {
+      val system = Reactor.self.system
+      val requests = system.channels.daemon.open[Req]
+      requests.events.onEvent(req => serve(req))
+      requests.channel
     }
 
-    handlers("#") = defaultErrorHandler
-    setAsyncRunner(runner)
-    start(NanoHTTPD.SOCKET_READ_TIMEOUT, true)
+    handlers(defaultHandlerKey) = defaultHandler
+    setup.port(port)
+    setup.req((req: Req) => {
+      req.async()
+      requestChannel ! req
+      req
+    })
 
-    private def defaultErrorHandler(session: IHTTPSession): Response = {
+    private def defaultHandler(req: Req): Any = {
       val content = """
       <html>
       <head><title>HTTP 404 Not Found</title>
@@ -138,46 +135,141 @@ object Http {
       </body>
       </html>
       """
-      NanoHTTPD.newFixedLengthResponse(Status.NOT_FOUND, "text/html", content)
+      content
     }
 
-    override def serve(session: IHTTPSession): Response = {
-      val route = session.getUri
+    private def serve(req: Req): Unit = {
+      val route = req.uri
       val handler = handlers.synchronized {
         handlers.get(route) match {
           case Some(handler) => handler
           case None => handlers("#")
         }
       }
-      handler(session)
+      handler(req)
     }
 
-    def text(route: String)(handler: Request => String): Unit = handlers.synchronized {
-      val sessionHandler: IHTTPSession => Response = session => {
-        val text = handler(new Request.Wrapper(session))
-        NanoHTTPD.newFixedLengthResponse(
-          NanoHTTPD.Response.Status.OK, "text/plain", text)
-      }
-      handlers(route) = sessionHandler
+    private def printDebugInformation(session: Req, d: Double): Unit = {
+      println(s"""
+      |Request at: ${session.uri}
+      |  Reactor:    ${Reactor.self.name}
+      |  Duration:   $d ms
+      """.stripMargin.trim)
     }
 
-    def html(route: String)(handler: Request => String): Unit = handlers.synchronized {
-      val sessionHandler: IHTTPSession => Response = session => {
-        val text = handler(new Request.Wrapper(session))
-        NanoHTTPD.newFixedLengthResponse(
-          NanoHTTPD.Response.Status.OK, "text/html", text)
-      }
-      handlers(route) = sessionHandler
-    }
-
-    def resource(route: String)(mime: String)(handler: Request => InputStream): Unit =
-      handlers.synchronized {
-        val sessionHandler: IHTTPSession => Response = session => {
-          val inputStream = handler(new Request.Wrapper(session))
-          NanoHTTPD.newChunkedResponse(
-            NanoHTTPD.Response.Status.OK, mime, inputStream)
+    private def wrap[T](req: Req, code: =>T): T = {
+      val start = System.nanoTime
+      try {
+        code
+      } catch {
+        case t: Throwable =>
+          t.printStackTrace()
+          throw t
+      } finally {
+        val end = System.nanoTime
+        if (debugMode != 0) {
+          printDebugInformation(req, (end - start) / 1000 / 1000.0)
         }
+      }
+    }
+
+    def shutdown(): Unit = {
+      setup.shutdown()
+    }
+
+    private def respondWith[T](
+      mime: MediaType, req: Req, events: Events[T]
+    ): Unit = {
+      events.materialize.take(1) onMatch {
+        case Events.React(x) =>
+          req.response.contentType(mime).result(x)
+          req.done()
+        case Events.Except(t) =>
+          t.printStackTrace()
+          req.done()
+        case Events.Unreact =>
+          req.done()
+      }
+    }
+
+    private def respondWithBody(
+      mime: MediaType, req: Req, events: Events[Array[Byte]]
+    ): Unit = {
+      events.materialize.take(1) onMatch {
+        case Events.React(x) =>
+          req.response
+            .contentType(mime)
+            .body(x)
+          req.done()
+        case Events.Except(t) =>
+          t.printStackTrace()
+          req.done()
+        case Events.Unreact =>
+          req.done()
+      }
+    }
+
+    def text(route: String)(handler: Request => Events[String]): Unit =
+      handlers.synchronized {
+        val sessionHandler: Req => Unit = req => wrap(req, {
+          val events = handler(new Request.Wrapper(req))
+          respondWith(MediaType.PLAIN_TEXT_UTF_8, req, events)
+        })
         handlers(route) = sessionHandler
       }
+
+    def html(route: String)(handler: Request => Events[String]): Unit =
+      handlers.synchronized {
+        val sessionHandler: Req => Unit = req => wrap(req, {
+          val text = handler(new Request.Wrapper(req))
+          respondWith(MediaType.HTML_UTF_8, req, text)
+        })
+        handlers(route) = sessionHandler
+      }
+
+    def json(route: String)(handler: Request => Events[String]): Unit =
+      handlers.synchronized {
+        val sessionHandler: Req => Unit = req => wrap(req, {
+          val text = handler(new Request.Wrapper(req))
+          respondWithBody(MediaType.JSON, req, text.map(_.getBytes))
+        })
+        handlers(route) = sessionHandler
+      }
+
+    def resource(route: String)(mime: String)(
+      handler: Request => Events[InputStream]
+    ): Unit =
+      handlers.synchronized {
+        val sessionHandler: Req => Unit = req => wrap(req, {
+          val inputStream = handler(new Request.Wrapper(req))
+          val byteArray = inputStream.map(is => IOUtils.toByteArray(is))
+          respondWith(MediaType.of(mime), req, byteArray)
+        })
+        handlers(route) = sessionHandler
+      }
+
+    def default(handler: Request => (String, Any)): Unit =
+      handlers.synchronized {
+        val sessionHandler: Req => Unit = req => wrap(req, {
+          try {
+            val (mime, value) = handler(new Request.Wrapper(req))
+            req.response.contentType(MediaType.of(mime))
+            req.response.result(value)
+          } finally {
+            req.done()
+          }
+        })
+        handlers(defaultHandlerKey) = sessionHandler
+      }
+
+    def async(handler: Request => Unit): Unit = {
+      handlers.synchronized {
+        val sessionHandler: Req => Unit = req => wrap(req, {
+          var completeRequest = true
+          handler(new Request.Wrapper(req))
+        })
+        handlers(defaultHandlerKey) = sessionHandler
+      }
+    }
   }
 }

@@ -64,8 +64,9 @@
             // Update reactor list.
             for (var uid in data.state.reactors) {
               if (data.state.reactors.hasOwnProperty(uid)) {
-                this.state.reactors[uid] = data.state.reactors[uid];
-                this.events.reactorSeen.post(this.state.reactors[uid]);
+                var r = data.state.reactors[uid];
+                this.state.reactors[r.uid] = r;
+                this.events.reactorSeen.post(r);
               }
             }
 
