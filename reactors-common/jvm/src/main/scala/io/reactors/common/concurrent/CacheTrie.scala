@@ -338,7 +338,7 @@ class CacheTrie[K <: AnyRef, V] {
       val oldsn = old.asInstanceOf[SNode[K, V]]
       val reason = READ_FREEZE(oldsn)
       if (reason eq null) {
-        // The node is not frozen or marked for 
+        // The node is not frozen or marked for freezing.
         if ((oldsn.hash == hash) && ((oldsn.key eq key) || (oldsn.key == key))) {
           val sn = new SNode(hash, key, value)
           if (CAS_FREEZE(oldsn, sn)) {
