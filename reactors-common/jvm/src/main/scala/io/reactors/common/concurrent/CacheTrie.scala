@@ -135,60 +135,6 @@ class CacheTrie[K <: AnyRef, V] {
     }
   }
 
-  private[concurrent] def debugReadCache: Array[AnyRef] = READ_CACHE
-
-  private[concurrent] def debugReadRoot: Array[AnyRef] = rawRoot
-
-  private[concurrent] def debugCachePopulateTwoLevelSingle(
-    level: Int, key: K, value: V
-  ): Unit = {
-    rawCache = new Array[AnyRef](1 + (1 << level))
-    rawCache(0) = new CacheNode(null, level)
-    var i = 1
-    while (i < rawCache.length) {
-      val an = new Array[AnyRef](4)
-      rawCache(i) = an
-      var j = 0
-      while (j < 4) {
-        an(j) = new SNode(0, key, value)
-        j += 1
-      }
-      i += 1
-    }
-  }
-
-  private[concurrent] def debugCachePopulateTwoLevel(
-    level: Int, keys: Array[K], values: Array[V]
-  ): Unit = {
-    rawCache = new Array[AnyRef](1 + (1 << level))
-    rawCache(0) = new CacheNode(null, level)
-    var i = 1
-    while (i < rawCache.length) {
-      val an = new Array[AnyRef](4)
-      rawCache(i) = an
-      var j = 0
-      while (j < 4) {
-        an(j) = new SNode(0, keys(i * 4 + j), values(i * 4 + j))
-        j += 1
-      }
-      i += 1
-    }
-  }
-
-  private[concurrent] def debugCachePopulateOneLevel(
-    level: Int, keys: Array[K], values: Array[V], scarce: Boolean
-  ): Unit = {
-    rawCache = new Array[AnyRef](1 + (1 << level))
-    rawCache(0) = new CacheNode(null, level)
-    var i = 1
-    while (i < rawCache.length) {
-      if (!scarce || i % 4 == 0) {
-        rawCache(i) = new SNode(0, keys(i), values(i))
-      }
-      i += 1
-    }
-  }
-
   final def apply(key: K): V = {
     val result = lookup(key)
     if (result.asInstanceOf[AnyRef] eq null) throw new NoSuchElementException
@@ -868,6 +814,60 @@ class CacheTrie[K <: AnyRef, V] {
       } else {
         stats.bumpMissCount()
       }
+    }
+  }
+
+  private[concurrent] def debugReadCache: Array[AnyRef] = READ_CACHE
+
+  private[concurrent] def debugReadRoot: Array[AnyRef] = rawRoot
+
+  private[concurrent] def debugCachePopulateTwoLevelSingle(
+    level: Int, key: K, value: V
+  ): Unit = {
+    rawCache = new Array[AnyRef](1 + (1 << level))
+    rawCache(0) = new CacheNode(null, level)
+    var i = 1
+    while (i < rawCache.length) {
+      val an = new Array[AnyRef](4)
+      rawCache(i) = an
+      var j = 0
+      while (j < 4) {
+        an(j) = new SNode(0, key, value)
+        j += 1
+      }
+      i += 1
+    }
+  }
+
+  private[concurrent] def debugCachePopulateTwoLevel(
+    level: Int, keys: Array[K], values: Array[V]
+  ): Unit = {
+    rawCache = new Array[AnyRef](1 + (1 << level))
+    rawCache(0) = new CacheNode(null, level)
+    var i = 1
+    while (i < rawCache.length) {
+      val an = new Array[AnyRef](4)
+      rawCache(i) = an
+      var j = 0
+      while (j < 4) {
+        an(j) = new SNode(0, keys(i * 4 + j), values(i * 4 + j))
+        j += 1
+      }
+      i += 1
+    }
+  }
+
+  private[concurrent] def debugCachePopulateOneLevel(
+    level: Int, keys: Array[K], values: Array[V], scarce: Boolean
+  ): Unit = {
+    rawCache = new Array[AnyRef](1 + (1 << level))
+    rawCache(0) = new CacheNode(null, level)
+    var i = 1
+    while (i < rawCache.length) {
+      if (!scarce || i % 4 == 0) {
+        rawCache(i) = new SNode(0, keys(i), values(i))
+      }
+      i += 1
     }
   }
 
