@@ -35,9 +35,9 @@ class CacheTrie[K <: AnyRef, V] {
     unsafe.compareAndSwapObject(enode, ENodeWideOffset, ov, nv)
   }
 
-  private def READ_FREEZE(snode: SNode[_, _]): AnyRef = snode.freeze
+  private def READ_TXN(snode: SNode[_, _]): AnyRef = snode.txn
 
-  private def CAS_FREEZE(snode: SNode[_, _], nv: AnyRef): Boolean = {
+  private def CAS_TXN(snode: SNode[_, _], nv: AnyRef): Boolean = {
     unsafe.compareAndSwapObject(snode, SNodeFrozenOffset, null, nv)
   }
 
@@ -66,7 +66,7 @@ class CacheTrie[K <: AnyRef, V] {
       } else if (cachee.isInstanceOf[SNode[_, _]]) {
         //println(s"$key - found single node cachee, cache level $level")
         val oldsn = cachee.asInstanceOf[SNode[K, V]]
-        val reason = READ_FREEZE(oldsn)
+        val reason = READ_TXN(oldsn)
         if (reason == null) {
           val oldhash = oldsn.hash
           val oldkey = oldsn.key
@@ -87,7 +87,7 @@ class CacheTrie[K <: AnyRef, V] {
           null.asInstanceOf[V]
         } else if (old.isInstanceOf[SNode[_, _]]) {
           val oldsn = old.asInstanceOf[SNode[K, V]]
-          val reason = READ_FREEZE(oldsn)
+          val reason = READ_TXN(oldsn)
           if (reason == null) {
             // The single node is up-to-date.
             // Check if the key is contained in the single node.
@@ -132,60 +132,6 @@ class CacheTrie[K <: AnyRef, V] {
       } else {
         sys.error(s"Unexpected case -- $cachee is not supposed to be cached.")
       }
-    }
-  }
-
-  private[concurrent] def debugReadCache: Array[AnyRef] = READ_CACHE
-
-  private[concurrent] def debugReadRoot: Array[AnyRef] = rawRoot
-
-  private[concurrent] def debugCachePopulateTwoLevelSingle(
-    level: Int, key: K, value: V
-  ): Unit = {
-    rawCache = new Array[AnyRef](1 + (1 << level))
-    rawCache(0) = new CacheNode(null, level)
-    var i = 1
-    while (i < rawCache.length) {
-      val an = new Array[AnyRef](4)
-      rawCache(i) = an
-      var j = 0
-      while (j < 4) {
-        an(j) = new SNode(0, key, value)
-        j += 1
-      }
-      i += 1
-    }
-  }
-
-  private[concurrent] def debugCachePopulateTwoLevel(
-    level: Int, keys: Array[K], values: Array[V]
-  ): Unit = {
-    rawCache = new Array[AnyRef](1 + (1 << level))
-    rawCache(0) = new CacheNode(null, level)
-    var i = 1
-    while (i < rawCache.length) {
-      val an = new Array[AnyRef](4)
-      rawCache(i) = an
-      var j = 0
-      while (j < 4) {
-        an(j) = new SNode(0, keys(i * 4 + j), values(i * 4 + j))
-        j += 1
-      }
-      i += 1
-    }
-  }
-
-  private[concurrent] def debugCachePopulateOneLevel(
-    level: Int, keys: Array[K], values: Array[V], scarce: Boolean
-  ): Unit = {
-    rawCache = new Array[AnyRef](1 + (1 << level))
-    rawCache(0) = new CacheNode(null, level)
-    var i = 1
-    while (i < rawCache.length) {
-      if (!scarce || i % 4 == 0) {
-        rawCache(i) = new SNode(0, keys(i), values(i))
-      }
-      i += 1
     }
   }
 
@@ -336,12 +282,12 @@ class CacheTrie[K <: AnyRef, V] {
       slowInsert(key, value, hash, level + 4, old.asInstanceOf[Array[AnyRef]], current)
     } else if (old.isInstanceOf[SNode[_, _]]) {
       val oldsn = old.asInstanceOf[SNode[K, V]]
-      val reason = READ_FREEZE(oldsn)
+      val reason = READ_TXN(oldsn)
       if (reason eq null) {
         // The node is not frozen or marked for freezing.
         if ((oldsn.hash == hash) && ((oldsn.key eq key) || (oldsn.key == key))) {
           val sn = new SNode(hash, key, value)
-          if (CAS_FREEZE(oldsn, sn)) {
+          if (CAS_TXN(oldsn, sn)) {
             if (CAS(current, pos, oldsn, sn)) Success
             else slowInsert(key, value, hash, level, current, parent)
           } else slowInsert(key, value, hash, level, current, parent)
@@ -361,14 +307,14 @@ class CacheTrie[K <: AnyRef, V] {
             // Replace the single node with a narrow node.
             val nnode = newNarrowOrWideNode(
               oldsn.hash, oldsn.key, oldsn.value, hash, key, value, level + 4)
-            if (CAS_FREEZE(oldsn, nnode)) {
+            if (CAS_TXN(oldsn, nnode)) {
               if (CAS(current, pos, oldsn, nnode)) Success
               else slowInsert(key, value, hash, level, current, parent)
             } else slowInsert(key, value, hash, level, current, parent)
           }
         }
       } else if (reason eq FSNode) {
-        // We landed into the middle of a transaction doing a freeze.
+        // We landed into the middle of a transaction doing a txn.
         // We must restart from the top, find the tranaction node and help.
         Restart
       } else {
@@ -399,7 +345,7 @@ class CacheTrie[K <: AnyRef, V] {
 
   private def isFrozenS(n: AnyRef): Boolean = {
     if (n.isInstanceOf[SNode[_, _]]) {
-      val f = READ_FREEZE(n.asInstanceOf[SNode[_, _]])
+      val f = READ_TXN(n.asInstanceOf[SNode[_, _]])
       f eq FSNode
     } else false
   }
@@ -423,12 +369,12 @@ class CacheTrie[K <: AnyRef, V] {
         if (!CAS(current, i, node, FVNode)) i -= 1
       } else if (node.isInstanceOf[SNode[_, _]]) {
         val sn = node.asInstanceOf[SNode[K, V]]
-        val reason = READ_FREEZE(sn)
+        val reason = READ_TXN(sn)
         if (reason == null) {
           // Freeze single node.
           // If it fails, then either someone helped or another txn is in progress.
           // If another txn is in progress, then we must reinspect the current slot.
-          if (!CAS_FREEZE(node.asInstanceOf[SNode[K, V]], FSNode)) i -= 1
+          if (!CAS_TXN(node.asInstanceOf[SNode[K, V]], FSNode)) i -= 1
         } else if (reason eq FSNode) {
           // We can skip, another thread previously froze this node.
         } else  {
@@ -442,14 +388,15 @@ class CacheTrie[K <: AnyRef, V] {
         // If it fails, then either someone helped or another txn is in progress.
         // If another txn is in progress, then we must reinspect the current slot.
         val fnode = new FNode(node)
-        if (!CAS(current, i, node, fnode)) i -= 1
+        CAS(current, i, node, fnode)
+        i -= 1
       } else if (node.isInstanceOf[Array[AnyRef]]) {
         // Freeze the array node.
         // If it fails, then either someone helped or another txn is in progress.
         // If another txn is in progress, then reinspect the current slot.
         val fnode = new FNode(node)
         if (!CAS(current, i, node, fnode)) i -= 1
-      } else if ((node eq FVNode) || isFrozenL(node)) {
+      } else if (isFrozenL(node)) {
         // We can skip, another thread previously helped with freezing this node.
       } else if (node.isInstanceOf[FNode]) {
         // We still need to freeze the subtree recursively.
@@ -870,6 +817,60 @@ class CacheTrie[K <: AnyRef, V] {
     }
   }
 
+  private[concurrent] def debugReadCache: Array[AnyRef] = READ_CACHE
+
+  private[concurrent] def debugReadRoot: Array[AnyRef] = rawRoot
+
+  private[concurrent] def debugCachePopulateTwoLevelSingle(
+    level: Int, key: K, value: V
+  ): Unit = {
+    rawCache = new Array[AnyRef](1 + (1 << level))
+    rawCache(0) = new CacheNode(null, level)
+    var i = 1
+    while (i < rawCache.length) {
+      val an = new Array[AnyRef](4)
+      rawCache(i) = an
+      var j = 0
+      while (j < 4) {
+        an(j) = new SNode(0, key, value)
+        j += 1
+      }
+      i += 1
+    }
+  }
+
+  private[concurrent] def debugCachePopulateTwoLevel(
+    level: Int, keys: Array[K], values: Array[V]
+  ): Unit = {
+    rawCache = new Array[AnyRef](1 + (1 << level))
+    rawCache(0) = new CacheNode(null, level)
+    var i = 1
+    while (i < rawCache.length) {
+      val an = new Array[AnyRef](4)
+      rawCache(i) = an
+      var j = 0
+      while (j < 4) {
+        an(j) = new SNode(0, keys(i * 4 + j), values(i * 4 + j))
+        j += 1
+      }
+      i += 1
+    }
+  }
+
+  private[concurrent] def debugCachePopulateOneLevel(
+    level: Int, keys: Array[K], values: Array[V], scarce: Boolean
+  ): Unit = {
+    rawCache = new Array[AnyRef](1 + (1 << level))
+    rawCache(0) = new CacheNode(null, level)
+    var i = 1
+    while (i < rawCache.length) {
+      if (!scarce || i % 4 == 0) {
+        rawCache(i) = new SNode(0, keys(i), values(i))
+      }
+      i += 1
+    }
+  }
+
   private[concurrent] def debugTree: String = {
     val res = new StringBuilder
     def traverse(indent: String, node: Array[AnyRef]): Unit = {
@@ -988,7 +989,7 @@ object CacheTrie {
     Platform.unsafe.objectFieldOffset(field)
   }
   private val SNodeFrozenOffset = {
-    val field = classOf[SNode[_, _]].getDeclaredField("freeze")
+    val field = classOf[SNode[_, _]].getDeclaredField("txn")
     Platform.unsafe.objectFieldOffset(field)
   }
   private val CacheTrieRawCacheOffset = {
@@ -1012,14 +1013,14 @@ object CacheTrie {
   }
 
   class SNode[K <: AnyRef, V](
-    @volatile var freeze: AnyRef,
+    @volatile var txn: AnyRef,
     val hash: Int,
     val key: K,
     val value: V
   ) {
     def this(h: Int, k: K, v: V) = this(null, h, k, v)
     override def toString =
-      s"SN[$hash, $key, $value, ${if (freeze != null) freeze else '_'}]"
+      s"SN[$hash, $key, $value, ${if (txn != null) txn else '_'}]"
   }
 
   class LNode[K <: AnyRef, V](
