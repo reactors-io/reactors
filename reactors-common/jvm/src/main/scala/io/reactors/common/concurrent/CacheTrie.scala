@@ -66,8 +66,8 @@ class CacheTrie[K <: AnyRef, V] {
       } else if (cachee.isInstanceOf[SNode[_, _]]) {
         //println(s"$key - found single node cachee, cache level $level")
         val oldsn = cachee.asInstanceOf[SNode[K, V]]
-        val reason = READ_TXN(oldsn)
-        if (reason == null) {
+        val txn = READ_TXN(oldsn)
+        if (txn == null) {
           val oldhash = oldsn.hash
           val oldkey = oldsn.key
           if ((oldhash == hash) && ((oldkey eq key) || (oldkey == key))) oldsn.value
@@ -87,8 +87,8 @@ class CacheTrie[K <: AnyRef, V] {
           null.asInstanceOf[V]
         } else if (old.isInstanceOf[SNode[_, _]]) {
           val oldsn = old.asInstanceOf[SNode[K, V]]
-          val reason = READ_TXN(oldsn)
-          if (reason == null) {
+          val txn = READ_TXN(oldsn)
+          if (txn == null) {
             // The single node is up-to-date.
             // Check if the key is contained in the single node.
             val oldhash = oldsn.hash
@@ -163,7 +163,7 @@ class CacheTrie[K <: AnyRef, V] {
     cacheeSeen: AnyRef, cacheLevel: Int
   ): V = {
     if (level == cacheLevel) {
-      populateCache(cacheeSeen, node, hash, level)
+      inhabitCache(cacheeSeen, node, hash, level)
     }
     val mask = node.length - 1
     val pos = (hash >>> level) & mask
@@ -180,8 +180,8 @@ class CacheTrie[K <: AnyRef, V] {
       }
       val oldsn = old.asInstanceOf[SNode[K, V]]
       if (level + 4 == cacheLevel) {
-        // println(s"about to populate for single node -- ${level + 4} vs $cacheLevel")
-        populateCache(cacheeSeen, oldsn, hash, level + 4)
+        // println(s"about to inhabit for single node -- ${level + 4} vs $cacheLevel")
+        inhabitCache(cacheeSeen, oldsn, hash, level + 4)
       }
       if ((oldsn.hash == hash) && ((oldsn.key eq key) || (oldsn.key == key))) {
         oldsn.value
@@ -282,8 +282,8 @@ class CacheTrie[K <: AnyRef, V] {
       slowInsert(key, value, hash, level + 4, old.asInstanceOf[Array[AnyRef]], current)
     } else if (old.isInstanceOf[SNode[_, _]]) {
       val oldsn = old.asInstanceOf[SNode[K, V]]
-      val reason = READ_TXN(oldsn)
-      if (reason eq null) {
+      val txn = READ_TXN(oldsn)
+      if (txn eq null) {
         // The node is not frozen or marked for freezing.
         if ((oldsn.hash == hash) && ((oldsn.key eq key) || (oldsn.key == key))) {
           val sn = new SNode(hash, key, value)
@@ -313,14 +313,14 @@ class CacheTrie[K <: AnyRef, V] {
             } else slowInsert(key, value, hash, level, current, parent)
           }
         }
-      } else if (reason eq FSNode) {
+      } else if (txn eq FSNode) {
         // We landed into the middle of a transaction doing a txn.
         // We must restart from the top, find the tranaction node and help.
         Restart
       } else {
         // The single node had been scheduled for replacement by some thread.
         // We need to help, then retry.
-        CAS(current, pos, oldsn, reason)
+        CAS(current, pos, oldsn, txn)
         slowInsert(key, value, hash, level, current, parent)
       }
     } else if (old.isInstanceOf[LNode[_, _]]) {
@@ -369,18 +369,18 @@ class CacheTrie[K <: AnyRef, V] {
         if (!CAS(current, i, node, FVNode)) i -= 1
       } else if (node.isInstanceOf[SNode[_, _]]) {
         val sn = node.asInstanceOf[SNode[K, V]]
-        val reason = READ_TXN(sn)
-        if (reason == null) {
+        val txn = READ_TXN(sn)
+        if (txn == null) {
           // Freeze single node.
           // If it fails, then either someone helped or another txn is in progress.
           // If another txn is in progress, then we must reinspect the current slot.
           if (!CAS_TXN(node.asInstanceOf[SNode[K, V]], FSNode)) i -= 1
-        } else if (reason eq FSNode) {
+        } else if (txn eq FSNode) {
           // We can skip, another thread previously froze this node.
         } else  {
           // Another thread is trying to replace the single node.
           // In this case, we help and retry.
-          CAS(current, i, node, reason)
+          CAS(current, i, node, txn)
           i -= 1
         }
       } else if (node.isInstanceOf[LNode[_, _]]) {
@@ -567,12 +567,12 @@ class CacheTrie[K <: AnyRef, V] {
     // because some array nodes get created outside expansion
     // (e.g. when creating a node to resolve collisions in sequentialTransfer).
     if (CAS(parent, parentpos, enode, wide)) {
-      populateCache(narrow, wide, enode.hash, level)
+      inhabitCache(narrow, wide, enode.hash, level)
     }
   }
 
   @tailrec
-  private def populateCache(
+  private def inhabitCache(
     ov: AnyRef, nv: AnyRef, hash: Int, cacheeLevel: Int
   ): Unit = {
     val cache = READ_CACHE
@@ -584,7 +584,7 @@ class CacheTrie[K <: AnyRef, V] {
         val cn = new Array[AnyRef](1 + (1 << 8))
         cn(0) = new CacheNode(null, 8)
         CAS_CACHE(null, cn)
-        populateCache(ov, nv, hash, cacheeLevel)
+        inhabitCache(ov, nv, hash, cacheeLevel)
       }
     } else {
       val len = cache.length
@@ -594,7 +594,7 @@ class CacheTrie[K <: AnyRef, V] {
         val pos = 1 + (hash & mask)
         val old = READ(cache, pos)
         if (old eq null) {
-          // Nothing was ever written to the cache -- populate it.
+          // Nothing was ever written to the cache -- inhabit it.
           // Failure implies progress, in which case the new value is already stale.
           CAS(cache, pos, null, nv)
         } else if (old eq ov) {
@@ -681,14 +681,14 @@ class CacheTrie[K <: AnyRef, V] {
         def count(histogram: Long): Int = {
           (
             ((histogram >>> 0) & 0xff) +
-              ((histogram >>> 8) & 0xff) +
-              ((histogram >>> 16) & 0xff) +
-              ((histogram >>> 24) & 0xff) +
-              ((histogram >>> 32) & 0xff) +
-              ((histogram >>> 40) & 0xff) +
-              ((histogram >>> 48) & 0xff) +
-              ((histogram >>> 56) & 0xff)
-            ).toInt
+            ((histogram >>> 8) & 0xff) +
+            ((histogram >>> 16) & 0xff) +
+            ((histogram >>> 24) & 0xff) +
+            ((histogram >>> 32) & 0xff) +
+            ((histogram >>> 40) & 0xff) +
+            ((histogram >>> 48) & 0xff) +
+            ((histogram >>> 56) & 0xff)
+          ).toInt
         }
         def sampleUnbiased(
           node: Array[AnyRef], level: Int, maxRepeats: Int, maxSamples: Int,
