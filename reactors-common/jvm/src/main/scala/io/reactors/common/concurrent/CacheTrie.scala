@@ -163,7 +163,7 @@ class CacheTrie[K <: AnyRef, V] {
     cacheeSeen: AnyRef, cacheLevel: Int
   ): V = {
     if (level == cacheLevel) {
-      populateCache(cacheeSeen, node, hash, level)
+      inhabitCache(cacheeSeen, node, hash, level)
     }
     val mask = node.length - 1
     val pos = (hash >>> level) & mask
@@ -180,8 +180,8 @@ class CacheTrie[K <: AnyRef, V] {
       }
       val oldsn = old.asInstanceOf[SNode[K, V]]
       if (level + 4 == cacheLevel) {
-        // println(s"about to populate for single node -- ${level + 4} vs $cacheLevel")
-        populateCache(cacheeSeen, oldsn, hash, level + 4)
+        // println(s"about to inhabit for single node -- ${level + 4} vs $cacheLevel")
+        inhabitCache(cacheeSeen, oldsn, hash, level + 4)
       }
       if ((oldsn.hash == hash) && ((oldsn.key eq key) || (oldsn.key == key))) {
         oldsn.value
@@ -567,12 +567,12 @@ class CacheTrie[K <: AnyRef, V] {
     // because some array nodes get created outside expansion
     // (e.g. when creating a node to resolve collisions in sequentialTransfer).
     if (CAS(parent, parentpos, enode, wide)) {
-      populateCache(narrow, wide, enode.hash, level)
+      inhabitCache(narrow, wide, enode.hash, level)
     }
   }
 
   @tailrec
-  private def populateCache(
+  private def inhabitCache(
     ov: AnyRef, nv: AnyRef, hash: Int, cacheeLevel: Int
   ): Unit = {
     val cache = READ_CACHE
@@ -584,7 +584,7 @@ class CacheTrie[K <: AnyRef, V] {
         val cn = new Array[AnyRef](1 + (1 << 8))
         cn(0) = new CacheNode(null, 8)
         CAS_CACHE(null, cn)
-        populateCache(ov, nv, hash, cacheeLevel)
+        inhabitCache(ov, nv, hash, cacheeLevel)
       }
     } else {
       val len = cache.length
@@ -594,7 +594,7 @@ class CacheTrie[K <: AnyRef, V] {
         val pos = 1 + (hash & mask)
         val old = READ(cache, pos)
         if (old eq null) {
-          // Nothing was ever written to the cache -- populate it.
+          // Nothing was ever written to the cache -- inhabit it.
           // Failure implies progress, in which case the new value is already stale.
           CAS(cache, pos, null, nv)
         } else if (old eq ov) {
