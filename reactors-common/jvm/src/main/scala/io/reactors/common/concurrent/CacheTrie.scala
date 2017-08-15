@@ -681,14 +681,14 @@ class CacheTrie[K <: AnyRef, V] {
         def count(histogram: Long): Int = {
           (
             ((histogram >>> 0) & 0xff) +
-              ((histogram >>> 8) & 0xff) +
-              ((histogram >>> 16) & 0xff) +
-              ((histogram >>> 24) & 0xff) +
-              ((histogram >>> 32) & 0xff) +
-              ((histogram >>> 40) & 0xff) +
-              ((histogram >>> 48) & 0xff) +
-              ((histogram >>> 56) & 0xff)
-            ).toInt
+            ((histogram >>> 8) & 0xff) +
+            ((histogram >>> 16) & 0xff) +
+            ((histogram >>> 24) & 0xff) +
+            ((histogram >>> 32) & 0xff) +
+            ((histogram >>> 40) & 0xff) +
+            ((histogram >>> 48) & 0xff) +
+            ((histogram >>> 56) & 0xff)
+          ).toInt
         }
         def sampleUnbiased(
           node: Array[AnyRef], level: Int, maxRepeats: Int, maxSamples: Int,
