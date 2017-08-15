@@ -66,8 +66,8 @@ class CacheTrie[K <: AnyRef, V] {
       } else if (cachee.isInstanceOf[SNode[_, _]]) {
         //println(s"$key - found single node cachee, cache level $level")
         val oldsn = cachee.asInstanceOf[SNode[K, V]]
-        val reason = READ_TXN(oldsn)
-        if (reason == null) {
+        val txn = READ_TXN(oldsn)
+        if (txn == null) {
           val oldhash = oldsn.hash
           val oldkey = oldsn.key
           if ((oldhash == hash) && ((oldkey eq key) || (oldkey == key))) oldsn.value
@@ -87,8 +87,8 @@ class CacheTrie[K <: AnyRef, V] {
           null.asInstanceOf[V]
         } else if (old.isInstanceOf[SNode[_, _]]) {
           val oldsn = old.asInstanceOf[SNode[K, V]]
-          val reason = READ_TXN(oldsn)
-          if (reason == null) {
+          val txn = READ_TXN(oldsn)
+          if (txn == null) {
             // The single node is up-to-date.
             // Check if the key is contained in the single node.
             val oldhash = oldsn.hash
@@ -282,8 +282,8 @@ class CacheTrie[K <: AnyRef, V] {
       slowInsert(key, value, hash, level + 4, old.asInstanceOf[Array[AnyRef]], current)
     } else if (old.isInstanceOf[SNode[_, _]]) {
       val oldsn = old.asInstanceOf[SNode[K, V]]
-      val reason = READ_TXN(oldsn)
-      if (reason eq null) {
+      val txn = READ_TXN(oldsn)
+      if (txn eq null) {
         // The node is not frozen or marked for freezing.
         if ((oldsn.hash == hash) && ((oldsn.key eq key) || (oldsn.key == key))) {
           val sn = new SNode(hash, key, value)
@@ -313,14 +313,14 @@ class CacheTrie[K <: AnyRef, V] {
             } else slowInsert(key, value, hash, level, current, parent)
           }
         }
-      } else if (reason eq FSNode) {
+      } else if (txn eq FSNode) {
         // We landed into the middle of a transaction doing a txn.
         // We must restart from the top, find the tranaction node and help.
         Restart
       } else {
         // The single node had been scheduled for replacement by some thread.
         // We need to help, then retry.
-        CAS(current, pos, oldsn, reason)
+        CAS(current, pos, oldsn, txn)
         slowInsert(key, value, hash, level, current, parent)
       }
     } else if (old.isInstanceOf[LNode[_, _]]) {
@@ -369,18 +369,18 @@ class CacheTrie[K <: AnyRef, V] {
         if (!CAS(current, i, node, FVNode)) i -= 1
       } else if (node.isInstanceOf[SNode[_, _]]) {
         val sn = node.asInstanceOf[SNode[K, V]]
-        val reason = READ_TXN(sn)
-        if (reason == null) {
+        val txn = READ_TXN(sn)
+        if (txn == null) {
           // Freeze single node.
           // If it fails, then either someone helped or another txn is in progress.
           // If another txn is in progress, then we must reinspect the current slot.
           if (!CAS_TXN(node.asInstanceOf[SNode[K, V]], FSNode)) i -= 1
-        } else if (reason eq FSNode) {
+        } else if (txn eq FSNode) {
           // We can skip, another thread previously froze this node.
         } else  {
           // Another thread is trying to replace the single node.
           // In this case, we help and retry.
-          CAS(current, i, node, reason)
+          CAS(current, i, node, txn)
           i -= 1
         }
       } else if (node.isInstanceOf[LNode[_, _]]) {
