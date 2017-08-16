@@ -38,7 +38,7 @@ class CacheTrie[K <: AnyRef, V] {
   private def READ_TXN(snode: SNode[_, _]): AnyRef = snode.txn
 
   private def CAS_TXN(snode: SNode[_, _], nv: AnyRef): Boolean = {
-    unsafe.compareAndSwapObject(snode, SNodeFrozenOffset, null, nv)
+    unsafe.compareAndSwapObject(snode, SNodeFrozenOffset, NoTxn, nv)
   }
 
   private def spread(h: Int): Int = {
@@ -67,7 +67,7 @@ class CacheTrie[K <: AnyRef, V] {
         //println(s"$key - found single node cachee, cache level $level")
         val oldsn = cachee.asInstanceOf[SNode[K, V]]
         val txn = READ_TXN(oldsn)
-        if (txn == null) {
+        if (txn == NoTxn) {
           val oldhash = oldsn.hash
           val oldkey = oldsn.key
           if ((oldhash == hash) && ((oldkey eq key) || (oldkey == key))) oldsn.value
@@ -82,13 +82,13 @@ class CacheTrie[K <: AnyRef, V] {
         val mask = an.length - 1
         val pos = (hash >>> level) & mask
         val old = READ(an, pos)
-        if ((old eq null) || (old eq VNode)) {
+        if (old eq null) {
           // The key is not present in the cache trie.
           null.asInstanceOf[V]
         } else if (old.isInstanceOf[SNode[_, _]]) {
           val oldsn = old.asInstanceOf[SNode[K, V]]
           val txn = READ_TXN(oldsn)
-          if (txn == null) {
+          if (txn == NoTxn) {
             // The single node is up-to-date.
             // Check if the key is contained in the single node.
             val oldhash = oldsn.hash
@@ -168,7 +168,7 @@ class CacheTrie[K <: AnyRef, V] {
     val mask = node.length - 1
     val pos = (hash >>> level) & mask
     val old = READ(node, pos)
-    if ((old eq null) || (old eq VNode)) {
+    if (old eq null) {
       null.asInstanceOf[V]
     } else if (old.isInstanceOf[Array[AnyRef]]) {
       val an = old.asInstanceOf[Array[AnyRef]]
@@ -272,7 +272,7 @@ class CacheTrie[K <: AnyRef, V] {
     val mask = current.length - 1
     val pos = (hash >>> level) & mask
     val old = READ(current, pos)
-    if ((old eq null) || (old eq VNode)) {
+    if (old eq null) {
       // Fast-path -- CAS the node into the empty position.
       val snode = new SNode(hash, key, value)
       if (CAS(current, pos, old, snode)) Success
@@ -283,7 +283,7 @@ class CacheTrie[K <: AnyRef, V] {
     } else if (old.isInstanceOf[SNode[_, _]]) {
       val oldsn = old.asInstanceOf[SNode[K, V]]
       val txn = READ_TXN(oldsn)
-      if (txn eq null) {
+      if (txn eq NoTxn) {
         // The node is not frozen or marked for freezing.
         if ((oldsn.hash == hash) && ((oldsn.key eq key) || (oldsn.key == key))) {
           val sn = new SNode(hash, key, value)
@@ -362,15 +362,15 @@ class CacheTrie[K <: AnyRef, V] {
     var i = 0
     while (i < current.length) {
       val node = READ(current, i)
-      if ((node eq null) || (node eq VNode)) {
-        // Freeze null or vacant.
+      if (node eq null) {
+        // Freeze null.
         // If it fails, then either someone helped or another txn is in progress.
         // If another txn is in progress, then reinspect the current slot.
         if (!CAS(current, i, node, FVNode)) i -= 1
       } else if (node.isInstanceOf[SNode[_, _]]) {
         val sn = node.asInstanceOf[SNode[K, V]]
         val txn = READ_TXN(sn)
-        if (txn == null) {
+        if (txn == NoTxn) {
           // Freeze single node.
           // If it fails, then either someone helped or another txn is in progress.
           // If another txn is in progress, then we must reinspect the current slot.
@@ -881,9 +881,6 @@ class CacheTrie[K <: AnyRef, V] {
         if (old == null) {
           res.append(s"${indent}<empty>")
           res.append("\n")
-        } else if (old eq VNode) {
-          res.append(s"${indent}<empty-cleared>")
-          res.append("\n")
         } else if (old.isInstanceOf[SNode[_, _]]) {
           val sn = old.asInstanceOf[SNode[K, V]]
           res.append(s"${indent}")
@@ -921,7 +918,7 @@ class CacheTrie[K <: AnyRef, V] {
     var scount = 0
     for (i <- 1 until cache.length) {
       val c = cache(i)
-      if (c != null && c != VNode && c != FVNode && !c.isInstanceOf[FNode]) {
+      if (c != null && c != FVNode && !c.isInstanceOf[FNode]) {
         count += 1
       }
       if (c.isInstanceOf[Array[AnyRef]]) {
@@ -1007,11 +1004,7 @@ object CacheTrie {
 
   /* node types */
 
-  val VNode = new AnyRef
-
-  object ANode {
-    def toString(an: Array[AnyRef]) = an.mkString("AN[", ", ", "]")
-  }
+  object NoTxn
 
   class SNode[K <: AnyRef, V](
     @volatile var txn: AnyRef,
@@ -1019,9 +1012,9 @@ object CacheTrie {
     val key: K,
     val value: V
   ) {
-    def this(h: Int, k: K, v: V) = this(null, h, k, v)
+    def this(h: Int, k: K, v: V) = this(NoTxn, h, k, v)
     override def toString =
-      s"SN[$hash, $key, $value, ${if (txn != null) txn else '_'}]"
+      s"SN[$hash, $key, $value, ${if (txn != NoTxn) txn else '_'}]"
   }
 
   class LNode[K <: AnyRef, V](
@@ -1044,15 +1037,16 @@ object CacheTrie {
     @volatile var wide: Array[AnyRef] = null
   }
 
+  object ANode {
+    def toString(an: Array[AnyRef]) = an.mkString("AN[", ", ", "]")
+  }
+
   val FVNode = new AnyRef
 
   val FSNode = new AnyRef
 
   class FNode(
     val frozen: AnyRef
-  )
-
-  class XNode(
   )
 
   class CacheNode(val parent: Array[AnyRef], val level: Int) {
