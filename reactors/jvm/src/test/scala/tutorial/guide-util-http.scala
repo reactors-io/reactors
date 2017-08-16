@@ -142,9 +142,9 @@ class GuideHttpService extends AsyncFunSuite {
     You can now point your browser to
     [http://localhost:9500/hello](http://localhost:9500/hello),
     and see your web page in action.
+    !*/
 
     Thread.sleep(2500)
-    !*/
 
     system.shutdown()
 
