@@ -395,7 +395,8 @@ class CacheTrie[K <: AnyRef, V] {
         // If it fails, then either someone helped or another txn is in progress.
         // If another txn is in progress, then reinspect the current slot.
         val fnode = new FNode(node)
-        if (!CAS(current, i, node, fnode)) i -= 1
+        CAS(current, i, node, fnode)
+        i -= 1
       } else if (isFrozenL(node)) {
         // We can skip, another thread previously helped with freezing this node.
       } else if (node.isInstanceOf[FNode]) {
