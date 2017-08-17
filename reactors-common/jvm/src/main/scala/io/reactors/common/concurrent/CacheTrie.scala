@@ -215,12 +215,7 @@ class CacheTrie[K <: AnyRef, V] {
     } else if (old.isInstanceOf[FNode]) {
       val frozen = old.asInstanceOf[FNode].frozen
       if (frozen.isInstanceOf[SNode[_, _]]) {
-        val sn = frozen.asInstanceOf[SNode[K, V]]
-        if ((sn.hash == hash) && ((sn.key eq key) || (sn.key == key))) {
-          sn.value
-        } else {
-          null.asInstanceOf[V]
-        }
+        sys.error(s"Unexpected case (should never be frozen): $frozen")
       } else if (frozen.isInstanceOf[LNode[_, _]]) {
         val ln = frozen.asInstanceOf[LNode[K, V]]
         if (ln.hash != hash) {
