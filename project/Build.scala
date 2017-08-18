@@ -14,7 +14,7 @@ object ReactorsBuild extends MechaRepoBuild {
   def repoName = "reactors"
 
   val reactorsScalaVersion = "2.11.8"
-  val scalaTestVersion = "3.0.1"
+  val scalaTestVersion = "3.0.4"
   val scalaCheckVersion = "1.13.4"
   val akkaVersion = "2.5.0"
   val scalaParserCombinatorsVersion = "1.0.5"
