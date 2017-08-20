@@ -867,6 +867,28 @@ class CacheTrie[K <: AnyRef, V] {
     }
   }
 
+  private[concurrent] def debugLoadFactor(): Double = {
+    var full = 0
+    var total = 0
+    def traverse(node: Array[AnyRef]): Unit = {
+      total += node.length
+      var i = 0
+      while (i < node.length) {
+        val old = READ(node, i)
+        if (old.isInstanceOf[SNode[_, _]]) {
+          full += 1
+        } else if (old.isInstanceOf[LNode[_, _]]) {
+          full += 1
+        } else if (old.isInstanceOf[Array[AnyRef]]) {
+          traverse(old.asInstanceOf[Array[AnyRef]])
+        }
+        i += 1
+      }
+    }
+    traverse(rawRoot)
+    return 1.0 * full / total
+  }
+
   private[concurrent] def debugTree: String = {
     val res = new StringBuilder
     def traverse(indent: String, node: Array[AnyRef]): Unit = {

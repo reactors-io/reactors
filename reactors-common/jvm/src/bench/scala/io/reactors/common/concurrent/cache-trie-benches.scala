@@ -314,4 +314,38 @@ class BirthdaySimulations extends FunSuite {
     debugPerLevelDistribution(2500000)
     debugPerLevelDistribution(3000000)
   }
+
+  def debugLoadFactor(sz: Int): Unit = {
+    val trie = new CacheTrie[String, String]
+    var i = 0
+    while (i < sz) {
+      trie.insert(i.toString + "/" + sz.toString, i.toString)
+      i += 1
+    }
+    println(f"$sz%5d ${trie.debugLoadFactor}%s")
+  }
+
+  test("load factor") {
+    debugLoadFactor(500)
+    debugLoadFactor(1000)
+    debugLoadFactor(2000)
+    debugLoadFactor(3000)
+    debugLoadFactor(4000)
+    debugLoadFactor(5000)
+    debugLoadFactor(6000)
+    debugLoadFactor(7000)
+    debugLoadFactor(8000)
+    debugLoadFactor(9000)
+    debugLoadFactor(10000)
+    debugLoadFactor(15000)
+    debugLoadFactor(20000)
+    debugLoadFactor(30000)
+    debugLoadFactor(50000)
+    debugLoadFactor(70000)
+    debugLoadFactor(100000)
+    debugLoadFactor(200000)
+    debugLoadFactor(500000)
+    debugLoadFactor(1000000)
+    debugLoadFactor(2000000)
+  }
 }
