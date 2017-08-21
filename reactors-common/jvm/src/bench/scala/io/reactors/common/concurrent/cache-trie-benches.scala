@@ -111,7 +111,8 @@ class CacheTrieBenches extends JBench.OfflineReport {
   }
 
   @transient
-  lazy val elems = (0 until 25000000).map(i => Wrapper(i)).toArray
+  lazy val elems = Random.shuffle((0 until 25000000).toVector)
+    .map(i => Wrapper(i)).toArray
 
   val sizes = Gen.range("size")(100000, 4000000, 500000)
 
@@ -155,135 +156,149 @@ class CacheTrieBenches extends JBench.OfflineReport {
     (size, trie)
   }
 
-  @gen("chms")
-  @benchmark("cache-trie.apply")
-  @curve("CHM")
-  def chmLookup(sc: (Int, ConcurrentHashMap[Wrapper, Wrapper])): Int = {
-   val (size, chm) = sc
-   var i = 0
-   var sum = 0
-   while (i < size) {
-     sum += chm.get(elems(i)).value
-     i += 1
-   }
-   sum
-  }
+  // @gen("chms")
+  // @benchmark("cache-trie.apply")
+  // @curve("CHM")
+  // def chmLookup(sc: (Int, ConcurrentHashMap[Wrapper, Wrapper])): Int = {
+  //  val (size, chm) = sc
+  //  var i = 0
+  //  var sum = 0
+  //  while (i < size) {
+  //    sum += chm.get(elems(i)).value
+  //    i += 1
+  //  }
+  //  sum
+  // }
 
-  @gen("skiplists")
-  @benchmark("cache-trie.apply")
-  @curve("skiplist")
-  def skiplistLookup(sc: (Int, ConcurrentSkipListMap[Wrapper, Wrapper])): Int = {
-   val (size, skiplist) = sc
-   var i = 0
-   var sum = 0
-   while (i < size) {
-     sum += skiplist.get(elems(i)).value
-     i += 1
-   }
-   sum
-  }
+  // @gen("skiplists")
+  // @benchmark("cache-trie.apply")
+  // @curve("skiplist")
+  // def skiplistLookup(sc: (Int, ConcurrentSkipListMap[Wrapper, Wrapper])): Int = {
+  //  val (size, skiplist) = sc
+  //  var i = 0
+  //  var sum = 0
+  //  while (i < size) {
+  //    sum += skiplist.get(elems(i)).value
+  //    i += 1
+  //  }
+  //  sum
+  // }
 
-  @gen("cachetries")
-  @benchmark("cache-trie.apply")
-  @curve("cachetrie-slow-path")
-  def cachetrieSlowLookup(sc: (Int, CacheTrie[Wrapper, Wrapper])): Int = {
-   val (size, trie) = sc
-   var i = 0
-   var sum = 0
-   while (i < size) {
-     sum += trie.slowLookup(elems(i)).value
-     i += 1
-   }
-   sum
-  }
+  // @gen("cachetries")
+  // @benchmark("cache-trie.apply")
+  // @curve("cachetrie-slow-path")
+  // def cachetrieSlowLookup(sc: (Int, CacheTrie[Wrapper, Wrapper])): Int = {
+  //  val (size, trie) = sc
+  //  var i = 0
+  //  var sum = 0
+  //  while (i < size) {
+  //    sum += trie.slowLookup(elems(i)).value
+  //    i += 1
+  //  }
+  //  sum
+  // }
 
-  @gen("ctries")
-  @benchmark("cache-trie.apply")
-  @curve("ctrie")
-  def ctrie(sc: (Int, TrieMap[Wrapper, Wrapper])): Int = {
-   val (size, trie) = sc
-   var i = 0
-   var sum = 0
-   while (i < size) {
-     sum += trie.lookup(elems(i)).value
-     i += 1
-   }
-   sum
-  }
+  // @gen("ctries")
+  // @benchmark("cache-trie.apply")
+  // @curve("ctrie")
+  // def ctrie(sc: (Int, TrieMap[Wrapper, Wrapper])): Int = {
+  //  val (size, trie) = sc
+  //  var i = 0
+  //  var sum = 0
+  //  while (i < size) {
+  //    sum += trie.lookup(elems(i)).value
+  //    i += 1
+  //  }
+  //  sum
+  // }
 
-  @gen("artificialCachetries")
-  @benchmark("cache-trie.apply")
-  @curve("cachetrie-fast-path")
-  def cachetrieFastLookup(sc: (Int, CacheTrie[Wrapper, Wrapper])): Int = {
-   val (size, trie) = sc
-   var i = 0
-   var sum = 0
-   io.reactors.test.delayTest(this.getClass)
-   while (i < size) {
-     val x = trie.fastLookup(elems(i))
-     sum += (if (x != null) x.value else 0)
-     i += 1
-   }
-   sum
-  }
+  // @gen("artificialCachetries")
+  // @benchmark("cache-trie.apply")
+  // @curve("cachetrie-fast-path")
+  // def cachetrieFastLookup(sc: (Int, CacheTrie[Wrapper, Wrapper])): Int = {
+  //  val (size, trie) = sc
+  //  var i = 0
+  //  var sum = 0
+  //  io.reactors.test.delayTest(this.getClass)
+  //  while (i < size) {
+  //    val x = trie.fastLookup(elems(i))
+  //    sum += (if (x != null) x.value else 0)
+  //    i += 1
+  //  }
+  //  sum
+  // }
 
-  @gen("cachetries")
-  @benchmark("cache-trie.apply")
-  @curve("cachetrie")
-  def cachetrieLookup(sc: (Int, CacheTrie[Wrapper, Wrapper])): Int = {
-    val (size, trie) = sc
-    var i = 0
-    var sum = 0
-    while (i < size) {
-      sum += trie.lookup(elems(i)).value
-      i += 1
-    }
-    //println(trie.debugPerLevelDistribution)
-    //println(trie.debugCacheStats)
-    sum
-  }
-
-  // @gen("sizes")
-  // @benchmark("cache-trie.insert")
-  // @curve("chm")
-  // def chmInsert(size: Int) = {
-  //   val chm = new ConcurrentHashMap[Wrapper, Wrapper]
+  // @gen("cachetries")
+  // @benchmark("cache-trie.apply")
+  // @curve("cachetrie")
+  // def cachetrieLookup(sc: (Int, CacheTrie[Wrapper, Wrapper])): Int = {
+  //   val (size, trie) = sc
   //   var i = 0
+  //   var sum = 0
   //   while (i < size) {
-  //     val v = elems(i)
-  //     chm.put(v, v)
+  //     sum += trie.lookup(elems(i)).value
   //     i += 1
   //   }
-  //   chm
+  //   //println(trie.debugPerLevelDistribution)
+  //   //println(trie.debugCacheStats)
+  //   sum
   // }
-  //
-  //@gen("sizes")
-  //@benchmark("cache-trie.insert")
-  //@curve("ctrie")
-  //def ctrieInsert(size: Int) = {
-  //  val trie = new TrieMap[Wrapper, Wrapper]
-  //  var i = 0
-  //  while (i < size) {
-  //    val v = elems(i)
-  //    trie.put(v, v)
-  //    i += 1
-  //  }
-  //  trie
-  //}
-  //
-  //@gen("sizes")
-  //@benchmark("cache-trie.insert")
-  //@curve("cachetrie")
-  //def cachetrieInsert(size: Int) = {
-  //  val trie = new CacheTrie[Wrapper, Wrapper]
-  //  var i = 0
-  //  while (i < size) {
-  //    val v = elems(i)
-  //    trie.insert(v, v)
-  //    i += 1
-  //  }
-  //  trie
-  //}
+
+  @gen("sizes")
+  @benchmark("cache-trie.insert")
+  @curve("chm")
+  def chmInsert(size: Int) = {
+    val chm = new ConcurrentHashMap[Wrapper, Wrapper]
+    var i = 0
+    while (i < size) {
+      val v = elems(i)
+      chm.put(v, v)
+      i += 1
+    }
+    chm
+  }
+
+  @gen("sizes")
+  @benchmark("cache-trie.insert")
+  @curve("skiplist")
+  def skiplistInsert(size: Int) = {
+    val skiplist = new ConcurrentSkipListMap[Wrapper, Wrapper]
+    var i = 0
+    while (i < size) {
+      val v = elems(i)
+      skiplist.put(v, v)
+      i += 1
+    }
+    skiplist
+  }
+
+  @gen("sizes")
+  @benchmark("cache-trie.insert")
+  @curve("ctrie")
+  def ctrieInsert(size: Int) = {
+   val trie = new TrieMap[Wrapper, Wrapper]
+   var i = 0
+   while (i < size) {
+     val v = elems(i)
+     trie.put(v, v)
+     i += 1
+   }
+   trie
+  }
+
+  @gen("sizes")
+  @benchmark("cache-trie.insert")
+  @curve("cachetrie")
+  def cachetrieInsert(size: Int) = {
+   val trie = new CacheTrie[Wrapper, Wrapper]
+   var i = 0
+   while (i < size) {
+     val v = elems(i)
+     trie.insert(v, v)
+     i += 1
+   }
+   trie
+  }
 }
 
 

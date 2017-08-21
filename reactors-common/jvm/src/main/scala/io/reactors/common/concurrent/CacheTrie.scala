@@ -242,8 +242,44 @@ class CacheTrie[K <: AnyRef, V] {
   }
 
   final def insert(key: K, value: V): Unit = {
-    val node = rawRoot
+    fastInsert(key, value)
+  }
+
+  private def fastInsert(key: K, value: V): Unit = {
     val hash = spread(key.hashCode)
+    val cache = READ_CACHE
+    if (cache == null) {
+      slowInsert(key, value, hash)
+    } else {
+      val len = cache.length
+      val mask = len - 1 - 1
+      val pos = 1 + (hash & mask)
+      val cachee = READ(cache, pos)
+      val level = 31 - Integer.numberOfTrailingZeros(len - 1) - 4 + 4
+      if (cachee eq null) {
+        slowInsert(key, value, hash)
+      } else if (cachee.isInstanceOf[Array[AnyRef]]) {
+        val an = cachee.asInstanceOf[Array[AnyRef]]
+        val mask = an.length - 1
+        val pos = (hash >>> level) & mask
+        val old = READ(cache, pos)
+        if (old eq null) {
+          ???
+        } else if (old.isInstanceOf[Array[AnyRef]]) {
+          val oldan = old.asInstanceOf[Array[AnyRef]]
+          ???
+        } else if (old.isInstanceOf[SNode[_, _]]) {
+          val oldsn = old.asInstanceOf[SNode[K, V]]
+          ???
+        }
+      } else {
+        slowInsert(key, value, hash)
+      }
+    }
+  }
+
+  private def slowInsert(key: K, value: V, hash: Int): Unit = {
+    val node = rawRoot
     var result = Restart
     do {
       result = slowInsert(key, value, hash, 0, node, null)
