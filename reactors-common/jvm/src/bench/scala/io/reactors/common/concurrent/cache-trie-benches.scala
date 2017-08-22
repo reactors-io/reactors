@@ -107,14 +107,17 @@ class CacheTrieBenches extends JBench.OfflineReport {
   )
 
   case class Wrapper(value: Int) extends Comparable[Wrapper] {
-    def compareTo(that: Wrapper) = that.value - this.value
+    def compareTo(that: Wrapper) = this.value - that.value
   }
 
-  @transient
-  lazy val elems = Random.shuffle((0 until 25000000).toVector)
-    .map(i => Wrapper(i)).toArray
+  val maxElems = 4000000
 
-  val sizes = Gen.range("size")(100000, 4000000, 500000)
+  @transient
+  lazy val elems = Random.shuffle((0 until maxElems).toVector)
+    .map(i => Wrapper(i)).toArray
+    .sorted
+
+  val sizes = Gen.range("size")(100000, maxElems, 500000)
 
   val chms = for (size <- sizes) yield {
     val chm = new ConcurrentHashMap[Wrapper, Wrapper]
@@ -228,21 +231,21 @@ class CacheTrieBenches extends JBench.OfflineReport {
   //  sum
   // }
 
-  // @gen("cachetries")
-  // @benchmark("cache-trie.apply")
-  // @curve("cachetrie")
-  // def cachetrieLookup(sc: (Int, CacheTrie[Wrapper, Wrapper])): Int = {
-  //   val (size, trie) = sc
-  //   var i = 0
-  //   var sum = 0
-  //   while (i < size) {
-  //     sum += trie.lookup(elems(i)).value
-  //     i += 1
-  //   }
-  //   //println(trie.debugPerLevelDistribution)
-  //   //println(trie.debugCacheStats)
-  //   sum
-  // }
+  @gen("cachetries")
+  @benchmark("cache-trie.apply")
+  @curve("cachetrie")
+  def cachetrieLookup(sc: (Int, CacheTrie[Wrapper, Wrapper])): Int = {
+    val (size, trie) = sc
+    var i = 0
+    var sum = 0
+    while (i < size) {
+      sum += trie.lookup(elems(i)).value
+      i += 1
+    }
+    //println(trie.debugPerLevelDistribution)
+    println(trie.debugCacheStats)
+    sum
+  }
 
   // @gen("sizes")
   // @benchmark("cache-trie.insert")
@@ -276,30 +279,32 @@ class CacheTrieBenches extends JBench.OfflineReport {
   // @benchmark("cache-trie.insert")
   // @curve("ctrie")
   // def ctrieInsert(size: Int) = {
-  //  val trie = new TrieMap[Wrapper, Wrapper]
-  //  var i = 0
-  //  while (i < size) {
-  //    val v = elems(i)
-  //    trie.put(v, v)
-  //    i += 1
-  //  }
-  //  trie
+  //   val trie = new TrieMap[Wrapper, Wrapper]
+  //   var i = 0
+  //   while (i < size) {
+  //     val v = elems(i)
+  //     trie.put(v, v)
+  //     i += 1
+  //   }
+  //   trie
   // }
 
   @gen("sizes")
   @benchmark("cache-trie.insert")
   @curve("cachetrie")
   def cachetrieInsert(size: Int) = {
-   val trie = new CacheTrie[Wrapper, Wrapper]
-   var i = 0
-   while (i < size) {
-     val v = elems(i)
-     trie.insert(v, v)
-     i += 1
-   }
-   println(trie.getSlowInsertRatio)
-   println(trie.debugCacheStats)
-   trie
+    val trie = new CacheTrie[Wrapper, Wrapper]
+    var i = 0
+    while (i < size) {
+      if (i == size / 4 || i == size / 2) {
+        println(trie.debugCacheStats)
+      }
+      val v = elems(i)
+      trie.insert(v, v)
+      i += 1
+    }
+    println(trie.debugCacheStats)
+    trie
   }
 }
 

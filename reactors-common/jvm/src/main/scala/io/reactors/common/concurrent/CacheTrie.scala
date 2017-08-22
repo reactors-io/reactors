@@ -53,7 +53,7 @@ class CacheTrie[K <: AnyRef, V] {
   private[concurrent] final def fastLookup(key: K, hash: Int): V = {
     val cache = READ_CACHE
     if (cache == null) {
-      slowLookup(key, hash, 0, rawRoot, null, -1)
+      slowLookup(key, hash, 0, rawRoot, null, null)
     } else {
       val len = cache.length
       val mask = len - 1 - 1
@@ -62,7 +62,7 @@ class CacheTrie[K <: AnyRef, V] {
       val level = 31 - Integer.numberOfLeadingZeros(len - 1) - 4 + 4
       if (cachee eq null) {
         // Nothing is cached at this location, do slow lookup.
-        slowLookup(key, hash, 0, rawRoot, cachee, level)
+        slowLookup(key, hash, 0, rawRoot, cache, cachee)
       } else if (cachee.isInstanceOf[SNode[_, _]]) {
         //println(s"$key - found single node cachee, cache level $level")
         val oldsn = cachee.asInstanceOf[SNode[K, V]]
@@ -74,7 +74,7 @@ class CacheTrie[K <: AnyRef, V] {
           else null.asInstanceOf[V]
         } else {
           // The single node is either frozen or scheduled for modification
-          slowLookup(key, hash, 0, rawRoot, cachee, level)
+          slowLookup(key, hash, 0, rawRoot, cache, cachee)
         }
       } else if (cachee.isInstanceOf[Array[AnyRef]]) {
         //println(s"$key - found array cachee, cache level $level")
@@ -97,14 +97,14 @@ class CacheTrie[K <: AnyRef, V] {
             else null.asInstanceOf[V]
           } else {
             // The single node is either frozen or scheduled for modification.
-            slowLookup(key, hash, 0, rawRoot, cachee, level)
+            slowLookup(key, hash, 0, rawRoot, cache, cachee)
           }
         } else {
           def resumeSlowLookup(): V = {
             if (old.isInstanceOf[Array[AnyRef]]) {
               // Continue the search from the specified level.
               val oldan = old.asInstanceOf[Array[AnyRef]]
-              slowLookup(key, hash, level + 4, oldan, cachee, level)
+              slowLookup(key, hash, level + 4, oldan, cache, cachee)
             } else if (old.isInstanceOf[LNode[_, _]]) {
               // Check if the key is contained in the list node.
               var tail = old.asInstanceOf[LNode[K, V]]
@@ -117,11 +117,11 @@ class CacheTrie[K <: AnyRef, V] {
               null.asInstanceOf[V]
             } else if ((old eq FVNode) || old.isInstanceOf[FNode]) {
               // Array node contains a frozen node, so it is obsolete -- do slow lookup.
-              slowLookup(key, hash, 0, rawRoot, cachee, level)
+              slowLookup(key, hash, 0, rawRoot, cache, cachee)
             } else if (old.isInstanceOf[ENode]) {
               // Help complete the transaction.
               val en = old.asInstanceOf[ENode]
-              completeExpansion(en)
+              completeExpansion(cache, en)
               fastLookup(key, hash)
             } else {
               sys.error(s"Unexpected case -- $old")
@@ -146,24 +146,24 @@ class CacheTrie[K <: AnyRef, V] {
     fastLookup(key, hash)
   }
 
-  private[concurrent] def slowLookup(key: K, hash: Int): V = {
-    val node = rawRoot
-    slowLookup(key, hash, 0, node, null, -1)
+  private[concurrent] def slowLookup(key: K): V = {
+    val hash = spread(key.hashCode)
+    slowLookup(key, hash)
   }
 
-  private[concurrent] def slowLookup(key: K): V = {
+  private[concurrent] def slowLookup(key: K, hash: Int): V = {
     val node = rawRoot
-    val hash = spread(key.hashCode)
-    slowLookup(key, hash, 0, node, null, -1)
+    val cache = READ_CACHE
+    slowLookup(key, hash, 0, node, cache, null)
   }
 
   @tailrec
   private[concurrent] final def slowLookup(
     key: K, hash: Int, level: Int, node: Array[AnyRef],
-    cacheeSeen: AnyRef, cacheLevel: Int
+    cache: Array[AnyRef], cacheeSeen: AnyRef
   ): V = {
-    if (level == cacheLevel) {
-      inhabitCache(cacheeSeen, node, hash, level)
+    if (cache != null && (1 << level) == (cache.length - 1)) {
+      inhabitCache(cache, cacheeSeen, node, hash, level)
     }
     val mask = node.length - 1
     val pos = (hash >>> level) & mask
@@ -172,16 +172,18 @@ class CacheTrie[K <: AnyRef, V] {
       null.asInstanceOf[V]
     } else if (old.isInstanceOf[Array[AnyRef]]) {
       val an = old.asInstanceOf[Array[AnyRef]]
-      slowLookup(key, hash, level + 4, an, cacheeSeen, cacheLevel)
+      slowLookup(key, hash, level + 4, an, cache, cacheeSeen)
     } else if (old.isInstanceOf[SNode[_, _]]) {
+      val cacheLevel =
+        if (cache == null) 0
+        else 31 - Integer.numberOfLeadingZeros(cache.length - 1) - 4 + 4
       if (level < cacheLevel || level >= cacheLevel + 8) {
-        // A potential cache miss -- we need to check the cache state.
         recordCacheMiss()
       }
       val oldsn = old.asInstanceOf[SNode[K, V]]
-      if (level + 4 == cacheLevel) {
+      if (cache != null && (1 << (level + 4)) == (cache.length - 1)) {
         // println(s"about to inhabit for single node -- ${level + 4} vs $cacheLevel")
-        inhabitCache(cacheeSeen, oldsn, hash, level + 4)
+        inhabitCache(cache, cacheeSeen, oldsn, hash, level + 4)
       }
       if ((oldsn.hash == hash) && ((oldsn.key eq key) || (oldsn.key == key))) {
         oldsn.value
@@ -189,6 +191,9 @@ class CacheTrie[K <: AnyRef, V] {
         null.asInstanceOf[V]
       }
     } else if (old.isInstanceOf[LNode[_, _]]) {
+      val cacheLevel =
+        if (cache == null) 0
+        else 31 - Integer.numberOfLeadingZeros(cache.length - 1) - 4 + 4
       if (level < cacheLevel || level >= cacheLevel + 8) {
         // A potential cache miss -- we need to check the cache state.
         recordCacheMiss()
@@ -209,7 +214,7 @@ class CacheTrie[K <: AnyRef, V] {
     } else if (old.isInstanceOf[ENode]) {
       val enode = old.asInstanceOf[ENode]
       val narrow = enode.narrow
-      slowLookup(key, hash, level + 4, narrow, cacheeSeen, cacheLevel)
+      slowLookup(key, hash, level + 4, narrow, cache, cacheeSeen)
     } else if (old eq FVNode) {
       null.asInstanceOf[V]
     } else if (old.isInstanceOf[FNode]) {
@@ -232,7 +237,7 @@ class CacheTrie[K <: AnyRef, V] {
         }
       } else if (frozen.isInstanceOf[Array[AnyRef]]) {
         val an = frozen.asInstanceOf[Array[AnyRef]]
-        slowLookup(key, hash, level + 4, an, cacheeSeen, cacheLevel)
+        slowLookup(key, hash, level + 4, an, cache, cacheeSeen)
       } else {
         sys.error(s"Unexpected case: $old")
       }
@@ -241,21 +246,20 @@ class CacheTrie[K <: AnyRef, V] {
     }
   }
 
-  private var insertCount = 0
-  private var slowInsertCount = 0
   final def insert(key: K, value: V): Unit = {
-    insertCount += 1
     val hash = spread(key.hashCode)
+    // println("----- " + key)
     fastInsert(key, value, hash)
   }
 
-  def getSlowInsertRatio: Double = 1.0 * slowInsertCount / insertCount
-
-  @tailrec
   private def fastInsert(key: K, value: V, hash: Int): Unit = {
     val cache = READ_CACHE
+    fastInsert(key, value, hash, cache)
+  }
+
+  @tailrec
+  private def fastInsert(key: K, value: V, hash: Int, cache: Array[AnyRef]): Unit = {
     if (cache == null) {
-      slowInsertCount += 1
       slowInsert(key, value, hash)
     } else {
       val len = cache.length
@@ -263,10 +267,12 @@ class CacheTrie[K <: AnyRef, V] {
       val pos = 1 + (hash & mask)
       val cachee = READ(cache, pos)
       val level = 31 - Integer.numberOfLeadingZeros(len - 1) - 4 + 4
+      // println("fast insert " + level)
       if (cachee eq null) {
-        slowInsertCount += 1
-        val res = slowInsert(key, value, hash, 0, rawRoot, null, cachee, level)
-        if (res eq Restart) fastInsert(key, value, hash)
+        // val res = slowInsert(key, value, hash, 0, rawRoot, null, cachee, level)
+        // if (res eq Restart) fastInsert(key, value, hash, cache)
+        val parentCache = cache(0).asInstanceOf[CacheNode].parent
+        fastInsert(key, value, hash, parentCache)
       } else if (cachee.isInstanceOf[Array[AnyRef]]) {
         val an = cachee.asInstanceOf[Array[AnyRef]]
         val mask = an.length - 1
@@ -275,12 +281,11 @@ class CacheTrie[K <: AnyRef, V] {
         if (old eq null) {
           val sn = new SNode(hash, key, value)
           if (CAS(an, pos, old, sn)) {}
-          else fastInsert(key, value, hash)
+          else fastInsert(key, value, hash, cache)
         } else if (old.isInstanceOf[Array[AnyRef]]) {
           val childan = old.asInstanceOf[Array[AnyRef]]
-          slowInsertCount += 1
-          val res = slowInsert(key, value, hash, level + 4, childan, an, cachee, level)
-          if (res eq Restart) fastInsert(key, value, hash)
+          val res = slowInsert(key, value, hash, level + 4, childan, an, cache, cachee)
+          if (res eq Restart) fastInsert(key, value, hash, cache)
         } else if (old.isInstanceOf[SNode[_, _]]) {
           val oldsn = old.asInstanceOf[SNode[K, V]]
           val txn = READ_TXN(oldsn)
@@ -289,45 +294,38 @@ class CacheTrie[K <: AnyRef, V] {
               val sn = new SNode(hash, key, value)
               if (CAS_TXN(oldsn, sn)) {
                 if (CAS(an, pos, oldsn, sn)) {}
-                else fastInsert(key, value, hash)
-              } else fastInsert(key, value, hash)
+                else fastInsert(key, value, hash, cache)
+              } else fastInsert(key, value, hash, cache)
             } else if (an.length == 4) {
-              slowInsertCount += 1
-              slowInsert(key, value, hash)
+              // TODO: Remove this code.
+              // val res = slowInsert(key, value, hash, 0, rawRoot, null, cachee, level)
+              // if (res eq Restart) fastInsert(key, value, hash, cache)
+              val parentCache = cache(0).asInstanceOf[CacheNode].parent
+              fastInsert(key, value, hash, parentCache)
             } else {
               val nnode = newNarrowOrWideNode(
                 oldsn.hash, oldsn.key, oldsn.value, hash, key, value, level + 4)
               if (CAS_TXN(oldsn, nnode)) {
                 if (CAS(an, pos, oldsn, nnode)) {}
-                else fastInsert(key, value, hash)
-              } else fastInsert(key, value, hash)
+                else fastInsert(key, value, hash, cache)
+              } else fastInsert(key, value, hash, cache)
             }
           } else if (txn eq FSNode) {
-            slowInsertCount += 1
             slowInsert(key, value, hash)
           } else {
             CAS(an, pos, oldsn, txn)
-            fastInsert(key, value, hash)
+            fastInsert(key, value, hash, cache)
           }
         } else {
-          slowInsertCount += 1
           slowInsert(key, value, hash)
         }
       } else if (cachee.isInstanceOf[SNode[_, _]]) {
-        slowInsertCount += 1
-        slowInsert(key, value, hash)
+        val parentCache = cache(0).asInstanceOf[CacheNode].parent
+        fastInsert(key, value, hash, parentCache)
       } else {
         sys.error(s"Unexpected case -- $cachee is not supposed to be cached.")
       }
     }
-  }
-
-  private def slowInsert(key: K, value: V, hash: Int): Unit = {
-    val node = rawRoot
-    var result = Restart
-    do {
-      result = slowInsert(key, value, hash, 0, node, null, null, -1)
-    } while (result == Restart)
   }
 
   private[concurrent] final def slowInsert(key: K, value: V): Unit = {
@@ -335,14 +333,24 @@ class CacheTrie[K <: AnyRef, V] {
     slowInsert(key, value, hash)
   }
 
+  private def slowInsert(key: K, value: V, hash: Int): Unit = {
+    val node = rawRoot
+    val cache = READ_CACHE
+    var result = Restart
+    do {
+      result = slowInsert(key, value, hash, 0, node, null, cache, null)
+    } while (result == Restart)
+  }
+
   @tailrec
   private[concurrent] final def slowInsert(
     key: K, value: V, hash: Int, level: Int,
     current: Array[AnyRef], parent: Array[AnyRef],
-    cacheeSeen: AnyRef, cacheLevel: Int
+    cache: Array[AnyRef], cacheeSeen: AnyRef
   ): AnyRef = {
-    if (level == cacheLevel) {
-      inhabitCache(cacheeSeen, current, hash, level)
+    // println("slow insert " + level)
+    if (cache != null && (1 << level) == (cache.length - 1)) {
+      inhabitCache(cache, cacheeSeen, current, hash, level)
     }
     val mask = current.length - 1
     val pos = (hash >>> level) & mask
@@ -351,11 +359,11 @@ class CacheTrie[K <: AnyRef, V] {
       // Fast-path -- CAS the node into the empty position.
       val snode = new SNode(hash, key, value)
       if (CAS(current, pos, old, snode)) Success
-      else slowInsert(key, value, hash, level, current, parent, cacheeSeen, cacheLevel)
+      else slowInsert(key, value, hash, level, current, parent, cache, cacheeSeen)
     } else if (old.isInstanceOf[Array[_]]) {
       // Repeat the search on the next level.
       slowInsert(key, value, hash, level + 4, old.asInstanceOf[Array[AnyRef]], current,
-        cacheeSeen, cacheLevel)
+        cache, cacheeSeen)
     } else if (old.isInstanceOf[SNode[_, _]]) {
       val oldsn = old.asInstanceOf[SNode[K, V]]
       val txn = READ_TXN(oldsn)
@@ -365,26 +373,21 @@ class CacheTrie[K <: AnyRef, V] {
           val sn = new SNode(hash, key, value)
           if (CAS_TXN(oldsn, sn)) {
             if (CAS(current, pos, oldsn, sn)) Success
-            else {
-              slowInsert(key, value, hash, level, current, parent, cacheeSeen,
-                cacheLevel)
-            }
-          } else {
-            slowInsert(key, value, hash, level, current, parent, cacheeSeen, cacheLevel)
-          }
+            else slowInsert(key, value, hash, level, current, parent, cache, cacheeSeen)
+          } else slowInsert(key, value, hash, level, current, parent, cache, cacheeSeen)
         } else if (current.length == 4) {
-          // Expand the current node, seeking to avoid the collision.
+          // Expand the current node, aiming to avoid the collision.
           // Root size always 16, so parent is non-null.
           val parentmask = parent.length - 1
           val parentlevel = level - 4
           val parentpos = (hash >>> parentlevel) & parentmask
           val enode = new ENode(parent, parentpos, current, hash, level)
           if (CAS(parent, parentpos, current, enode)) {
-            completeExpansion(enode)
+            completeExpansion(cache, enode)
             val wide = READ_WIDE(enode)
-            slowInsert(key, value, hash, level, wide, parent, cacheeSeen, cacheLevel)
+            slowInsert(key, value, hash, level, wide, parent, cache, cacheeSeen)
           } else {
-            slowInsert(key, value, hash, level, current, parent, cacheeSeen, cacheLevel)
+            slowInsert(key, value, hash, level, current, parent, cache, cacheeSeen)
           }
         } else {
           // Replace the single node with a narrow node.
@@ -392,13 +395,8 @@ class CacheTrie[K <: AnyRef, V] {
             oldsn.hash, oldsn.key, oldsn.value, hash, key, value, level + 4)
           if (CAS_TXN(oldsn, nnode)) {
             if (CAS(current, pos, oldsn, nnode)) Success
-            else {
-              slowInsert(key, value, hash, level, current, parent, cacheeSeen,
-                cacheLevel)
-            }
-          } else {
-            slowInsert(key, value, hash, level, current, parent, cacheeSeen, cacheLevel)
-          }
+            else slowInsert(key, value, hash, level, current, parent, cache, cacheeSeen)
+          } else slowInsert(key, value, hash, level, current, parent, cache, cacheeSeen)
         }
       } else if (txn eq FSNode) {
         // We landed into the middle of a transaction doing a txn.
@@ -408,17 +406,17 @@ class CacheTrie[K <: AnyRef, V] {
         // The single node had been scheduled for replacement by some thread.
         // We need to help, then retry.
         CAS(current, pos, oldsn, txn)
-        slowInsert(key, value, hash, level, current, parent, cacheeSeen, cacheLevel)
+        slowInsert(key, value, hash, level, current, parent, cache, cacheeSeen)
       }
     } else if (old.isInstanceOf[LNode[_, _]]) {
       val oldln = old.asInstanceOf[LNode[K, V]]
       val nn = newListNarrowOrWideNode(oldln, hash, key, value, level + 4)
       if (CAS(current, pos, oldln, nn)) Success
-      else slowInsert(key, value, hash, level, current, parent, cacheeSeen, cacheLevel)
+      else slowInsert(key, value, hash, level, current, parent, cache, cacheeSeen)
     } else if (old.isInstanceOf[ENode]) {
       // There is another transaction in progress, help complete it, then restart.
       val enode = old.asInstanceOf[ENode]
-      completeExpansion(enode)
+      completeExpansion(cache, enode)
       Restart
     } else if ((old eq FVNode) || old.isInstanceOf[FNode]) {
       // We landed into the middle of some other thread's transaction.
@@ -445,7 +443,7 @@ class CacheTrie[K <: AnyRef, V] {
     n.isInstanceOf[FNode] && n.asInstanceOf[FNode].frozen.isInstanceOf[LNode[_, _]]
   }
 
-  private def freeze(current: Array[AnyRef]): Unit = {
+  private def freeze(cache: Array[AnyRef], current: Array[AnyRef]): Unit = {
     var i = 0
     while (i < current.length) {
       val node = READ(current, i)
@@ -489,14 +487,14 @@ class CacheTrie[K <: AnyRef, V] {
       } else if (node.isInstanceOf[FNode]) {
         // We still need to freeze the subtree recursively.
         val subnode = node.asInstanceOf[FNode].frozen.asInstanceOf[Array[AnyRef]]
-        freeze(subnode.asInstanceOf[Array[AnyRef]])
+        freeze(cache, subnode.asInstanceOf[Array[AnyRef]])
       } else if (node eq FVNode) {
         // We can continue, another thread already froze this slot.
       } else if (node.isInstanceOf[ENode]) {
         // If some other txn is in progress, help complete it,
         // then restart from current position.
         val enode = node.asInstanceOf[ENode]
-        completeExpansion(enode)
+        completeExpansion(cache, enode)
         i -= 1
       } else {
         sys.error("Unexpected case -- " + node)
@@ -632,14 +630,14 @@ class CacheTrie[K <: AnyRef, V] {
     }
   }
 
-  private def completeExpansion(enode: ENode): Unit = {
+  private def completeExpansion(cache: Array[AnyRef], enode: ENode): Unit = {
     val parent = enode.parent
     val parentpos = enode.parentpos
     val level = enode.level
 
     // First, freeze the subtree beneath the narrow node.
     val narrow = enode.narrow
-    freeze(narrow)
+    freeze(cache, narrow)
 
     // Second, populate the target array, and CAS it into the parent.
     var wide = new Array[AnyRef](16)
@@ -655,15 +653,14 @@ class CacheTrie[K <: AnyRef, V] {
     // because some array nodes get created outside expansion
     // (e.g. when creating a node to resolve collisions in sequentialTransfer).
     if (CAS(parent, parentpos, enode, wide)) {
-      inhabitCache(narrow, wide, enode.hash, level)
+      inhabitCache(cache, narrow, wide, enode.hash, level)
     }
   }
 
   @tailrec
   private def inhabitCache(
-    ov: AnyRef, nv: AnyRef, hash: Int, cacheeLevel: Int
+    cache: Array[AnyRef], ov: AnyRef, nv: AnyRef, hash: Int, cacheeLevel: Int
   ): Unit = {
-    val cache = READ_CACHE
     if (cache eq null) {
       // Only create the cache if the entry is at least level 12,
       // since the expectation on the number of elements is ~80.
@@ -672,7 +669,8 @@ class CacheTrie[K <: AnyRef, V] {
         val cn = new Array[AnyRef](1 + (1 << 8))
         cn(0) = new CacheNode(null, 8)
         CAS_CACHE(null, cn)
-        inhabitCache(ov, nv, hash, cacheeLevel)
+        val newCache = READ_CACHE
+        inhabitCache(newCache, ov, nv, hash, cacheeLevel)
       }
     } else {
       val len = cache.length
@@ -694,7 +692,7 @@ class CacheTrie[K <: AnyRef, V] {
         }
       } else {
         // We have a cache level miss -- update statistics, and rebuild if necessary.
-        // TODO
+        // TODO: Probably not necessary here.
       }
     }
   }
@@ -1022,7 +1020,9 @@ class CacheTrie[K <: AnyRef, V] {
   def debugCacheStats: String = {
     val cache = READ_CACHE
     if (cache == null) {
-      return "empty cache"
+      return s"""
+      |empty cache
+      """.stripMargin
     }
     val stats = cache(0).asInstanceOf[CacheNode]
     var count = 0
