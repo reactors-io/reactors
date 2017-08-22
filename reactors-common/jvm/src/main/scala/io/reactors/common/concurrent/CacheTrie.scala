@@ -301,7 +301,8 @@ class CacheTrie[K <: AnyRef, V] {
             val enode = new ENode(parent, parentpos, current, hash, level)
             if (CAS(parent, parentpos, current, enode)) {
               completeExpansion(enode)
-              slowInsert(key, value, hash, level, enode.wide, parent)
+              val wide = READ_WIDE(enode)
+              slowInsert(key, value, hash, level, wide, parent)
             } else slowInsert(key, value, hash, level, current, parent)
           } else {
             // Replace the single node with a narrow node.
