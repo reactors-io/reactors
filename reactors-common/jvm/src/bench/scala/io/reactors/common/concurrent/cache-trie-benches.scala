@@ -244,47 +244,47 @@ class CacheTrieBenches extends JBench.OfflineReport {
   //   sum
   // }
 
-  @gen("sizes")
-  @benchmark("cache-trie.insert")
-  @curve("chm")
-  def chmInsert(size: Int) = {
-    val chm = new ConcurrentHashMap[Wrapper, Wrapper]
-    var i = 0
-    while (i < size) {
-      val v = elems(i)
-      chm.put(v, v)
-      i += 1
-    }
-    chm
-  }
+  // @gen("sizes")
+  // @benchmark("cache-trie.insert")
+  // @curve("chm")
+  // def chmInsert(size: Int) = {
+  //   val chm = new ConcurrentHashMap[Wrapper, Wrapper]
+  //   var i = 0
+  //   while (i < size) {
+  //     val v = elems(i)
+  //     chm.put(v, v)
+  //     i += 1
+  //   }
+  //   chm
+  // }
 
-  @gen("sizes")
-  @benchmark("cache-trie.insert")
-  @curve("skiplist")
-  def skiplistInsert(size: Int) = {
-    val skiplist = new ConcurrentSkipListMap[Wrapper, Wrapper]
-    var i = 0
-    while (i < size) {
-      val v = elems(i)
-      skiplist.put(v, v)
-      i += 1
-    }
-    skiplist
-  }
+  // @gen("sizes")
+  // @benchmark("cache-trie.insert")
+  // @curve("skiplist")
+  // def skiplistInsert(size: Int) = {
+  //   val skiplist = new ConcurrentSkipListMap[Wrapper, Wrapper]
+  //   var i = 0
+  //   while (i < size) {
+  //     val v = elems(i)
+  //     skiplist.put(v, v)
+  //     i += 1
+  //   }
+  //   skiplist
+  // }
 
-  @gen("sizes")
-  @benchmark("cache-trie.insert")
-  @curve("ctrie")
-  def ctrieInsert(size: Int) = {
-   val trie = new TrieMap[Wrapper, Wrapper]
-   var i = 0
-   while (i < size) {
-     val v = elems(i)
-     trie.put(v, v)
-     i += 1
-   }
-   trie
-  }
+  // @gen("sizes")
+  // @benchmark("cache-trie.insert")
+  // @curve("ctrie")
+  // def ctrieInsert(size: Int) = {
+  //  val trie = new TrieMap[Wrapper, Wrapper]
+  //  var i = 0
+  //  while (i < size) {
+  //    val v = elems(i)
+  //    trie.put(v, v)
+  //    i += 1
+  //  }
+  //  trie
+  // }
 
   @gen("sizes")
   @benchmark("cache-trie.insert")
@@ -297,6 +297,7 @@ class CacheTrieBenches extends JBench.OfflineReport {
      trie.insert(v, v)
      i += 1
    }
+   println(trie.getSlowInsertRatio)
    trie
   }
 }

@@ -241,15 +241,21 @@ class CacheTrie[K <: AnyRef, V] {
     }
   }
 
+  private var insertCount = 0
+  private var slowInsertCount = 0
   final def insert(key: K, value: V): Unit = {
+    insertCount += 1
     val hash = spread(key.hashCode)
     fastInsert(key, value, hash)
   }
+
+  def getSlowInsertRatio: Double = 1.0 * slowInsertCount / insertCount
 
   @tailrec
   private def fastInsert(key: K, value: V, hash: Int): Unit = {
     val cache = READ_CACHE
     if (cache == null) {
+      slowInsertCount += 1
       slowInsert(key, value, hash)
     } else {
       val len = cache.length
@@ -258,6 +264,7 @@ class CacheTrie[K <: AnyRef, V] {
       val cachee = READ(cache, pos)
       val level = 31 - Integer.numberOfLeadingZeros(len - 1) - 4 + 4
       if (cachee eq null) {
+        slowInsertCount += 1
         val res = slowInsert(key, value, hash, 0, rawRoot, null, cachee, level)
         if (res eq Restart) fastInsert(key, value, hash)
       } else if (cachee.isInstanceOf[Array[AnyRef]]) {
@@ -271,6 +278,7 @@ class CacheTrie[K <: AnyRef, V] {
           else fastInsert(key, value, hash)
         } else if (old.isInstanceOf[Array[AnyRef]]) {
           val childan = old.asInstanceOf[Array[AnyRef]]
+          slowInsertCount += 1
           val res = slowInsert(key, value, hash, level + 4, childan, an, cachee, level)
           if (res eq Restart) fastInsert(key, value, hash)
         } else if (old.isInstanceOf[SNode[_, _]]) {
@@ -284,6 +292,7 @@ class CacheTrie[K <: AnyRef, V] {
                 else fastInsert(key, value, hash)
               } else fastInsert(key, value, hash)
             } else if (an.length == 4) {
+              slowInsertCount += 1
               slowInsert(key, value, hash)
             } else {
               val nnode = newNarrowOrWideNode(
@@ -294,15 +303,18 @@ class CacheTrie[K <: AnyRef, V] {
               } else fastInsert(key, value, hash)
             }
           } else if (txn eq FSNode) {
+            slowInsertCount += 1
             slowInsert(key, value, hash)
           } else {
             CAS(an, pos, oldsn, txn)
             fastInsert(key, value, hash)
           }
         } else {
+          slowInsertCount += 1
           slowInsert(key, value, hash)
         }
       } else if (cachee.isInstanceOf[SNode[_, _]]) {
+        slowInsertCount += 1
         slowInsert(key, value, hash)
       } else {
         sys.error(s"Unexpected case -- $cachee is not supposed to be cached.")
