@@ -298,6 +298,7 @@ class CacheTrieBenches extends JBench.OfflineReport {
      i += 1
    }
    println(trie.getSlowInsertRatio)
+   println(trie.debugCacheStats)
    trie
   }
 }

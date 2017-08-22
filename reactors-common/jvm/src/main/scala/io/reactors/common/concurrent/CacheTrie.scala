@@ -1021,6 +1021,9 @@ class CacheTrie[K <: AnyRef, V] {
 
   def debugCacheStats: String = {
     val cache = READ_CACHE
+    if (cache == null) {
+      return "empty cache"
+    }
     val stats = cache(0).asInstanceOf[CacheNode]
     var count = 0
     var acount = 0
