@@ -256,7 +256,7 @@ class CacheTrie[K <: AnyRef, V] {
       val mask = len - 1 - 1
       val pos = 1 + (hash & mask)
       val cachee = READ(cache, pos)
-      val level = 31 - Integer.numberOfTrailingZeros(len - 1) - 4 + 4
+      val level = 31 - Integer.numberOfLeadingZeros(len - 1) - 4 + 4
       if (cachee eq null) {
         slowInsert(key, value, hash)
       } else if (cachee.isInstanceOf[Array[AnyRef]]) {
@@ -266,12 +266,12 @@ class CacheTrie[K <: AnyRef, V] {
         val old = READ(an, pos)
         if (old eq null) {
           val sn = new SNode(hash, key, value)
-          if (CAS(current, pos, old, snode)) Success
+          if (CAS(an, pos, old, sn)) {}
           else slowInsert(key, value, hash)
         } else if (old.isInstanceOf[Array[AnyRef]]) {
           val childan = old.asInstanceOf[Array[AnyRef]]
           if (slowInsert(key, value, hash, level + 4, childan, an) ne Success)
-            fastInsert(key, value)
+            fastInsert(key, value, hash)
         } else if (old.isInstanceOf[SNode[_, _]]) {
           val oldsn = old.asInstanceOf[SNode[K, V]]
           val txn = READ_TXN(oldsn)
@@ -279,12 +279,21 @@ class CacheTrie[K <: AnyRef, V] {
             if ((oldsn.hash == hash) && ((oldsn.key eq key) || (oldsn.key == key))) {
               val sn = new SNode(hash, key, value)
               if (CAS_TXN(oldsn, sn)) {
-                if (CAS(current, pos, oldsn, sn)) {}
+                if (CAS(an, pos, oldsn, sn)) {}
+                else fastInsert(key, value, hash)
+              } else fastInsert(key, value, hash)
+            } else if (an.length == 4) {
+              slowInsert(key, value, hash)
+            } else {
+              val nnode = newNarrowOrWideNode(
+                oldsn.hash, oldsn.key, oldsn.value, hash, key, value, level + 4)
+              if (CAS_TXN(oldsn, nnode)) {
+                if (CAS(an, pos, oldsn, nnode)) {}
                 else fastInsert(key, value, hash)
               } else fastInsert(key, value, hash)
             }
           } else if (txn eq FSNode) {
-            slowLookup(key, value, hash)
+            slowInsert(key, value, hash)
           } else {
             CAS(an, pos, oldsn, txn)
             fastInsert(key, value, hash)
@@ -292,8 +301,10 @@ class CacheTrie[K <: AnyRef, V] {
         } else {
           slowInsert(key, value, hash)
         }
-      } else {
+      } else if (cachee.isInstanceOf[SNode[_, _]]) {
         slowInsert(key, value, hash)
+      } else {
+        sys.error(s"Unexpected case -- $cachee is not supposed to be cached.")
       }
     }
   }
@@ -342,28 +353,26 @@ class CacheTrie[K <: AnyRef, V] {
             if (CAS(current, pos, oldsn, sn)) Success
             else slowInsert(key, value, hash, level, current, parent)
           } else slowInsert(key, value, hash, level, current, parent)
+        } else if (current.length == 4) {
+          // Expand the current node, seeking to avoid the collision.
+          // Root size always 16, so parent is non-null.
+          val parentmask = parent.length - 1
+          val parentlevel = level - 4
+          val parentpos = (hash >>> parentlevel) & parentmask
+          val enode = new ENode(parent, parentpos, current, hash, level)
+          if (CAS(parent, parentpos, current, enode)) {
+            completeExpansion(enode)
+            val wide = READ_WIDE(enode)
+            slowInsert(key, value, hash, level, wide, parent)
+          } else slowInsert(key, value, hash, level, current, parent)
         } else {
-          if (current.length == 4) {
-            // Expand the current node, seeking to avoid the collision.
-            // Root size always 16, so parent is non-null.
-            val parentmask = parent.length - 1
-            val parentlevel = level - 4
-            val parentpos = (hash >>> parentlevel) & parentmask
-            val enode = new ENode(parent, parentpos, current, hash, level)
-            if (CAS(parent, parentpos, current, enode)) {
-              completeExpansion(enode)
-              val wide = READ_WIDE(enode)
-              slowInsert(key, value, hash, level, wide, parent)
-            } else slowInsert(key, value, hash, level, current, parent)
-          } else {
-            // Replace the single node with a narrow node.
-            val nnode = newNarrowOrWideNode(
-              oldsn.hash, oldsn.key, oldsn.value, hash, key, value, level + 4)
-            if (CAS_TXN(oldsn, nnode)) {
-              if (CAS(current, pos, oldsn, nnode)) Success
-              else slowInsert(key, value, hash, level, current, parent)
-            } else slowInsert(key, value, hash, level, current, parent)
-          }
+          // Replace the single node with a narrow node.
+          val nnode = newNarrowOrWideNode(
+            oldsn.hash, oldsn.key, oldsn.value, hash, key, value, level + 4)
+          if (CAS_TXN(oldsn, nnode)) {
+            if (CAS(current, pos, oldsn, nnode)) Success
+            else slowInsert(key, value, hash, level, current, parent)
+          } else slowInsert(key, value, hash, level, current, parent)
         }
       } else if (txn eq FSNode) {
         // We landed into the middle of a transaction doing a txn.
