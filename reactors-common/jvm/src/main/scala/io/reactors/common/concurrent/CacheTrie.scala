@@ -341,9 +341,9 @@ class CacheTrie[K <: AnyRef, V] {
     current: Array[AnyRef], parent: Array[AnyRef],
     cacheeSeen: AnyRef, cacheLevel: Int
   ): AnyRef = {
-    // if (level == cacheLevel) {
-    //   inhabitCache(cacheeSeen, current, hash, level)
-    // }
+    if (level == cacheLevel) {
+      inhabitCache(cacheeSeen, current, hash, level)
+    }
     val mask = current.length - 1
     val pos = (hash >>> level) & mask
     val old = READ(current, pos)
