@@ -242,11 +242,12 @@ class CacheTrie[K <: AnyRef, V] {
   }
 
   final def insert(key: K, value: V): Unit = {
-    fastInsert(key, value)
+    val hash = spread(key.hashCode)
+    fastInsert(key, value, hash)
   }
 
-  private def fastInsert(key: K, value: V): Unit = {
-    val hash = spread(key.hashCode)
+  @tailrec
+  private def fastInsert(key: K, value: V, hash: Int): Unit = {
     val cache = READ_CACHE
     if (cache == null) {
       slowInsert(key, value, hash)
@@ -262,15 +263,34 @@ class CacheTrie[K <: AnyRef, V] {
         val an = cachee.asInstanceOf[Array[AnyRef]]
         val mask = an.length - 1
         val pos = (hash >>> level) & mask
-        val old = READ(cache, pos)
+        val old = READ(an, pos)
         if (old eq null) {
-          ???
+          val sn = new SNode(hash, key, value)
+          if (CAS(current, pos, old, snode)) Success
+          else slowInsert(key, value, hash)
         } else if (old.isInstanceOf[Array[AnyRef]]) {
-          val oldan = old.asInstanceOf[Array[AnyRef]]
-          ???
+          val childan = old.asInstanceOf[Array[AnyRef]]
+          if (slowInsert(key, value, hash, level + 4, childan, an) ne Success)
+            fastInsert(key, value)
         } else if (old.isInstanceOf[SNode[_, _]]) {
           val oldsn = old.asInstanceOf[SNode[K, V]]
-          ???
+          val txn = READ_TXN(oldsn)
+          if (txn eq NoTxn) {
+            if ((oldsn.hash == hash) && ((oldsn.key eq key) || (oldsn.key == key))) {
+              val sn = new SNode(hash, key, value)
+              if (CAS_TXN(oldsn, sn)) {
+                if (CAS(current, pos, oldsn, sn)) {}
+                else fastInsert(key, value, hash)
+              } else fastInsert(key, value, hash)
+            }
+          } else if (txn eq FSNode) {
+            slowLookup(key, value, hash)
+          } else {
+            CAS(an, pos, oldsn, txn)
+            fastInsert(key, value, hash)
+          }
+        } else {
+          slowInsert(key, value, hash)
         }
       } else {
         slowInsert(key, value, hash)
