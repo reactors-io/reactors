@@ -59,7 +59,7 @@ class CacheTrie[K <: AnyRef, V] {
       val mask = len - 1 - 1
       val pos = 1 + (hash & mask)
       val cachee = READ(cache, pos)
-      val level = 31 - Integer.numberOfLeadingZeros(len - 1) - 4 + 4
+      val level = 31 - Integer.numberOfLeadingZeros(len - 1)
       if (cachee eq null) {
         // Nothing is cached at this location, do slow lookup.
         slowLookup(key, hash, 0, rawRoot, cache, cachee)
@@ -176,7 +176,7 @@ class CacheTrie[K <: AnyRef, V] {
     } else if (old.isInstanceOf[SNode[_, _]]) {
       val cacheLevel =
         if (cache == null) 0
-        else 31 - Integer.numberOfLeadingZeros(cache.length - 1) - 4 + 4
+        else 31 - Integer.numberOfLeadingZeros(cache.length - 1)
       if (level < cacheLevel || level >= cacheLevel + 8) {
         recordCacheMiss()
       }
@@ -193,7 +193,7 @@ class CacheTrie[K <: AnyRef, V] {
     } else if (old.isInstanceOf[LNode[_, _]]) {
       val cacheLevel =
         if (cache == null) 0
-        else 31 - Integer.numberOfLeadingZeros(cache.length - 1) - 4 + 4
+        else 31 - Integer.numberOfLeadingZeros(cache.length - 1)
       if (level < cacheLevel || level >= cacheLevel + 8) {
         // A potential cache miss -- we need to check the cache state.
         recordCacheMiss()
@@ -266,12 +266,13 @@ class CacheTrie[K <: AnyRef, V] {
       val mask = len - 1 - 1
       val pos = 1 + (hash & mask)
       val cachee = READ(cache, pos)
-      val level = 31 - Integer.numberOfLeadingZeros(len - 1) - 4 + 4
+      val level = 31 - Integer.numberOfLeadingZeros(len - 1)
       // println("fast insert " + level)
       if (cachee eq null) {
         // val res = slowInsert(key, value, hash, 0, rawRoot, null, cachee, level)
         // if (res eq Restart) fastInsert(key, value, hash, cache)
-        val parentCache = cache(0).asInstanceOf[CacheNode].parent
+        val stats = READ(cache, 0)
+        val parentCache = stats.asInstanceOf[CacheNode].parent
         fastInsert(key, value, hash, parentCache)
       } else if (cachee.isInstanceOf[Array[AnyRef]]) {
         val an = cachee.asInstanceOf[Array[AnyRef]]
@@ -300,7 +301,8 @@ class CacheTrie[K <: AnyRef, V] {
               // TODO: Remove this code.
               // val res = slowInsert(key, value, hash, 0, rawRoot, null, cachee, level)
               // if (res eq Restart) fastInsert(key, value, hash, cache)
-              val parentCache = cache(0).asInstanceOf[CacheNode].parent
+              val stats = READ(cache, 0)
+              val parentCache = stats.asInstanceOf[CacheNode].parent
               fastInsert(key, value, hash, parentCache)
             } else {
               val nnode = newNarrowOrWideNode(
@@ -320,7 +322,8 @@ class CacheTrie[K <: AnyRef, V] {
           slowInsert(key, value, hash)
         }
       } else if (cachee.isInstanceOf[SNode[_, _]]) {
-        val parentCache = cache(0).asInstanceOf[CacheNode].parent
+        val stats = READ(cache, 0)
+        val parentCache = stats.asInstanceOf[CacheNode].parent
         fastInsert(key, value, hash, parentCache)
       } else {
         sys.error(s"Unexpected case -- $cachee is not supposed to be cached.")
@@ -357,6 +360,12 @@ class CacheTrie[K <: AnyRef, V] {
     val old = READ(current, pos)
     if (old eq null) {
       // Fast-path -- CAS the node into the empty position.
+      val cacheLevel =
+        if (cache == null) 0
+        else 31 - Integer.numberOfLeadingZeros(cache.length - 1)
+      if (level < cacheLevel || level >= cacheLevel + 8) {
+        recordCacheMiss()
+      }
       val snode = new SNode(hash, key, value)
       if (CAS(current, pos, old, snode)) Success
       else slowInsert(key, value, hash, level, current, parent, cache, cacheeSeen)
@@ -1018,33 +1027,35 @@ class CacheTrie[K <: AnyRef, V] {
   }
 
   def debugCacheStats: String = {
+    def traverse(cache: Array[AnyRef]): String = {
+      if (cache == null) {
+        return "empty cache"
+      }
+      val stats = cache(0).asInstanceOf[CacheNode]
+      var count = 0
+      var acount = 0
+      var scount = 0
+      for (i <- 1 until cache.length) {
+        val c = cache(i)
+        if (c != null && c != FVNode && !c.isInstanceOf[FNode]) {
+          count += 1
+        }
+        if (c.isInstanceOf[Array[AnyRef]]) {
+          acount += 1
+        }
+        if (c.isInstanceOf[SNode[_, _]]) {
+          scount += 1
+        }
+      }
+      traverse(stats.parent) + "\n|\n" + s"""
+      |cache level: ${stats.level}, $count / ${cache.length - 1}
+      |a-nodes: $acount
+      |s-nodes: $scount
+      """.stripMargin.trim
+    }
+
     val cache = READ_CACHE
-    if (cache == null) {
-      return s"""
-      |empty cache
-      """.stripMargin
-    }
-    val stats = cache(0).asInstanceOf[CacheNode]
-    var count = 0
-    var acount = 0
-    var scount = 0
-    for (i <- 1 until cache.length) {
-      val c = cache(i)
-      if (c != null && c != FVNode && !c.isInstanceOf[FNode]) {
-        count += 1
-      }
-      if (c.isInstanceOf[Array[AnyRef]]) {
-        acount += 1
-      }
-      if (c.isInstanceOf[SNode[_, _]]) {
-        scount += 1
-      }
-    }
-    s"""
-    |cache level: ${stats.level}, $count / ${cache.length - 1}
-    |a-nodes: $acount
-    |s-nodes: $scount
-    """.stripMargin
+    "----\n" + traverse(cache) + "\n----"
   }
 
   def debugPerLevelDistribution: String = {

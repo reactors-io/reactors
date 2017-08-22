@@ -231,21 +231,21 @@ class CacheTrieBenches extends JBench.OfflineReport {
   //  sum
   // }
 
-  @gen("cachetries")
-  @benchmark("cache-trie.apply")
-  @curve("cachetrie")
-  def cachetrieLookup(sc: (Int, CacheTrie[Wrapper, Wrapper])): Int = {
-    val (size, trie) = sc
-    var i = 0
-    var sum = 0
-    while (i < size) {
-      sum += trie.lookup(elems(i)).value
-      i += 1
-    }
-    //println(trie.debugPerLevelDistribution)
-    println(trie.debugCacheStats)
-    sum
-  }
+  // @gen("cachetries")
+  // @benchmark("cache-trie.apply")
+  // @curve("cachetrie")
+  // def cachetrieLookup(sc: (Int, CacheTrie[Wrapper, Wrapper])): Int = {
+  //   val (size, trie) = sc
+  //   var i = 0
+  //   var sum = 0
+  //   while (i < size) {
+  //     sum += trie.lookup(elems(i)).value
+  //     i += 1
+  //   }
+  //   //println(trie.debugPerLevelDistribution)
+  //   println(trie.debugCacheStats)
+  //   sum
+  // }
 
   // @gen("sizes")
   // @benchmark("cache-trie.insert")
