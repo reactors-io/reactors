@@ -71,6 +71,14 @@ class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
   val smallSizes = detChoose(0, 512)
   val numThreads = detChoose(2, 32)
 
+  class PoorHash(val x: Int) {
+    override def hashCode = x & 0xff
+    override def equals(that: Any) = that match {
+      case that: PoorHash => that.x == x
+      case _ => false
+    }
+  }
+
   private def validateCache[K <: AnyRef, V](
     trie: CacheTrie[K, V], sz: Int, allowNull: Boolean
   ): Unit = {
@@ -216,7 +224,6 @@ class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
     }
   }
 
-
   property("many concurrent inserts") = forAllNoShrink(numThreads, sizes) { (n, sz) =>
     stackTraced {
       val trie = new CacheTrie[Integer, Int]
@@ -255,14 +262,6 @@ class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
       }
       validateCache(trie, sz, false)
       true
-    }
-  }
-
-  class PoorHash(val x: Int) {
-    override def hashCode = x & 0xff
-    override def equals(that: Any) = that match {
-      case that: PoorHash => that.x == x
-      case _ => false
     }
   }
 
