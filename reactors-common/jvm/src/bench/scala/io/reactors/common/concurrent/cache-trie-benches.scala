@@ -102,7 +102,7 @@ class CacheTrieBenches extends JBench.OfflineReport {
     exec.minWarmupRuns -> 40,
     exec.maxWarmupRuns -> 80,
     exec.independentSamples -> 1,
-    exec.jvmflags -> List("-server", "-verbose:gc", "-Xmx4048m", "-Xms4048m"),
+    exec.jvmflags -> List("-server", "-verbose:gc", "-Xmx6092m", "-Xms6092m"),
     verbose -> true
   )
 
@@ -296,14 +296,11 @@ class CacheTrieBenches extends JBench.OfflineReport {
     val trie = new CacheTrie[Wrapper, Wrapper]
     var i = 0
     while (i < size) {
-      if (i == size / 4 || i == size / 2) {
-        println(trie.debugCacheStats)
-      }
       val v = elems(i)
       trie.insert(v, v)
       i += 1
     }
-    println(trie.debugCacheStats)
+    // println(trie.debugCacheStats)
     trie
   }
 }
