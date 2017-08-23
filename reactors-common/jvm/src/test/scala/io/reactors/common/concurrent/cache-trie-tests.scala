@@ -162,187 +162,187 @@ class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
     }
   }
 
-  // property("insert and lookup") = forAllNoShrink(sizes) {
-  //   sz =>
-  //   stackTraced {
-  //     val trie = new CacheTrie[String, Integer]
-  //     for (i <- 0 until sz) {
-  //       trie.insert(i.toString, i)
-  //       assert(trie.apply(i.toString) == i)
-  //     }
-  //     for (i <- 0 until sz) {
-  //       assert(trie.apply(i.toString) == i)
-  //     }
-  //     for (i <- 0 until sz) {
-  //       assert(trie.apply(i.toString) == i)
-  //     }
-  //     validateCache(trie, sz, false)
-  //     true
-  //   }
-  // }
+  property("insert and lookup") = forAllNoShrink(sizes) {
+    sz =>
+    stackTraced {
+      val trie = new CacheTrie[String, Integer]
+      for (i <- 0 until sz) {
+        trie.insert(i.toString, i)
+        assert(trie.apply(i.toString) == i)
+      }
+      for (i <- 0 until sz) {
+        assert(trie.apply(i.toString) == i)
+      }
+      for (i <- 0 until sz) {
+        assert(trie.apply(i.toString) == i)
+      }
+      validateCache(trie, sz, false)
+      true
+    }
+  }
 
-  // property("insert and slow lookup") = forAllNoShrink(sizes) {
-  //   sz =>
-  //   stackTraced {
-  //     val trie = new CacheTrie[String, Integer]
-  //     for (i <- 0 until sz) {
-  //       trie.insert(i.toString, i)
-  //       assert(trie.slowLookup(i.toString) == i)
-  //     }
-  //     for (i <- 0 until sz) {
-  //       assert(trie.slowLookup(i.toString) == i)
-  //     }
-  //     true
-  //   }
-  // }
+  property("insert and slow lookup") = forAllNoShrink(sizes) {
+    sz =>
+    stackTraced {
+      val trie = new CacheTrie[String, Integer]
+      for (i <- 0 until sz) {
+        trie.insert(i.toString, i)
+        assert(trie.slowLookup(i.toString) == i)
+      }
+      for (i <- 0 until sz) {
+        assert(trie.slowLookup(i.toString) == i)
+      }
+      true
+    }
+  }
 
-  // property("insert and remove") = forAllNoShrink(sizes) {
-  //   sz =>
-  //   stackTraced {
-  //     val trie = new CacheTrie[String, Integer]
-  //     for (i <- 0 until sz) trie.insert(i.toString, i)
-  //     for (i <- 0 until sz) assert(trie.remove(i.toString) == i)
-  //     true
-  //   }
-  // }
+  property("insert and remove") = forAllNoShrink(sizes) {
+    sz =>
+    stackTraced {
+      val trie = new CacheTrie[String, Integer]
+      for (i <- 0 until sz) trie.insert(i.toString, i)
+      for (i <- 0 until sz) assert(trie.remove(i.toString) == i)
+      true
+    }
+  }
 
-  // property("concurrent insert and slow lookup") = forAllNoShrink(sizes) {
-  //   sz =>
-  //   stackTraced {
-  //     val completed = Promise[Seq[String]]()
-  //     val trie = new CacheTrie[String, String]
-  //     val inserter = thread {
-  //       for (i <- 0 until sz) {
-  //         trie.insert(i.toString, i.toString)
-  //       }
-  //     }
-  //     val looker = thread {
-  //       val found = mutable.Buffer[String]()
-  //       for (i <- (0 until sz).reverse) {
-  //         val result = trie.slowLookup(i.toString)
-  //         if (result != null) found += result
-  //       }
-  //       completed.success(found)
-  //     }
-  //     inserter.join()
-  //     looker.join()
-  //     val seen = Await.result(completed.future, 10.seconds)
-  //     seen.reverse == (0 until seen.length).map(_.toString)
-  //   }
-  // }
+  property("concurrent insert and slow lookup") = forAllNoShrink(sizes) {
+    sz =>
+    stackTraced {
+      val completed = Promise[Seq[String]]()
+      val trie = new CacheTrie[String, String]
+      val inserter = thread {
+        for (i <- 0 until sz) {
+          trie.insert(i.toString, i.toString)
+        }
+      }
+      val looker = thread {
+        val found = mutable.Buffer[String]()
+        for (i <- (0 until sz).reverse) {
+          val result = trie.slowLookup(i.toString)
+          if (result != null) found += result
+        }
+        completed.success(found)
+      }
+      inserter.join()
+      looker.join()
+      val seen = Await.result(completed.future, 10.seconds)
+      seen.reverse == (0 until seen.length).map(_.toString)
+    }
+  }
 
-  // property("two threads concurrent inserts") = forAllNoShrink(sizes) {
-  //   sz =>
-  //   stackTraced {
-  //     val trie = new CacheTrie[Integer, Integer]
-  //     val inserter1 = thread {
-  //       for (i <- 0 until sz) {
-  //         trie.insert(i, i)
-  //       }
-  //     }
-  //     val inserter2 = thread {
-  //       for (i <- 0 until sz) {
-  //         trie.insert(sz + i, sz + i)
-  //       }
-  //     }
-  //     inserter1.join()
-  //     inserter2.join()
-  //     for (i <- 0 until sz) {
-  //       val first = trie.apply(i)
-  //       assert(first == i, first)
-  //       val second = trie.apply(sz + i)
-  //       assert(second == (sz + i), second)
-  //     }
-  //     validateCache(trie, sz, false)
-  //     true
-  //   }
-  // }
+  property("two threads concurrent inserts") = forAllNoShrink(sizes) {
+    sz =>
+    stackTraced {
+      val trie = new CacheTrie[Integer, Integer]
+      val inserter1 = thread {
+        for (i <- 0 until sz) {
+          trie.insert(i, i)
+        }
+      }
+      val inserter2 = thread {
+        for (i <- 0 until sz) {
+          trie.insert(sz + i, sz + i)
+        }
+      }
+      inserter1.join()
+      inserter2.join()
+      for (i <- 0 until sz) {
+        val first = trie.apply(i)
+        assert(first == i, first)
+        val second = trie.apply(sz + i)
+        assert(second == (sz + i), second)
+      }
+      validateCache(trie, sz, false)
+      true
+    }
+  }
 
-  // property("many threads slow concurrent inserts") = forAllNoShrink(numThreads, sizes) {
-  //   (n, sz) =>
-  //   stackTraced {
-  //     val trie = new CacheTrie[Integer, Integer]
-  //     val separated = (0 until sz).grouped(sz / n + 1).toSeq
-  //     val batches = separated ++ Array.fill(n - separated.size)(Nil)
-  //     assert(batches.size == n)
-  //     val threads = for (k <- 0 until n) yield thread {
-  //       for (i <- batches(k)) {
-  //         trie.slowInsert(i, i)
-  //       }
-  //     }
-  //     threads.foreach(_.join())
-  //     for (i <- 0 until sz) {
-  //       assert(trie.apply(i) == i)
-  //     }
-  //     validateCache(trie, sz, false)
-  //     true
-  //   }
-  // }
+  property("many threads slow concurrent inserts") = forAllNoShrink(numThreads, sizes) {
+    (n, sz) =>
+    stackTraced {
+      val trie = new CacheTrie[Integer, Integer]
+      val separated = (0 until sz).grouped(sz / n + 1).toSeq
+      val batches = separated ++ Array.fill(n - separated.size)(Nil)
+      assert(batches.size == n)
+      val threads = for (k <- 0 until n) yield thread {
+        for (i <- batches(k)) {
+          trie.slowInsert(i, i)
+        }
+      }
+      threads.foreach(_.join())
+      for (i <- 0 until sz) {
+        assert(trie.apply(i) == i)
+      }
+      validateCache(trie, sz, false)
+      true
+    }
+  }
 
-  // property("many threads concurrent inserts") = forAllNoShrink(numThreads, sizes) {
-  //   (n, sz) =>
-  //   stackTraced {
-  //     val trie = new CacheTrie[Integer, Integer]
-  //     val separated = (0 until sz).grouped(sz / n + 1).toSeq
-  //     val batches = separated ++ Array.fill(n - separated.size)(Nil)
-  //     assert(batches.size == n)
-  //     val threads = for (k <- 0 until n) yield thread {
-  //       for (i <- batches(k)) {
-  //         trie.insert(i, i)
-  //       }
-  //     }
-  //     threads.foreach(_.join())
-  //     for (i <- 0 until sz) {
-  //       assert(trie.apply(i) == i)
-  //     }
-  //     validateCache(trie, sz, false)
-  //     true
-  //   }
-  // }
+  property("many threads concurrent inserts") = forAllNoShrink(numThreads, sizes) {
+    (n, sz) =>
+    stackTraced {
+      val trie = new CacheTrie[Integer, Integer]
+      val separated = (0 until sz).grouped(sz / n + 1).toSeq
+      val batches = separated ++ Array.fill(n - separated.size)(Nil)
+      assert(batches.size == n)
+      val threads = for (k <- 0 until n) yield thread {
+        for (i <- batches(k)) {
+          trie.insert(i, i)
+        }
+      }
+      threads.foreach(_.join())
+      for (i <- 0 until sz) {
+        assert(trie.apply(i) == i)
+      }
+      validateCache(trie, sz, false)
+      true
+    }
+  }
 
-  // property("many threads concurrent inserts, small") =
-  //   forAllNoShrink(numThreads, smallSizes) {
-  //     (n, sz) =>
-  //     stackTraced {
-  //       val trie = new CacheTrie[Integer, Integer]
-  //       val separated = (0 until sz).grouped(sz / n + 1).toSeq
-  //       val batches = separated ++ Array.fill(n - separated.size)(Nil)
-  //       assert(batches.size == n)
-  //       val threads = for (k <- 0 until n) yield thread {
-  //         for (i <- batches(k)) {
-  //           trie.insert(i, i)
-  //         }
-  //       }
-  //       threads.foreach(_.join())
-  //       for (i <- 0 until sz) {
-  //         assert(trie.apply(i) == i)
-  //       }
-  //       validateCache(trie, sz, false)
-  //       true
-  //     }
-  //   }
+  property("many threads concurrent inserts, small") =
+    forAllNoShrink(numThreads, smallSizes) {
+      (n, sz) =>
+      stackTraced {
+        val trie = new CacheTrie[Integer, Integer]
+        val separated = (0 until sz).grouped(sz / n + 1).toSeq
+        val batches = separated ++ Array.fill(n - separated.size)(Nil)
+        assert(batches.size == n)
+        val threads = for (k <- 0 until n) yield thread {
+          for (i <- batches(k)) {
+            trie.insert(i, i)
+          }
+        }
+        threads.foreach(_.join())
+        for (i <- 0 until sz) {
+          assert(trie.apply(i) == i)
+        }
+        validateCache(trie, sz, false)
+        true
+      }
+    }
 
-  // property("many threads concurrent removes") = forAllNoShrink(numThreads, sizes) {
-  //   (n, sz) =>
-  //   stackTraced {
-  //     val trie = new CacheTrie[Integer, Integer]
-  //     for (i <- 0 until sz) {
-  //       trie.insert(i, i)
-  //     }
-  //     val separated = (0 until sz).grouped(sz / n + 1).toSeq
-  //     val batches = separated ++ Array.fill(n - separated.size)(Nil)
-  //     assert(batches.size == n)
-  //     val completed = new Array[Boolean](n)
-  //     val threads = for (k <- 0 until n) yield thread {
-  //       for (i <- batches(k)) assert(trie.remove(i) == i)
-  //       completed(k) = true
-  //     }
-  //     threads.foreach(_.join())
-  //     assert(completed.forall(_ == true))
-  //     for (i <- 0 until sz) assert(trie.get(i) == None)
-  //     true
-  //   }
-  // }
+  property("many threads concurrent removes") = forAllNoShrink(numThreads, sizes) {
+    (n, sz) =>
+    stackTraced {
+      val trie = new CacheTrie[Integer, Integer]
+      for (i <- 0 until sz) {
+        trie.insert(i, i)
+      }
+      val separated = (0 until sz).grouped(sz / n + 1).toSeq
+      val batches = separated ++ Array.fill(n - separated.size)(Nil)
+      assert(batches.size == n)
+      val completed = new Array[Boolean](n)
+      val threads = for (k <- 0 until n) yield thread {
+        for (i <- batches(k)) assert(trie.remove(i) == i)
+        completed(k) = true
+      }
+      threads.foreach(_.join())
+      assert(completed.forall(_ == true))
+      for (i <- 0 until sz) assert(trie.get(i) == None)
+      true
+    }
+  }
 
   property("concurrent inserts and removes") = forAllNoShrink(numThreads, sizes) {
     (n, sz) =>
@@ -359,6 +359,7 @@ class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
       val removers = for (k <- 0 until n) yield thread {
         for (i <- batches(k)) {
           while (trie.remove(i) == null) {}
+          assert(trie.get(i) == None, i)
         }
         completed(n + k) = true
       }
@@ -367,7 +368,7 @@ class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
       assert(completed.forall(_ == true), completed.mkString(", "))
       for (i <- 0 until sz) {
         val result = trie.lookup(i)
-        assert(result == null, s"$i -> $result")
+        assert(result == null, s"$i -> $result\n${trie.debugTree}")
       }
       true
     }

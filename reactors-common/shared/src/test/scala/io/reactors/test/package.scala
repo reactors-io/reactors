@@ -50,7 +50,14 @@ package test {
 
     def thread[U](body: =>U): Thread = {
       val t = new Thread {
-        override def run(): Unit = body
+        override def run(): Unit = {
+          try body
+          catch {
+            case t: Throwable =>
+              t.printStackTrace()
+              throw t
+          }
+        }
       }
       t.start()
       t

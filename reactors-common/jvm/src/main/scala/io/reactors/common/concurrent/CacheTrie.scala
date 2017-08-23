@@ -295,7 +295,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
         val old = READ(an, pos)
         if (old eq null) {
           val sn = new SNode(hash, key, value)
-          if (CAS(an, pos, old, sn)) {}
+          if (CAS(an, pos, old, sn)) return
           else fastInsert(key, value, hash, cache, prevCache)
         } else if (old.isInstanceOf[Array[AnyRef]]) {
           val childan = old.asInstanceOf[Array[AnyRef]]
@@ -308,8 +308,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
             if ((oldsn.hash == hash) && ((oldsn.key eq key) || (oldsn.key == key))) {
               val sn = new SNode(hash, key, value)
               if (CAS_TXN(oldsn, sn)) {
-                if (CAS(an, pos, oldsn, sn)) {}
-                else fastInsert(key, value, hash, cache, prevCache)
+                CAS(an, pos, oldsn, sn)
               } else fastInsert(key, value, hash, cache, prevCache)
             } else if (an.length == 4) {
               // TODO: Remove this code.
@@ -322,8 +321,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
               val nnode = newNarrowOrWideNode(
                 oldsn.hash, oldsn.key, oldsn.value, hash, key, value, level + 4)
               if (CAS_TXN(oldsn, nnode)) {
-                if (CAS(an, pos, oldsn, nnode)) {}
-                else fastInsert(key, value, hash, cache, prevCache)
+                CAS(an, pos, oldsn, nnode)
               } else fastInsert(key, value, hash, cache, prevCache)
             }
           } else if (txn eq FSNode) {
@@ -394,8 +392,8 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
         if ((oldsn.hash == hash) && ((oldsn.key eq key) || (oldsn.key == key))) {
           val sn = new SNode(hash, key, value)
           if (CAS_TXN(oldsn, sn)) {
-            if (CAS(current, pos, oldsn, sn)) Success
-            else slowInsert(key, value, hash, level, current, parent, cache)
+            CAS(current, pos, oldsn, sn)
+            Success
           } else slowInsert(key, value, hash, level, current, parent, cache)
         } else if (current.length == 4) {
           // Expand the current node, aiming to avoid the collision.
@@ -416,8 +414,8 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
           val nnode = newNarrowOrWideNode(
             oldsn.hash, oldsn.key, oldsn.value, hash, key, value, level + 4)
           if (CAS_TXN(oldsn, nnode)) {
-            if (CAS(current, pos, oldsn, nnode)) Success
-            else slowInsert(key, value, hash, level, current, parent, cache)
+            CAS(current, pos, oldsn, nnode)
+            Success
           } else slowInsert(key, value, hash, level, current, parent, cache)
         }
       } else if (txn eq FSNode) {
@@ -490,11 +488,11 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
       val txn = READ_TXN(oldsn)
       if (txn eq NoTxn) {
         // There is no other transaction in progress.
-        if (oldsn.hash == hash && ((oldsn.key eq key) || (oldsn.key == key))) {
+        if ((oldsn.hash == hash) && ((oldsn.key eq key) || (oldsn.key == key))) {
           // The same key, remove it.
           if (CAS_TXN(oldsn, null)) {
-            if (CAS(current, pos, oldsn, null)) oldsn.value.asInstanceOf[AnyRef]
-            else slowRemove(key, hash, level, current, parent, cache)
+            CAS(current, pos, oldsn, null)
+            oldsn.value.asInstanceOf[AnyRef]
           } else slowRemove(key, hash, level, current, parent, cache)
         } else {
           // The target key does not exist.
@@ -1094,7 +1092,11 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
         } else if (old.isInstanceOf[SNode[_, _]]) {
           val sn = old.asInstanceOf[SNode[K, V]]
           res.append(s"${indent}")
-          res.append(s"SN[${Integer.toHexString(sn.hash)}:${sn.key}:${sn.value}]")
+          val txn = READ_TXN(sn)
+          val marker = if (txn eq NoTxn) "_" else txn.toString
+          val id = System.identityHashCode(sn)
+          res.append(
+            s"SN[${Integer.toHexString(sn.hash)}:${sn.key}:${sn.value}:$marker]@$id")
           res.append("\n")
         } else if (old.isInstanceOf[LNode[_, _]]) {
           var ln = old.asInstanceOf[LNode[K, V]]
@@ -1230,8 +1232,10 @@ object CacheTrie {
     val value: V
   ) {
     def this(h: Int, k: K, v: V) = this(NoTxn, h, k, v)
-    override def toString =
-      s"SN[$hash, $key, $value, ${if (txn != NoTxn) txn else '_'}]"
+    override def toString = {
+      val id = System.identityHashCode(this)
+      s"SN[$hash, $key, $value, ${if (txn != NoTxn) txn else '_'}]@$id"
+    }
   }
 
   class LNode[K <: AnyRef, V](
