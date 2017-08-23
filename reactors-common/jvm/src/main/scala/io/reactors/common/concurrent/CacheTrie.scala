@@ -283,41 +283,45 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
       val cachee = READ(cache, pos)
       val level = 31 - Integer.numberOfLeadingZeros(len - 1)
       if (cachee eq null) {
-        // val res = slowInsert(key, value, hash, 0, rawRoot, null, cachee, level)
-        // if (res eq Restart) fastInsert(key, value, hash, cache)
+        // Inconclusive -- retry one cache layer above.
         val stats = READ(cache, 0)
         val parentCache = stats.asInstanceOf[CacheNode].parent
         fastInsert(key, value, hash, parentCache, cache)
       } else if (cachee.isInstanceOf[Array[AnyRef]]) {
+        // Read from the array node.
         val an = cachee.asInstanceOf[Array[AnyRef]]
         val mask = an.length - 1
         val pos = (hash >>> level) & mask
         val old = READ(an, pos)
         if (old eq null) {
+          // Try to write the single node directly.
           val sn = new SNode(hash, key, value)
           if (CAS(an, pos, old, sn)) return
           else fastInsert(key, value, hash, cache, prevCache)
         } else if (old.isInstanceOf[Array[AnyRef]]) {
-          val childan = old.asInstanceOf[Array[AnyRef]]
-          val res = slowInsert(key, value, hash, level + 4, childan, an, prevCache)
+          // Continue search recursively.
+          val oldan = old.asInstanceOf[Array[AnyRef]]
+          val res = slowInsert(key, value, hash, level + 4, oldan, an, prevCache)
           if (res eq Restart) fastInsert(key, value, hash, cache, prevCache)
         } else if (old.isInstanceOf[SNode[_, _]]) {
           val oldsn = old.asInstanceOf[SNode[K, V]]
           val txn = READ_TXN(oldsn)
           if (txn eq NoTxn) {
+            // No other transaction in progress.
             if ((oldsn.hash == hash) && ((oldsn.key eq key) || (oldsn.key == key))) {
+              // Replace this key in the parent.
               val sn = new SNode(hash, key, value)
               if (CAS_TXN(oldsn, sn)) {
                 CAS(an, pos, oldsn, sn)
               } else fastInsert(key, value, hash, cache, prevCache)
             } else if (an.length == 4) {
-              // TODO: Remove this code.
-              // val res = slowInsert(key, value, hash, 0, rawRoot, null, cachee, level)
-              // if (res eq Restart) fastInsert(key, value, hash, cache)
+              // Must expand, but cannot do so without the parent.
+              // Retry one cache level above.
               val stats = READ(cache, 0)
               val parentCache = stats.asInstanceOf[CacheNode].parent
               fastInsert(key, value, hash, parentCache, cache)
             } else {
+              // Create an array node at the next level and replace the single node.
               val nnode = newNarrowOrWideNode(
                 oldsn.hash, oldsn.key, oldsn.value, hash, key, value, level + 4)
               if (CAS_TXN(oldsn, nnode)) {
@@ -325,15 +329,19 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
               } else fastInsert(key, value, hash, cache, prevCache)
             }
           } else if (txn eq FSNode) {
+            // Must restart from the root, to find the transaction node, and help.
             slowInsert(key, value, hash)
           } else {
+            // Complete the current transaction, and retry.
             CAS(an, pos, oldsn, txn)
             fastInsert(key, value, hash, cache, prevCache)
           }
         } else {
+          // Must restart from the root, to find the transaction node, and help.
           slowInsert(key, value, hash)
         }
       } else if (cachee.isInstanceOf[SNode[_, _]]) {
+        // Need a reference to the parent array node -- retry one cache level above.
         val stats = READ(cache, 0)
         val parentCache = stats.asInstanceOf[CacheNode].parent
         fastInsert(key, value, hash, parentCache, cache)
@@ -458,17 +466,79 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
     fastRemove(key, hash)
   }
 
-  def fastRemove(key: K, hash: Int) {
+  def fastRemove(key: K, hash: Int): V = {
     val cache = READ_CACHE
-    fastRemove(key, hash, cache)
+    val result = fastRemove(key, hash, cache, cache)
+    result.asInstanceOf[V]
   }
 
   @tailrec
-  def fastRemove(key: K, hash: Int, cache: Array[AnyRef]): V = {
+  private def fastRemove(
+    key: K, hash: Int, cache: Array[AnyRef], prevCache: Array[AnyRef]
+  ): AnyRef = {
     if (cache == null) {
       slowRemove(key, hash)
     } else {
-      ???
+      val len = cache.length
+      val mask = len - 1 - 1
+      val pos = 1 + (hash & mask)
+      val cachee = READ(cache, pos)
+      val level = 31 - Integer.numberOfLeadingZeros(len - 1)
+      if (cachee eq null) {
+        // Inconclusive -- must retry one cache level above.
+        val stats = READ(cache, 0)
+        val parentCache = stats.asInstanceOf[CacheNode].parent
+        fastRemove(key, hash, parentCache, cache)
+      } else if (cachee.isInstanceOf[Array[AnyRef]]) {
+        // Read from an array node.
+        val an = cachee.asInstanceOf[Array[AnyRef]]
+        val mask = an.length - 1
+        val pos = (hash >>> level) & mask
+        val old = READ(an, pos)
+        if (old eq null) {
+          // The key does not exist.
+          null
+        } else if (old.isInstanceOf[Array[AnyRef]]) {
+          // Continue searching recursively.
+          val oldan = old.asInstanceOf[Array[AnyRef]]
+          val res = slowRemove(key, hash, level + 4, oldan, an, prevCache)
+          if (res == Restart) fastRemove(key, hash, cache, prevCache)
+          else res
+        } else if (old.isInstanceOf[SNode[_, _]]) {
+          val oldsn = old.asInstanceOf[SNode[K, V]]
+          val txn = READ_TXN(oldsn)
+          if (txn eq NoTxn) {
+            // No other transaction in progress.
+            if ((oldsn.hash == hash) && ((oldsn.key eq key) || (oldsn.key == key))) {
+              // Remove the key.
+              if (CAS_TXN(oldsn, null)) {
+                CAS(an, pos, oldsn, null)
+                oldsn.value
+              } else fastRemove(key, hash, cache, prevCache)
+            } else {
+              // The key does not exist.
+              null
+            }
+          } else if (txn eq FSNode) {
+            // Must restart from the root, to find the transaction node, and help.
+            slowRemove(key, hash)
+          } else {
+            // Complete the current transaction, and retry.
+            CAS(an, pos, oldsn, txn)
+            fastRemove(key, hash, cache, prevCache)
+          }
+        } else {
+          // Must restart from the root, to find the transaction node, and help.
+          slowRemove(key, hash)
+        }
+      } else if (cachee.isInstanceOf[SNode[_, _]]) {
+        // Need parent array node -- retry one cache level above.
+        val stats = READ(cache, 0)
+        val parentCache = stats.asInstanceOf[CacheNode].parent
+        fastRemove(key, hash, parentCache, cache)
+      } else {
+        sys.error(s"Unexpected case -- $cachee is not supposed to be cached.")
+      }
     }
   }
 
