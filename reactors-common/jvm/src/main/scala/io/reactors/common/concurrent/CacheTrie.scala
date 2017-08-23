@@ -442,6 +442,10 @@ class CacheTrie[K <: AnyRef, V] {
     }
   }
 
+  def remove(key: K): V = {
+    ???
+  }
+
   private def isFrozenS(n: AnyRef): Boolean = {
     if (n.isInstanceOf[SNode[_, _]]) {
       val f = READ_TXN(n.asInstanceOf[SNode[_, _]])
@@ -1153,6 +1157,14 @@ object CacheTrie {
   ) {
     @volatile var wide: Array[AnyRef] = null
   }
+
+  class XNode(
+    val parent: Array[AnyRef],
+    val parentpos: Int,
+    val stale: Array[AnyRef],
+    val hash: Int,
+    val level: Int
+  )
 
   object ANode {
     def toString(an: Array[AnyRef]) = an.mkString("AN[", ", ", "]")
