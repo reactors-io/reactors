@@ -455,7 +455,21 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
 
   def remove(key: K): V = {
     val hash = spread(key.hashCode)
-    slowRemove(key, hash)
+    fastRemove(key, hash)
+  }
+
+  def fastRemove(key: K, hash: Int) {
+    val cache = READ_CACHE
+    fastRemove(key, hash, cache)
+  }
+
+  @tailrec
+  def fastRemove(key: K, hash: Int, cache: Array[AnyRef]): V = {
+    if (cache == null) {
+      slowRemove(key, hash)
+    } else {
+      ???
+    }
   }
 
   private[concurrent] def slowRemove(key: K, hash: Int): V = {
