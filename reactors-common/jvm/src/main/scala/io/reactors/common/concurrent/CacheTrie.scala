@@ -8,7 +8,7 @@ import scala.annotation.tailrec
 
 
 
-class CacheTrie[K <: AnyRef, V] {
+class CacheTrie[K <: AnyRef, V <: AnyRef] {
   import CacheTrie._
 
   private val unsafe: Unsafe = Platform.unsafe
@@ -148,6 +148,12 @@ class CacheTrie[K <: AnyRef, V] {
     val result = lookup(key)
     if (result.asInstanceOf[AnyRef] eq null) throw new NoSuchElementException
     else result
+  }
+
+  final def get(key: K): Option[V] = {
+    val result = lookup(key)
+    if (result.asInstanceOf[AnyRef] eq null) None
+    else Some(result)
   }
 
   final def lookup(key: K): V = {
@@ -459,8 +465,9 @@ class CacheTrie[K <: AnyRef, V] {
     val cache = READ_CACHE
     var result: AnyRef = null
     do {
-      result = slowRemove(key, hash, 0, node, parent, cache)
+      result = slowRemove(key, hash, 0, node, null, cache)
     } while (result == Restart)
+    result.asInstanceOf[V]
   }
 
   @tailrec
@@ -479,14 +486,14 @@ class CacheTrie[K <: AnyRef, V] {
       val oldan = old.asInstanceOf[Array[AnyRef]]
       slowRemove(key, hash, level + 4, oldan, current, cache)
     } else if (old.isInstanceOf[SNode[_, _]]) {
-      val oldsn = old.asInstanceOf[SNode[_, _]]
+      val oldsn = old.asInstanceOf[SNode[K, V]]
       val txn = READ_TXN(oldsn)
       if (txn eq NoTxn) {
         // There is no other transaction in progress.
         if (oldsn.hash == hash && ((oldsn.key eq key) || (oldsn.key == key))) {
           // The same key, remove it.
           if (CAS_TXN(oldsn, null)) {
-            if (CAS(current, pos, oldsn, null)) Success
+            if (CAS(current, pos, oldsn, null)) oldsn.value.asInstanceOf[AnyRef]
             else slowRemove(key, hash, level, current, parent, cache)
           } else slowRemove(key, hash, level, current, parent, cache)
         } else {
@@ -1235,8 +1242,7 @@ object CacheTrie {
   ) {
     def this(sn: SNode[K, V], next: LNode[K, V]) = this(sn.hash, sn.key, sn.value, next)
     def this(sn: SNode[K, V]) = this(sn, null)
-    override def toString =
-      s"LN[$hash, $key$, $value] -> $next"
+    override def toString = s"LN[$hash, $key, $value] -> $next"
   }
 
   class ENode(
