@@ -71,7 +71,7 @@ class CacheTrie[K <: AnyRef, V] {
         //println(s"$key - found single node cachee, cache level $level")
         val oldsn = cachee.asInstanceOf[SNode[K, V]]
         val txn = READ_TXN(oldsn)
-        if (txn == NoTxn) {
+        if (txn eq NoTxn) {
           val oldhash = oldsn.hash
           val oldkey = oldsn.key
           if ((oldhash == hash) && ((oldkey eq key) || (oldkey == key))) oldsn.value
@@ -92,7 +92,7 @@ class CacheTrie[K <: AnyRef, V] {
         } else if (old.isInstanceOf[SNode[_, _]]) {
           val oldsn = old.asInstanceOf[SNode[K, V]]
           val txn = READ_TXN(oldsn)
-          if (txn == NoTxn) {
+          if (txn eq NoTxn) {
             // The single node is up-to-date.
             // Check if the key is contained in the single node.
             val oldhash = oldsn.hash
@@ -126,6 +126,11 @@ class CacheTrie[K <: AnyRef, V] {
               // Help complete the transaction.
               val en = old.asInstanceOf[ENode]
               completeExpansion(cache, en)
+              fastLookup(key, hash)
+            } else if (old.isInstanceOf[XNode]) {
+              // Help complete the transaction.
+              val xn = old.asInstanceOf[XNode]
+              completeCompression(cache, xn)
               fastLookup(key, hash)
             } else {
               sys.error(s"Unexpected case -- $old")
@@ -251,7 +256,6 @@ class CacheTrie[K <: AnyRef, V] {
 
   final def insert(key: K, value: V): Unit = {
     val hash = spread(key.hashCode)
-    // println("----- " + key)
     fastInsert(key, value, hash)
   }
 
@@ -272,7 +276,6 @@ class CacheTrie[K <: AnyRef, V] {
       val pos = 1 + (hash & mask)
       val cachee = READ(cache, pos)
       val level = 31 - Integer.numberOfLeadingZeros(len - 1)
-      // println("fast insert " + level)
       if (cachee eq null) {
         // val res = slowInsert(key, value, hash, 0, rawRoot, null, cachee, level)
         // if (res eq Restart) fastInsert(key, value, hash, cache)
@@ -356,7 +359,6 @@ class CacheTrie[K <: AnyRef, V] {
     current: Array[AnyRef], parent: Array[AnyRef],
     cache: Array[AnyRef]
   ): AnyRef = {
-    // println("slow insert " + level)
     if (cache != null && (1 << level) == (cache.length - 1)) {
       inhabitCache(cache, current, hash, level)
     }
@@ -376,8 +378,8 @@ class CacheTrie[K <: AnyRef, V] {
       else slowInsert(key, value, hash, level, current, parent, cache)
     } else if (old.isInstanceOf[Array[_]]) {
       // Repeat the search on the next level.
-      slowInsert(key, value, hash, level + 4, old.asInstanceOf[Array[AnyRef]], current,
-        cache)
+      val oldan = old.asInstanceOf[Array[AnyRef]]
+      slowInsert(key, value, hash, level + 4, oldan, current, cache)
     } else if (old.isInstanceOf[SNode[_, _]]) {
       val oldsn = old.asInstanceOf[SNode[K, V]]
       val txn = READ_TXN(oldsn)
@@ -413,8 +415,8 @@ class CacheTrie[K <: AnyRef, V] {
           } else slowInsert(key, value, hash, level, current, parent, cache)
         }
       } else if (txn eq FSNode) {
-        // We landed into the middle of a transaction doing a txn.
-        // We must restart from the top, find the tranaction node and help.
+        // We landed into the middle of another transaction.
+        // We must restart from the top, find the transaction node and help.
         Restart
       } else {
         // The single node had been scheduled for replacement by some thread.
@@ -432,6 +434,11 @@ class CacheTrie[K <: AnyRef, V] {
       val enode = old.asInstanceOf[ENode]
       completeExpansion(cache, enode)
       Restart
+    } else if (old.isInstanceOf[XNode]) {
+      // There is another transaction in progress, help complete it, then restart.
+      val xnode = old.asInstanceOf[XNode]
+      completeCompression(cache, xnode)
+      Restart
     } else if ((old eq FVNode) || old.isInstanceOf[FNode]) {
       // We landed into the middle of some other thread's transaction.
       // We need to restart from the top to find the transaction's descriptor,
@@ -443,7 +450,79 @@ class CacheTrie[K <: AnyRef, V] {
   }
 
   def remove(key: K): V = {
-    ???
+    val hash = spread(key.hashCode)
+    slowRemove(key, hash)
+  }
+
+  private[concurrent] def slowRemove(key: K, hash: Int): V = {
+    val node = rawRoot
+    val cache = READ_CACHE
+    var result: AnyRef = null
+    do {
+      result = slowRemove(key, hash, 0, node, parent, cache)
+    } while (result == Restart)
+  }
+
+  @tailrec
+  private def slowRemove(
+    key: K, hash: Int, level: Int, current: Array[AnyRef], parent: Array[AnyRef],
+    cache: Array[AnyRef]
+  ): AnyRef = {
+    val mask = current.length - 1
+    val pos = (hash >>> level) & mask
+    val old = READ(current, pos)
+    if (old eq null) {
+      // The key does not exist.
+      null
+    } else if (old.isInstanceOf[Array[AnyRef]]) {
+      // Repeat search at the next level.
+      val oldan = old.asInstanceOf[Array[AnyRef]]
+      slowRemove(key, hash, level + 4, oldan, current, cache)
+    } else if (old.isInstanceOf[SNode[_, _]]) {
+      val oldsn = old.asInstanceOf[SNode[_, _]]
+      val txn = READ_TXN(oldsn)
+      if (txn eq NoTxn) {
+        // There is no other transaction in progress.
+        if (oldsn.hash == hash && ((oldsn.key eq key) || (oldsn.key == key))) {
+          // The same key, remove it.
+          if (CAS_TXN(oldsn, null)) {
+            if (CAS(current, pos, oldsn, null)) Success
+            else slowRemove(key, hash, level, current, parent, cache)
+          } else slowRemove(key, hash, level, current, parent, cache)
+        } else {
+          // The target key does not exist.
+          null
+        }
+      } else if (txn eq FSNode) {
+        // We landed into a middle of another transaction.
+        // We must restart from the top, find the transaction node and help.
+        Restart
+      } else {
+        // The single node had been scheduled for replacement by some thread.
+        // We need to help and retry.
+        CAS(current, pos, oldsn, txn)
+        slowRemove(key, hash, level, current, parent, cache)
+      }
+    } else if (old.isInstanceOf[LNode[_, _]]) {
+      // TODO: Handle this case.
+      ???
+    } else if (old.isInstanceOf[ENode]) {
+      // There is another transaction in progress, help complete it, then restart.
+      val enode = old.asInstanceOf[ENode]
+      completeExpansion(cache, enode)
+      Restart
+    } else if (old.isInstanceOf[XNode]) {
+      // There is another transaction in progress, help complete it, then restart.
+      val xnode = old.asInstanceOf[XNode]
+      completeCompression(cache, xnode)
+      Restart
+    } else if ((old eq FVNode) || old.isInstanceOf[FNode]) {
+      // We landed into the middle of some other thread's transaction.
+      // We need to restart above, from the descriptor.
+      Restart
+    } else {
+      sys.error("Unexpected case -- " + old)
+    }
   }
 
   private def isFrozenS(n: AnyRef): Boolean = {
@@ -473,7 +552,7 @@ class CacheTrie[K <: AnyRef, V] {
       } else if (node.isInstanceOf[SNode[_, _]]) {
         val sn = node.asInstanceOf[SNode[K, V]]
         val txn = READ_TXN(sn)
-        if (txn == NoTxn) {
+        if (txn eq NoTxn) {
           // Freeze single node.
           // If it fails, then either someone helped or another txn is in progress.
           // If another txn is in progress, then we must reinspect the current slot.
@@ -510,9 +589,15 @@ class CacheTrie[K <: AnyRef, V] {
         // We can continue, another thread already froze this slot.
       } else if (node.isInstanceOf[ENode]) {
         // If some other txn is in progress, help complete it,
-        // then restart from current position.
+        // then restart from the current position.
         val enode = node.asInstanceOf[ENode]
         completeExpansion(cache, enode)
+        i -= 1
+      } else if (node.isInstanceOf[XNode]) {
+        // It some other txn is in progress, help complete it,
+        // then restart from the current position.
+        val xnode = node.asInstanceOf[XNode]
+        completeCompression(cache, xnode)
         i -= 1
       } else {
         sys.error("Unexpected case -- " + node)
@@ -673,6 +758,10 @@ class CacheTrie[K <: AnyRef, V] {
     if (CAS(parent, parentpos, enode, wide)) {
       inhabitCache(cache, wide, enode.hash, level)
     }
+  }
+
+  private def completeCompression(cache: Array[AnyRef], xnode: XNode): Unit = {
+    ???
   }
 
   @tailrec
@@ -1146,6 +1235,8 @@ object CacheTrie {
   ) {
     def this(sn: SNode[K, V], next: LNode[K, V]) = this(sn.hash, sn.key, sn.value, next)
     def this(sn: SNode[K, V]) = this(sn, null)
+    override def toString =
+      s"LN[$hash, $key$, $value] -> $next"
   }
 
   class ENode(
@@ -1156,6 +1247,7 @@ object CacheTrie {
     val level: Int
   ) {
     @volatile var wide: Array[AnyRef] = null
+    override def toString = s"EN"
   }
 
   class XNode(
@@ -1164,7 +1256,9 @@ object CacheTrie {
     val stale: Array[AnyRef],
     val hash: Int,
     val level: Int
-  )
+  ) {
+    override def toString = s"XN"
+  }
 
   object ANode {
     def toString(an: Array[AnyRef]) = an.mkString("AN[", ", ", "]")
