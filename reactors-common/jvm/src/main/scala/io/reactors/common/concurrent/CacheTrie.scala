@@ -593,8 +593,10 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
         slowRemove(key, hash, level, current, parent, cache)
       }
     } else if (old.isInstanceOf[LNode[_, _]]) {
-      // TODO: Handle this case.
-      ???
+      val oldln = old.asInstanceOf[LNode[K, V]]
+      val (result, nn) = newListNodeWithoutKey(oldln, hash, key)
+      if (CAS(current, pos, oldln, nn)) result
+      else slowRemove(key, hash, level, current, parent, cache)
     } else if (old.isInstanceOf[ENode]) {
       // There is another transaction in progress, help complete it, then restart.
       val enode = old.asInstanceOf[ENode]
@@ -801,6 +803,30 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
     newNarrowOrWideNodeUsingFresh(new SNode(h1, k1, v1), new SNode(h2, k2, v2), level)
   }
 
+  private def newListNodeWithoutKey(
+    oldln: CacheTrie.LNode[K, V], hash: Int, k: K
+  ): (V, CacheTrie.LNode[K, V]) = {
+    var tail = oldln
+    while (tail != null) {
+      if (tail.key == k) {
+        // Only reallocate list if the key must be removed.
+        val result = tail.value
+        var ln: LNode[K, V] = null
+        tail = oldln
+        while (tail != null) {
+          if (tail.key != k) {
+            ln = new LNode(tail.hash, tail.key, tail.value, ln)
+          }
+          tail = tail.next
+        }
+        return (result, ln)
+      }
+      tail = tail.next
+    }
+    return (null.asInstanceOf[V], oldln)
+  }
+
+  // TODO: Fix a corner-case in which must check if key is already in the list node.
   private def newListNarrowOrWideNode(
     oldln: CacheTrie.LNode[K, V], hash: Int, k: K, v: V, level: Int
   ): AnyRef = {
@@ -977,7 +1003,8 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
             if (ch.isInstanceOf[Array[AnyRef]]) {
               val an = ch.asInstanceOf[Array[AnyRef]]
               histogram += sampleUnbiased(
-                an, level + 4, maxRepeats * 4, maxSamples, histogram, seed + 1
+                an, level + 4, math.min(maxSamples, maxRepeats * 4), maxSamples,
+                histogram, seed + 1
               )
             } else if (
               ch.isInstanceOf[SNode[_, _]] || isFrozenS(ch) || isFrozenL(ch)
