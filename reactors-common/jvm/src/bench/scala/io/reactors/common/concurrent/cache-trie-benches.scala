@@ -115,7 +115,6 @@ class CacheTrieBenches extends JBench.OfflineReport {
   @transient
   lazy val elems = Random.shuffle((0 until maxElems).toVector)
     .map(i => Wrapper(i)).toArray
-    .sorted
 
   val sizes = Gen.range("size")(100000, maxElems, 500000)
 
@@ -289,19 +288,68 @@ class CacheTrieBenches extends JBench.OfflineReport {
   //   trie
   // }
 
-  @gen("sizes")
-  @benchmark("cache-trie.insert")
-  @curve("cachetrie")
-  def cachetrieInsert(size: Int) = {
-    val trie = new CacheTrie[Wrapper, Wrapper]
+  // @gen("sizes")
+  // @benchmark("cache-trie.insert")
+  // @curve("cachetrie")
+  // def cachetrieInsert(size: Int) = {
+  //   val trie = new CacheTrie[Wrapper, Wrapper]
+  //   var i = 0
+  //   while (i < size) {
+  //     val v = elems(i)
+  //     trie.insert(v, v)
+  //     i += 1
+  //   }
+  //   // println(trie.debugCacheStats)
+  //   trie
+  // }
+
+  def chmRefill(sc: (Int, ConcurrentHashMap[Wrapper, Wrapper])): Unit = {
+    val (size, chm) = sc
     var i = 0
     while (i < size) {
-      val v = elems(i)
-      trie.insert(v, v)
+      chm.put(elems(i), elems(i))
       i += 1
     }
-    // println(trie.debugCacheStats)
-    trie
+  }
+
+  def cachetrieRefill(sc: (Int, CacheTrie[Wrapper, Wrapper])): Unit = {
+    val (size, trie) = sc
+    var i = 0
+    while (i < size) {
+      trie.insert(elems(i), elems(i))
+      i += 1
+    }
+  }
+
+  // @gen("chms")
+  // @benchmark("cache-trie.remove")
+  // @setup("chmRefill")
+  // @curve("CHM")
+  // def chmRemove(sc: (Int, ConcurrentHashMap[Wrapper, Wrapper])): Int = {
+  //  val (size, chm) = sc
+  //  var i = 0
+  //  var sum = 0
+  //  while (i < size) {
+  //    sum += chm.remove(elems(i)).value
+  //    i += 1
+  //  }
+  //  sum
+  // }
+
+  @gen("cachetries")
+  @benchmark("cache-trie.remove")
+  @setup("cachetrieRefill")
+  @curve("cachetrie")
+  def chmRemove(sc: (Int, CacheTrie[Wrapper, Wrapper])): Int = {
+   val (size, trie) = sc
+   var i = 0
+   var sum = 0
+   while (i < size) {
+     sum += trie.remove(elems(i)).value
+     i += 1
+   }
+   // println(trie.debugCacheStats)
+   sum
   }
 }
 

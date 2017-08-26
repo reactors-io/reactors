@@ -552,6 +552,64 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
     result.asInstanceOf[V]
   }
 
+  private def checkCompress(
+    cache: Array[AnyRef], current: Array[AnyRef], parent: Array[AnyRef],
+    hash: Int, level: Int
+  ): Unit = {
+    if (parent == null) {
+      return
+    }
+    var i = 0
+    while (i < current.length) {
+      val old = READ(current, i)
+      if (old != null) {
+        return
+      }
+      i += 1
+    }
+    // It is likely that the node is empty, so we freeze it and try to compress.
+    val parentmask = parent.length - 1
+    val parentpos = (hash >>> (level - 4)) & parentmask
+    val xn = new XNode(parent, parentpos, current, hash, level)
+    if (CAS(parent, parentpos, current, xn)) {
+      val checkMore = completeCompression(cache, xn)
+      // TODO: Continue compressing if there is more.
+    }
+  }
+
+  private def compressFrozen(frozen: Array[AnyRef], level: Int): AnyRef = {
+    var i = 0
+    while (i < frozen.length) {
+      val old = READ(frozen, i)
+      if (old != null) {
+        // Unfortunately, the node was modified before it was completely frozen.
+        // TODO: If frozen was narrow, the allocate a narrow node and transfer.
+        val wide = new Array[AnyRef](16)
+        sequentialTransfer(frozen, wide, level)
+        return wide
+      }
+      i += 1
+    }
+    return null
+  }
+
+  private def completeCompression(cache: Array[AnyRef], xn: XNode): Boolean = {
+    val parent = xn.parent
+    val parentpos = xn.parentpos
+    val level = xn.level
+
+    // First, freeze the subtree below.
+    val stale = xn.stale
+    freeze(cache, stale)
+
+    // Then, create a compressed version, and replace it in the parent.
+    val compressed = compressFrozen(stale, level)
+    if (CAS(parent, parentpos, xn, compressed)) {
+      return compressed == null
+    }
+    return false
+  }
+
   @tailrec
   private def slowRemove(
     key: K, hash: Int, level: Int, current: Array[AnyRef], parent: Array[AnyRef],
@@ -568,6 +626,12 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
       val oldan = old.asInstanceOf[Array[AnyRef]]
       slowRemove(key, hash, level + 4, oldan, current, cache)
     } else if (old.isInstanceOf[SNode[_, _]]) {
+      val cacheLevel =
+        if (cache == null) 0
+        else 31 - Integer.numberOfLeadingZeros(cache.length - 1)
+      if (level < cacheLevel || level >= cacheLevel + 8) {
+        recordCacheMiss()
+      }
       val oldsn = old.asInstanceOf[SNode[K, V]]
       val txn = READ_TXN(oldsn)
       if (txn eq NoTxn) {
@@ -576,6 +640,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
           // The same key, remove it.
           if (CAS_TXN(oldsn, null)) {
             CAS(current, pos, oldsn, null)
+            checkCompress(cache, current, parent, hash, level)
             oldsn.value.asInstanceOf[AnyRef]
           } else slowRemove(key, hash, level, current, parent, cache)
         } else {
@@ -738,12 +803,12 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
   }
 
   private def sequentialTransfer(
-    narrow: Array[AnyRef], wide: Array[AnyRef], level: Int
+    source: Array[AnyRef], wide: Array[AnyRef], level: Int
   ): Unit = {
     val mask = wide.length - 1
     var i = 0
-    while (i < narrow.length) {
-      val node = narrow(i)
+    while (i < source.length) {
+      val node = source(i)
       if (node eq FVNode) {
         // We can skip, the slot was empty.
       } else if (isFrozenS(node)) {
@@ -762,10 +827,11 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
           tail = tail.next
         }
       } else if (node.isInstanceOf[FNode]) {
-        // TODO: Revisit when we start compressing nodes, right now it cannot happen.
-        sys.error("Unexpected case -- narrow array node should never have collisions.")
+        val fn = node.asInstanceOf[FNode]
+        val an = fn.frozen.asInstanceOf[Array[AnyRef]]
+        sequentialTransfer(an, wide, level)
       } else {
-        sys.error("Unexpected case -- narrow array node should have been frozen.")
+        sys.error("Unexpected case -- source array node should have been frozen.")
       }
       i += 1
     }
@@ -873,10 +939,6 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
     if (CAS(parent, parentpos, enode, wide)) {
       inhabitCache(cache, wide, enode.hash, level)
     }
-  }
-
-  private def completeCompression(cache: Array[AnyRef], xnode: XNode): Unit = {
-    ???
   }
 
   @tailrec
