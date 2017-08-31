@@ -581,7 +581,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
     var i = 0
     while (i < frozen.length) {
       val old = READ(frozen, i)
-      if (old != null) {
+      if (old != FVNode) {
         // Unfortunately, the node was modified before it was completely frozen.
         if (frozen.length == 16) {
           val wide = new Array[AnyRef](16)
