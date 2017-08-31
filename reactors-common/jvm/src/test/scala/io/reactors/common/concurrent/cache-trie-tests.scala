@@ -58,13 +58,23 @@ class CacheTrieTest extends FunSuite {
     assert(trie.get("single") == None)
   }
 
-  test("insert 20 elements, and remove them") {
+  test("insert 20 elements, remove them and compress") {
     val trie = new CacheTrie[String, Integer]
     for (i <- 0 until 20) {
       trie.insert(i.toString, i)
       assert(trie.lookup(i.toString) == i)
     }
     for (i <- 0 until 20) {
+      assert(trie.remove(i.toString) == i)
+      assert(trie.get(i.toString) == None)
+    }
+    println(trie.debugTree)
+  }
+
+  test("insert 120 elements, remove them and compress") {
+    val trie = new CacheTrie[String, Integer]
+    for (i <- 0 until 120) trie.insert(i.toString, i)
+    for (i <- 0 until 120) {
       assert(trie.remove(i.toString) == i)
       assert(trie.get(i.toString) == None)
     }

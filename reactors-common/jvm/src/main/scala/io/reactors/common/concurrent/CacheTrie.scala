@@ -573,8 +573,32 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
     val xn = new XNode(parent, parentpos, current, hash, level)
     if (CAS(parent, parentpos, current, xn)) {
       val checkMore = completeCompression(cache, xn)
-      // TODO: Continue compressing if there is more.
+      if (checkMore) {
+        // Continue compressing if possible.
+        var grandParentCache: Array[AnyRef] = null
+        val parentCache = READ(cache, 0).asInstanceOf[CacheNode].parent
+        if (parentCache != null) {
+          grandParentCache = READ(parentCache, 0).asInstanceOf[CacheNode].parent
+        }
+        if (grandParentCache != null) {
+          val grandParentMask = (1 << (level - 4)) - 1
+          val grandParentPos = hash & grandParentMask
+          val grandParent = READ(grandParentCache, grandParentPos)
+          if (grandParent.isInstanceOf[Array[AnyRef]]) {
+            checkCompress(parentCache, parent, grandParent.asInstanceOf[Array[AnyRef]],
+              hash, level - 4)
+          }
+        } else {
+          slowCompress(hash)
+        }
+      }
     }
+  }
+
+  private def slowCompress(hash: Int): Unit = {
+    // Dive into the cache starting from the root for the given hash,
+    // and compress as much as possible.
+    ???
   }
 
   private def compressFrozen(frozen: Array[AnyRef], level: Int): AnyRef = {
