@@ -68,6 +68,7 @@ class CacheTrieTest extends FunSuite {
       assert(trie.remove(i.toString) == i)
       assert(trie.get(i.toString) == None)
     }
+    println(trie.debugTree)
   }
 
   test("insert 1000 elements, and remove them") {

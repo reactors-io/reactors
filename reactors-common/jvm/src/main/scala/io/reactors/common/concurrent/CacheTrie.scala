@@ -583,10 +583,16 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
       val old = READ(frozen, i)
       if (old != null) {
         // Unfortunately, the node was modified before it was completely frozen.
-        // TODO: If frozen was narrow, the allocate a narrow node and transfer.
-        val wide = new Array[AnyRef](16)
-        sequentialTransfer(frozen, wide, level)
-        return wide
+        if (frozen.length == 16) {
+          val wide = new Array[AnyRef](16)
+          sequentialTransfer(frozen, wide, level)
+          return wide
+        } else {
+          // If the node is narrow, then it cannot have any children.
+          val narrow = new Array[AnyRef](4)
+          sequentialTransferNarrow(frozen, narrow, level)
+          return narrow
+        }
       }
       i += 1
     }
@@ -832,6 +838,28 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
         sequentialTransfer(an, wide, level)
       } else {
         sys.error("Unexpected case -- source array node should have been frozen.")
+      }
+      i += 1
+    }
+  }
+
+  private def sequentialTransferNarrow(
+    source: Array[AnyRef], narrow: Array[AnyRef], level: Int
+  ): Unit = {
+    var i = 0
+    while (i < 4) {
+      val node = source(i)
+      if (node eq FVNode) {
+        // We can skipp, this slow was empty.
+      } else if (isFrozenS(node)) {
+        val oldsn = node.asInstanceOf[SNode[K, V]]
+        val sn = new SNode(oldsn.hash, oldsn.key, oldsn.value)
+        narrow(i) = sn
+      } else if (isFrozenL(node)) {
+        val chain = node.asInstanceOf[FNode].frozen.asInstanceOf[LNode[K, V]]
+        narrow(i) = chain
+      } else {
+        sys.error(s"Unexpected case: $node")
       }
       i += 1
     }
