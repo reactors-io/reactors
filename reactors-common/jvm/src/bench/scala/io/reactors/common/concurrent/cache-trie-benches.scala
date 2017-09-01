@@ -340,7 +340,7 @@ class CacheTrieBenches extends JBench.OfflineReport {
   @benchmark("cache-trie.remove")
   @setup("cachetrieRefill")
   @curve("cachetrie")
-  def chmRemove(sc: (Int, CacheTrie[Wrapper, Wrapper])): Int = {
+  def cachetrieRemove(sc: (Int, CacheTrie[Wrapper, Wrapper])): Int = {
    val (size, trie) = sc
    var i = 0
    var sum = 0
