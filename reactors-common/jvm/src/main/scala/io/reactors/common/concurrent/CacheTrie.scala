@@ -472,13 +472,13 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
 
   def fastRemove(key: K, hash: Int): V = {
     val cache = READ_CACHE
-    val result = fastRemove(key, hash, cache, cache)
+    val result = fastRemove(key, hash, cache, cache, 0)
     result.asInstanceOf[V]
   }
 
   @tailrec
   private def fastRemove(
-    key: K, hash: Int, cache: Array[AnyRef], prevCache: Array[AnyRef]
+    key: K, hash: Int, cache: Array[AnyRef], prevCache: Array[AnyRef], ascends: Int
   ): AnyRef = {
     if (cache == null) {
       slowRemove(key, hash)
@@ -492,7 +492,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
         // Inconclusive -- must retry one cache level above.
         val stats = READ(cache, 0)
         val parentCache = stats.asInstanceOf[CacheNode].parent
-        fastRemove(key, hash, parentCache, cache)
+        fastRemove(key, hash, parentCache, cache, ascends + 1)
       } else if (cachee.isInstanceOf[Array[AnyRef]]) {
         // Read from an array node.
         val an = cachee.asInstanceOf[Array[AnyRef]]
@@ -501,12 +501,15 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
         val old = READ(an, pos)
         if (old eq null) {
           // The key does not exist.
+          if (ascends > 1) {
+            recordCacheMiss()
+          }
           null
         } else if (old.isInstanceOf[Array[AnyRef]]) {
           // Continue searching recursively.
           val oldan = old.asInstanceOf[Array[AnyRef]]
           val res = slowRemove(key, hash, level + 4, oldan, an, prevCache)
-          if (res == Restart) fastRemove(key, hash, cache, prevCache)
+          if (res == Restart) fastRemove(key, hash, cache, prevCache, ascends)
           else res
         } else if (old.isInstanceOf[SNode[_, _]]) {
           val oldsn = old.asInstanceOf[SNode[K, V]]
@@ -517,10 +520,16 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
               // Remove the key.
               if (CAS_TXN(oldsn, null)) {
                 CAS(an, pos, oldsn, null)
+                if (ascends > 1) {
+                  recordCacheMiss()
+                }
                 oldsn.value
-              } else fastRemove(key, hash, cache, prevCache)
+              } else fastRemove(key, hash, cache, prevCache, ascends)
             } else {
               // The key does not exist.
+              if (ascends > 1) {
+                recordCacheMiss()
+              }
               null
             }
           } else if (txn eq FSNode) {
@@ -529,7 +538,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
           } else {
             // Complete the current transaction, and retry.
             CAS(an, pos, oldsn, txn)
-            fastRemove(key, hash, cache, prevCache)
+            fastRemove(key, hash, cache, prevCache, ascends)
           }
         } else {
           // Must restart from the root, to find the transaction node, and help.
@@ -539,7 +548,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
         // Need parent array node -- retry one cache level above.
         val stats = READ(cache, 0)
         val parentCache = stats.asInstanceOf[CacheNode].parent
-        fastRemove(key, hash, parentCache, cache)
+        fastRemove(key, hash, parentCache, cache, ascends + 1)
       } else {
         sys.error(s"Unexpected case -- $cachee is not supposed to be cached.")
       }
