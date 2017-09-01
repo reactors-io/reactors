@@ -575,6 +575,11 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
       val checkMore = completeCompression(cache, xn)
       if (checkMore) {
         // Continue compressing if possible.
+        if (cache == null) {
+          // If no cache is available, do the slow path.
+          slowCompress(hash)
+          return
+        }
         var grandParentCache: Array[AnyRef] = null
         val parentCache = READ(cache, 0).asInstanceOf[CacheNode].parent
         if (parentCache != null) {
