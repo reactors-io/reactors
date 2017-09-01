@@ -594,29 +594,8 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
     val mustContinue = compressSingleLevel(cache, current, parent, hash, level)
     if (mustContinue) {
       // Continue compressing if possible.
-      if (cache == null) {
-        // If no cache is available, do the slow path.
-        compressDescend(hash, rawRoot, null, 0)
-        return
-      }
-      var grandParentCache: Array[AnyRef] = null
-      val parentCache = READ(cache, 0).asInstanceOf[CacheNode].parent
-      if (parentCache != null) {
-        grandParentCache = READ(parentCache, 0).asInstanceOf[CacheNode].parent
-      }
-      if (grandParentCache != null) {
-        val grandParentMask = (1 << (level - 4)) - 1
-        val grandParentPos = hash & grandParentMask
-        val grandParent = READ(grandParentCache, grandParentPos)
-        if (grandParent.isInstanceOf[Array[AnyRef]]) {
-          val grandParentAn = grandParent.asInstanceOf[Array[AnyRef]]
-          compressAscend(parentCache, parent, grandParentAn, hash, level - 4)
-        } else {
-          compressDescend(hash, rawRoot, null, 0)
-        }
-      } else {
-        compressDescend(hash, rawRoot, null, 0)
-      }
+      // TODO: Investigate if full ascend is feasible.
+      compressDescend(hash, rawRoot, null, 0)
     }
   }
 
