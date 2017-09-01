@@ -552,80 +552,122 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
     result.asInstanceOf[V]
   }
 
-  private def checkCompress(
+  private def compressSingleLevel(
     cache: Array[AnyRef], current: Array[AnyRef], parent: Array[AnyRef],
     hash: Int, level: Int
-  ): Unit = {
+  ): Boolean = {
     if (parent == null) {
-      return
+      return false
     }
+    var single: AnyRef = null
     var i = 0
     while (i < current.length) {
       val old = READ(current, i)
       if (old != null) {
-        return
+        if (single == null && old.isInstanceOf[SNode[_, _]]) {
+          single = old
+        } else {
+          return false
+        }
       }
       i += 1
     }
-    // It is likely that the node is empty, so we freeze it and try to compress.
+    // It is likely that the node is compressible, so we freeze it and try to compress.
     val parentmask = parent.length - 1
     val parentpos = (hash >>> (level - 4)) & parentmask
     val xn = new XNode(parent, parentpos, current, hash, level)
     if (CAS(parent, parentpos, current, xn)) {
-      val checkMore = completeCompression(cache, xn)
-      if (checkMore) {
-        // Continue compressing if possible.
-        if (cache == null) {
-          // If no cache is available, do the slow path.
-          slowCompress(hash)
-          return
-        }
-        var grandParentCache: Array[AnyRef] = null
-        val parentCache = READ(cache, 0).asInstanceOf[CacheNode].parent
-        if (parentCache != null) {
-          grandParentCache = READ(parentCache, 0).asInstanceOf[CacheNode].parent
-        }
-        if (grandParentCache != null) {
-          val grandParentMask = (1 << (level - 4)) - 1
-          val grandParentPos = hash & grandParentMask
-          val grandParent = READ(grandParentCache, grandParentPos)
-          if (grandParent.isInstanceOf[Array[AnyRef]]) {
-            checkCompress(parentCache, parent, grandParent.asInstanceOf[Array[AnyRef]],
-              hash, level - 4)
-          }
+      completeCompression(cache, xn)
+    } else {
+      false
+    }
+  }
+
+  private def compressAscend(
+    cache: Array[AnyRef], current: Array[AnyRef], parent: Array[AnyRef],
+    hash: Int, level: Int
+  ): Unit = {
+    val mustContinue = compressSingleLevel(cache, current, parent, hash, level)
+    if (mustContinue) {
+      // Continue compressing if possible.
+      if (cache == null) {
+        // If no cache is available, do the slow path.
+        compressDescend(hash, rawRoot, null, 0)
+      }
+      var grandParentCache: Array[AnyRef] = null
+      val parentCache = READ(cache, 0).asInstanceOf[CacheNode].parent
+      if (parentCache != null) {
+        grandParentCache = READ(parentCache, 0).asInstanceOf[CacheNode].parent
+      }
+      if (grandParentCache != null) {
+        val grandParentMask = (1 << (level - 4)) - 1
+        val grandParentPos = hash & grandParentMask
+        val grandParent = READ(grandParentCache, grandParentPos)
+        if (grandParent.isInstanceOf[Array[AnyRef]]) {
+          val grandParentAn = grandParent.asInstanceOf[Array[AnyRef]]
+          compressAscend(parentCache, parent, grandParentAn, hash, level - 4)
         } else {
-          slowCompress(hash)
+          compressDescend(hash, rawRoot, null, 0)
         }
+      } else {
+        compressDescend(hash, rawRoot, null, 0)
       }
     }
   }
 
-  private def slowCompress(hash: Int): Unit = {
+  private def compressDescend(
+    hash: Int, current: Array[AnyRef], parent: Array[AnyRef], level: Int
+  ): Boolean = {
     // Dive into the cache starting from the root for the given hash,
     // and compress as much as possible.
-    ???
+    val pos = (hash >>> level) & (current.length - 1)
+    val old = READ(current, pos)
+    if (old.isInstanceOf[Array[AnyRef]]) {
+      val an = old.asInstanceOf[Array[AnyRef]]
+      if (!compressDescend(hash, an, current, level + 4)) return false
+    } else {
+      return true
+    }
+    // We do not care about maintaining the cache in the slow compression path,
+    // so we just use the top-level cache.
+    if (parent != null) {
+      val cache = READ_CACHE
+      return compressSingleLevel(cache, current, parent, hash, level)
+    }
+    return false
   }
 
   private def compressFrozen(frozen: Array[AnyRef], level: Int): AnyRef = {
+    var single: AnyRef = null
     var i = 0
     while (i < frozen.length) {
       val old = READ(frozen, i)
       if (old != FVNode) {
-        // Unfortunately, the node was modified before it was completely frozen.
-        if (frozen.length == 16) {
-          val wide = new Array[AnyRef](16)
-          sequentialTransfer(frozen, wide, level)
-          return wide
+        if (single == null && old.isInstanceOf[SNode[_, _]]) {
+          // It is possible that this is the only entry in the array node.
+          single = old
         } else {
-          // If the node is narrow, then it cannot have any children.
-          val narrow = new Array[AnyRef](4)
-          sequentialTransferNarrow(frozen, narrow, level)
-          return narrow
+          // There are at least 2 nodes that are not FVNode.
+          // Unfortunately, the node was modified before it was completely frozen.
+          if (frozen.length == 16) {
+            val wide = new Array[AnyRef](16)
+            sequentialTransfer(frozen, wide, level)
+            return wide
+          } else {
+            // If the node is narrow, then it cannot have any children.
+            val narrow = new Array[AnyRef](4)
+            sequentialTransferNarrow(frozen, narrow, level)
+            return narrow
+          }
         }
       }
       i += 1
     }
-    return null
+    if (single != null) {
+      val oldsn = single.asInstanceOf[SNode[K, V]]
+      single = new SNode(oldsn.hash, oldsn.key, oldsn.value)
+    }
+    return single
   }
 
   private def completeCompression(cache: Array[AnyRef], xn: XNode): Boolean = {
@@ -640,7 +682,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
     // Then, create a compressed version, and replace it in the parent.
     val compressed = compressFrozen(stale, level)
     if (CAS(parent, parentpos, xn, compressed)) {
-      return compressed == null
+      return compressed == null || compressed.isInstanceOf[SNode[K, V]]
     }
     return false
   }
@@ -675,7 +717,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
           // The same key, remove it.
           if (CAS_TXN(oldsn, null)) {
             CAS(current, pos, oldsn, null)
-            checkCompress(cache, current, parent, hash, level)
+            compressAscend(cache, current, parent, hash, level)
             oldsn.value.asInstanceOf[AnyRef]
           } else slowRemove(key, hash, level, current, parent, cache)
         } else {
