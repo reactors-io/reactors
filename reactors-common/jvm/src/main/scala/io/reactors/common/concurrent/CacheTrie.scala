@@ -229,6 +229,10 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
       val enode = old.asInstanceOf[ENode]
       val narrow = enode.narrow
       slowLookup(key, hash, level + 4, narrow, cache)
+    } else if (old.isInstanceOf[XNode]) {
+      val xnode = old.asInstanceOf[XNode]
+      val stale = xnode.stale
+      slowLookup(key, hash, level + 4, stale, cache)
     } else if (old eq FVNode) {
       null.asInstanceOf[V]
     } else if (old.isInstanceOf[FNode]) {
@@ -593,6 +597,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
       if (cache == null) {
         // If no cache is available, do the slow path.
         compressDescend(hash, rawRoot, null, 0)
+        return
       }
       var grandParentCache: Array[AnyRef] = null
       val parentCache = READ(cache, 0).asInstanceOf[CacheNode].parent
