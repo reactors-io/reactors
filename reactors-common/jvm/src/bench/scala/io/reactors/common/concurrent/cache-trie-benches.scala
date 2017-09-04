@@ -110,7 +110,7 @@ class CacheTrieBenches extends JBench.OfflineReport {
     def compareTo(that: Wrapper) = this.value - that.value
   }
 
-  val maxElems = 4000000
+  val maxElems = 100000
 
   @transient
   lazy val elems = Random.shuffle((0 until maxElems).toVector)
@@ -321,20 +321,20 @@ class CacheTrieBenches extends JBench.OfflineReport {
     }
   }
 
-  // @gen("chms")
-  // @benchmark("cache-trie.remove")
-  // @setup("chmRefill")
-  // @curve("CHM")
-  // def chmRemove(sc: (Int, ConcurrentHashMap[Wrapper, Wrapper])): Int = {
-  //  val (size, chm) = sc
-  //  var i = 0
-  //  var sum = 0
-  //  while (i < size) {
-  //    sum += chm.remove(elems(i)).value
-  //    i += 1
-  //  }
-  //  sum
-  // }
+  @gen("chms")
+  @benchmark("cache-trie.remove")
+  @setup("chmRefill")
+  @curve("CHM")
+  def chmRemove(sc: (Int, ConcurrentHashMap[Wrapper, Wrapper])): Int = {
+   val (size, chm) = sc
+   var i = 0
+   var sum = 0
+   while (i < size) {
+     sum += chm.remove(elems(i)).value
+     i += 1
+   }
+   sum
+  }
 
   @gen("cachetries")
   @benchmark("cache-trie.remove")
