@@ -1237,8 +1237,11 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
         // Drop cache level.
         val parentCache = currStats.parent
         if (CAS_CACHE(currCache, parentCache)) {
+          if (parentCache == null) {
+            return
+          }
           currCache = parentCache
-          currStats = READ(currCache, 0).asInstanceOf[CacheNode]
+          currStats = READ(parentCache, 0).asInstanceOf[CacheNode]
         } else {
           // Bail out immediately -- cache will be repaired by someone else eventually.
           return
