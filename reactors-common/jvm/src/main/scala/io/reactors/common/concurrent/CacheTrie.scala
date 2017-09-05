@@ -229,6 +229,10 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
       val enode = old.asInstanceOf[ENode]
       val narrow = enode.narrow
       slowLookup(key, hash, level + 4, narrow, cache)
+    } else if (old.isInstanceOf[XNode]) {
+      val xnode = old.asInstanceOf[XNode]
+      val stale = xnode.stale
+      slowLookup(key, hash, level + 4, stale, cache)
     } else if (old eq FVNode) {
       null.asInstanceOf[V]
     } else if (old.isInstanceOf[FNode]) {
@@ -468,13 +472,13 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
 
   def fastRemove(key: K, hash: Int): V = {
     val cache = READ_CACHE
-    val result = fastRemove(key, hash, cache, cache)
+    val result = fastRemove(key, hash, cache, cache, 0)
     result.asInstanceOf[V]
   }
 
   @tailrec
   private def fastRemove(
-    key: K, hash: Int, cache: Array[AnyRef], prevCache: Array[AnyRef]
+    key: K, hash: Int, cache: Array[AnyRef], prevCache: Array[AnyRef], ascends: Int
   ): AnyRef = {
     if (cache == null) {
       slowRemove(key, hash)
@@ -484,11 +488,12 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
       val pos = 1 + (hash & mask)
       val cachee = READ(cache, pos)
       val level = 31 - Integer.numberOfLeadingZeros(len - 1)
+      // println("fast remove -- " + level)
       if (cachee eq null) {
         // Inconclusive -- must retry one cache level above.
         val stats = READ(cache, 0)
         val parentCache = stats.asInstanceOf[CacheNode].parent
-        fastRemove(key, hash, parentCache, cache)
+        fastRemove(key, hash, parentCache, cache, ascends + 1)
       } else if (cachee.isInstanceOf[Array[AnyRef]]) {
         // Read from an array node.
         val an = cachee.asInstanceOf[Array[AnyRef]]
@@ -497,12 +502,15 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
         val old = READ(an, pos)
         if (old eq null) {
           // The key does not exist.
+          if (ascends > 1) {
+            recordCacheMiss()
+          }
           null
         } else if (old.isInstanceOf[Array[AnyRef]]) {
           // Continue searching recursively.
           val oldan = old.asInstanceOf[Array[AnyRef]]
           val res = slowRemove(key, hash, level + 4, oldan, an, prevCache)
-          if (res == Restart) fastRemove(key, hash, cache, prevCache)
+          if (res == Restart) fastRemove(key, hash, cache, prevCache, ascends)
           else res
         } else if (old.isInstanceOf[SNode[_, _]]) {
           val oldsn = old.asInstanceOf[SNode[K, V]]
@@ -513,10 +521,19 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
               // Remove the key.
               if (CAS_TXN(oldsn, null)) {
                 CAS(an, pos, oldsn, null)
+                if (ascends > 1) {
+                  recordCacheMiss()
+                }
+                if (isCompressible(an)) {
+                  compressDescend(rawRoot, null, hash, 0)
+                }
                 oldsn.value
-              } else fastRemove(key, hash, cache, prevCache)
+              } else fastRemove(key, hash, cache, prevCache, ascends)
             } else {
               // The key does not exist.
+              if (ascends > 1) {
+                recordCacheMiss()
+              }
               null
             }
           } else if (txn eq FSNode) {
@@ -525,7 +542,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
           } else {
             // Complete the current transaction, and retry.
             CAS(an, pos, oldsn, txn)
-            fastRemove(key, hash, cache, prevCache)
+            fastRemove(key, hash, cache, prevCache, ascends)
           }
         } else {
           // Must restart from the root, to find the transaction node, and help.
@@ -535,7 +552,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
         // Need parent array node -- retry one cache level above.
         val stats = READ(cache, 0)
         val parentCache = stats.asInstanceOf[CacheNode].parent
-        fastRemove(key, hash, parentCache, cache)
+        fastRemove(key, hash, parentCache, cache, ascends + 1)
       } else {
         sys.error(s"Unexpected case -- $cachee is not supposed to be cached.")
       }
@@ -552,45 +569,107 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
     result.asInstanceOf[V]
   }
 
-  private def checkCompress(
-    cache: Array[AnyRef], current: Array[AnyRef], parent: Array[AnyRef],
-    hash: Int, level: Int
-  ): Unit = {
-    if (parent == null) {
-      return
-    }
+  private def isCompressible(current: Array[AnyRef]): Boolean = {
+    var found: AnyRef = null
     var i = 0
     while (i < current.length) {
       val old = READ(current, i)
       if (old != null) {
-        return
+        if (found == null && old.isInstanceOf[SNode[_, _]]) {
+          found = old
+        } else {
+          return false
+        }
       }
       i += 1
     }
-    // It is likely that the node is empty, so we freeze it and try to compress.
+    true
+  }
+
+  private def compressSingleLevel(
+    cache: Array[AnyRef], current: Array[AnyRef], parent: Array[AnyRef],
+    hash: Int, level: Int
+  ): Boolean = {
+    if (parent == null) {
+      return false
+    }
+    if (!isCompressible(current)) {
+      return false
+    }
+    // It is likely that the node is compressible, so we freeze it and try to compress.
     val parentmask = parent.length - 1
     val parentpos = (hash >>> (level - 4)) & parentmask
     val xn = new XNode(parent, parentpos, current, hash, level)
     if (CAS(parent, parentpos, current, xn)) {
-      val checkMore = completeCompression(cache, xn)
-      // TODO: Continue compressing if there is more.
+      completeCompression(cache, xn)
+    } else {
+      false
     }
   }
 
+  private def compressAscend(
+    cache: Array[AnyRef], current: Array[AnyRef], parent: Array[AnyRef],
+    hash: Int, level: Int
+  ): Unit = {
+    val mustContinue = compressSingleLevel(cache, current, parent, hash, level)
+    if (mustContinue) {
+      // Continue compressing if possible.
+      // TODO: Investigate if full ascend is feasible.
+      compressDescend(rawRoot, null, hash, 0)
+    }
+  }
+
+  private def compressDescend(
+    current: Array[AnyRef], parent: Array[AnyRef], hash: Int, level: Int
+  ): Boolean = {
+    // Dive into the cache starting from the root for the given hash,
+    // and compress as much as possible.
+    val pos = (hash >>> level) & (current.length - 1)
+    val old = READ(current, pos)
+    if (old.isInstanceOf[Array[AnyRef]]) {
+      val an = old.asInstanceOf[Array[AnyRef]]
+      if (!compressDescend(an, current, hash, level + 4)) return false
+    }
+    // We do not care about maintaining the cache in the slow compression path,
+    // so we just use the top-level cache.
+    if (parent != null) {
+      val cache = READ_CACHE
+      return compressSingleLevel(cache, current, parent, hash, level)
+    }
+    return false
+  }
+
   private def compressFrozen(frozen: Array[AnyRef], level: Int): AnyRef = {
+    var single: AnyRef = null
     var i = 0
     while (i < frozen.length) {
       val old = READ(frozen, i)
-      if (old != null) {
-        // Unfortunately, the node was modified before it was completely frozen.
-        // TODO: If frozen was narrow, the allocate a narrow node and transfer.
-        val wide = new Array[AnyRef](16)
-        sequentialTransfer(frozen, wide, level)
-        return wide
+      if (old != FVNode) {
+        if (single == null && old.isInstanceOf[SNode[_, _]]) {
+          // It is possible that this is the only entry in the array node.
+          single = old
+        } else {
+          // There are at least 2 nodes that are not FVNode.
+          // Unfortunately, the node was modified before it was completely frozen.
+          if (frozen.length == 16) {
+            val wide = new Array[AnyRef](16)
+            sequentialTransfer(frozen, wide, level)
+            return wide
+          } else {
+            // If the node is narrow, then it cannot have any children.
+            val narrow = new Array[AnyRef](4)
+            sequentialTransferNarrow(frozen, narrow, level)
+            return narrow
+          }
+        }
       }
       i += 1
     }
-    return null
+    if (single != null) {
+      val oldsn = single.asInstanceOf[SNode[K, V]]
+      single = new SNode(oldsn.hash, oldsn.key, oldsn.value)
+    }
+    return single
   }
 
   private def completeCompression(cache: Array[AnyRef], xn: XNode): Boolean = {
@@ -605,7 +684,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
     // Then, create a compressed version, and replace it in the parent.
     val compressed = compressFrozen(stale, level)
     if (CAS(parent, parentpos, xn, compressed)) {
-      return compressed == null
+      return compressed == null || compressed.isInstanceOf[SNode[K, V]]
     }
     return false
   }
@@ -615,6 +694,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
     key: K, hash: Int, level: Int, current: Array[AnyRef], parent: Array[AnyRef],
     cache: Array[AnyRef]
   ): AnyRef = {
+    // println("slow remove -- " + level)
     val mask = current.length - 1
     val pos = (hash >>> level) & mask
     val old = READ(current, pos)
@@ -640,7 +720,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
           // The same key, remove it.
           if (CAS_TXN(oldsn, null)) {
             CAS(current, pos, oldsn, null)
-            checkCompress(cache, current, parent, hash, level)
+            compressAscend(cache, current, parent, hash, level)
             oldsn.value.asInstanceOf[AnyRef]
           } else slowRemove(key, hash, level, current, parent, cache)
         } else {
@@ -832,6 +912,28 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
         sequentialTransfer(an, wide, level)
       } else {
         sys.error("Unexpected case -- source array node should have been frozen.")
+      }
+      i += 1
+    }
+  }
+
+  private def sequentialTransferNarrow(
+    source: Array[AnyRef], narrow: Array[AnyRef], level: Int
+  ): Unit = {
+    var i = 0
+    while (i < 4) {
+      val node = source(i)
+      if (node eq FVNode) {
+        // We can skipp, this slow was empty.
+      } else if (isFrozenS(node)) {
+        val oldsn = node.asInstanceOf[SNode[K, V]]
+        val sn = new SNode(oldsn.hash, oldsn.key, oldsn.value)
+        narrow(i) = sn
+      } else if (isFrozenL(node)) {
+        val chain = node.asInstanceOf[FNode].frozen.asInstanceOf[LNode[K, V]]
+        narrow(i) = chain
+      } else {
+        sys.error(s"Unexpected case: $node")
       }
       i += 1
     }
