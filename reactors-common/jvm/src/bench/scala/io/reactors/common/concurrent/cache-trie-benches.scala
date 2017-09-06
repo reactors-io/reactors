@@ -524,20 +524,20 @@ class CacheTrieBenches extends JBench.OfflineReport {
   //   sum
   // }
 
-  @gen("skiplists")
-  @benchmark("cache-trie.remove")
-  @setup("skiplistRefill")
-  @curve("skiplist")
-  def skiplistRemove(sc: (Int, ConcurrentSkipListMap[Wrapper, Wrapper])): Int = {
-    val (size, skiplist) = sc
-    var i = 0
-    var sum = 0
-    while (i < size) {
-      sum += skiplist.remove(elems(i)).value
-      i += 1
-    }
-    sum
-  }
+  // @gen("skiplists")
+  // @benchmark("cache-trie.remove")
+  // @setup("skiplistRefill")
+  // @curve("skiplist")
+  // def skiplistRemove(sc: (Int, ConcurrentSkipListMap[Wrapper, Wrapper])): Int = {
+  //   val (size, skiplist) = sc
+  //   var i = 0
+  //   var sum = 0
+  //   while (i < size) {
+  //     sum += skiplist.remove(elems(i)).value
+  //     i += 1
+  //   }
+  //   sum
+  // }
 
   // @gen("ctries")
   // @benchmark("cache-trie.remove")
