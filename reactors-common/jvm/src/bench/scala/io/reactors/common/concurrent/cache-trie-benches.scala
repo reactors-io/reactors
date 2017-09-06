@@ -482,6 +482,24 @@ class CacheTrieBenches extends JBench.OfflineReport {
     }
   }
 
+  def skiplistRefill(sc: (Int, ConcurrentSkipListMap[Wrapper, Wrapper])): Unit = {
+    val (size, skiplist) = sc
+    var i = 0
+    while (i < size) {
+      skiplist.put(elems(i), elems(i))
+      i += 1
+    }
+  }
+
+  def ctrieRefill(sc: (Int, TrieMap[Wrapper, Wrapper])): Unit = {
+    val (size, trie) = sc
+    var i = 0
+    while (i < size) {
+      trie.put(elems(i), elems(i))
+      i += 1
+    }
+  }
+
   def cachetrieRefill(sc: (Int, CacheTrie[Wrapper, Wrapper])): Unit = {
     val (size, trie) = sc
     var i = 0
@@ -496,14 +514,44 @@ class CacheTrieBenches extends JBench.OfflineReport {
   // @setup("chmRefill")
   // @curve("CHM")
   // def chmRemove(sc: (Int, ConcurrentHashMap[Wrapper, Wrapper])): Int = {
-  //  val (size, chm) = sc
-  //  var i = 0
-  //  var sum = 0
-  //  while (i < size) {
-  //    sum += chm.remove(elems(i)).value
-  //    i += 1
-  //  }
-  //  sum
+  //   val (size, chm) = sc
+  //   var i = 0
+  //   var sum = 0
+  //   while (i < size) {
+  //     sum += chm.remove(elems(i)).value
+  //     i += 1
+  //   }
+  //   sum
+  // }
+
+  @gen("skiplists")
+  @benchmark("cache-trie.remove")
+  @setup("skiplistRefill")
+  @curve("skiplist")
+  def skiplistRemove(sc: (Int, ConcurrentSkipListMap[Wrapper, Wrapper])): Int = {
+    val (size, skiplist) = sc
+    var i = 0
+    var sum = 0
+    while (i < size) {
+      sum += skiplist.remove(elems(i)).value
+      i += 1
+    }
+    sum
+  }
+
+  // @gen("ctries")
+  // @benchmark("cache-trie.remove")
+  // @setup("ctrieRefill")
+  // @curve("ctrie")
+  // def ctrieRemove(sc: (Int, TrieMap[Wrapper, Wrapper])): Int = {
+  //   val (size, trie) = sc
+  //   var i = 0
+  //   var sum = 0
+  //   while (i < size) {
+  //     sum += trie.remove(elems(i)).get.value
+  //     i += 1
+  //   }
+  //   sum
   // }
 
   @gen("cachetries")
@@ -511,15 +559,15 @@ class CacheTrieBenches extends JBench.OfflineReport {
   @setup("cachetrieRefill")
   @curve("cachetrie")
   def cachetrieRemove(sc: (Int, CacheTrie[Wrapper, Wrapper])): Int = {
-   val (size, trie) = sc
-   var i = 0
-   var sum = 0
-   while (i < size) {
-     sum += trie.remove(elems(i)).value
-     i += 1
-   }
-   println(trie.debugCacheStats)
-   sum
+    val (size, trie) = sc
+    var i = 0
+    var sum = 0
+    while (i < size) {
+      sum += trie.remove(elems(i)).value
+      i += 1
+    }
+    println(trie.debugCacheStats)
+    sum
   }
 }
 
