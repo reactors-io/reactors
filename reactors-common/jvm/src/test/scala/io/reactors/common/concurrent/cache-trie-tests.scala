@@ -104,18 +104,18 @@ class CacheTrieTest extends FunSuite {
     assert(trie.remove("key") == null)
   }
 
-  // test("remove a lot of elements correctly") {
-  //   val trie = new CacheTrie[String, Integer]
-  //   for (i <- 0 until 100000) {
-  //     trie.insert("special", -1)
-  //     trie.insert(i.toString, i)
-  //     assert(trie.remove("special") == -1)
-  //   }
-  //   for (i <- 0 until 100000) {
-  //     assert(trie.remove(i.toString) == i)
-  //     assert(trie.get(i.toString) == None)
-  //   }
-  // }
+  test("remove a lot of elements correctly") {
+    val trie = new CacheTrie[String, Integer]
+    for (i <- 0 until 100000) {
+      trie.insert("special", -1)
+      trie.insert(i.toString, i)
+      assert(trie.remove("special") == -1)
+    }
+    for (i <- 0 until 100000) {
+      assert(trie.remove(i.toString) == i)
+      assert(trie.get(i.toString) == None)
+    }
+  }
 
   test("trie cache must find the elements correctly") {
     val trie = new CacheTrie[String, Integer]
