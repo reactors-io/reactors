@@ -68,7 +68,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
         // Nothing is cached at this location, do slow lookup.
         slowLookup(key, hash, 0, rawRoot, cache)
       } else if (cachee.isInstanceOf[SNode[_, _]]) {
-        //println(s"$key - found single node cachee, cache level $level")
+        // println(s"$key - found single node cachee, cache level $level")
         val oldsn = cachee.asInstanceOf[SNode[K, V]]
         val txn = READ_TXN(oldsn)
         if (txn eq NoTxn) {
@@ -81,7 +81,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
           slowLookup(key, hash, 0, rawRoot, cache)
         }
       } else if (cachee.isInstanceOf[Array[AnyRef]]) {
-        //println(s"$key - found array cachee, cache level $level")
+        // println(s"$key - found array cachee, cache level $level")
         val an = cachee.asInstanceOf[Array[AnyRef]]
         val mask = an.length - 1
         val pos = (hash >>> level) & mask
@@ -1225,12 +1225,12 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
       println(debugCacheStats)
       println()
     }
-    //printDebugInformation()
+    // printDebugInformation()
 
     // Decide whether to change the cache levels.
     val repairThreshold = 1.40f
     if (cacheCount * repairThreshold < bestCount) {
-      //printDebugInformation()
+      // printDebugInformation()
       var currCache = cache
       var currStats = stats
       while (currStats.level > bestLevel) {
