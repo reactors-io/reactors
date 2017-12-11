@@ -93,7 +93,7 @@ object ReactorsBuild extends MechaRepoBuild {
   def jvmProjectSettings(suffix: String) =
     MechaRepoPlugin.defaultSettings ++ Seq(
       javaOptions in Test ++= Seq(
-        "-Xmx2G",
+        "-Xmx3G",
         "-XX:MaxPermSize=384m",
         "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005"
       ),

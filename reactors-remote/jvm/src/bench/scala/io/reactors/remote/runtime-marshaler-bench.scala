@@ -160,7 +160,8 @@ class RuntimeMarshalerBench extends JBench.OfflineReport {
     val classDescriptor = Platform.Reflect.descriptorOf(classOf[SingleField])
     val context = Reactor.marshalContext
     while (i < repetitions) {
-      val obj = Platform.unsafe.allocateInstance(classOf[SingleField])
+      val unsafe = io.reactors.common.concurrent.Platform.unsafe
+      val obj = unsafe.allocateInstance(classOf[SingleField])
         .asInstanceOf[SingleField]
       RuntimeMarshaler.unmarshalAs[SingleField](classDescriptor, obj, buffer, context)
       sum += obj.x
