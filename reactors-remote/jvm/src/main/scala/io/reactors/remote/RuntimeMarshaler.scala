@@ -12,7 +12,7 @@ import scala.reflect.ClassTag
 
 
 object RuntimeMarshaler {
-  private val unsafe = Platform.unsafe
+  private val unsafe = io.reactors.common.concurrent.Platform.unsafe
 
   private def classNameTerminatorTag: Byte = 1
 
@@ -535,7 +535,7 @@ object RuntimeMarshaler {
       if (klazz.isArray) {
         unmarshalArray(klazz, buffer, context).asInstanceOf[T]
       } else {
-        val obj = Platform.unsafe.allocateInstance(klazz)
+        val obj = unsafe.allocateInstance(klazz)
         context.seen += obj
         val desc = Platform.Reflect.descriptorOf(klazz)
         internalUnmarshalAs(desc, obj, buffer, context)
