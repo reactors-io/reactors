@@ -488,6 +488,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
       val pos = 1 + (hash & mask)
       val cachee = READ(cache, pos)
       val level = 31 - Integer.numberOfLeadingZeros(len - 1)
+      // println("fast remove -- " + level)
       if (cachee eq null) {
         // Inconclusive -- must retry one cache level above.
         val stats = READ(cache, 0)
@@ -522,6 +523,9 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
                 CAS(an, pos, oldsn, null)
                 if (ascends > 1) {
                   recordCacheMiss()
+                }
+                if (isCompressible(an)) {
+                  compressDescend(rawRoot, null, hash, 0)
                 }
                 oldsn.value
               } else fastRemove(key, hash, cache, prevCache, ascends)
@@ -565,6 +569,23 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
     result.asInstanceOf[V]
   }
 
+  private def isCompressible(current: Array[AnyRef]): Boolean = {
+    var found: AnyRef = null
+    var i = 0
+    while (i < current.length) {
+      val old = READ(current, i)
+      if (old != null) {
+        if (found == null && old.isInstanceOf[SNode[_, _]]) {
+          found = old
+        } else {
+          return false
+        }
+      }
+      i += 1
+    }
+    true
+  }
+
   private def compressSingleLevel(
     cache: Array[AnyRef], current: Array[AnyRef], parent: Array[AnyRef],
     hash: Int, level: Int
@@ -572,18 +593,8 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
     if (parent == null) {
       return false
     }
-    var single: AnyRef = null
-    var i = 0
-    while (i < current.length) {
-      val old = READ(current, i)
-      if (old != null) {
-        if (single == null && old.isInstanceOf[SNode[_, _]]) {
-          single = old
-        } else {
-          return false
-        }
-      }
-      i += 1
+    if (!isCompressible(current)) {
+      return false
     }
     // It is likely that the node is compressible, so we freeze it and try to compress.
     val parentmask = parent.length - 1
@@ -604,12 +615,12 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
     if (mustContinue) {
       // Continue compressing if possible.
       // TODO: Investigate if full ascend is feasible.
-      compressDescend(hash, rawRoot, null, 0)
+      compressDescend(rawRoot, null, hash, 0)
     }
   }
 
   private def compressDescend(
-    hash: Int, current: Array[AnyRef], parent: Array[AnyRef], level: Int
+    current: Array[AnyRef], parent: Array[AnyRef], hash: Int, level: Int
   ): Boolean = {
     // Dive into the cache starting from the root for the given hash,
     // and compress as much as possible.
@@ -617,9 +628,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
     val old = READ(current, pos)
     if (old.isInstanceOf[Array[AnyRef]]) {
       val an = old.asInstanceOf[Array[AnyRef]]
-      if (!compressDescend(hash, an, current, level + 4)) return false
-    } else {
-      return true
+      if (!compressDescend(an, current, hash, level + 4)) return false
     }
     // We do not care about maintaining the cache in the slow compression path,
     // so we just use the top-level cache.
@@ -685,6 +694,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
     key: K, hash: Int, level: Int, current: Array[AnyRef], parent: Array[AnyRef],
     cache: Array[AnyRef]
   ): AnyRef = {
+    // println("slow remove -- " + level)
     val mask = current.length - 1
     val pos = (hash >>> level) & mask
     val old = READ(current, pos)
@@ -1227,8 +1237,11 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
         // Drop cache level.
         val parentCache = currStats.parent
         if (CAS_CACHE(currCache, parentCache)) {
+          if (parentCache == null) {
+            return
+          }
           currCache = parentCache
-          currStats = READ(currCache, 0).asInstanceOf[CacheNode]
+          currStats = READ(parentCache, 0).asInstanceOf[CacheNode]
         } else {
           // Bail out immediately -- cache will be repaired by someone else eventually.
           return

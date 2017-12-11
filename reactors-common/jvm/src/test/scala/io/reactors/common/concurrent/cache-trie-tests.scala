@@ -91,6 +91,14 @@ class CacheTrieTest extends FunSuite {
     assert(trie.debugReadRoot.forall(_ == null))
   }
 
+  test("insert 16000 elements, remove them and compress") {
+    val trie = new CacheTrie[String, Integer]
+    for (i <- 0 until 16000) trie.insert(i.toString, i)
+    for (i <- 0 until 16000) assert(trie.remove(i.toString) == i)
+    // println(trie.debugTree)
+    assert(trie.debugReadRoot.forall(_ == null))
+  }
+
   test("remove an int does not return 0") {
     val trie = new CacheTrie[String, Integer]
     assert(trie.remove("key") == null)
@@ -479,6 +487,16 @@ class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
         assert(trie.apply(i) == -i)
       }
       validateCache(trie, sz, false)
+      true
+    }
+  }
+
+  property("remove must always compress") = forAllNoShrink(sizes) { sz =>
+    stackTraced {
+      val trie = new CacheTrie[Integer, Integer]
+      for (i <- 0 until sz) trie.insert(i, i)
+      for (i <- 0 until sz) assert(trie.remove(i) == i)
+      assert(trie.debugReadRoot.forall(_ == null), trie.debugReadRoot.mkString(", "))
       true
     }
   }
