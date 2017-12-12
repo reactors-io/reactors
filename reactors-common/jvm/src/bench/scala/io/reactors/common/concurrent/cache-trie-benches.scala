@@ -24,9 +24,9 @@ class CacheTrieFootprintBenches extends JBench.OfflineReport {
     verbose -> true
   )
 
-  val numElems = 50000
+  val numElems = 2000000
 
-  val sizes = Gen.range("size")(numElems, numElems, 100000)
+  val sizes = Gen.range("size")(100000, numElems, 200000)
 
   case class Wrapper(value: Int) extends Comparable[Wrapper] {
     def compareTo(that: Wrapper): Int = that.value - this.value
@@ -124,7 +124,7 @@ class CacheTrieBenches extends JBench.OfflineReport {
 
   val pars = Gen.exponential("pars")(1, 8, 2)
 
-  val parElems = 50000
+  val parElems = 100000
 
   val parCachetries = for (p <- pars) yield {
     val trie = new CacheTrie[Wrapper, Wrapper]
@@ -182,33 +182,33 @@ class CacheTrieBenches extends JBench.OfflineReport {
     (size, trie)
   }
 
-  // @gen("chms")
-  // @benchmark("cache-trie.apply")
-  // @curve("CHM")
-  // def chmLookup(sc: (Int, ConcurrentHashMap[Wrapper, Wrapper])): Int = {
-  //  val (size, chm) = sc
-  //  var i = 0
-  //  var sum = 0
-  //  while (i < size) {
-  //    sum += chm.get(elems(i)).value
-  //    i += 1
-  //  }
-  //  sum
-  // }
+  @gen("chms")
+  @benchmark("cache-trie.apply")
+  @curve("CHM")
+  def chmLookup(sc: (Int, ConcurrentHashMap[Wrapper, Wrapper])): Int = {
+   val (size, chm) = sc
+   var i = 0
+   var sum = 0
+   while (i < size) {
+     sum += chm.get(elems(i)).value
+     i += 1
+   }
+   sum
+  }
 
-  // @gen("skiplists")
-  // @benchmark("cache-trie.apply")
-  // @curve("skiplist")
-  // def skiplistLookup(sc: (Int, ConcurrentSkipListMap[Wrapper, Wrapper])): Int = {
-  //  val (size, skiplist) = sc
-  //  var i = 0
-  //  var sum = 0
-  //  while (i < size) {
-  //    sum += skiplist.get(elems(i)).value
-  //    i += 1
-  //  }
-  //  sum
-  // }
+  @gen("skiplists")
+  @benchmark("cache-trie.apply")
+  @curve("skiplist")
+  def skiplistLookup(sc: (Int, ConcurrentSkipListMap[Wrapper, Wrapper])): Int = {
+   val (size, skiplist) = sc
+   var i = 0
+   var sum = 0
+   while (i < size) {
+     sum += skiplist.get(elems(i)).value
+     i += 1
+   }
+   sum
+  }
 
   // @gen("cachetries")
   // @benchmark("cache-trie.apply")
@@ -224,254 +224,254 @@ class CacheTrieBenches extends JBench.OfflineReport {
   //  sum
   // }
 
-  // @gen("ctries")
-  // @benchmark("cache-trie.apply")
-  // @curve("ctrie")
-  // def ctrie(sc: (Int, TrieMap[Wrapper, Wrapper])): Int = {
-  //  val (size, trie) = sc
-  //  var i = 0
-  //  var sum = 0
-  //  while (i < size) {
-  //    sum += trie.lookup(elems(i)).value
-  //    i += 1
-  //  }
-  //  sum
-  // }
+  @gen("ctries")
+  @benchmark("cache-trie.apply")
+  @curve("ctrie")
+  def ctrie(sc: (Int, TrieMap[Wrapper, Wrapper])): Int = {
+   val (size, trie) = sc
+   var i = 0
+   var sum = 0
+   while (i < size) {
+     sum += trie.lookup(elems(i)).value
+     i += 1
+   }
+   sum
+  }
 
-  // @gen("cachetries")
-  // @benchmark("cache-trie.apply")
-  // @curve("cachetrie")
-  // def cachetrieLookup(sc: (Int, CacheTrie[Wrapper, Wrapper])): Int = {
-  //   val (size, trie) = sc
-  //   var i = 0
-  //   var sum = 0
-  //   while (i < size) {
-  //     sum += trie.lookup(elems(i)).value
-  //     i += 1
-  //   }
-  //   // println(trie.debugPerLevelDistribution)
-  //   // println(trie.debugCacheStats)
-  //   sum
-  // }
+  @gen("cachetries")
+  @benchmark("cache-trie.apply")
+  @curve("cachetrie")
+  def cachetrieLookup(sc: (Int, CacheTrie[Wrapper, Wrapper])): Int = {
+    val (size, trie) = sc
+    var i = 0
+    var sum = 0
+    while (i < size) {
+      sum += trie.lookup(elems(i)).value
+      i += 1
+    }
+    // println(trie.debugPerLevelDistribution)
+    // println(trie.debugCacheStats)
+    sum
+  }
 
-  // @gen("sizes")
-  // @benchmark("cache-trie.insert")
-  // @curve("chm")
-  // def chmInsert(size: Int) = {
-  //   val chm = new ConcurrentHashMap[Wrapper, Wrapper]
-  //   var i = 0
-  //   while (i < size) {
-  //     val v = elems(i)
-  //     chm.put(v, v)
-  //     i += 1
-  //   }
-  //   chm
-  // }
+  @gen("sizes")
+  @benchmark("cache-trie.insert")
+  @curve("chm")
+  def chmInsert(size: Int) = {
+    val chm = new ConcurrentHashMap[Wrapper, Wrapper]
+    var i = 0
+    while (i < size) {
+      val v = elems(i)
+      chm.put(v, v)
+      i += 1
+    }
+    chm
+  }
 
-  // @gen("sizes")
-  // @benchmark("cache-trie.insert")
-  // @curve("skiplist")
-  // def skiplistInsert(size: Int) = {
-  //   val skiplist = new ConcurrentSkipListMap[Wrapper, Wrapper]
-  //   var i = 0
-  //   while (i < size) {
-  //     val v = elems(i)
-  //     skiplist.put(v, v)
-  //     i += 1
-  //   }
-  //   skiplist
-  // }
+  @gen("sizes")
+  @benchmark("cache-trie.insert")
+  @curve("skiplist")
+  def skiplistInsert(size: Int) = {
+    val skiplist = new ConcurrentSkipListMap[Wrapper, Wrapper]
+    var i = 0
+    while (i < size) {
+      val v = elems(i)
+      skiplist.put(v, v)
+      i += 1
+    }
+    skiplist
+  }
 
-  // @gen("sizes")
-  // @benchmark("cache-trie.insert")
-  // @curve("ctrie")
-  // def ctrieInsert(size: Int) = {
-  //   val trie = new TrieMap[Wrapper, Wrapper]
-  //   var i = 0
-  //   while (i < size) {
-  //     val v = elems(i)
-  //     trie.put(v, v)
-  //     i += 1
-  //   }
-  //   trie
-  // }
+  @gen("sizes")
+  @benchmark("cache-trie.insert")
+  @curve("ctrie")
+  def ctrieInsert(size: Int) = {
+    val trie = new TrieMap[Wrapper, Wrapper]
+    var i = 0
+    while (i < size) {
+      val v = elems(i)
+      trie.put(v, v)
+      i += 1
+    }
+    trie
+  }
 
-  // @gen("sizes")
-  // @benchmark("cache-trie.insert")
-  // @curve("cachetrie")
-  // def cachetrieInsert(size: Int) = {
-  //   val trie = new CacheTrie[Wrapper, Wrapper]
-  //   var i = 0
-  //   while (i < size) {
-  //     val v = elems(i)
-  //     trie.insert(v, v)
-  //     i += 1
-  //   }
-  //   // println(trie.debugCacheStats)
-  //   trie
-  // }
+  @gen("sizes")
+  @benchmark("cache-trie.insert")
+  @curve("cachetrie")
+  def cachetrieInsert(size: Int) = {
+    val trie = new CacheTrie[Wrapper, Wrapper]
+    var i = 0
+    while (i < size) {
+      val v = elems(i)
+      trie.insert(v, v)
+      i += 1
+    }
+    // println(trie.debugCacheStats)
+    trie
+  }
 
-  // @gen("pars")
-  // @benchmark("cache-trie.par.insert")
-  // @curve("chm")
-  // def chmParInsert(p: Int) = {
-  //   val chm = new ConcurrentHashMap[Wrapper, Wrapper]
-  //   val threads = for (k <- 0 until p) yield new Thread {
-  //     override def run(): Unit = {
-  //       var i = 0
-  //       while (i < parElems / p) {
-  //         val v = elems(k * parElems / p + i)
-  //         chm.put(v, v)
-  //         i += 1
-  //       }
-  //     }
-  //   }
-  //   threads.foreach(_.start())
-  //   threads.foreach(_.join())
-  //   chm
-  // }
+  @gen("pars")
+  @benchmark("cache-trie.par.insert")
+  @curve("chm")
+  def chmParInsert(p: Int) = {
+    val chm = new ConcurrentHashMap[Wrapper, Wrapper]
+    val threads = for (k <- 0 until p) yield new Thread {
+      override def run(): Unit = {
+        var i = 0
+        while (i < parElems / p) {
+          val v = elems(k * parElems / p + i)
+          chm.put(v, v)
+          i += 1
+        }
+      }
+    }
+    threads.foreach(_.start())
+    threads.foreach(_.join())
+    chm
+  }
 
-  // @gen("pars")
-  // @benchmark("cache-trie.par.insert")
-  // @curve("ctrie")
-  // def ctrieParInsert(p: Int) = {
-  //   val ctrie = new TrieMap[Wrapper, Wrapper]
-  //   val threads = for (k <- 0 until p) yield new Thread {
-  //     override def run(): Unit = {
-  //       var i = 0
-  //       while (i < parElems / p) {
-  //         val v = elems(k * parElems / p + i)
-  //         ctrie.put(v, v)
-  //         i += 1
-  //       }
-  //     }
-  //   }
-  //   threads.foreach(_.start())
-  //   threads.foreach(_.join())
-  //   ctrie
-  // }
+  @gen("pars")
+  @benchmark("cache-trie.par.insert")
+  @curve("ctrie")
+  def ctrieParInsert(p: Int) = {
+    val ctrie = new TrieMap[Wrapper, Wrapper]
+    val threads = for (k <- 0 until p) yield new Thread {
+      override def run(): Unit = {
+        var i = 0
+        while (i < parElems / p) {
+          val v = elems(k * parElems / p + i)
+          ctrie.put(v, v)
+          i += 1
+        }
+      }
+    }
+    threads.foreach(_.start())
+    threads.foreach(_.join())
+    ctrie
+  }
 
-  // @gen("pars")
-  // @benchmark("cache-trie.par.insert")
-  // @curve("skiplist")
-  // def skiplistParInsert(p: Int) = {
-  //   val skiplist = new ConcurrentSkipListMap[Wrapper, Wrapper]
-  //   val threads = for (k <- 0 until p) yield new Thread {
-  //     override def run(): Unit = {
-  //       var i = 0
-  //       while (i < parElems / p) {
-  //         val v = elems(k * parElems / p + i)
-  //         skiplist.put(v, v)
-  //         i += 1
-  //       }
-  //     }
-  //   }
-  //   threads.foreach(_.start())
-  //   threads.foreach(_.join())
-  //   skiplist
-  // }
+  @gen("pars")
+  @benchmark("cache-trie.par.insert")
+  @curve("skiplist")
+  def skiplistParInsert(p: Int) = {
+    val skiplist = new ConcurrentSkipListMap[Wrapper, Wrapper]
+    val threads = for (k <- 0 until p) yield new Thread {
+      override def run(): Unit = {
+        var i = 0
+        while (i < parElems / p) {
+          val v = elems(k * parElems / p + i)
+          skiplist.put(v, v)
+          i += 1
+        }
+      }
+    }
+    threads.foreach(_.start())
+    threads.foreach(_.join())
+    skiplist
+  }
 
-  // @gen("pars")
-  // @benchmark("cache-trie.par.insert")
-  // @curve("cachetrie")
-  // def cachetrieParInsert(p: Int) = {
-  //   val trie = new CacheTrie[Wrapper, Wrapper]
-  //   val threads = for (k <- 0 until p) yield new Thread {
-  //     override def run(): Unit = {
-  //       var i = 0
-  //       while (i < parElems / p) {
-  //         val v = elems(k * parElems / p + i)
-  //         trie.insert(v, v)
-  //         i += 1
-  //       }
-  //     }
-  //   }
-  //   threads.foreach(_.start())
-  //   threads.foreach(_.join())
-  //   // println(trie.debugCacheStats)
-  //   trie
-  // }
+  @gen("pars")
+  @benchmark("cache-trie.par.insert")
+  @curve("cachetrie")
+  def cachetrieParInsert(p: Int) = {
+    val trie = new CacheTrie[Wrapper, Wrapper]
+    val threads = for (k <- 0 until p) yield new Thread {
+      override def run(): Unit = {
+        var i = 0
+        while (i < parElems / p) {
+          val v = elems(k * parElems / p + i)
+          trie.insert(v, v)
+          i += 1
+        }
+      }
+    }
+    threads.foreach(_.start())
+    threads.foreach(_.join())
+    // println(trie.debugCacheStats)
+    trie
+  }
 
-  // @gen("parChms")
-  // @benchmark("cache-trie.par.lookup")
-  // @curve("chm")
-  // def chmParLookup(t: (Int, ConcurrentHashMap[Wrapper, Wrapper])) = {
-  //   val (p, xs) = t
-  //   val threads = for (k <- 0 until p) yield new Thread {
-  //     override def run(): Unit = {
-  //       var i = 0
-  //       while (i < parElems / p) {
-  //         val v = elems(k * parElems / p + i)
-  //         xs.get(v)
-  //         i += 1
-  //       }
-  //     }
-  //   }
-  //   threads.foreach(_.start())
-  //   threads.foreach(_.join())
-  //   xs
-  // }
+  @gen("parChms")
+  @benchmark("cache-trie.par.lookup")
+  @curve("chm")
+  def chmParLookup(t: (Int, ConcurrentHashMap[Wrapper, Wrapper])) = {
+    val (p, xs) = t
+    val threads = for (k <- 0 until p) yield new Thread {
+      override def run(): Unit = {
+        var i = 0
+        while (i < parElems / p) {
+          val v = elems(k * parElems / p + i)
+          xs.get(v)
+          i += 1
+        }
+      }
+    }
+    threads.foreach(_.start())
+    threads.foreach(_.join())
+    xs
+  }
 
-  // @gen("parCtries")
-  // @benchmark("cache-trie.par.lookup")
-  // @curve("ctrie")
-  // def ctrieParLookup(t: (Int, TrieMap[Wrapper, Wrapper])) = {
-  //   val (p, xs) = t
-  //   val threads = for (k <- 0 until p) yield new Thread {
-  //     override def run(): Unit = {
-  //       var i = 0
-  //       while (i < parElems / p) {
-  //         val v = elems(k * parElems / p + i)
-  //         xs.lookup(v)
-  //         i += 1
-  //       }
-  //     }
-  //   }
-  //   threads.foreach(_.start())
-  //   threads.foreach(_.join())
-  //   xs
-  // }
+  @gen("parCtries")
+  @benchmark("cache-trie.par.lookup")
+  @curve("ctrie")
+  def ctrieParLookup(t: (Int, TrieMap[Wrapper, Wrapper])) = {
+    val (p, xs) = t
+    val threads = for (k <- 0 until p) yield new Thread {
+      override def run(): Unit = {
+        var i = 0
+        while (i < parElems / p) {
+          val v = elems(k * parElems / p + i)
+          xs.lookup(v)
+          i += 1
+        }
+      }
+    }
+    threads.foreach(_.start())
+    threads.foreach(_.join())
+    xs
+  }
 
-  // @gen("parSkiplists")
-  // @benchmark("cache-trie.par.lookup")
-  // @curve("skiplist")
-  // def skiplistParLookup(t: (Int, ConcurrentSkipListMap[Wrapper, Wrapper])) = {
-  //   val (p, xs) = t
-  //   val threads = for (k <- 0 until p) yield new Thread {
-  //     override def run(): Unit = {
-  //       var i = 0
-  //       while (i < parElems / p) {
-  //         val v = elems(k * parElems / p + i)
-  //         xs.get(v)
-  //         i += 1
-  //       }
-  //     }
-  //   }
-  //   threads.foreach(_.start())
-  //   threads.foreach(_.join())
-  //   xs
-  // }
+  @gen("parSkiplists")
+  @benchmark("cache-trie.par.lookup")
+  @curve("skiplist")
+  def skiplistParLookup(t: (Int, ConcurrentSkipListMap[Wrapper, Wrapper])) = {
+    val (p, xs) = t
+    val threads = for (k <- 0 until p) yield new Thread {
+      override def run(): Unit = {
+        var i = 0
+        while (i < parElems / p) {
+          val v = elems(k * parElems / p + i)
+          xs.get(v)
+          i += 1
+        }
+      }
+    }
+    threads.foreach(_.start())
+    threads.foreach(_.join())
+    xs
+  }
 
-  // @gen("parCachetries")
-  // @benchmark("cache-trie.par.lookup")
-  // @curve("cachetrie")
-  // def cachetrieParLookup(t: (Int, CacheTrie[Wrapper, Wrapper])) = {
-  //   val (p, xs) = t
-  //   val threads = for (k <- 0 until p) yield new Thread {
-  //     override def run(): Unit = {
-  //       var i = 0
-  //       while (i < parElems / p) {
-  //         val v = elems(k * parElems / p + i)
-  //         xs.lookup(v)
-  //         i += 1
-  //       }
-  //     }
-  //   }
-  //   threads.foreach(_.start())
-  //   threads.foreach(_.join())
-  //   // println(xs.debugCacheStats)
-  //   xs
-  // }
+  @gen("parCachetries")
+  @benchmark("cache-trie.par.lookup")
+  @curve("cachetrie")
+  def cachetrieParLookup(t: (Int, CacheTrie[Wrapper, Wrapper])) = {
+    val (p, xs) = t
+    val threads = for (k <- 0 until p) yield new Thread {
+      override def run(): Unit = {
+        var i = 0
+        while (i < parElems / p) {
+          val v = elems(k * parElems / p + i)
+          xs.lookup(v)
+          i += 1
+        }
+      }
+    }
+    threads.foreach(_.start())
+    threads.foreach(_.join())
+    // println(xs.debugCacheStats)
+    xs
+  }
 
   def chmRefill(sc: (Int, ConcurrentHashMap[Wrapper, Wrapper])): Unit = {
     val (size, chm) = sc
@@ -554,21 +554,21 @@ class CacheTrieBenches extends JBench.OfflineReport {
   //   sum
   // }
 
-  @gen("cachetries")
-  @benchmark("cache-trie.remove")
-  @setup("cachetrieRefill")
-  @curve("cachetrie")
-  def cachetrieRemove(sc: (Int, CacheTrie[Wrapper, Wrapper])): Int = {
-    val (size, trie) = sc
-    var i = 0
-    var sum = 0
-    while (i < size) {
-      sum += trie.remove(elems(i)).value
-      i += 1
-    }
-    println(trie.debugCacheStats)
-    sum
-  }
+  // @gen("cachetries")
+  // @benchmark("cache-trie.remove")
+  // @setup("cachetrieRefill")
+  // @curve("cachetrie")
+  // def cachetrieRemove(sc: (Int, CacheTrie[Wrapper, Wrapper])): Int = {
+  //   val (size, trie) = sc
+  //   var i = 0
+  //   var sum = 0
+  //   while (i < size) {
+  //     sum += trie.remove(elems(i)).value
+  //     i += 1
+  //   }
+  //   println(trie.debugCacheStats)
+  //   sum
+  // }
 }
 
 
