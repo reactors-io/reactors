@@ -8,10 +8,10 @@ import scala.annotation.tailrec
 
 
 
-class PermuteTree[K <: AnyRef, V <: AnyRef] {
+class ByteswapTree[K <: AnyRef, V <: AnyRef] {
   private def unsafe: Unsafe = Platform.unsafe
 }
 
 
-object PermuteTree {
+object ByteswapTree {
 }
