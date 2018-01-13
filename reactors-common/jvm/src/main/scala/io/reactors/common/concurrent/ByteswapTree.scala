@@ -11,14 +11,17 @@ import scala.annotation.tailrec
 class ByteswapTree[K <: AnyRef, V <: AnyRef] {
   import ByteswapTree._
 
-  private val leafEntryOffset = leafEntryFields.start
-  private val leafEntryFactor = leafEntryFields.scalingFactor
-  private val innerEntryOffset = innerEntryFields.start
-  private val innerEntryFactor = innerEntryFields.scalingFactor
-  private val innerKeyOffset = innerKeyFields.start
-  private val innerKeyFactor = innerKeyFields.scalingFactor
+  @volatile private var root: Node = new Leaf
 
   private def unsafe: Unsafe = Platform.unsafe
+
+  private def READ_PERMUTATION(leaf: Leaf): Long = {
+    unsafe.getLongVolatile(leaf, ???)
+  }
+
+  private def insert(k: K, v: V): Unit = {
+    ???
+  }
 
   private def insert(leaf: Leaf, k: K, v: V): Unit = {
     ???
@@ -59,7 +62,9 @@ object ByteswapTree {
   val innerEntryFields = layoutCheck(classOf[Inner], "entry")
   val innerKeyFields = layoutCheck(classOf[Inner], "key")
 
-  class Leaf {
+  abstract class Node
+
+  class Leaf extends Node {
     @volatile var permutation: Long = 0
     @volatile var unused0: AnyRef = null
     @volatile var entry0: AnyRef = null
@@ -79,7 +84,7 @@ object ByteswapTree {
     @volatile var entry14: AnyRef = null
   }
 
-  class Inner {
+  class Inner extends Node {
     @volatile var permutation: Long = 0
     @volatile var unused0: AnyRef = null
     @volatile var entry0: AnyRef = null
