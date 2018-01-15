@@ -16,9 +16,11 @@ class ByteswapTree[K <: AnyRef: Ordering[K], V <: AnyRef] {
 
   private def unsafe: Unsafe = Platform.unsafe
 
-  private def COUNT_MASK: Long = 0xfL
+  private def SLOT_MASK: Long = 0xfL
 
   private def COUNT_SHIFT: Int = 60
+
+  private def SHIFT_ALL_MASK: Long = 0x0111111111111111L
 
   private def READ_MASK(leaf: Leaf): Long = {
     unsafe.getLongVolatile(leaf, LeafMaskOffset)
@@ -46,31 +48,41 @@ class ByteswapTree[K <: AnyRef: Ordering[K], V <: AnyRef] {
   private def insert(leaf: Leaf, k: K, v: V): Unit = {
     // Determine node state.
     val mask = READ_MASK(leaf)
-    val count = ((mask >>> COUNT_SHIFT) & SLOT_MASK).toInt
+    val count = (mask >>> COUNT_SHIFT).toInt
+    val removedCount = Integer.numberOfLeadingZeros(~(mask << 4)) >> 2
 
     // Determine the position for the key, and whether to replace an old key.
     var existing = false
-    var l = 0
-    var r = count - 1
-    while (l <= r) {
-      val m = (l + r) >> 1
+    var left = 0
+    var right = count - removedCount - 1
+    while (left <= right) {
+      val m = (left + right) >> 1
       val midx = (mask >>> (m << 2)) & SLOT_MASK
       val entry = READ_ENTRY(leaf, midx)
       val comparison = ordering.compare(entry.key, k)
-      if (comparison < 0) l = m + 1
-      else if (comparison > 0) r = m - 1
+      if (comparison < 0) left = m + 1
+      else if (comparison > 0) right = m - 1
       else {
-        l = m
-        r = -1
+        left = m
+        right = -1
         existing = k == entry.key
       }
     }
+
     // Determine the new mask.
     var newMask: Long = 0L
     if (existing) {
-      ???
+      newMask |= 
+      newMask |= 
+      newMask |= 
+      newMask |= 
+      newMask |= 
     } else {
-      ???
+      newMask |= 
+      newMask |= 
+      newMask |= 
+      newMask |= 
+      newMask |= 
     }
 
     // Attempt to propose the next entry.
