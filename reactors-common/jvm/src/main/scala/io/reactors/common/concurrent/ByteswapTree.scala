@@ -20,8 +20,6 @@ class ByteswapTree[K <: AnyRef: Ordering, V <: AnyRef] {
 
   private def COUNT_SHIFT: Int = 60
 
-  private def SHIFT_ALL_MASK: Long = 0x0111111111111111L
-
   private def READ_MASK(leaf: Leaf): Long = {
     unsafe.getLongVolatile(leaf, LeafMaskOffset)
   }
