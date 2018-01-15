@@ -8,7 +8,7 @@ import scala.annotation.tailrec
 
 
 
-class ByteswapTree[K <: AnyRef: Ordering[K], V <: AnyRef] {
+class ByteswapTree[K <: AnyRef: Ordering, V <: AnyRef] {
   import ByteswapTree._
 
   private val ordering = implicitly[Ordering[K]]
@@ -26,11 +26,11 @@ class ByteswapTree[K <: AnyRef: Ordering[K], V <: AnyRef] {
     unsafe.getLongVolatile(leaf, LeafMaskOffset)
   }
 
-  private def CAS_PERMUTATION(leaf: Leaf, ov: Long, nv: Long): Boolean = {
+  private def CAS_MASK(leaf: Leaf, ov: Long, nv: Long): Boolean = {
     unsafe.compareAndSwapLong(leaf, LeafMaskOffset, ov, nv)
   }
 
-  private def READ_ENTRY(leaf: Leaf, idx: Int): Entry[K, V] = {
+  private def READ_ENTRY(leaf: Leaf, idx: Long): Entry[K, V] = {
     unsafe.getObjectVolatile(leaf, LeafEntryOffset + idx * LeafEntryScaling)
       .asInstanceOf[Entry[K, V]]
   }
@@ -45,56 +45,89 @@ class ByteswapTree[K <: AnyRef: Ordering[K], V <: AnyRef] {
     ???
   }
 
+  @tailrec
   private def insert(leaf: Leaf, k: K, v: V): Unit = {
     // Determine node state.
     val mask = READ_MASK(leaf)
     val count = (mask >>> COUNT_SHIFT).toInt
-    val removedCount = Integer.numberOfLeadingZeros(~(mask << 4)) >> 2
-
-    // Determine the position for the key, and whether to replace an old key.
-    var existing = false
-    var left = 0
-    var right = count - removedCount - 1
-    while (left <= right) {
-      val m = (left + right) >> 1
-      val midx = (mask >>> (m << 2)) & SLOT_MASK
-      val entry = READ_ENTRY(leaf, midx)
-      val comparison = ordering.compare(entry.key, k)
-      if (comparison < 0) left = m + 1
-      else if (comparison > 0) right = m - 1
-      else {
-        left = m
-        right = -1
-        existing = k == entry.key
-      }
-    }
-
-    // Determine the new mask.
-    var newMask: Long = 0L
-    if (existing) {
-      newMask |= 
-      newMask |= 
-      newMask |= 
-      newMask |= 
-      newMask |= 
-    } else {
-      newMask |= 
-      newMask |= 
-      newMask |= 
-      newMask |= 
-      newMask |= 
-    }
+    val removedCount = java.lang.Long.numberOfLeadingZeros(~(mask << 4)) >> 2
+    val liveCount = count - removedCount
 
     // Attempt to propose the next entry.
     val entry = new Entry(k, v)
-    if (CAS_ENTRY(leaf, count, null, entry)) {
-      // Try to commit the proposed entry.
-      ???
-    } else {
-      // Help complete an already proposed key.
+    if (!CAS_ENTRY(leaf, count, null, entry)) {
+      // Help complete the insertion of an already proposed key.
       ???
 
       // Retry.
+      insert(leaf, k, v)
+    } else {
+      while (true) {
+        // Determine the position for the key, and whether to replace an old key.
+        var existing = false
+        var left = 0
+        var right = liveCount - 1
+        while (left <= right) {
+          val m = (left + right) >> 1
+          val midx = (mask >>> (m << 2)) & SLOT_MASK
+          val entry = READ_ENTRY(leaf, midx)
+          val comparison = ordering.compare(entry.key, k)
+          if (comparison < 0) left = m + 1
+          else if (comparison > 0) right = m - 1
+          else {
+            left = m
+            right = -1
+            existing = k == entry.key
+          }
+        }
+        val index = left
+
+        // Determine the new mask.
+        var newMask: Long = 0L
+        if (existing) {
+          newMask |= (count + 1) << COUNT_SHIFT
+          val removedBits = (removedCount + 1) << 2
+          newMask |= ((1 << removedBits) - 1) << (60 - removedBits)
+          val permutationBits = (1 << (liveCount << 2)) - 1
+          newMask |= permutationBits & ~(0xf << (index << 2))
+          newMask |= count << (index << 2)
+        } else {
+          newMask |= (count + 1) << COUNT_SHIFT
+          val removedBits = removedCount << 2
+          newMask |= ((1 << removedBits) - 1) << (60 - removedBits)
+          val suffixLength = liveCount - index
+          val suffixBits = ((1 << (suffixLength << 2)) - 1) << (index << 2)
+          newMask |= (mask & suffixBits) << 4
+          newMask |= count << (index << 2)
+          val prefixBits = ((1 << (index << 2)) - 1)
+          newMask |= mask & prefixBits
+        }
+
+        // Try to commit the proposed entry.
+        if (CAS_MASK(leaf, mask, newMask)) {
+          // Successfully added the key.
+          // Done.
+          return
+        } else {
+          // A concurrent operation. There are 2 possibilities:
+          // (a) Somebody else completed this insertion. In this case, we are done.
+          // (b) Somebody else removed an entry from this leaf. In this case, we retry.
+          val postMask = READ_MASK(leaf)
+          val postCount = (postMask >>> COUNT_SHIFT).toInt
+          if (postCount == 0 && postMask != 0) {
+            // a1) Was frozen.
+            // Done.
+            return
+          } else if (postCount > count) {
+            // a2) Insertion was completed.
+            // Done.
+            return
+          } else {
+            // b)
+            // Retry.
+          }
+        }
+      }
     }
   }
 }
