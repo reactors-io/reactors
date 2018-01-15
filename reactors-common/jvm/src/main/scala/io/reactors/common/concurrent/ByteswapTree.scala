@@ -8,14 +8,15 @@ import scala.annotation.tailrec
 
 
 
-class ByteswapTree[K <: AnyRef, V <: AnyRef] {
+class ByteswapTree[K <: AnyRef: Ordering[K], V <: AnyRef] {
   import ByteswapTree._
 
+  private val ordering = implicitly[Ordering[K]]
   @volatile private var root: Node = new Leaf
 
   private def unsafe: Unsafe = Platform.unsafe
 
-  private def COUNT_MASK: Long = 0xf000000000000000L
+  private def COUNT_MASK: Long = 0xfL
 
   private def COUNT_SHIFT: Int = 60
 
@@ -45,14 +46,37 @@ class ByteswapTree[K <: AnyRef, V <: AnyRef] {
   private def insert(leaf: Leaf, k: K, v: V): Unit = {
     // Determine node state.
     val mask = READ_MASK(leaf)
-    val count = ((mask >>> COUNT_SHIFT) & COUNT_MASK).toInt
+    val count = ((mask >>> COUNT_SHIFT) & SLOT_MASK).toInt
 
-    // Determine the new mask: position for the key, and whether to replace a key.
-    val newMask: Int = ???
+    // Determine the position for the key, and whether to replace an old key.
+    var existing = false
+    var l = 0
+    var r = count - 1
+    while (l <= r) {
+      val m = (l + r) >> 1
+      val midx = (mask >>> (m << 2)) & SLOT_MASK
+      val entry = READ_ENTRY(leaf, midx)
+      val comparison = ordering.compare(entry.key, k)
+      if (comparison < 0) l = m + 1
+      else if (comparison > 0) r = m - 1
+      else {
+        l = m
+        r = -1
+        existing = k == entry.key
+      }
+    }
+    // Determine the new mask.
+    var newMask: Long = 0L
+    if (existing) {
+      ???
+    } else {
+      ???
+    }
 
-    // Attempt to propose the next key.
+    // Attempt to propose the next entry.
     val entry = new Entry(k, v)
     if (CAS_ENTRY(leaf, count, null, entry)) {
+      // Try to commit the proposed entry.
       ???
     } else {
       // Help complete an already proposed key.
