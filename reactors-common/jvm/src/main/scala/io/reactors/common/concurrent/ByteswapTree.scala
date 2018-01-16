@@ -42,6 +42,13 @@ class ByteswapTree[K <: AnyRef: Ordering, V <: AnyRef] {
     ???
   }
 
+  private[concurrent] def debugLeafInsert(k: K, v: V): Boolean = {
+    val leaf = root.asInstanceOf[Leaf]
+    insert(leaf, k, v)
+  }
+
+  private[concurrent] def debugLeaf: Leaf = root.asInstanceOf[Leaf]
+
   @tailrec
   private def insert(leaf: Leaf, k: K, v: V): Boolean = {
     // Determine node state.
@@ -217,6 +224,12 @@ object ByteswapTree {
     @volatile var entry12: AnyRef = null
     @volatile var entry13: AnyRef = null
     @volatile var entry14: AnyRef = null
+
+    override def toString = {
+      s"Leaf(${mask.toBinaryString}, $entry0, $entry1, $entry2, $entry3, $entry4, " +
+      s"$entry5, $entry6, $entry7, $entry8, $entry9, $entry10, $entry11, $entry12, " +
+      s"$entry13, $entry14)"
+    }
   }
 
   class Inner extends Node {
@@ -254,7 +267,11 @@ object ByteswapTree {
     @volatile var key14: AnyRef = null
   }
 
-  class Item[K <: AnyRef, V <: AnyRef](val key: K, val value: V)
+  class Item[K <: AnyRef, V <: AnyRef](val key: K, val value: V) {
+    override def toString = s"<$key, $value>"
+  }
 
-  class Frozen
+  class Frozen {
+    override def toString = "Frozen"
+  }
 }
