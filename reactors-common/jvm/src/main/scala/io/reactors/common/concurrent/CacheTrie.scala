@@ -13,7 +13,55 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
 
   private val unsafe: Unsafe = Platform.unsafe
   @volatile private var rawCache: Array[AnyRef] = null
-  private val rawRoot: Array[AnyRef] = new Array[AnyRef](16)
+  private val rawRoot: Array[AnyRef] = createWideArray()
+
+  private def createWideArray(): Array[AnyRef] = {
+    val node = new Array[AnyRef](16 + 1)
+    node(16) = Integer.valueOf(0)
+    node
+  }
+
+  private def createNarrowArray(): Array[AnyRef] = {
+    val node = new Array[AnyRef](4 + 1)
+    node(4) = Integer.valueOf(0)
+    node
+  }
+
+  private def createCacheArray(level: Int): Array[AnyRef] = {
+    new Array[AnyRef](1 + (1 << level))
+  }
+
+  private def usedLength(array: Array[AnyRef]) = array.length - 1
+
+  @tailrec
+  private def decrementCount(array: Array[AnyRef]): Unit = {
+    val countIndex = array.length - 1
+    val count = READ(array, countIndex).asInstanceOf[Integer]
+    val newCount = Integer.valueOf(count.intValue - 1)
+    if (!CAS(array, countIndex, count, newCount)) decrementCount(array)
+  }
+
+  @tailrec
+  private def incrementCount(array: Array[AnyRef]): Unit = {
+    val countIndex = array.length - 1
+    val count = READ(array, countIndex).asInstanceOf[Integer]
+    val newCount = Integer.valueOf(count.intValue + 1)
+    if (!CAS(array, countIndex, count, newCount)) incrementCount(array)
+  }
+
+  private def sequentialFixCount(array: Array[AnyRef]): Unit = {
+    var i = 0
+    var count = 0
+    while (i < usedLength(array)) {
+      val entry = array(i)
+      if (entry != null) count += 1
+      if (entry.isInstanceOf[Array[AnyRef]]) {
+        sequentialFixCount(entry.asInstanceOf[Array[AnyRef]])
+      }
+      i += 1
+    }
+    array(array.length - 1) = Integer.valueOf(count)
+  }
 
   private def READ(array: Array[AnyRef], pos: Int): AnyRef = {
     unsafe.getObjectVolatile(array, ArrayBase + (pos << ArrayShift))
@@ -83,7 +131,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
       } else if (cachee.isInstanceOf[Array[AnyRef]]) {
         // println(s"$key - found array cachee, cache level $level")
         val an = cachee.asInstanceOf[Array[AnyRef]]
-        val mask = an.length - 1
+        val mask = usedLength(an) - 1
         val pos = (hash >>> level) & mask
         val old = READ(an, pos)
         if (old eq null) {
@@ -179,7 +227,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
     if (cache != null && (1 << level) == (cache.length - 1)) {
       inhabitCache(cache, node, hash, level)
     }
-    val mask = node.length - 1
+    val mask = usedLength(node) - 1
     val pos = (hash >>> level) & mask
     val old = READ(node, pos)
     if (old eq null) {
@@ -294,14 +342,16 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
       } else if (cachee.isInstanceOf[Array[AnyRef]]) {
         // Read from the array node.
         val an = cachee.asInstanceOf[Array[AnyRef]]
-        val mask = an.length - 1
+        val mask = usedLength(an) - 1
         val pos = (hash >>> level) & mask
         val old = READ(an, pos)
         if (old eq null) {
           // Try to write the single node directly.
           val sn = new SNode(hash, key, value)
-          if (CAS(an, pos, old, sn)) return
-          else fastInsert(key, value, hash, cache, prevCache)
+          if (CAS(an, pos, old, sn)) {
+            incrementCount(an)
+            return
+          } else fastInsert(key, value, hash, cache, prevCache)
         } else if (old.isInstanceOf[Array[AnyRef]]) {
           // Continue search recursively.
           val oldan = old.asInstanceOf[Array[AnyRef]]
@@ -317,8 +367,9 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
               val sn = new SNode(hash, key, value)
               if (CAS_TXN(oldsn, sn)) {
                 CAS(an, pos, oldsn, sn)
+                // Note: must not increment the count here.
               } else fastInsert(key, value, hash, cache, prevCache)
-            } else if (an.length == 4) {
+            } else if (usedLength(an) == 4) {
               // Must expand, but cannot do so without the parent.
               // Retry one cache level above.
               val stats = READ(cache, 0)
@@ -378,7 +429,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
     if (cache != null && (1 << level) == (cache.length - 1)) {
       inhabitCache(cache, current, hash, level)
     }
-    val mask = current.length - 1
+    val mask = usedLength(current) - 1
     val pos = (hash >>> level) & mask
     val old = READ(current, pos)
     if (old eq null) {
@@ -390,8 +441,10 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
         recordCacheMiss()
       }
       val snode = new SNode(hash, key, value)
-      if (CAS(current, pos, old, snode)) Success
-      else slowInsert(key, value, hash, level, current, parent, cache)
+      if (CAS(current, pos, old, snode)) {
+        incrementCount(current)
+        Success
+      } else slowInsert(key, value, hash, level, current, parent, cache)
     } else if (old.isInstanceOf[Array[_]]) {
       // Repeat the search on the next level.
       val oldan = old.asInstanceOf[Array[AnyRef]]
@@ -405,12 +458,13 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
           val sn = new SNode(hash, key, value)
           if (CAS_TXN(oldsn, sn)) {
             CAS(current, pos, oldsn, sn)
+            // Note: must not increment count here.
             Success
           } else slowInsert(key, value, hash, level, current, parent, cache)
-        } else if (current.length == 4) {
+        } else if (usedLength(current) == 4) {
           // Expand the current node, aiming to avoid the collision.
           // Root size always 16, so parent is non-null.
-          val parentmask = parent.length - 1
+          val parentmask = usedLength(parent) - 1
           val parentlevel = level - 4
           val parentpos = (hash >>> parentlevel) & parentmask
           val enode = new ENode(parent, parentpos, current, hash, level)
@@ -497,7 +551,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
       } else if (cachee.isInstanceOf[Array[AnyRef]]) {
         // Read from an array node.
         val an = cachee.asInstanceOf[Array[AnyRef]]
-        val mask = an.length - 1
+        val mask = usedLength(an) - 1
         val pos = (hash >>> level) & mask
         val old = READ(an, pos)
         if (old eq null) {
@@ -572,7 +626,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
   private def isCompressible(current: Array[AnyRef]): Boolean = {
     var found: AnyRef = null
     var i = 0
-    while (i < current.length) {
+    while (i < usedLength(current)) {
       val old = READ(current, i)
       if (old != null) {
         if (found == null && old.isInstanceOf[SNode[_, _]]) {
@@ -597,7 +651,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
       return false
     }
     // It is likely that the node is compressible, so we freeze it and try to compress.
-    val parentmask = parent.length - 1
+    val parentmask = usedLength(parent) - 1
     val parentpos = (hash >>> (level - 4)) & parentmask
     val xn = new XNode(parent, parentpos, current, hash, level)
     if (CAS(parent, parentpos, current, xn)) {
@@ -624,7 +678,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
   ): Boolean = {
     // Dive into the cache starting from the root for the given hash,
     // and compress as much as possible.
-    val pos = (hash >>> level) & (current.length - 1)
+    val pos = (hash >>> level) & (usedLength(current) - 1)
     val old = READ(current, pos)
     if (old.isInstanceOf[Array[AnyRef]]) {
       val an = old.asInstanceOf[Array[AnyRef]]
@@ -642,7 +696,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
   private def compressFrozen(frozen: Array[AnyRef], level: Int): AnyRef = {
     var single: AnyRef = null
     var i = 0
-    while (i < frozen.length) {
+    while (i < usedLength(frozen)) {
       val old = READ(frozen, i)
       if (old != FVNode) {
         if (single == null && old.isInstanceOf[SNode[_, _]]) {
@@ -651,14 +705,16 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
         } else {
           // There are at least 2 nodes that are not FVNode.
           // Unfortunately, the node was modified before it was completely frozen.
-          if (frozen.length == 16) {
-            val wide = new Array[AnyRef](16)
+          if (usedLength(frozen) == 16) {
+            val wide = createWideArray()
             sequentialTransfer(frozen, wide, level)
+            sequentialFixCount(wide)
             return wide
           } else {
             // If the node is narrow, then it cannot have any children.
-            val narrow = new Array[AnyRef](4)
+            val narrow = createNarrowArray()
             sequentialTransferNarrow(frozen, narrow, level)
+            sequentialFixCount(narrow)
             return narrow
           }
         }
@@ -695,7 +751,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
     cache: Array[AnyRef]
   ): AnyRef = {
     // println("slow remove -- " + level)
-    val mask = current.length - 1
+    val mask = usedLength(current) - 1
     val pos = (hash >>> level) & mask
     val old = READ(current, pos)
     if (old eq null) {
@@ -778,7 +834,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
 
   private def freeze(cache: Array[AnyRef], current: Array[AnyRef]): Unit = {
     var i = 0
-    while (i < current.length) {
+    while (i < usedLength(current)) {
       val node = READ(current, i)
       if (node eq null) {
         // Freeze null.
@@ -845,7 +901,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
   private def sequentialInsert(
     sn: SNode[K, V], wide: Array[AnyRef], level: Int
   ): Unit = {
-    val mask = wide.length - 1
+    val mask = usedLength(wide) - 1
     val pos = (sn.hash >>> level) & mask
     if (wide(pos) == null) wide(pos) = sn
     else sequentialInsert(sn, wide, level, pos)
@@ -858,15 +914,15 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
     val old = wide(pos)
     if (old.isInstanceOf[SNode[_, _]]) {
       val oldsn = old.asInstanceOf[SNode[K, V]]
-      val an = newNarrowOrWideNodeUsingFresh(oldsn, sn, level + 4)
+      val an = newNarrowOrWideNodeUsingFreshThatNeedsCountFix(oldsn, sn, level + 4)
       wide(pos) = an
     } else if (old.isInstanceOf[Array[AnyRef]]) {
       val oldan = old.asInstanceOf[Array[AnyRef]]
-      val npos = (sn.hash >>> (level + 4)) & (oldan.length - 1)
+      val npos = (sn.hash >>> (level + 4)) & (usedLength(oldan) - 1)
       if (oldan(npos) == null) {
         oldan(npos) = sn
-      } else if (oldan.length == 4) {
-        val an = new Array[AnyRef](16)
+      } else if (usedLength(oldan) == 4) {
+        val an = createWideArray()
         sequentialTransfer(oldan, an, level + 4)
         wide(pos) = an
         sequentialInsert(sn, wide, level, pos)
@@ -885,9 +941,9 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
   private def sequentialTransfer(
     source: Array[AnyRef], wide: Array[AnyRef], level: Int
   ): Unit = {
-    val mask = wide.length - 1
+    val mask = usedLength(wide) - 1
     var i = 0
-    while (i < source.length) {
+    while (i < usedLength(source)) {
       val node = source(i)
       if (node eq FVNode) {
         // We can skip, the slot was empty.
@@ -939,6 +995,13 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
     }
   }
 
+  private def newNarrowOrWideNode(
+    h1: Int, k1: K, v1: V, h2: Int, k2: K, v2: V, level: Int
+  ): AnyRef = {
+    newNarrowOrWideNodeUsingFresh(
+      new SNode(h1, k1, v1), new SNode(h2, k2, v2), level)
+  }
+
   private def newNarrowOrWideNodeUsingFresh(
     sn1: SNode[K, V], sn2: SNode[K, V], level: Int
   ): AnyRef = {
@@ -950,14 +1013,42 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
       val pos1 = (sn1.hash >>> level) & (4 - 1)
       val pos2 = (sn2.hash >>> level) & (4 - 1)
       if (pos1 != pos2) {
-        val an = new Array[AnyRef](4)
-        val pos1 = (sn1.hash >>> level) & (an.length - 1)
+        val an = createNarrowArray()
+        val pos1 = (sn1.hash >>> level) & (usedLength(an) - 1)
         an(pos1) = sn1
-        val pos2 = (sn2.hash >>> level) & (an.length - 1)
+        val pos2 = (sn2.hash >>> level) & (usedLength(an) - 1)
+        an(pos2) = sn2
+        an(an.length - 1) = Integer.valueOf(2)
+        an
+      } else {
+        val an = createWideArray()
+        sequentialInsert(sn1, an, level)
+        sequentialInsert(sn2, an, level)
+        sequentialFixCount(an)
+        an
+      }
+    }
+  }
+
+  private def newNarrowOrWideNodeUsingFreshThatNeedsCountFix(
+    sn1: SNode[K, V], sn2: SNode[K, V], level: Int
+  ): AnyRef = {
+    if (sn1.hash == sn2.hash) {
+      val ln1 = new LNode(sn1)
+      val ln2 = new LNode(sn2, ln1)
+      ln2
+    } else {
+      val pos1 = (sn1.hash >>> level) & (4 - 1)
+      val pos2 = (sn2.hash >>> level) & (4 - 1)
+      if (pos1 != pos2) {
+        val an = createNarrowArray()
+        val pos1 = (sn1.hash >>> level) & (usedLength(an) - 1)
+        an(pos1) = sn1
+        val pos2 = (sn2.hash >>> level) & (usedLength(an) - 1)
         an(pos2) = sn2
         an
       } else {
-        val an = new Array[AnyRef](16)
+        val an = createWideArray()
         sequentialInsert(sn1, an, level)
         sequentialInsert(sn2, an, level)
         an
@@ -965,10 +1056,11 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
     }
   }
 
-  private def newNarrowOrWideNode(
+  private def newNarrowOrWideNodeThatNeedsCountFix(
     h1: Int, k1: K, v1: V, h2: Int, k2: K, v2: V, level: Int
   ): AnyRef = {
-    newNarrowOrWideNodeUsingFresh(new SNode(h1, k1, v1), new SNode(h2, k2, v2), level)
+    newNarrowOrWideNodeUsingFreshThatNeedsCountFix(
+      new SNode(h1, k1, v1), new SNode(h2, k2, v2), level)
   }
 
   private def newListNodeWithoutKey(
@@ -1007,11 +1099,12 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
     if (ln.hash == hash) {
       new LNode(hash, k, v, ln)
     } else {
-      val an = new Array[AnyRef](16)
-      val pos1 = (ln.hash >>> level) & (an.length - 1)
+      val an = createWideArray()
+      val pos1 = (ln.hash >>> level) & (usedLength(an) - 1)
       an(pos1) = ln
       val sn = new SNode(hash, k, v)
       sequentialInsert(sn, an, level)
+      sequentialFixCount(an)
       an
     }
   }
@@ -1026,8 +1119,9 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
     freeze(cache, narrow)
 
     // Second, populate the target array, and CAS it into the parent.
-    var wide = new Array[AnyRef](16)
+    var wide = createWideArray()
     sequentialTransfer(narrow, wide, level)
+    sequentialFixCount(wide)
     // If this CAS fails, then somebody else already committed the wide array.
     if (!CAS_WIDE(enode, null, wide)) {
       wide = READ_WIDE(enode)
@@ -1052,7 +1146,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
       // since the expectation on the number of elements is ~80.
       // This means that we can afford to create a cache with 256 entries.
       if (cacheeLevel >= 12) {
-        val cn = new Array[AnyRef](1 + (1 << 8))
+        val cn = createCacheArray(8)
         cn(0) = new CacheNode(null, 8)
         CAS_CACHE(null, cn)
         val newCache = READ_CACHE
@@ -1088,7 +1182,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
           val hash = (seed >>> 16).toInt
           @tailrec
           def sampleHash(node: Array[AnyRef], level: Int, hash: Int): Int = {
-            val mask = node.length - 1
+            val mask = usedLength(node) - 1
             val pos = (hash >>> level) & mask
             val child = READ(node, pos)
             if (child.isInstanceOf[Array[AnyRef]]) {
@@ -1109,9 +1203,9 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
           seed = (seed * 0x5DEECE66DL + 0xBL) & ((1L << 48) - 1);
           val hash = (seed >>> 16).toInt
           def sampleKey(node: Array[AnyRef], level: Int, hash: Int): Int = {
-            val mask = node.length - 1
+            val mask = usedLength(node) - 1
             val pos = (hash >>> level) & mask
-            var i = (pos + 1) % node.length
+            var i = (pos + 1) % usedLength(node)
             while (i != pos) {
               val ch = READ(node, i)
               if (ch.isInstanceOf[SNode[_, _]] || isFrozenS(ch) || isFrozenL(ch)) {
@@ -1125,7 +1219,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
                 val result = sampleKey(an, level + 4, hash)
                 if (result != -1) return result
               }
-              i = (i + 1) % node.length
+              i = (i + 1) % usedLength(node)
             }
             -1
           }
@@ -1157,7 +1251,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
         ): Long = {
           var seed = startSeed
           var histogram = startHistogram
-          val mask = node.length - 1
+          val mask = usedLength(node) - 1
           var i = 0
           while (i < maxRepeats && count(histogram) < maxSamples) {
             seed = (seed * 0x5DEECE66DL + 0xBL) & ((1L << 48) - 1);
@@ -1250,8 +1344,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
       while (currStats.level < bestLevel) {
         // Add cache level.
         val nextLevel = currStats.level + 4
-        val nextLength = 1 + (1 << nextLevel)
-        val nextCache = new Array[AnyRef](nextLength)
+        val nextCache = createCacheArray(nextLevel)
         nextCache(0) = new CacheNode(currCache, nextLevel)
         if (CAS_CACHE(currCache, nextCache)) {
           currCache = nextCache
@@ -1289,17 +1382,18 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
   private[concurrent] def debugCachePopulateTwoLevelSingle(
     level: Int, key: K, value: V
   ): Unit = {
-    rawCache = new Array[AnyRef](1 + (1 << level))
+    rawCache = createCacheArray(level)
     rawCache(0) = new CacheNode(null, level)
     var i = 1
     while (i < rawCache.length) {
-      val an = new Array[AnyRef](4)
+      val an = createNarrowArray()
       rawCache(i) = an
       var j = 0
-      while (j < 4) {
+      while (j < usedLength(an)) {
         an(j) = new SNode(0, key, value)
         j += 1
       }
+      sequentialFixCount(an)
       i += 1
     }
   }
@@ -1307,17 +1401,18 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
   private[concurrent] def debugCachePopulateTwoLevel(
     level: Int, keys: Array[K], values: Array[V]
   ): Unit = {
-    rawCache = new Array[AnyRef](1 + (1 << level))
+    rawCache = createCacheArray(level)
     rawCache(0) = new CacheNode(null, level)
     var i = 1
     while (i < rawCache.length) {
-      val an = new Array[AnyRef](4)
+      val an = createNarrowArray()
       rawCache(i) = an
       var j = 0
-      while (j < 4) {
+      while (j < usedLength(an)) {
         an(j) = new SNode(0, keys(i * 4 + j), values(i * 4 + j))
         j += 1
       }
+      sequentialFixCount(an)
       i += 1
     }
   }
@@ -1325,7 +1420,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
   private[concurrent] def debugCachePopulateOneLevel(
     level: Int, keys: Array[K], values: Array[V], scarce: Boolean
   ): Unit = {
-    rawCache = new Array[AnyRef](1 + (1 << level))
+    rawCache = createCacheArray(level)
     rawCache(0) = new CacheNode(null, level)
     var i = 1
     while (i < rawCache.length) {
@@ -1340,9 +1435,9 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
     var full = 0
     var total = 0
     def traverse(node: Array[AnyRef]): Unit = {
-      total += node.length
+      total += usedLength(node)
       var i = 0
-      while (i < node.length) {
+      while (i < usedLength(node)) {
         val old = READ(node, i)
         if (old.isInstanceOf[SNode[_, _]]) {
           full += 1
@@ -1362,7 +1457,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
     val res = new StringBuilder
     def traverse(indent: String, node: Array[AnyRef]): Unit = {
       var i = 0
-      while (i < node.length) {
+      while (i < usedLength(node)) {
         val old = READ(node, i)
         if (old == null) {
           res.append(s"${indent}<empty>")
@@ -1387,7 +1482,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
           res.append("\n")
         } else if (old.isInstanceOf[Array[AnyRef]]) {
           val an = old.asInstanceOf[Array[AnyRef]]
-          res.append(s"${indent}${if (an.length == 4) "narrow" else "wide"}")
+          res.append(s"${indent}${if (usedLength(an) == 4) "narrow" else "wide"}")
           res.append("\n")
           traverse(indent + "  ", an)
         } else {
@@ -1437,7 +1532,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
     var sz = 0
     def traverse(node: Array[AnyRef], level: Int): Unit = {
       var i = 0
-      while (i < node.length) {
+      while (i < usedLength(node)) {
         val old = node(i)
         if (old.isInstanceOf[SNode[_, _]]) {
           histogram((level + 4) / 4) += 1
