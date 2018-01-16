@@ -15,15 +15,23 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
   @volatile private var rawCache: Array[AnyRef] = null
   private val rawRoot: Array[AnyRef] = createWideArray()
 
-  private def createWideArray(): Array[AnyRef] = new Array[AnyRef](16)
+  private def createWideArray(): Array[AnyRef] = {
+    val node = new Array[AnyRef](16 + 1)
+    node(16) = Counts(0)
+    node
+  }
 
-  private def createNarrowArray(): Array[AnyRef] = new Array[AnyRef](4)
+  private def createNarrowArray(): Array[AnyRef] = {
+    val node = new Array[AnyRef](4 + 1)
+    node(4) = Counts(0)
+    node
+  }
 
   private def createCacheArray(level: Int): Array[AnyRef] = {
     new Array[AnyRef](1 + (1 << level))
   }
 
-  private def usedLength(array: Array[AnyRef]) = array.length
+  private def usedLength(array: Array[AnyRef]) = array.length - 1
 
   private def READ(array: Array[AnyRef], pos: Int): AnyRef = {
     unsafe.getObjectVolatile(array, ArrayBase + (pos << ArrayShift))
@@ -1501,6 +1509,27 @@ object CacheTrie {
     Platform.unsafe.objectFieldOffset(field)
   }
   private val availableProcessors = Runtime.getRuntime.availableProcessors()
+
+  /* counting objects (hack to reduce footprint, and keep array nodes) */
+
+  private[concurrent] class Count(val value: Int) {
+    @volatile var dec: Count = null
+    @volatile var inc: Count = null
+  }
+
+  private[concurrent] val Counts = {
+    val array = new Array[Count](16)
+    for (i <- 0 until array.length) {
+      array(i) = new Count(i)
+    }
+    array(0).inc = array(1)
+    for (i <- 1 until (array.length - 1)) {
+      array(i).dec = array(i - 1)
+      array(i).inc = array(i + 1)
+    }
+    array(15).dec = array(14)
+    array
+  }
 
   /* result types */
 
