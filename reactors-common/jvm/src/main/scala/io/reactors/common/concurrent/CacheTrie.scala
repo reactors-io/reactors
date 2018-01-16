@@ -13,7 +13,17 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
 
   private val unsafe: Unsafe = Platform.unsafe
   @volatile private var rawCache: Array[AnyRef] = null
-  private val rawRoot: Array[AnyRef] = new Array[AnyRef](16)
+  private val rawRoot: Array[AnyRef] = createWideArray()
+
+  private def createWideArray(): Array[AnyRef] = new Array[AnyRef](16)
+
+  private def createNarrowArray(): Array[AnyRef] = new Array[AnyRef](4)
+
+  private def createCacheArray(level: Int): Array[AnyRef] = {
+    new Array[AnyRef](1 + (1 << level))
+  }
+
+  private def nodeLength(array: Array[AnyRef]) = array.length - 1
 
   private def READ(array: Array[AnyRef], pos: Int): AnyRef = {
     unsafe.getObjectVolatile(array, ArrayBase + (pos << ArrayShift))
@@ -652,12 +662,12 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
           // There are at least 2 nodes that are not FVNode.
           // Unfortunately, the node was modified before it was completely frozen.
           if (frozen.length == 16) {
-            val wide = new Array[AnyRef](16)
+            val wide = createWideArray()
             sequentialTransfer(frozen, wide, level)
             return wide
           } else {
             // If the node is narrow, then it cannot have any children.
-            val narrow = new Array[AnyRef](4)
+            val narrow = createNarrowArray()
             sequentialTransferNarrow(frozen, narrow, level)
             return narrow
           }
@@ -866,7 +876,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
       if (oldan(npos) == null) {
         oldan(npos) = sn
       } else if (oldan.length == 4) {
-        val an = new Array[AnyRef](16)
+        val an = createWideArray()
         sequentialTransfer(oldan, an, level + 4)
         wide(pos) = an
         sequentialInsert(sn, wide, level, pos)
@@ -950,14 +960,14 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
       val pos1 = (sn1.hash >>> level) & (4 - 1)
       val pos2 = (sn2.hash >>> level) & (4 - 1)
       if (pos1 != pos2) {
-        val an = new Array[AnyRef](4)
+        val an = createNarrowArray()
         val pos1 = (sn1.hash >>> level) & (an.length - 1)
         an(pos1) = sn1
         val pos2 = (sn2.hash >>> level) & (an.length - 1)
         an(pos2) = sn2
         an
       } else {
-        val an = new Array[AnyRef](16)
+        val an = createWideArray()
         sequentialInsert(sn1, an, level)
         sequentialInsert(sn2, an, level)
         an
@@ -1007,7 +1017,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
     if (ln.hash == hash) {
       new LNode(hash, k, v, ln)
     } else {
-      val an = new Array[AnyRef](16)
+      val an = createWideArray()
       val pos1 = (ln.hash >>> level) & (an.length - 1)
       an(pos1) = ln
       val sn = new SNode(hash, k, v)
@@ -1026,7 +1036,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
     freeze(cache, narrow)
 
     // Second, populate the target array, and CAS it into the parent.
-    var wide = new Array[AnyRef](16)
+    var wide = createWideArray()
     sequentialTransfer(narrow, wide, level)
     // If this CAS fails, then somebody else already committed the wide array.
     if (!CAS_WIDE(enode, null, wide)) {
@@ -1052,7 +1062,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
       // since the expectation on the number of elements is ~80.
       // This means that we can afford to create a cache with 256 entries.
       if (cacheeLevel >= 12) {
-        val cn = new Array[AnyRef](1 + (1 << 8))
+        val cn = createCacheArray(8)
         cn(0) = new CacheNode(null, 8)
         CAS_CACHE(null, cn)
         val newCache = READ_CACHE
@@ -1250,8 +1260,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
       while (currStats.level < bestLevel) {
         // Add cache level.
         val nextLevel = currStats.level + 4
-        val nextLength = 1 + (1 << nextLevel)
-        val nextCache = new Array[AnyRef](nextLength)
+        val nextCache = createCacheArray(nextLevel)
         nextCache(0) = new CacheNode(currCache, nextLevel)
         if (CAS_CACHE(currCache, nextCache)) {
           currCache = nextCache
@@ -1289,14 +1298,14 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
   private[concurrent] def debugCachePopulateTwoLevelSingle(
     level: Int, key: K, value: V
   ): Unit = {
-    rawCache = new Array[AnyRef](1 + (1 << level))
+    rawCache = createCacheArray(level)
     rawCache(0) = new CacheNode(null, level)
     var i = 1
     while (i < rawCache.length) {
-      val an = new Array[AnyRef](4)
+      val an = createNarrowArray()
       rawCache(i) = an
       var j = 0
-      while (j < 4) {
+      while (j < an.length) {
         an(j) = new SNode(0, key, value)
         j += 1
       }
@@ -1307,14 +1316,14 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
   private[concurrent] def debugCachePopulateTwoLevel(
     level: Int, keys: Array[K], values: Array[V]
   ): Unit = {
-    rawCache = new Array[AnyRef](1 + (1 << level))
+    rawCache = createCacheArray(level)
     rawCache(0) = new CacheNode(null, level)
     var i = 1
     while (i < rawCache.length) {
-      val an = new Array[AnyRef](4)
+      val an = createNarrowArray()
       rawCache(i) = an
       var j = 0
-      while (j < 4) {
+      while (j < an.length) {
         an(j) = new SNode(0, keys(i * 4 + j), values(i * 4 + j))
         j += 1
       }
@@ -1325,7 +1334,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
   private[concurrent] def debugCachePopulateOneLevel(
     level: Int, keys: Array[K], values: Array[V], scarce: Boolean
   ): Unit = {
-    rawCache = new Array[AnyRef](1 + (1 << level))
+    rawCache = createCacheArray(level)
     rawCache(0) = new CacheNode(null, level)
     var i = 1
     while (i < rawCache.length) {
