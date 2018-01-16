@@ -49,6 +49,22 @@ class ByteswapTree[K <: AnyRef: Ordering, V <: AnyRef] {
 
   private[concurrent] def debugLeaf: Leaf = root.asInstanceOf[Leaf]
 
+  private[concurrent] def assertLeafInvariants(
+    msg: String = "", check: (Int, AnyRef) => Unit
+  ): Unit = {
+    val leaf = root.asInstanceOf[Leaf]
+    val mask = READ_MASK(leaf)
+    val count = (mask >>> COUNT_SHIFT).toInt
+    for (i <- 0 until count)
+      assert(READ_ENTRY(leaf, i) != null, s"$msg: entry missing at $i")
+    for (i <- 0 until count) {
+      val idx = (mask >>> (i << 2)) & SLOT_MASK
+      val entry = READ_ENTRY(leaf, idx)
+      assert(entry != null, s"$msg: $i-th index $idx is empty")
+      check(i, entry)
+    }
+  }
+
   @tailrec
   private def insert(leaf: Leaf, k: K, v: V): Boolean = {
     // Determine node state.
@@ -102,26 +118,26 @@ class ByteswapTree[K <: AnyRef: Ordering, V <: AnyRef] {
         existing = k == entry.key
       }
     }
-    val index = left
+    val index = left.toLong
 
     // Determine the new mask.
     var newMask: Long = 0L
     if (existing) {
-      newMask |= (count + 1) << COUNT_SHIFT
-      val removedBits = (removedCount + 1) << 2
+      newMask |= (count + 1L) << COUNT_SHIFT
+      val removedBits = (removedCount + 1L) << 2
       newMask |= ((1 << removedBits) - 1) << (60 - removedBits)
       val permutationBits = (1 << (liveCount << 2)) - 1
       newMask |= permutationBits & ~(0xf << (index << 2))
       newMask |= count << (index << 2)
     } else {
-      newMask |= (count + 1) << COUNT_SHIFT
-      val removedBits = removedCount << 2
-      newMask |= ((1 << removedBits) - 1) << (60 - removedBits)
+      newMask |= (count + 1L) << COUNT_SHIFT
+      val removedBits = removedCount.toLong << 2
+      newMask |= ((1L << removedBits) - 1) << (60 - removedBits)
       val suffixLength = liveCount - index
-      val suffixBits = ((1 << (suffixLength << 2)) - 1) << (index << 2)
+      val suffixBits = ((1L << (suffixLength << 2)) - 1) << (index << 2)
       newMask |= (mask & suffixBits) << 4
       newMask |= count << (index << 2)
-      val prefixBits = ((1 << (index << 2)) - 1)
+      val prefixBits = ((1L << (index << 2)) - 1)
       newMask |= mask & prefixBits
     }
 

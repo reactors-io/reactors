@@ -14,17 +14,29 @@ import scala.util.Random
 
 
 class ByteswapTreeTest extends FunSuite {
-  private val random = new Random
+  private val random = new Random(121)
 
   test("pass layout checks") {
     ByteswapTree
   }
 
-  test("insert to a leaf") {
+  test("ordered insert to a leaf") {
+    val tree = new ByteswapTree[Integer, Integer]
+    for (i <- 0 until 15) {
+      assert(tree.debugLeafInsert(i, i), s"Round $i")
+      println(tree.debugLeaf)
+      tree.assertLeafInvariants(s"Round $i",
+        _ == _.asInstanceOf[ByteswapTree.Item[Integer, Integer]].key)
+    }
+  }
+
+  test("shuffled insert to a leaf") {
     val tree = new ByteswapTree[Integer, Integer]
     for (i <- random.shuffle((0 until 15).toList)) {
       tree.debugLeafInsert(i, i)
+      println(tree.debugLeaf)
+      tree.assertLeafInvariants(s"Round $i",
+        _ == _.asInstanceOf[ByteswapTree.Item[Integer, Integer]].key)
     }
-    println(tree.debugLeaf)
   }
 }
