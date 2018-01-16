@@ -16,4 +16,7 @@ class ByteswapTreeTest extends FunSuite {
   test("pass layout checks") {
     ByteswapTree
   }
+
+  test("insert to a leaf") {
+  }
 }
