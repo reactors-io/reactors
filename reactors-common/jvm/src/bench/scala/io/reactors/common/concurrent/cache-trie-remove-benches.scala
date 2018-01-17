@@ -131,6 +131,11 @@ class CacheTrieRemoveBenches extends JBench.OfflineReport {
       trie.insert(elems(i), elems(i))
       i += 1
     }
+    i = 0
+    while (i < size) {
+      trie.lookup(elems(i))
+      i += 1
+    }
   }
 
   @gen("chms")
