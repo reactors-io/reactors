@@ -130,6 +130,47 @@ class CacheTrieTest extends FunSuite {
       assert(trie.lookup(i.toString) == i)
     }
   }
+
+  test("non-null counts must be correct") {
+    val trie = new CacheTrie[String, Integer]
+    val size = 1000
+    for (i <- 0 until size) {
+      trie.assertCorrectCounts()
+      trie.insert(i.toString, i)
+    }
+    trie.assertCorrectCounts()
+    for (i <- 0 until size) {
+      trie.remove(i.toString)
+      trie.assertCorrectCounts()
+    }
+  }
+
+  test("non-null counts must be correct in concurrent executions") {
+    val trie = new CacheTrie[Integer, Integer]
+    val size = 50000
+    val par = 4
+    val inserters = for (p <- 0 until par) yield new Thread {
+      override def run() = {
+        val chunk = size / par
+        for (i <- (p * chunk) until ((p + 1) * chunk)) trie.insert(i, i)
+      }
+    }
+    inserters.foreach(_.start())
+    inserters.foreach(_.join())
+    trie.assertCorrectCounts()
+    val removers = for (p <- 0 until par) yield new Thread {
+      override def run() = {
+        val chunk = size / par
+        for (i <- (p * chunk) until ((p + 1) * chunk)) {
+          trie.remove(i)
+          trie.insert(i + chunk, i + chunk)
+        }
+      }
+    }
+    removers.foreach(_.start())
+    removers.foreach(_.join())
+    trie.assertCorrectCounts()
+  }
 }
 
 
@@ -224,6 +265,28 @@ class CacheTrieCheck extends Properties("CacheTrie") with ExtendedProperties {
       val trie = new CacheTrie[String, Integer]
       for (i <- 0 until sz) trie.insert(i.toString, i)
       for (i <- 0 until sz) assert(trie.remove(i.toString) == i)
+      true
+    }
+  }
+
+  property("correct counts in concurrent inserts and removes") = forAllNoShrink(sizes) {
+    sz =>
+    stackTraced {
+      val trie = new CacheTrie[Integer, Integer]
+      val par = 4
+      val threads = for (p <- 0 until par) yield new Thread {
+        override def run() = {
+          val chunk = sz / par
+          for (i <- (p * chunk) until ((p + 1) * chunk)) {
+            trie.insert(i, i)
+            trie.remove(i + chunk)
+            trie.insert(i + par * chunk, i)
+          }
+        }
+      }
+      threads.foreach(_.start())
+      threads.foreach(_.join())
+      trie.assertCorrectCounts()
       true
     }
   }

@@ -1569,6 +1569,26 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
     }
     sb.toString
   }
+
+  private[concurrent] def assertCorrectCounts(): Unit = {
+    def traverse(node: Array[AnyRef]): Unit = {
+      var i = 0
+      var count = 0
+      while (i < usedLength(node)) {
+        val old = node(i)
+        if (old != null) {
+          count += 1
+        }
+        if (old.isInstanceOf[Array[AnyRef]]) {
+          traverse(old.asInstanceOf[Array[AnyRef]])
+        }
+        i += 1
+      }
+      assert(count == node(node.length - 1).asInstanceOf[Integer],
+        s"Counted $count, node: ${ANode.toString(node)}")
+    }
+    traverse(rawRoot)
+  }
 }
 
 
