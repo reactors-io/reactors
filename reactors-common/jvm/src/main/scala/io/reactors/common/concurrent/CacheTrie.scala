@@ -575,6 +575,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
               // Remove the key.
               if (CAS_TXN(oldsn, null)) {
                 CAS(an, pos, oldsn, null)
+                decrementCount(an)
                 if (ascends > 1) {
                   recordCacheMiss()
                 }
@@ -740,6 +741,9 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
     // Then, create a compressed version, and replace it in the parent.
     val compressed = compressFrozen(stale, level)
     if (CAS(parent, parentpos, xn, compressed)) {
+      if (compressed == null) {
+        decrementCount(parent)
+      }
       return compressed == null || compressed.isInstanceOf[SNode[K, V]]
     }
     return false
@@ -776,6 +780,7 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
           // The same key, remove it.
           if (CAS_TXN(oldsn, null)) {
             CAS(current, pos, oldsn, null)
+            decrementCount(current)
             compressAscend(cache, current, parent, hash, level)
             oldsn.value.asInstanceOf[AnyRef]
           } else slowRemove(key, hash, level, current, parent, cache)
