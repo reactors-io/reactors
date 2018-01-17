@@ -190,7 +190,7 @@ class CacheTrieRemoveBenches extends JBench.OfflineReport {
       sum += trie.remove(elems(i)).value
       i += 1
     }
-    println(trie.debugCacheStats)
+    // println(trie.debugCacheStats)
     sum
   }
 }

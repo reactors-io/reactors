@@ -625,6 +625,10 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
   }
 
   private def isCompressible(current: Array[AnyRef]): Boolean = {
+    val count = READ(current, current.length - 1).asInstanceOf[Integer].intValue
+    if (count > 1) {
+      return false
+    }
     var found: AnyRef = null
     var i = 0
     while (i < usedLength(current)) {
@@ -734,6 +738,25 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
     val parentpos = xn.parentpos
     val level = xn.level
 
+    // First, freeze and compress the subtree below.
+    val stale = xn.stale
+    val compressed = freezeAndCompress(cache, stale, level)
+
+    // Then, replace with the compressed version in the parent.
+    if (CAS(parent, parentpos, xn, compressed)) {
+      if (compressed == null) {
+        decrementCount(parent)
+      }
+      return compressed == null || compressed.isInstanceOf[SNode[K, V]]
+    }
+    return false
+  }
+
+  private def completeCompressionAlt(cache: Array[AnyRef], xn: XNode): Boolean = {
+    val parent = xn.parent
+    val parentpos = xn.parentpos
+    val level = xn.level
+
     // First, freeze the subtree below.
     val stale = xn.stale
     freeze(cache, stale)
@@ -835,6 +858,97 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
 
   private def isFrozenL(n: AnyRef): Boolean = {
     n.isInstanceOf[FNode] && n.asInstanceOf[FNode].frozen.isInstanceOf[LNode[_, _]]
+  }
+
+  private def freezeAndCompress(
+    cache: Array[AnyRef], current: Array[AnyRef], level: Int
+  ): AnyRef = {
+    var single: AnyRef = null
+    var i = 0
+    while (i < usedLength(current)) {
+      val node = READ(current, i)
+      if (node eq null) {
+        // Freeze null.
+        // If it fails, then either someone helped or another txn is in progress.
+        // If another txn is in progress, then reinspect the current slot.
+        if (!CAS(current, i, node, FVNode)) i -= 1
+      } else if (node.isInstanceOf[SNode[_, _]]) {
+        val sn = node.asInstanceOf[SNode[K, V]]
+        val txn = READ_TXN(sn)
+        if (txn eq NoTxn) {
+          // Freeze single node.
+          // If it fails, then either someone helped or another txn is in progress.
+          // If another txn is in progress, then we must reinspect the current slot.
+          if (!CAS_TXN(node.asInstanceOf[SNode[K, V]], FSNode)) i -= 1
+          else {
+            if (single == null) single = sn
+            else single = current
+          }
+        } else if (txn eq FSNode) {
+          // We can skip, another thread previously froze this node.
+          single = current
+        } else  {
+          // Another thread is trying to replace the single node.
+          // In this case, we help and retry.
+          single = current
+          CAS(current, i, node, txn)
+          i -= 1
+        }
+      } else if (node.isInstanceOf[LNode[_, _]]) {
+        // Freeze list node.
+        // If it fails, then either someone helped or another txn is in progress.
+        // If another txn is in progress, then we must reinspect the current slot.
+        single = current
+        val fnode = new FNode(node)
+        CAS(current, i, node, fnode)
+        i -= 1
+      } else if (node.isInstanceOf[Array[AnyRef]]) {
+        // Freeze the array node.
+        // If it fails, then either someone helped or another txn is in progress.
+        // If another txn is in progress, then reinspect the current slot.
+        single = current
+        val fnode = new FNode(node)
+        CAS(current, i, node, fnode)
+        i -= 1
+      } else if (isFrozenL(node)) {
+        // We can skip, another thread previously helped with freezing this node.
+        single = current
+      } else if (node.isInstanceOf[FNode]) {
+        // We still need to freeze the subtree recursively.
+        single = current
+        val subnode = node.asInstanceOf[FNode].frozen.asInstanceOf[Array[AnyRef]]
+        freeze(cache, subnode.asInstanceOf[Array[AnyRef]])
+      } else if (node eq FVNode) {
+        // We can continue, another thread already froze this slot.
+        single = current
+      } else if (node.isInstanceOf[ENode]) {
+        // If some other txn is in progress, help complete it,
+        // then restart from the current position.
+        single = current
+        val enode = node.asInstanceOf[ENode]
+        completeExpansion(cache, enode)
+        i -= 1
+      } else if (node.isInstanceOf[XNode]) {
+        // It some other txn is in progress, help complete it,
+        // then restart from the current position.
+        single = current
+        val xnode = node.asInstanceOf[XNode]
+        completeCompression(cache, xnode)
+        i -= 1
+      } else {
+        sys.error("Unexpected case -- " + node)
+      }
+      i += 1
+    }
+    if (single.isInstanceOf[SNode[_, _]]) {
+      val oldsn = single.asInstanceOf[SNode[K, V]]
+      single = new SNode(oldsn.hash, oldsn.key, oldsn.value)
+      return single
+    } else if (single != null) {
+      return compressFrozen(current, level)
+    } else {
+      return single
+    }
   }
 
   private def freeze(cache: Array[AnyRef], current: Array[AnyRef]): Unit = {
