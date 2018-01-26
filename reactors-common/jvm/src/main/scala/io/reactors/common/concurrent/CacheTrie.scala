@@ -8,7 +8,10 @@ import scala.annotation.tailrec
 
 
 
-class CacheTrie[K <: AnyRef, V <: AnyRef] {
+class CacheTrie[K <: AnyRef, V <: AnyRef](
+  val useCounters: Boolean = true,
+  val doCompression: Boolean = true
+) {
   import CacheTrie._
 
   private val unsafe: Unsafe = Platform.unsafe
@@ -614,6 +617,11 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
     }
   }
 
+  private[concurrent] def slowRemove(key: K): V = {
+    val hash = spread(key.hashCode)
+    slowRemove(key, hash)
+  }
+
   private[concurrent] def slowRemove(key: K, hash: Int): V = {
     val node = rawRoot
     val cache = READ_CACHE
@@ -625,9 +633,12 @@ class CacheTrie[K <: AnyRef, V <: AnyRef] {
   }
 
   private def isCompressible(current: Array[AnyRef]): Boolean = {
-    val count = READ(current, current.length - 1).asInstanceOf[Integer].intValue
-    if (count > 1) {
-      return false
+    if (!doCompression) return false
+    if (useCounters) {
+      val count = READ(current, current.length - 1).asInstanceOf[Integer].intValue
+      if (count > 1) {
+        return false
+      }
     }
     var found: AnyRef = null
     var i = 0
