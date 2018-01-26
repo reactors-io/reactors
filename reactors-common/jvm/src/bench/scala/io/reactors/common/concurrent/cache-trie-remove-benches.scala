@@ -41,7 +41,7 @@ class CacheTrieRemoveBenches extends JBench.OfflineReport {
   lazy val elems = Random.shuffle((0 until maxElems).toVector)
     .map(i => Wrapper(i)).toArray
 
-  val sizes = Gen.range("size")(50000, maxElems, 100000)
+  val sizes = Gen.range("\\#keys")(50000, maxElems, 100000)
 
   val pars = Gen.exponential("pars")(1, 8, 2)
 
