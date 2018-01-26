@@ -20,7 +20,9 @@ class CacheTrieRemoveBenches extends JBench.OfflineReport {
   override def reporter: Reporter[Double] = Reporter.Composite(
     new RegressionReporter(tester, historian),
     HtmlReporter(!online),
-    new PGFPlotsReporter[Double]
+    new PGFPlotsReporter[Double](
+      referenceCurve = "CHM"
+    )
   )
 
   override def defaultConfig = Context(
@@ -144,20 +146,20 @@ class CacheTrieRemoveBenches extends JBench.OfflineReport {
     }
   }
 
-  // @gen("chms")
-  // @benchmark("cache-trie.remove")
-  // @setup("chmRefill")
-  // @curve("CHM")
-  // def chmRemove(sc: (Int, ConcurrentHashMap[Wrapper, Wrapper])): Int = {
-  //   val (size, chm) = sc
-  //   var i = 0
-  //   var sum = 0
-  //   while (i < size) {
-  //     sum += chm.remove(elems(i)).value
-  //     i += 1
-  //   }
-  //   sum
-  // }
+  @gen("chms")
+  @benchmark("cache-trie.remove")
+  @setup("chmRefill")
+  @curve("CHM")
+  def chmRemove(sc: (Int, ConcurrentHashMap[Wrapper, Wrapper])): Int = {
+    val (size, chm) = sc
+    var i = 0
+    var sum = 0
+    while (i < size) {
+      sum += chm.remove(elems(i)).value
+      i += 1
+    }
+    sum
+  }
 
   // @gen("skiplists")
   // @benchmark("cache-trie.remove")
