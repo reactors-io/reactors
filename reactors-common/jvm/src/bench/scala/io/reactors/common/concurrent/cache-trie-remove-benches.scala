@@ -17,6 +17,12 @@ class CacheTrieRemoveBenches extends JBench.OfflineReport {
   override def historian =
     org.scalameter.reporting.RegressionReporter.Historian.Complete()
 
+  override def reporter: Reporter[Double] = Reporter.Composite(
+    new RegressionReporter(tester, historian),
+    HtmlReporter(!online),
+    new PGFPlotsReporter[Double]
+  )
+
   override def defaultConfig = Context(
     exec.minWarmupRuns -> 40,
     exec.maxWarmupRuns -> 60,
@@ -29,7 +35,7 @@ class CacheTrieRemoveBenches extends JBench.OfflineReport {
     def compareTo(that: Wrapper) = this.value - that.value
   }
 
-  val maxElems = 500000
+  val maxElems = 100000 // 500000
 
   @transient
   lazy val elems = Random.shuffle((0 until maxElems).toVector)
@@ -138,50 +144,50 @@ class CacheTrieRemoveBenches extends JBench.OfflineReport {
     }
   }
 
-  @gen("chms")
-  @benchmark("cache-trie.remove")
-  @setup("chmRefill")
-  @curve("CHM")
-  def chmRemove(sc: (Int, ConcurrentHashMap[Wrapper, Wrapper])): Int = {
-    val (size, chm) = sc
-    var i = 0
-    var sum = 0
-    while (i < size) {
-      sum += chm.remove(elems(i)).value
-      i += 1
-    }
-    sum
-  }
+  // @gen("chms")
+  // @benchmark("cache-trie.remove")
+  // @setup("chmRefill")
+  // @curve("CHM")
+  // def chmRemove(sc: (Int, ConcurrentHashMap[Wrapper, Wrapper])): Int = {
+  //   val (size, chm) = sc
+  //   var i = 0
+  //   var sum = 0
+  //   while (i < size) {
+  //     sum += chm.remove(elems(i)).value
+  //     i += 1
+  //   }
+  //   sum
+  // }
 
-  @gen("skiplists")
-  @benchmark("cache-trie.remove")
-  @setup("skiplistRefill")
-  @curve("skiplist")
-  def skiplistRemove(sc: (Int, ConcurrentSkipListMap[Wrapper, Wrapper])): Int = {
-    val (size, skiplist) = sc
-    var i = 0
-    var sum = 0
-    while (i < size) {
-      sum += skiplist.remove(elems(i)).value
-      i += 1
-    }
-    sum
-  }
+  // @gen("skiplists")
+  // @benchmark("cache-trie.remove")
+  // @setup("skiplistRefill")
+  // @curve("skiplist")
+  // def skiplistRemove(sc: (Int, ConcurrentSkipListMap[Wrapper, Wrapper])): Int = {
+  //   val (size, skiplist) = sc
+  //   var i = 0
+  //   var sum = 0
+  //   while (i < size) {
+  //     sum += skiplist.remove(elems(i)).value
+  //     i += 1
+  //   }
+  //   sum
+  // }
 
-  @gen("ctries")
-  @benchmark("cache-trie.remove")
-  @setup("ctrieRefill")
-  @curve("ctrie")
-  def ctrieRemove(sc: (Int, TrieMap[Wrapper, Wrapper])): Int = {
-    val (size, trie) = sc
-    var i = 0
-    var sum = 0
-    while (i < size) {
-      sum += trie.remove(elems(i)).get.value
-      i += 1
-    }
-    sum
-  }
+  // @gen("ctries")
+  // @benchmark("cache-trie.remove")
+  // @setup("ctrieRefill")
+  // @curve("ctrie")
+  // def ctrieRemove(sc: (Int, TrieMap[Wrapper, Wrapper])): Int = {
+  //   val (size, trie) = sc
+  //   var i = 0
+  //   var sum = 0
+  //   while (i < size) {
+  //     sum += trie.remove(elems(i)).get.value
+  //     i += 1
+  //   }
+  //   sum
+  // }
 
   @gen("cachetries")
   @benchmark("cache-trie.remove")
