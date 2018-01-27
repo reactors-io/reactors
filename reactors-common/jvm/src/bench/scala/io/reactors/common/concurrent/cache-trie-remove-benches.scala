@@ -34,7 +34,6 @@ class CacheTrieRemoveBenches extends JBench.OfflineReport {
     exec.independentSamples -> 1,
     exec.benchRuns -> 30,
     exec.jvmflags -> List("-server", "-verbose:gc", "-Xmx6092m", "-Xms6092m"),
-    // exec.outliers.suspectPercent -> 0,
     verbose -> true
   )
 
@@ -305,7 +304,6 @@ class CacheTrieRemoveBenches extends JBench.OfflineReport {
   //   // println(trie.debugCacheStats)
   //   sum
   // }
-
 
   // @gen("cachetries")
   // @benchmark("cache-trie.remove")
